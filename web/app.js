@@ -6,15 +6,15 @@ const canvas=$('world'),ctx=canvas.getContext('2d'),graph=$('chart').getContext(
 let running=true,speed=1,mode='0',filter='all',brush=3,selected=null,painting=false,last=0,acc=0,uiAt=0;
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function update(){
- const data={population:game.units.length,livingSpecies:game.livingSpecies,totalSpecies:game.species.size,corpses:game.corpses.length,nutrients:game.food.length,recycled:game.recycled};
+ const data={population:game.units.length,eggCount:game.eggs.length,juvenileCount:game.units.filter(u=>u.stage==='juvenile').length,livingSpecies:game.livingSpecies,totalSpecies:game.species.size,corpses:game.corpses.length,nutrients:game.food.length,recycled:game.recycled};
  for(const [id,value] of Object.entries(data))$(id).textContent=value.toLocaleString('ja-JP');
  $('stepCount').textContent=game.tick.toLocaleString('ja-JP');$('status').textContent=running?'実行中':'停止中';$('play').textContent=running?'Ⅱ 停止':'▶ 再生';$('play').classList.toggle('active',running);
  $('catalog').innerHTML=[...game.species.values()].sort((a,b)=>b.n-a.n).map(s=>`<div class="species"><span class="dot" style="background:hsl(${s.hue},75%,70%)"></span><span><b>${escapeHTML(s.name)}</b><small>#${s.n} · Step ${s.first} · ${s.current?'現存':'絶滅'}</small></span><span>${s.current}</span><span>${s.total}</span></div>`).join('');
- const eventColors={birth:'#91f7ac',death:'#ff8290',meal:'#f9d36b',pred:'#be82ec',new:'#ffe486',decay:'#e2b96e'};
+ const eventColors={birth:'#91f7ac',death:'#ff8290',meal:'#f9d36b',pred:'#be82ec',new:'#ffe486',decay:'#e2b96e',egg:'#eddfbd',hatch:'#a0e8bd',eggeaten:'#f5949c',mature:'#a0d9ff'};
  $('events').innerHTML=game.logs.filter(e=>filter==='all'||e.type===filter).slice(0,60).map(e=>`<div class="log-entry"><span style="color:${eventColors[e.type]||'#9eb0b8'}">●</span> [${e.step}] ${escapeHTML(e.message)}</div>`).join('');
  const people=[0,0,0,0],food=[0,0,0,0],corpses=[0,0,0,0];for(const u of game.units)people[game.terrain(u.x,u.y)]++;for(const f of game.food)food[game.terrain(f.x,f.y)]++;for(const c of game.corpses)corpses[game.terrain(c.x,c.y)]++;
  $('habitats').innerHTML=TERRAIN_NAMES.map((name,i)=>`<div><span><span style="display:inline-block;width:11px;height:11px;background:${TERRAIN_COLORS[i]};margin-right:5px"></span>${name}</span><span>生命 ${people[i]} / 栄養 ${food[i]} / 死体 ${corpses[i]} / 還元 ${game.recycledByTerrain[i]}</span></div>`).join('');
- $('inspector').textContent=selected&&!selected.dead?`#${selected.id} ${game.species.get(selected.category)?.name}｜幅 ${selected.g.r.toFixed(1)}｜長さ比 ${selected.g.elongation.toFixed(2)}｜目 ${selected.g.eyes}｜口 ${selected.g.mouths}｜脚 ${selected.g.legs}｜顎 ${selected.g.jaw.toFixed(2)}｜水適応 ${selected.g.wet.toFixed(2)}｜乾燥適応 ${selected.g.dry.toFixed(2)}｜エネルギー ${selected.energy.toFixed(1)}｜第${selected.generation}世代`:'観察モードで生命をクリック。';
+ $('inspector').textContent=selected&&!selected.dead?`#${selected.id} ${game.species.get(selected.category)?.name}｜幅 ${selected.g.r.toFixed(1)}｜長さ比 ${selected.g.elongation.toFixed(2)}｜目 ${selected.g.eyes}｜口 ${selected.g.mouths}｜脚 ${selected.g.legs}｜顎 ${selected.g.jaw.toFixed(2)}｜水適応 ${selected.g.wet.toFixed(2)}｜乾燥適応 ${selected.g.dry.toFixed(2)}｜段階 ${selected.stage==='juvenile'?'幼体':'成体'}｜卵殻 ${selected.g.shell.toFixed(2)}｜保護 ${selected.g.guard.toFixed(2)}｜産卵場所 ${selected.g.nesting.toFixed(2)}｜エネルギー ${selected.energy.toFixed(1)}｜第${selected.generation}世代`:'観察モードで生命をクリック。';
  $('diagnostic').textContent=`新形態：直近300ステップで ${game.recentSpecies} 種。${game.units.length?'種数の増加だけでは創発的な行動を示しません。':'全個体が絶滅しました。移入で再開できます。'}`;
  drawChart(graph,game.history);
 }
