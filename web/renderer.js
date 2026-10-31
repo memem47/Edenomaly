@@ -6,6 +6,23 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
  ctx.strokeStyle='rgba(0,0,0,.11)';ctx.lineWidth=.5;ctx.beginPath();for(let x=0;x<width;x+=cell){ctx.moveTo(x,0);ctx.lineTo(x,height);}for(let y=0;y<height;y+=cell){ctx.moveTo(0,y);ctx.lineTo(width,y);}ctx.stroke();
  for(const f of s.food){ctx.fillStyle=f.source==='corpse'?'#f3cc78':'#b6f18b';ctx.beginPath();ctx.arc(f.x,f.y,2.5,0,TAU);ctx.fill();}
  for(const c of s.corpses){const radius=Math.max(2,Math.min(8,Math.sqrt(c.mass)*.9));ctx.fillStyle='#513553';ctx.beginPath();ctx.ellipse(c.x,c.y,radius*1.4,radius,0,0,TAU);ctx.fill();ctx.strokeStyle='#d9abd9';ctx.beginPath();ctx.moveTo(c.x-radius*.5,c.y-radius*.5);ctx.lineTo(c.x+radius*.5,c.y+radius*.5);ctx.moveTo(c.x+radius*.5,c.y-radius*.5);ctx.lineTo(c.x-radius*.5,c.y+radius*.5);ctx.stroke();}
+ // Courtship: a living couple is joined by a conspicuous animated magenta bond.
+ for(const pair of s.courtships){
+  const a=s.units.find(u=>u.id===pair.a),b=s.units.find(u=>u.id===pair.b);
+  if(!a||!b)continue;
+  const pulse=.5+.5*Math.sin(s.tick*.34);
+  ctx.save();ctx.strokeStyle='#ff91e8';ctx.lineWidth=2+pulse*2;ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#fff1fc';ctx.font='bold 11px system-ui';ctx.textAlign='center';ctx.fillText('♥ '+Math.round(pair.progress/pair.required*100)+'%',(a.x+b.x)/2,(a.y+b.y)/2-14);
+  ctx.restore();
+ }
+ // A translucent path shows where the laying parent deposited its egg.
+ for(const trail of s.eggTrails){
+  const alpha=Math.max(0,1-trail.age/trail.life);
+  ctx.save();ctx.globalAlpha=alpha;ctx.strokeStyle='#ffe3a1';ctx.lineWidth=2.5;ctx.setLineDash([3,4]);
+  ctx.beginPath();ctx.moveTo(trail.x1,trail.y1);ctx.lineTo(trail.x2,trail.y2);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#fff0ad';ctx.font='bold 11px system-ui';ctx.textAlign='center';ctx.fillText('🥚 産卵',trail.x2,trail.y2-15);
+  ctx.restore();
+ }
  // Eggs have a shell, do not move, and visibly develop before hatching.
  for(const egg of s.eggs){
   const shell=egg.g.shell,prog=egg.age/egg.hatchAt;
@@ -19,6 +36,12 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
  }
  for(const u of s.units){
   const g=u.g,scale=u.stage==='juvenile'?.55:1,halfL=g.r*g.elongation*scale,halfW=g.r*scale,phase=s.tick*.18+u.id;
+  if(u.courtPartner||u.pregnancy){
+   ctx.save();ctx.strokeStyle=u.pregnancy?'#ffe59b':'#ff93e9';ctx.lineWidth=2.5;
+   ctx.beginPath();ctx.arc(u.x,u.y,Math.max(13,g.r*g.elongation+8),0,TAU);ctx.stroke();
+   ctx.fillStyle=u.pregnancy?'#ffe59b':'#ffd5f5';ctx.font='bold 12px system-ui';ctx.textAlign='center';
+   ctx.fillText(u.pregnancy?'🥚 '+Math.ceil(u.pregnancy.remaining):'♥',u.x,u.y-15-g.r*g.elongation);ctx.restore();
+  }
   ctx.save();ctx.translate(u.x,u.y);ctx.rotate(u.angle);
   // Body shadow and soft body. The collider and costs use the same dimensions indirectly.
   ctx.fillStyle='rgba(0,0,0,.26)';ctx.beginPath();ctx.ellipse(1.5,2,halfL*1.09,halfW*1.1,0,0,TAU);ctx.fill();
