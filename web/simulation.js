@@ -418,6 +418,7 @@ export class Ecosystem{
    }
    if(used.has(key))continue;
    used.add(key);
+   const foundingLineage='founder-'+this.nextId;
    const hx=clamp(x+((k%3)-Math.min(1,count-1))*36,32,W-32);
    const hy=clamp(y+(Math.floor(k/3)-(count>3?.5:0))*42,32,H-32);
    let spawned=0;
@@ -432,6 +433,7 @@ export class Ecosystem{
     }
     const u=this.spawn(hx+this.range(-20,20),hy+this.range(-20,20),variant);
     if(!u)break;
+    u.lineage=foundingLineage;
     u.age=Math.floor(this.range(40,57));
     u.energy=this.range(95,120);
     spawned++;
