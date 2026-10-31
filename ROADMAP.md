@@ -26,6 +26,16 @@ An observable, evolving artificial ecosystem. The player edits terrain and resou
 | v0.9 | Discovery play | Persistent catalog, lineage, world save/load and shareable discoveries | [ ] |
 | v1.0 | Public release | usability tests, itch.io browser release, public demo | [ ] |
 
+## 生活環と卵防御（追加実験）
+- [x] 卵 → 幼体 → 成体：産卵・孵化・成長を別イベントとして扱う
+- [x] 卵は移動・反撃できず、他の生物に食べられる
+- [x] 卵殻・孵化時間、親の見守り傾向、産卵地点の選択が遺伝・変異する
+- [ ] 生態系実験：捕食圧ごとに卵防御形質が増減するかを定量評価する
+- [ ] 親による積極的な攻撃防衛、繁殖相手・性選択、遺伝子水平伝播は未実装
+
+※ 現在の繁殖は**無性生殖**。捕食で得るのはエネルギーであり、獲物の遺伝子は取り込まない。
+※ 卵殻は食べる際の時間的コストを増やすが、卵は食べられる。卵の保護戦略は進化を保証しない。
+
 ## コミット前の確認
 1. Run in browser and test terrain painting and restart.
 2. Observe births, deaths, meals and predation on canvas and in log.
