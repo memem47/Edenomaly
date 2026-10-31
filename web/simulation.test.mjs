@@ -122,3 +122,42 @@ test('pigment and brood genes remain within bounds after mutation',()=>{
   assert.ok(g.lightness>=35&&g.lightness<=85);
  }
 });
+
+import {dietProfile} from './simulation.js';
+test('diet genes define strict nutritional endpoints',()=>{
+ const g=new Ecosystem(140).gene();
+ assert.deepEqual([dietProfile({...g,diet:0}).plant,dietProfile({...g,diet:0}).meat],[1,0]);
+ assert.deepEqual([dietProfile({...g,diet:1}).plant,dietProfile({...g,diet:1}).meat],[0,1]);
+ assert.ok(dietProfile({...g,diet:.5}).plant>0&&dietProfile({...g,diet:.5}).meat>0);
+});
+test('feeding signal can be inherited independently of actual diet',()=>{
+ const s=new Ecosystem(141),g=s.gene();
+ const plantDisguise=dietProfile({...g,diet:1,deception:0});
+ const predatorBluff=dietProfile({...g,diet:0,deception:1});
+ assert.equal(plantDisguise.meat,1);assert.ok(plantDisguise.signal<.48);
+ assert.equal(predatorBluff.meat,0);assert.ok(predatorBluff.signal>.52);
+});
+test('diet and deception alleles survive crossover and bounded mutation',()=>{
+ const s=new Ecosystem(142),a=s.gene(),b={...a,diet:1,deception:1};
+ a.diet=0;a.deception=0;
+ const c=s.recombine(a,b);
+ assert.ok([0,1].includes(c.diet)||c.diet>=0&&c.diet<=1);
+ for(let i=0;i<100;i++){const g=s.mutate(s.gene());assert.ok(g.diet>=0&&g.diet<=1);assert.ok(g.deception>=0&&g.deception<=1);}
+});
+test('nutrient eater runs away from apparent large predator',()=>{
+ const s=new Ecosystem(143),grazer=s.units[0],hunter=s.units[1];
+ s.units=[grazer,hunter];s.food=[];
+ grazer.x=100;grazer.y=100;grazer.g.diet=0;grazer.g.deception=.5;
+ hunter.x=120;hunter.y=100;hunter.g.diet=1;hunter.g.deception=.8;
+ hunter.g.r=Math.max(hunter.g.r,grazer.g.r);
+ s.step();
+ assert.equal(grazer.fleeing,true);
+});
+test('herbivore cannot gain energy by eating an egg',()=>{
+ const s=new Ecosystem(144),hunter=s.units[0],parent=s.units[1],partner=s.units[2];
+ hunter.g.diet=0;parent.age=partner.age=100;parent.energy=partner.energy=160;
+ s.conceive(parent,partner);const egg=s.layEgg(parent);
+ const before=hunter.energy;
+ assert.equal(s.eatEgg(egg,hunter),false);
+ assert.equal(hunter.energy,before);assert.equal(egg.dead,false);
+});
