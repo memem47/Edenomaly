@@ -23,6 +23,7 @@ export const morphology=g=>{
  return {width,length,bodyMass,eyeRange,speed,turnRate,biteReach,edibleRatio,predatory,upkeep,foodGain};
 };
 const distance=(a,b)=>(a.x-b.x)**2+(a.y-b.y)**2;
+const HERITABLE=['r','elongation','eyes','mouths','legs','jaw','wet','dry','shell','guard','nesting','hue'];
 export const eggTraits=g=>({
  shell:g.shell,guard:g.guard,nesting:g.nesting,
  incubation:Math.round(52+g.shell*44),
@@ -37,6 +38,13 @@ export class Ecosystem{
  terrain(x,y){return this.tiles[this.cell(x,y)];}
  gene(){return {r:this.range(3.6,7.3),elongation:this.range(.75,2.45),eyes:1+Math.floor(this.rand()*4),mouths:1+Math.floor(this.rand()*3),legs:2*Math.floor(this.rand()*4),jaw:this.range(.3,1.7),wet:this.rand(),dry:this.rand(),shell:this.rand(),guard:this.rand(),nesting:this.rand(),hue:this.range(0,360)};}
  mutate(g){return {r:clamp(g.r+this.range(-.45,.45),3,9),elongation:clamp(g.elongation+this.range(-.22,.22),.65,3),eyes:clamp(g.eyes+(this.rand()<.13?(this.rand()<.5?-1:1):0),0,6),mouths:clamp(g.mouths+(this.rand()<.12?(this.rand()<.5?-1:1):0),1,4),legs:clamp(g.legs+(this.rand()<.17?(this.rand()<.5?-2:2):0),0,8),jaw:clamp(g.jaw+this.range(-.19,.19),.2,2.5),wet:clamp(g.wet+this.range(-.11,.11),0,1),dry:clamp(g.dry+this.range(-.11,.11),0,1),shell:clamp(g.shell+this.range(-.12,.12),0,1),guard:clamp(g.guard+this.range(-.12,.12),0,1),nesting:clamp(g.nesting+this.range(-.12,.12),0,1),hue:(g.hue+this.range(-18,18)+360)%360};}
+ // Each locus is inherited from either parent; small, rare mutations add novel alleles.
+ recombine(a,b){
+  const child={};
+  for(const key of HERITABLE)child[key]=this.rand()<.5?a[key]:b[key];
+  // Mutation is secondary to recombination, not a clone-based reproduction mechanism.
+  return this.rand()<.18?this.mutate(child):child;
+ }
  category(g){return [Math.floor(g.r/2),Math.floor(g.elongation/.65),g.eyes,g.mouths,g.legs,Math.floor(g.jaw/.65),Math.floor(g.wet*3),Math.floor(g.dry*3),Math.floor(g.shell*3),Math.floor(g.guard*3),Math.floor(g.nesting*3),Math.floor(g.hue/120)].join('-');}
  name(n){return PREFIX[(n*7+2)%PREFIX.length]+SUFFIX[(n*3+1)%SUFFIX.length]+'-'+String(n).padStart(3,'0');}
  log(type,message,point){this.logs.unshift({type,message,step:this.tick});if(this.logs.length>500)this.logs.pop();if(point&&this.effects.length<140)this.effects.push({type,x:point.x,y:point.y,age:0});}
@@ -49,7 +57,7 @@ export class Ecosystem{
  }
  spawn(x,y,g,parent=null){
   if(this.units.length>=155)return null;
-  const u={id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?37:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,dead:false,bite:0,stage:parent?'juvenile':'adult'};
+  const u={id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?37:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',mateCooldown:0};
   u.category=this.category(g);this.units.push(u);
   if(!this.species.has(u.category)){
    const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(n),current:0,total:0,hue:g.hue,first:this.tick});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(n),u);
@@ -79,12 +87,33 @@ export class Ecosystem{
   }
   return best;
  }
- layEgg(parent){
-  if(this.eggs.length>=220)return null;
-  const g=this.mutate(parent.g),traits=eggTraits(g),site=this.chooseNest(parent);
-  const egg={id:this.nextId++,x:site.x,y:site.y,g,parent:parent.id,generation:parent.generation+1,age:0,hatchAt:traits.incubation,energy:traits.eggEnergy,dead:false};
-  this.eggs.push(egg);parent.energy-=52+traits.eggEnergy*.55+parent.g.nesting*6;
-  this.log('egg','#'+parent.id+' が卵 #'+egg.id+' を産んだ',egg);
+ isReadyToMate(u){
+  return !u.dead&&u.stage==='adult'&&u.age>60&&u.energy>=85&&u.mateCooldown===0;
+ }
+ findMate(u,batch){
+  if(!this.isReadyToMate(u))return null;
+  const sight=Math.max(100,morphology(u.g).eyeRange*1.6);
+  let match=null,best=sight*sight;
+  for(const v of batch){
+   if(v===u||!this.isReadyToMate(v))continue;
+   // Direct parent-offspring pairing is excluded.
+   if(u.parent===v.id||v.parent===u.id)continue;
+   const d=distance(u,v);
+   if(d<best){match=v;best=d;}
+  }
+  return match;
+ }
+ layEgg(parent,partner){
+  if(!partner||parent===partner||!this.isReadyToMate(parent)||!this.isReadyToMate(partner)||this.eggs.length>=220)return null;
+  const g=this.recombine(parent.g,partner.g),traits=eggTraits(g),site=this.chooseNest(parent);
+  const egg={id:this.nextId++,x:site.x,y:site.y,g,parent:parent.id,otherParent:partner.id,generation:Math.max(parent.generation,partner.generation)+1,age:0,hatchAt:traits.incubation,energy:traits.eggEnergy,dead:false};
+  this.eggs.push(egg);
+  parent.energy-=37+traits.eggEnergy*.55+parent.g.nesting*6;
+  partner.energy-=27;
+  parent.mateCooldown=180;partner.mateCooldown=180;
+  this.matings++;
+  this.log('mate','#'+parent.id+' × #'+partner.id+' が交配',parent);
+  this.log('egg','両親 #'+parent.id+' / #'+partner.id+' の卵 #'+egg.id+' が産まれた',egg);
   return egg;
  }
  eatEgg(egg,hunter){
@@ -103,7 +132,7 @@ export class Ecosystem{
   }
  }
  reset(){
-  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.recycledByTerrain=[0,0,0,0];this.growth=55;this.stress=20;
+  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.matings=0;this.recycledByTerrain=[0,0,0,0];this.growth=55;this.stress=20;
   this.setupTerrain();
   for(let i=0;i<400;i++){const x=this.range(0,W),y=this.range(0,H);if(this.rand()<GROWTH[this.terrain(x,y)])this.addFood(x,y,1,2);}
   for(let i=0;i<27;i++)this.spawn(this.range(35,W-35),this.range(35,H-35),this.gene());
@@ -127,14 +156,14 @@ export class Ecosystem{
    egg.age++;
    if(egg.age>=egg.hatchAt&&this.units.length<155){
     egg.dead=true;
-    const child=this.spawn(egg.x,egg.y,egg.g,{id:egg.parent,generation:egg.generation-1});
+    const child=this.spawn(egg.x,egg.y,egg.g,{id:egg.parent,otherParent:egg.otherParent,generation:egg.generation-1});
     if(child){child.energy=egg.energy+17;child.stage='juvenile';this.log('hatch','卵 #'+egg.id+' から #'+child.id+' が孵化',egg);}
    }
   }
   this.eggs=this.eggs.filter(e=>!e.dead);
   const batch=this.units.slice();
   for(const u of batch){
-   if(u.dead)continue;u.age++;if(u.bite>0)u.bite--;
+   if(u.dead)continue;u.age++;if(u.bite>0)u.bite--;if(u.mateCooldown>0)u.mateCooldown--;
    const g=u.g,t=this.terrain(u.x,u.y),m=morphology(g);
    const youth=u.stage==='juvenile'?.55:1;
    let nearest=null,df=m.eyeRange*m.eyeRange;
@@ -150,7 +179,9 @@ export class Ecosystem{
    }
   let prey=null,pd=m.eyeRange*m.eyeRange;
    if(m.predatory&&u.bite===0)for(const v of batch){if(v===u||v.dead||morphology(v.g).bodyMass>m.bodyMass*m.edibleRatio)continue;const d=distance(u,v);if(d<pd){pd=d;prey=v;}}
+   const mate=this.findMate(u,batch);
    let target=prey&&pd<df*1.4?prey:nearest;
+   if(mate&&(!target||u.energy>=108))target=mate;
    if(targetEgg&&ed<Math.min(df,pd)*1.15)target=targetEgg;
    // Guarding trades feeding opportunities for staying near the offspring.
    const ownEgg=this.eggs.find(e=>e.parent===u.id&&!e.dead);
@@ -166,9 +197,10 @@ export class Ecosystem{
    u.energy-=m.upkeep*youth+(ownEgg?g.guard*.16:0)+this.stress*.0035+(t===1?(1-g.wet)*.45:t===2?(1-g.dry)*.44:t===3?.27:0)+(g.wet+g.dry)*.055;
    if(nearest&&distance(u,nearest)<(m.biteReach+3)**2){u.energy+=nearest.energy*m.foodGain;const pos=this.food.indexOf(nearest);if(pos>=0)this.food.splice(pos,1);this.log('meal','#'+u.id+' が食事した',u);}
    if(targetEgg&&!targetEgg.dead&&u.bite===0&&distance(u,targetEgg)<(m.biteReach+4)**2)this.eatEgg(targetEgg,u);
+   if(mate&&this.isReadyToMate(u)&&this.isReadyToMate(mate)&&distance(u,mate)<(u.g.r+mate.g.r+9)**2)this.layEgg(u,mate);
    if(prey&&!prey.dead&&distance(u,prey)<(m.biteReach+prey.g.r)**2){const eaten=Math.max(5,prey.energy*.45)*m.foodGain;u.energy+=eaten;u.bite=30;this.log('pred','#'+u.id+' が #'+prey.id+' を捕食',u);this.die(prey,'捕食',eaten);}
    if(u.stage==='juvenile'&&u.age>=85&&u.energy>=40){u.stage='adult';this.log('mature','#'+u.id+' が成体になった',u);}
-   if(u.stage==='adult'&&u.energy>120&&u.age>60&&this.eggs.length<220)this.layEgg(u);
+
    if(u.energy<=0)this.die(u,'飢餓');else if(u.age>1500)this.die(u,'寿命');
   }
   this.units=this.units.filter(u=>!u.dead);this.eggs=this.eggs.filter(e=>!e.dead);
