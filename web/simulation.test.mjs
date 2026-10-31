@@ -58,3 +58,12 @@ test('mate search excludes self juveniles and direct descendants',()=>{
  b.stage='juvenile';assert.equal(s.findMate(a,[a,b]),null);
  b.stage='adult';b.parent=a.id;assert.equal(s.findMate(a,[a,b]),null);
 });
+
+test('isolated adult cannot produce an egg by cloning',()=>{
+ const s=new Ecosystem(66),a=s.units[0];
+ s.units=[a];a.age=100;a.energy=200;
+ s.food=[];s.growth=0;
+ for(let i=0;i<25;i++)s.step();
+ assert.equal(s.eggs.length,0);
+ assert.equal(s.matings,0);
+});
