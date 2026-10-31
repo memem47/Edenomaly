@@ -14,11 +14,11 @@ export const terrainFitness=(g,t)=>{
  const fitness=t===0?1:clamp(.28+.95*tolerance,.28,1.23);
  const aquatic=g.aquatic===1;
  const passable=t!==1||aquatic;
- const sight=t===1?clamp(.30+g.wet*1.08,.30,1.25):t===2?clamp(.52+g.dry*.56,.52,1.08):t===3?clamp(.67+(g.rock??.2)*.43,.67,1.10):1;
- const hazard=t===1?clamp((.56-g.wet)*.37,0,.2):
+ const sight=t===1?(aquatic?clamp(.92+g.wet*.34,.92,1.26):.18):t===2?clamp(.52+g.dry*.56,.52,1.08):t===3?clamp(.67+(g.rock??.2)*.43,.67,1.10):1;
+ const hazard=t===1?(aquatic?0:.7):
    t===2?clamp((.50-g.dry)*1.3,0,.65):
    t===3?clamp((.45-(g.rock??.2))*.28,0,.15):0;
- return {fitness,passable,sight,hazard,move:clamp(.30+.75*fitness,.32,1.22),
+ return {fitness,passable,sight,hazard,move:(t===1?(aquatic?.50+g.wet*.26:.035):t===2?.17+g.dry*.42:t===3?.13+(g.rock??.2)*.36:.58),
    upkeep:t===0?0:(1-tolerance)*[0,.38,.51,.61][t]+tolerance*.045};
 };
 export const dietProfile=g=>{
@@ -126,7 +126,7 @@ export class Ecosystem{
  }
  findMate(u,batch){
   if(!this.isReadyToMate(u))return null;
-  const sight=Math.max(100,morphology(u.g).eyeRange*1.6);
+  const sight=Math.max(52,morphology(u.g).eyeRange*1.3);
   let match=null,best=sight*sight;
   for(const v of batch){
    if(v===u||!this.isReadyToMate(v)||v.courtPartner&&v.courtPartner!==u.id)continue;
@@ -335,7 +335,7 @@ export class Ecosystem{
    if(seekRefuge&&(this.tick+u.id)%14===0){
     let best=null,bestScore=-Infinity;
     for(let i=0;i<12;i++){
-     const x=clamp(u.x+this.range(-120,120),8,W-8),y=clamp(u.y+this.range(-120,120),8,H-8);
+     const x=clamp(u.x+this.range(-65,65),8,W-8),y=clamp(u.y+this.range(-65,65),8,H-8);
      const terrain=this.terrain(x,y);
      let competitors=0;
      for(const v of batch)if(v!==u&&!v.dead&&dietProfile(v.g).plant>.25&&distance({x,y},v)<48**2)competitors++;
@@ -420,7 +420,7 @@ export class Ecosystem{
    if(used.has(key))continue;
    // Introduced organisms are selected for minimal viability in the chosen habitat.
    const placedTerrain=this.terrain(x,y);
-   if(placedTerrain===1)g.wet=Math.max(.52,g.wet);
+   if(placedTerrain===1){g.aquatic=1;g.wet=Math.max(.72,g.wet);}else{g.aquatic=0;}
    if(placedTerrain===2)g.dry=Math.max(.56,g.dry);
    if(placedTerrain===3)g.rock=Math.max(.56,g.rock);
    key=this.category(g);
