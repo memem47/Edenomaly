@@ -45,7 +45,7 @@ test('recombination combines both parents without relying on mutation',()=>{
  const s=new Ecosystem(52),a=s.gene(),b=s.gene();
  for(const k of Object.keys(a))b[k]=a[k]+(k==='hue'?50:k==='legs'?2:k==='eyes'||k==='mouths'?1:.2);
  const original=s.mutate;s.mutate=()=>{throw new Error('mutation must not be necessary');};
- s.rand=(()=>{let n=0;return ()=>{n++;return n%2?.1:.9;};})();
+ s.rand=(()=>{let n=0;return ()=>{n++;return n<=12?(n%2?.1:.9):.9;};})();
  const c=s.recombine(a,b);
  assert.equal(c.r,a.r);assert.equal(c.elongation,b.elongation);assert.equal(c.eyes,a.eyes);assert.equal(c.mouths,b.mouths);
  s.mutate=original;
