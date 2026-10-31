@@ -12,7 +12,7 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   if(!a||!b)continue;
   const pulse=.5+.5*Math.sin(s.tick*.34);
   ctx.save();ctx.strokeStyle='#ff91e8';ctx.lineWidth=2+pulse*2;ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.setLineDash([]);
-  ctx.fillStyle='#fff1fc';ctx.font='bold 11px system-ui';ctx.textAlign='center';ctx.fillText('♥ '+Math.round(pair.progress/pair.required*100)+'%',(a.x+b.x)/2,(a.y+b.y)/2-14);
+  ctx.fillStyle='#fff1fc';ctx.font='bold 11px system-ui';ctx.textAlign='center';const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;ctx.strokeStyle='#ffe1f9';ctx.lineWidth=2;ctx.beginPath();ctx.arc(mx,my,9+2*pulse,-Math.PI/2,-Math.PI/2+TAU*(pair.progress/pair.required));ctx.stroke();
   ctx.restore();
  }
  // A translucent path shows where the laying parent deposited its egg.
@@ -20,7 +20,7 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   const alpha=Math.max(0,1-trail.age/trail.life);
   ctx.save();ctx.globalAlpha=alpha;ctx.strokeStyle='#ffe3a1';ctx.lineWidth=2.5;ctx.setLineDash([3,4]);
   ctx.beginPath();ctx.moveTo(trail.x1,trail.y1);ctx.lineTo(trail.x2,trail.y2);ctx.stroke();ctx.setLineDash([]);
-  ctx.fillStyle='#fff0ad';ctx.font='bold 11px system-ui';ctx.textAlign='center';ctx.fillText('🥚 産卵',trail.x2,trail.y2-15);
+  ctx.fillStyle='#fff0ad';ctx.font='bold 11px system-ui';ctx.textAlign='center';ctx.strokeStyle='#ffe3a1';ctx.lineWidth=1.5+alpha*2;ctx.beginPath();ctx.arc(trail.x2,trail.y2,10+(1-alpha)*23,0,TAU);ctx.stroke();
   ctx.restore();
  }
  // Eggs have a shell, do not move, and visibly develop before hatching.
@@ -28,7 +28,7 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   const shell=egg.g.shell,prog=egg.age/egg.hatchAt;
   ctx.save();ctx.translate(egg.x,egg.y);
   ctx.fillStyle='#513e52';ctx.beginPath();ctx.ellipse(0,1,4.2+shell*2.3,5.3+shell*2.3,0,0,TAU);ctx.fill();
-  ctx.fillStyle=`hsl(${egg.g.hue},42%,${79-shell*13}%)`;ctx.beginPath();ctx.ellipse(0,0,3.5+shell*2.1,4.5+shell*2.1,0,0,TAU);ctx.fill();
+  ctx.fillStyle=`hsl(${egg.g.hue},${Math.max(35,egg.g.saturation*.65)}%,${Math.min(88,egg.g.lightness+14-shell*5)}%)`;ctx.beginPath();ctx.ellipse(0,0,3.5+shell*2.1,4.5+shell*2.1,0,0,TAU);ctx.fill();
   ctx.strokeStyle='#f0e4d0';ctx.lineWidth=.7+shell*1.2;ctx.stroke();
   ctx.fillStyle='#4d384d';ctx.beginPath();ctx.arc(1,0,Math.max(.6,1+prog*1.5),0,TAU);ctx.fill();
   if(prog>.75){ctx.strokeStyle='#754765';ctx.beginPath();ctx.moveTo(-2,-3);ctx.lineTo(0,-1);ctx.lineTo(-1,2);ctx.stroke();}
@@ -40,19 +40,27 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
    ctx.save();ctx.strokeStyle=u.pregnancy?'#ffe59b':'#ff93e9';ctx.lineWidth=2.5;
    ctx.beginPath();ctx.arc(u.x,u.y,Math.max(13,g.r*g.elongation+8),0,TAU);ctx.stroke();
    ctx.fillStyle=u.pregnancy?'#ffe59b':'#ffd5f5';ctx.font='bold 12px system-ui';ctx.textAlign='center';
-   ctx.fillText(u.pregnancy?'🥚 '+Math.ceil(u.pregnancy.remaining):'♥',u.x,u.y-15-g.r*g.elongation);ctx.restore();
+   if(u.pregnancy){const v=1-u.pregnancy.remaining/u.pregnancy.total;ctx.beginPath();ctx.arc(u.x,u.y,Math.max(13,g.r*g.elongation+8)+4,-Math.PI/2,-Math.PI/2+TAU*v);ctx.stroke();}else{ctx.beginPath();ctx.arc(u.x,u.y,Math.max(13,g.r*g.elongation+8)+3,0,TAU);ctx.stroke();}ctx.restore();
   }
   ctx.save();ctx.translate(u.x,u.y);ctx.rotate(u.angle);
   // Body shadow and soft body. The collider and costs use the same dimensions indirectly.
   ctx.fillStyle='rgba(0,0,0,.26)';ctx.beginPath();ctx.ellipse(1.5,2,halfL*1.09,halfW*1.1,0,0,TAU);ctx.fill();
   // Legs: symmetric pairs along the longitudinal axis, moving with phase.
-  ctx.lineCap='round';ctx.lineWidth=Math.max(1.5,halfW*.32);ctx.strokeStyle=`hsl(${g.hue},57%,51%)`;
+  ctx.lineCap='round';ctx.lineWidth=Math.max(1.5,halfW*.32);ctx.strokeStyle=`hsl(${(g.hue+24)%360},${Math.max(40,g.saturation-18)}%,${Math.max(25,g.lightness-17)}%)`;
   for(let i=0;i<g.legs/2;i++)for(const side of [-1,1]){
    const x=(i+1)/(g.legs/2+1)*halfL*1.5-halfL*.75;
    const wave=Math.sin(phase+i*2+side)*halfW*.22;
    ctx.beginPath();ctx.moveTo(x,side*halfW*.64);ctx.lineTo(x-halfW*.15+wave,side*halfW*1.35);ctx.lineTo(x+wave,side*halfW*1.62);ctx.stroke();
   }
-  ctx.fillStyle=`hsl(${g.hue},75%,69%)`;ctx.beginPath();ctx.ellipse(0,0,halfL,halfW,0,0,TAU);ctx.fill();
+  ctx.fillStyle=`hsl(${g.hue},${g.saturation}%,${g.lightness}%)`;ctx.beginPath();ctx.ellipse(0,0,halfL,halfW,0,0,TAU);ctx.fill();
+  // Heritable spots, stripes and dorsal marks distinguish siblings and lineages.
+  ctx.save();ctx.beginPath();ctx.ellipse(0,0,halfL,halfW,0,0,TAU);ctx.clip();
+  ctx.strokeStyle=`hsla(${(g.hue+165)%360},85%,83%,.67)`;ctx.fillStyle=`hsla(${(g.hue+165)%360},85%,85%,.48)`;
+  if(g.pattern===1){for(let i=-2;i<=2;i++){ctx.beginPath();ctx.arc(i*halfL*.31,Math.sin(i*2)*halfW*.42,Math.max(1.1,halfW*.20),0,TAU);ctx.fill();}}
+  if(g.pattern===2){ctx.lineWidth=Math.max(1.4,halfW*.23);for(let i=-2;i<=2;i++){ctx.beginPath();ctx.moveTo(i*halfL*.36-halfW*.25,-halfW);ctx.lineTo(i*halfL*.36+halfW*.25,halfW);ctx.stroke();}}
+  if(g.pattern===3){ctx.lineWidth=Math.max(1.3,halfW*.28);ctx.beginPath();ctx.moveTo(-halfL*.85,0);ctx.lineTo(halfL*.85,0);ctx.stroke();for(let i=-2;i<=2;i++){ctx.beginPath();ctx.arc(i*halfL*.34,0,halfW*.15,0,TAU);ctx.fill();}}
+  ctx.restore();
+  if(u.pregnancy){const n=u.pregnancy.genomes.length;ctx.fillStyle='#ffe9a6';for(let i=0;i<Math.min(n,8);i++){const a=i*TAU/n;ctx.beginPath();ctx.arc(-halfL*.25+Math.cos(a)*halfL*.23,Math.sin(a)*halfW*.39,Math.max(1.2,halfW*.14),0,TAU);ctx.fill();}}
   ctx.strokeStyle='rgba(255,255,255,.58)';ctx.lineWidth=1;ctx.stroke();
   // Eye rows: zero eyes is possible, causing very short perception range.
   const er=Math.max(1.45,Math.min(2.6,halfW*.31));
