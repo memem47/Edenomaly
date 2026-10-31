@@ -376,6 +376,9 @@ export class Ecosystem{
    let g,key;
    for(let attempt=0;attempt<60;attempt++){
     g=this.gene();key=this.category(g);
+    // A single founder type must be able to use ambient nutrients;
+    // later types remain fully random (including predators).
+    if(k===0&&(g.diet>.28||morphology(g).bodyMass>100||g.legs<2||g.eyes<2))continue;
     if(!used.has(key))break;
    }
    if(used.has(key))continue;
