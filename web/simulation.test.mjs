@@ -174,3 +174,38 @@ test('strict nutrient eater does not hunt living prey',()=>{
  a.x=b.x=200;a.y=b.y=200;s.food=[];s.growth=0;
  s.step();assert.equal(b.dead,false);
 });
+
+import {terrainFitness,TERRAIN_FERTILITY} from './simulation.js';
+test('terrain fertility is explicitly ordered, with harsh refuge terrain',()=>{
+ assert.ok(TERRAIN_FERTILITY[0]>TERRAIN_FERTILITY[1]);
+ assert.ok(TERRAIN_FERTILITY[1]>TERRAIN_FERTILITY[2]);
+ assert.ok(TERRAIN_FERTILITY[2]>TERRAIN_FERTILITY[3]);
+});
+test('inherited dry and rock tolerance reduce habitat costs',()=>{
+ const g=new Ecosystem(204).gene();
+ assert.ok(terrainFitness({...g,dry:1},2).fitness>terrainFitness({...g,dry:0},2).fitness);
+ assert.ok(terrainFitness({...g,dry:1},2).upkeep<terrainFitness({...g,dry:0},2).upkeep);
+ assert.ok(terrainFitness({...g,rock:1},3).fitness>terrainFitness({...g,rock:0},3).fitness);
+ assert.ok(terrainFitness({...g,wet:1},1).fitness>terrainFitness({...g,wet:0},1).fitness);
+});
+test('rock adaptation is inherited and bounded',()=>{
+ const s=new Ecosystem(205),a=s.gene(),b=s.gene();
+ a.rock=0;b.rock=1;
+ const c=s.recombine(a,b);assert.ok(c.rock>=0&&c.rock<=1);
+ for(let i=0;i<100;i++){const g=s.mutate(s.gene());assert.ok(g.rock>=0&&g.rock<=1);}
+});
+test('completed refuge migration is distinct from terrain crossing',()=>{
+ const s=new Ecosystem(206),u=s.units[0];
+ s.units=[u];s.migrations=0;
+ u.refugeTarget={x:u.x,y:u.y,until:s.tick+20};
+ s.step();
+ assert.equal(s.migrations,1);assert.equal(u.migrations,1);
+ assert.equal(u.refugeTarget,null);
+});
+test('painted terrain updates the fitness calculation',()=>{
+ const s=new Ecosystem(207),g=s.gene();
+ g.dry=1;g.rock=0;
+ s.paint(100,100,2,2);const arid=terrainFitness(g,s.terrain(100,100));
+ s.paint(100,100,3,2);const rocky=terrainFitness(g,s.terrain(100,100));
+ assert.ok(arid.fitness>rocky.fitness);
+});
