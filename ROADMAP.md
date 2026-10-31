@@ -76,6 +76,14 @@ An observable, evolving artificial ecosystem. The player edits terrain and resou
 - [ ] 交戦時間・負傷生存率・老化による世代交代の定量評価
 - 注意：戦闘は簡易的な接触判定で、精密な物理衝突や反撃・装甲・部位別損傷は未実装。
 
+## 死体の形態保存と大型化
+- [x] 死亡時に遺伝子・姿勢・成長段階・質量を死体へ保存し、同じ描画処理で退色した身体として表示する
+- [x] 分解時に体形・模様・脚・目・口を保ちながら徐々に縮小する
+- [x] 初期集団に低確率で大型個体を導入し、突然変異半径の上限を15へ拡大
+- [x] 大型個体は体力・攻撃力が増えるが、移動速度・維持エネルギー・繁殖コストに不利
+- [ ] 大型個体と通常個体の長期生存率・繁殖成功率・環境ごとの優劣を測定
+- 注意：サイズの得失は現段階での簡易モデル。実際に大型系統が定着するかは資源条件と生存競争に依存する
+
 ## コミット前の確認
 1. Run in browser and test terrain painting and restart.
 2. Observe births, deaths, meals and predation on canvas and in log.
