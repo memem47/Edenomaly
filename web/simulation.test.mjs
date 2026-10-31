@@ -403,3 +403,20 @@ test('slime movement is slower than former insect movement',()=>{
  const g={...new Ecosystem(604).gene(),r:5};
  assert.ok(morphology(g).speed<2.6);
 });
+
+test('aquatic founders are introduced into water tiles',()=>{
+ const w=new Ecosystem(710);
+ let site=null;
+ for(let y=20;y<440&&!site;y+=20)for(let x=20;x<780&&!site;x+=20)if(w.terrain(x,y)===1)site={x,y};
+ assert.ok(site);
+ w.introduce(site.x,site.y,1);
+ assert.ok(w.units.every(u=>u.g.aquatic===1&&w.terrain(u.x,u.y)===1));
+});
+test('terrestrial founders are not placed in water',()=>{
+ const w=new Ecosystem(711);
+ let site=null;
+ for(let y=20;y<440&&!site;y+=20)for(let x=20;x<780&&!site;x+=20)if(w.terrain(x,y)===0)site={x,y};
+ assert.ok(site);
+ w.introduce(site.x,site.y,1);
+ assert.ok(w.units.every(u=>u.g.aquatic===0&&w.terrain(u.x,u.y)!==1));
+});
