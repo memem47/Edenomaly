@@ -26,7 +26,10 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
  // Eggs have a shell, do not move, and visibly develop before hatching.
  for(const egg of s.eggs){
   const shell=egg.g.shell,prog=egg.age/egg.hatchAt;
-  ctx.save();ctx.translate(egg.x,egg.y);
+  const emergence=Math.min(1,(s.tick-(egg.bornTick??s.tick))/9);
+  const x=(egg.birthX??egg.x)*(1-emergence)+egg.x*emergence;
+  const y=(egg.birthY??egg.y)*(1-emergence)+egg.y*emergence;
+  ctx.save();ctx.translate(x,y);ctx.scale(.65+.35*emergence,.65+.35*emergence);
   ctx.fillStyle='#513e52';ctx.beginPath();ctx.ellipse(0,1,4.2+shell*2.3,5.3+shell*2.3,0,0,TAU);ctx.fill();
   ctx.fillStyle=`hsl(${egg.g.hue},${Math.max(35,egg.g.saturation*.65)}%,${Math.min(88,egg.g.lightness+14-shell*5)}%)`;ctx.beginPath();ctx.ellipse(0,0,3.5+shell*2.1,4.5+shell*2.1,0,0,TAU);ctx.fill();
   ctx.strokeStyle='#f0e4d0';ctx.lineWidth=.7+shell*1.2;ctx.stroke();
