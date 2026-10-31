@@ -209,3 +209,41 @@ test('painted terrain updates the fitness calculation',()=>{
  s.paint(100,100,3,2);const rocky=terrainFitness(g,s.terrain(100,100));
  assert.ok(arid.fitness>rocky.fitness);
 });
+
+import {rearPosition,vitality} from './simulation.js';
+test('egg cluster is deposited behind the laying parent',()=>{
+ const world=new Ecosystem(301),a=world.units[0],b=world.units[1];
+ a.age=b.age=100;a.energy=b.energy=160;
+ a.x=300;a.y=200;a.angle=0;
+ world.conceive(a,b);world.layEgg(a);
+ assert.ok(world.eggs.length>=1);
+ assert.ok(world.eggs.every(e=>e.x<a.x));
+ assert.ok(rearPosition(a).x<a.x);
+});
+test('bite damages prey without necessarily killing in one hit',()=>{
+ const world=new Ecosystem(302),hunter=world.units[0],prey=world.units[1];
+ hunter.g.diet=1;hunter.g.jaw=1.5;hunter.age=100;hunter.hp=hunter.maxHp;
+ prey.hp=prey.maxHp=150;
+ const before=prey.hp;
+ assert.equal(world.attack(hunter,prey),true);
+ assert.ok(prey.hp<before);assert.equal(prey.dead,false);
+ assert.ok(world.effects.some(x=>x.type==='strike'));
+ assert.equal(world.attack(hunter,prey),false);
+});
+test('repeated bites eventually cause predation and feeding effect',()=>{
+ const world=new Ecosystem(303),hunter=world.units[0],prey=world.units[1];
+ hunter.g.diet=1;hunter.g.jaw=2.5;
+ prey.hp=prey.maxHp=30;hunter.age=100;
+ for(let i=0;i<20&&!prey.dead;i++){hunter.bite=0;world.attack(hunter,prey);}
+ assert.ok(prey.dead);
+ assert.ok(world.effects.some(x=>x.type==='consume'));
+});
+test('injury and old age reduce vigor',()=>{
+ const world=new Ecosystem(304),u=world.units[0];
+ const young=vitality(u).vigor;
+ u.hp=u.maxHp*.4;
+ const injured=vitality(u).vigor;
+ u.age=1350;
+ const old=vitality(u).vigor;
+ assert.ok(young>injured&&injured>old);
+});
