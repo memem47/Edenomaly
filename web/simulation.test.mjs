@@ -91,3 +91,34 @@ test('courtship breaks when the couple separates',()=>{
  assert.equal(s.courtships.length,0);assert.equal(s.matings,0);
  assert.equal(a.courtPartner,null);assert.equal(b.courtPartner,null);
 });
+
+test('genetic brood size controls clutch count and preserves both parents',()=>{
+ const small=new Ecosystem(91),a=small.units[0],b=small.units[1];
+ for(const u of [a,b]){u.age=100;u.energy=160;u.g.brood=1;}
+ assert.ok(small.conceive(a,b));small.layEgg(a);
+ assert.equal(small.eggs.length,1);
+ const large=new Ecosystem(91),c=large.units[0],d=large.units[1];
+ for(const u of [c,d]){u.age=100;u.energy=160;u.g.brood=8;}
+ assert.ok(large.conceive(c,d));large.layEgg(c);
+ assert.equal(large.eggs.length,8);
+ assert.ok(large.eggs.every(e=>e.parent===c.id&&e.otherParent===d.id));
+ assert.equal(new Set(large.eggs.map(e=>e.id)).size,8);
+});
+test('large clutches cost more parental energy',()=>{
+ const run=brood=>{
+  const s=new Ecosystem(93),a=s.units[0],b=s.units[1];
+  for(const u of [a,b]){u.age=100;u.energy=160;u.g.brood=brood;}
+  s.conceive(a,b);return 160-a.energy;
+ };
+ assert.ok(run(8)>run(1));
+});
+test('pigment and brood genes remain within bounds after mutation',()=>{
+ const s=new Ecosystem(94);
+ for(let i=0;i<100;i++){
+  const g=s.mutate(s.gene());
+  assert.ok(g.brood>=1&&g.brood<=8&&Number.isInteger(g.brood));
+  assert.ok(g.pattern>=0&&g.pattern<=3&&Number.isInteger(g.pattern));
+  assert.ok(g.saturation>=35&&g.saturation<=100);
+  assert.ok(g.lightness>=35&&g.lightness<=85);
+ }
+});
