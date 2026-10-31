@@ -297,6 +297,18 @@ export class Ecosystem{
    if(u.pregnancy){u.pregnancy.remaining--;if(u.pregnancy.remaining<=0)this.layEgg(u);}
    const g=u.g,t=this.terrain(u.x,u.y),m=morphology(g),diet=dietProfile(g),home=terrainFitness(g,t);
    const youth=u.stage==='juvenile'?.50:1,body=vitality(u),sight=m.eyeRange*home.sight;
+   const aquatic=g.aquatic===1,underwater=t===1;
+   if(aquatic){
+    u.stranded=underwater?0:u.stranded+1;
+    u.hydration=underwater?Math.min(100,u.hydration+2):u.hydration-1.5;
+   }else{
+    u.submerged=underwater?u.submerged+1:0;
+    u.hydration=this.nearWater(u.x,u.y,1)?Math.min(100,u.hydration+1):u.hydration-.48;
+   }
+   if((aquatic&&u.stranded>65)||(!aquatic&&u.submerged>16)||u.hydration<=0){
+    this.die(u,aquatic?'離水':u.submerged>16?'溺水':'脱水');continue;
+   }
+   if(u.hydration<28)u.hp-=.16;
    let nearest=null,df=sight*sight;
    if(diet.plant>0)for(const f of this.food){const d=distance(u,f);if(d<df){df=d;nearest=f;}}
    // Eggs are stationary and cannot fight or flee. Guardians only deter some hunters.
@@ -381,6 +393,7 @@ export class Ecosystem{
    if(mate&&(u.courtPartner||!target||u.energy>=86))target=mate;
    if(targetEgg&&ed<Math.min(df,pd)*1.15)target=targetEgg;
    if(u.refugeTarget&&!flight&&!u.courtPartner)target=u.refugeTarget;
+   if((aquatic&&!underwater)||(!aquatic&&u.hydration<70&&!this.nearWater(u.x,u.y,1))){const water=this.nearestWater(u.x,u.y);if(water)target=water;}
    // Guarding trades feeding opportunities for staying near the offspring.
    const ownEgg=this.eggs.find(e=>e.parent===u.id&&!e.dead);
    if(ownEgg&&g.guard>.15&&!flight){
