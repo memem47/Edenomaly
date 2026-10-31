@@ -55,83 +55,24 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
    if(u.pregnancy){const v=1-u.pregnancy.remaining/u.pregnancy.total;ctx.beginPath();ctx.arc(u.x,u.y,Math.max(13,g.r*g.elongation+8)+4,-Math.PI/2,-Math.PI/2+TAU*v);ctx.stroke();}else{ctx.beginPath();ctx.arc(u.x,u.y,Math.max(13,g.r*g.elongation+8)+3,0,TAU);ctx.stroke();}ctx.restore();
   }
   ctx.save();ctx.translate(u.x,u.y);ctx.rotate(u.angle);
-  // Body shadow and soft body. The collider and costs use the same dimensions indirectly.
-  ctx.fillStyle='rgba(0,0,0,.26)';ctx.beginPath();ctx.ellipse(1.5,2,halfL*1.09,halfW*1.1,0,0,TAU);ctx.fill();
-  // Legs: symmetric pairs along the longitudinal axis, moving with phase.
-  ctx.lineCap='round';ctx.lineWidth=Math.max(1.5,halfW*.32);ctx.strokeStyle=`hsl(${(g.hue+24)%360},${Math.max(40,g.saturation-18)}%,${Math.max(25,g.lightness-17)}%)`;
-  for(let i=0;i<g.legs/2;i++)for(const side of [-1,1]){
-   const x=(i+1)/(g.legs/2+1)*halfL*1.5-halfL*.75;
-   const wave=Math.sin(phase+i*2+side)*halfW*.22;
-   ctx.beginPath();ctx.moveTo(x,side*halfW*.64);ctx.lineTo(x-halfW*.15+wave,side*halfW*1.35);ctx.lineTo(x+wave,side*halfW*1.62);ctx.stroke();
+  const rx=halfL*.82,ry=halfW*1.2,phase=s.tick*.11+(u.id||0);
+  ctx.fillStyle=u.woundFlash?'#fff2ea':`hsl(${g.hue},${Math.max(12,g.saturation*(1-life.old*.6))}%,${g.lightness}%)`;
+  ctx.beginPath();
+  for(let i=0;i<=32;i++){
+   const a=i*TAU/32,w=1+Math.sin(a*3+phase)*(dead?0:.07)+Math.sin(a*5+g.pattern)*.035;
+   const x=Math.cos(a)*rx*w,y=Math.sin(a)*ry*w;
+   i?ctx.lineTo(x,y):ctx.moveTo(x,y);
   }
-  // Visible feeding signal: round leafy feelers for apparent grazers, sharp spines for apparent hunters.
-  // The signal is inherited separately from the actual diet, enabling deceptive appearances.
-  if(signal<.45){
-   ctx.strokeStyle=`hsl(${(g.hue+90)%360},73%,75%)`;ctx.lineWidth=Math.max(1,halfW*.19);
-   for(const side of [-1,1]){
-    ctx.beginPath();ctx.moveTo(-halfL*.38,side*halfW*.65);
-    ctx.quadraticCurveTo(-halfL*.65,side*halfW*1.55,-halfL*.82,side*halfW*1.65);ctx.stroke();
-    ctx.fillStyle='#b5f6af';ctx.beginPath();ctx.ellipse(-halfL*.84,side*halfW*1.66,halfW*.22,halfW*.40,side*.5,0,TAU);ctx.fill();
-   }
-  }else if(signal>.55){
-   const spikes=2+Math.floor(signal*4);
-   ctx.fillStyle=`hsl(${(g.hue+25)%360},${g.saturation}%,${Math.max(24,g.lightness-18)}%)`;
-   for(let i=0;i<spikes;i++){
-    const x=-halfL*.7+i*halfL*1.4/Math.max(1,spikes-1);
-    ctx.beginPath();ctx.moveTo(x-halfL*.13,-halfW*.65);ctx.lineTo(x, -halfW*(1.35+signal*.5));ctx.lineTo(x+halfL*.13,-halfW*.65);ctx.fill();
-   }
+  ctx.closePath();ctx.fill();ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=1.4;ctx.stroke();
+  ctx.fillStyle='rgba(255,255,255,.25)';ctx.beginPath();ctx.ellipse(-rx*.3,-ry*.35,rx*.3,ry*.15,-.4,0,TAU);ctx.fill();
+  for(let i=0;i<Math.min(g.eyes,6);i++){
+   const ex=rx*(.12+(i%3)*.22),ey=ry*(-.36+Math.floor(i/3)*.4),er=Math.max(1.6,ry*.22);
+   ctx.fillStyle='white';ctx.beginPath();ctx.arc(ex,ey,er,0,TAU);ctx.fill();
+   ctx.fillStyle='#283449';ctx.beginPath();ctx.arc(ex+er*.2,ey,er*.45,0,TAU);ctx.fill();
   }
-  ctx.fillStyle=u.woundFlash>0?'#fff0ed':`hsl(${g.hue},${Math.max(9,g.saturation*(1-life.old*.66))}%,${g.lightness*(1-life.old*.22)}%)`;
-  ctx.beginPath();ctx.ellipse(0,0,halfL,halfW,0,0,TAU);ctx.fill();
-  // Heritable spots, stripes and dorsal marks distinguish siblings and lineages.
-  ctx.save();ctx.beginPath();ctx.ellipse(0,0,halfL,halfW,0,0,TAU);ctx.clip();
-  ctx.strokeStyle=`hsla(${(g.hue+165)%360},85%,83%,.67)`;ctx.fillStyle=`hsla(${(g.hue+165)%360},85%,85%,.48)`;
-  if(g.pattern===1){for(let i=-2;i<=2;i++){ctx.beginPath();ctx.arc(i*halfL*.31,Math.sin(i*2)*halfW*.42,Math.max(1.1,halfW*.20),0,TAU);ctx.fill();}}
-  if(g.pattern===2){ctx.lineWidth=Math.max(1.4,halfW*.23);for(let i=-2;i<=2;i++){ctx.beginPath();ctx.moveTo(i*halfL*.36-halfW*.25,-halfW);ctx.lineTo(i*halfL*.36+halfW*.25,halfW);ctx.stroke();}}
-  if(g.pattern===3){ctx.lineWidth=Math.max(1.3,halfW*.28);ctx.beginPath();ctx.moveTo(-halfL*.85,0);ctx.lineTo(halfL*.85,0);ctx.stroke();for(let i=-2;i<=2;i++){ctx.beginPath();ctx.arc(i*halfL*.34,0,halfW*.15,0,TAU);ctx.fill();}}
-  ctx.restore();
-  // Scars persist as damage accumulates, unlike the short impact flash.
-  if(life.health<.9){
-   ctx.strokeStyle='rgba(65,38,57,.83)';ctx.lineWidth=1.2;
-   const scars=Math.ceil((1-life.health)*4);
-   for(let i=0;i<scars;i++){
-    const x=-halfL*.46+i*halfL*.36;
-    ctx.beginPath();ctx.moveTo(x,-halfW*.22);ctx.lineTo(x+halfW*.34,halfW*.24);ctx.stroke();
-   }
-  }
-  if(life.old>.08){
-   ctx.strokeStyle=`rgba(230,235,228,${life.old*.7})`;ctx.lineWidth=1.1;
-   ctx.beginPath();ctx.moveTo(-halfL*.65,-halfW*.31);ctx.lineTo(halfL*.4,-halfW*.31);ctx.stroke();
-  }
-  if(u.pregnancy){const n=u.pregnancy.genomes.length;ctx.fillStyle='#ffe9a6';for(let i=0;i<Math.min(n,8);i++){const a=i*TAU/n;ctx.beginPath();ctx.arc(-halfL*.25+Math.cos(a)*halfL*.23,Math.sin(a)*halfW*.39,Math.max(1.2,halfW*.14),0,TAU);ctx.fill();}}
-  ctx.strokeStyle='rgba(255,255,255,.58)';ctx.lineWidth=1;ctx.stroke();
-  // Eye rows: zero eyes is possible, causing very short perception range.
-  const er=Math.max(1.45,Math.min(2.6,halfW*.31));
-  for(let i=0;i<g.eyes;i++){
-   const row=Math.floor(i/2),side=i%2===0?-1:1;
-   const ex=halfL*(.37-row*.29),ey=side*halfW*.47;
-   ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(ex,ey,er,0,TAU);ctx.fill();
-   ctx.fillStyle='#263345';ctx.beginPath();ctx.arc(ex+er*.3,ey,er*.49,0,TAU);ctx.fill();
-  }
-  // Mouths along leading edge. Large jaw and active bite create an unsettling maw.
-  for(let i=0;i<g.mouths;i++){
-   const offset=(i-(g.mouths-1)/2)*halfW*.55;
-   const radius=Math.max(1.1,g.jaw*(u.bite>0?2.8:1.05));
-   ctx.fillStyle=u.bite>0?'#3c102e':'#713a4f';ctx.beginPath();ctx.ellipse(halfL*.79,offset,radius*1.13,radius,0,0,TAU);ctx.fill();
-   if(u.bite>0){ctx.fillStyle='#ffe6dd';for(const side of [-1,1]){
-    ctx.beginPath();ctx.moveTo(halfL*.7,offset+side*radius*.85);ctx.lineTo(halfL*.91,offset);ctx.lineTo(halfL*1.04,offset+side*radius*.8);ctx.fill();
-   }}
-  }
-  // Warning appearance: tooth-like marks can be bluff, not necessarily actual predation.
-  if(signal>.50){
-   ctx.fillStyle='#fff6e8';
-   for(let j=0;j<Math.round(1+signal*3);j++){
-    const y=(j-(Math.round(1+signal*3)-1)/2)*halfW*.40;
-    ctx.beginPath();ctx.moveTo(halfL*.84,y-halfW*.14);ctx.lineTo(halfL*(1.04+signal*.07),y);ctx.lineTo(halfL*.84,y+halfW*.14);ctx.fill();
-   }
-  }
-  if(u.fleeing){ctx.strokeStyle='#eefcff';ctx.lineWidth=1.8;ctx.beginPath();ctx.arc(-halfL*.35,0,Math.max(3,halfW*.7),-.9,.9);ctx.stroke();}
-  if(!dead&&u===selected){ctx.strokeStyle='white';ctx.lineWidth=1.3;ctx.beginPath();ctx.ellipse(0,0,halfL+7,halfW+7,0,0,TAU);ctx.stroke();}
+  ctx.strokeStyle='#65405e';ctx.lineWidth=Math.max(1.5,ry*.12);ctx.beginPath();ctx.arc(rx*.4,ry*.27,Math.max(2,ry*.24),.1,Math.PI-.1);ctx.stroke();
+  if(u.bite>0){ctx.fillStyle='#703b55';ctx.beginPath();ctx.ellipse(rx*.47,ry*.28,ry*.20,ry*.23,0,0,TAU);ctx.fill();}
+  if(!dead&&u===selected){ctx.strokeStyle='white';ctx.beginPath();ctx.ellipse(0,0,rx+7,ry+7,0,0,TAU);ctx.stroke();}
   ctx.restore();
   if(dead)ctx.restore();
  }
