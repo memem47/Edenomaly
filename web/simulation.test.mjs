@@ -323,12 +323,12 @@ test('water is impassable for poorly adapted creatures',()=>{
  world.paint(220,220,1,2);
  const g={...world.gene(),wet:0};
  assert.equal(terrainFitness(g,1).passable,false);
- assert.equal(terrainFitness({...g,wet:1},1).passable,true);
+ assert.equal(terrainFitness({...g,wet:1,aquatic:1},1).passable,true);
 });
 test('water adapted creatures retain underwater vision',()=>{
  const g=new Ecosystem(502).gene();
- const blind=terrainFitness({...g,wet:0},1);
- const diver=terrainFitness({...g,wet:1},1);
+ const blind=terrainFitness({...g,wet:0,aquatic:0},1);
+ const diver=terrainFitness({...g,wet:1,aquatic:1},1);
  assert.ok(diver.sight>blind.sight*2);
  assert.ok(diver.sight>=1);
 });
@@ -381,4 +381,25 @@ test('infection resistance is inherited and has a survival cost',()=>{
  w.units=[low,high];w.food=[];w.growth=0;
  const l=low.hp,h=high.hp;
  w.step();assert.ok((l-low.hp)>(h-high.hp));
+});
+
+test('aquatic state is inherited, and habitat changes are rare mutations',()=>{
+ const s=new Ecosystem(601),a={...s.gene(),aquatic:1},b={...s.gene(),aquatic:1};
+ for(let i=0;i<30;i++)assert.ok([0,1].includes(s.recombine(a,b).aquatic));
+});
+test('terrestrial slime dies without drinking water',()=>{
+ const s=new Ecosystem(602);s.tiles.fill(0);
+ const g={...s.gene(),aquatic:0,diet:0},u=s.spawn(250,210,g);s.units=[u];
+ u.energy=1e6;for(let i=0;i<245&&!u.dead;i++)s.step();
+ assert.equal(u.dead,true);
+});
+test('aquatic slime dies stranded outside water',()=>{
+ const s=new Ecosystem(603);s.tiles.fill(0);
+ const g={...s.gene(),aquatic:1},u=s.spawn(250,210,g);s.units=[u];
+ u.energy=1e6;for(let i=0;i<75&&!u.dead;i++)s.step();
+ assert.equal(u.dead,true);
+});
+test('slime movement is slower than former insect movement',()=>{
+ const g={...new Ecosystem(604).gene(),r:5};
+ assert.ok(morphology(g).speed<2.6);
 });
