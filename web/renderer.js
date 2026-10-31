@@ -6,8 +6,19 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
  ctx.strokeStyle='rgba(0,0,0,.11)';ctx.lineWidth=.5;ctx.beginPath();for(let x=0;x<width;x+=cell){ctx.moveTo(x,0);ctx.lineTo(x,height);}for(let y=0;y<height;y+=cell){ctx.moveTo(0,y);ctx.lineTo(width,y);}ctx.stroke();
  for(const f of s.food){ctx.fillStyle=f.source==='corpse'?'#f3cc78':'#b6f18b';ctx.beginPath();ctx.arc(f.x,f.y,2.5,0,TAU);ctx.fill();}
  for(const c of s.corpses){const radius=Math.max(2,Math.min(8,Math.sqrt(c.mass)*.9));ctx.fillStyle='#513553';ctx.beginPath();ctx.ellipse(c.x,c.y,radius*1.4,radius,0,0,TAU);ctx.fill();ctx.strokeStyle='#d9abd9';ctx.beginPath();ctx.moveTo(c.x-radius*.5,c.y-radius*.5);ctx.lineTo(c.x+radius*.5,c.y+radius*.5);ctx.moveTo(c.x+radius*.5,c.y-radius*.5);ctx.lineTo(c.x-radius*.5,c.y+radius*.5);ctx.stroke();}
+ // Eggs have a shell, do not move, and visibly develop before hatching.
+ for(const egg of s.eggs){
+  const shell=egg.g.shell,prog=egg.age/egg.hatchAt;
+  ctx.save();ctx.translate(egg.x,egg.y);
+  ctx.fillStyle='#513e52';ctx.beginPath();ctx.ellipse(0,1,4.2+shell*2.3,5.3+shell*2.3,0,0,TAU);ctx.fill();
+  ctx.fillStyle=`hsl(${egg.g.hue},42%,${79-shell*13}%)`;ctx.beginPath();ctx.ellipse(0,0,3.5+shell*2.1,4.5+shell*2.1,0,0,TAU);ctx.fill();
+  ctx.strokeStyle='#f0e4d0';ctx.lineWidth=.7+shell*1.2;ctx.stroke();
+  ctx.fillStyle='#4d384d';ctx.beginPath();ctx.arc(1,0,Math.max(.6,1+prog*1.5),0,TAU);ctx.fill();
+  if(prog>.75){ctx.strokeStyle='#754765';ctx.beginPath();ctx.moveTo(-2,-3);ctx.lineTo(0,-1);ctx.lineTo(-1,2);ctx.stroke();}
+  ctx.restore();
+ }
  for(const u of s.units){
-  const g=u.g,halfL=g.r*g.elongation,halfW=g.r,phase=s.tick*.18+u.id;
+  const g=u.g,scale=u.stage==='juvenile'?.55:1,halfL=g.r*g.elongation*scale,halfW=g.r*scale,phase=s.tick*.18+u.id;
   ctx.save();ctx.translate(u.x,u.y);ctx.rotate(u.angle);
   // Body shadow and soft body. The collider and costs use the same dimensions indirectly.
   ctx.fillStyle='rgba(0,0,0,.26)';ctx.beginPath();ctx.ellipse(1.5,2,halfL*1.09,halfW*1.1,0,0,TAU);ctx.fill();
