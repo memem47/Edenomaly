@@ -149,7 +149,7 @@ test('nutrient eater runs away from apparent large predator',()=>{
  s.units=[grazer,hunter];s.food=[];
  grazer.x=100;grazer.y=100;grazer.g.diet=0;grazer.g.deception=.5;
  hunter.x=120;hunter.y=100;hunter.g.diet=1;hunter.g.deception=.8;
- hunter.g.r=Math.max(hunter.g.r,grazer.g.r);
+ hunter.g.r=Math.max(hunter.g.r,grazer.g.r*1.5);hunter.g.elongation=grazer.g.elongation;grazer.g.eyes=6;
  s.step();
  assert.equal(grazer.fleeing,true);
 });
