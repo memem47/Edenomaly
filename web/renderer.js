@@ -55,11 +55,11 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
    if(u.pregnancy){const v=1-u.pregnancy.remaining/u.pregnancy.total;ctx.beginPath();ctx.arc(u.x,u.y,Math.max(13,g.r*g.elongation+8)+4,-Math.PI/2,-Math.PI/2+TAU*v);ctx.stroke();}else{ctx.beginPath();ctx.arc(u.x,u.y,Math.max(13,g.r*g.elongation+8)+3,0,TAU);ctx.stroke();}ctx.restore();
   }
   ctx.save();ctx.translate(u.x,u.y);ctx.rotate(u.angle);
-  const rx=halfL*.82,ry=halfW*1.2,phase=s.tick*.11+(u.id||0);
+  const rx=halfL*.82,ry=halfW*1.2,blobPhase=s.tick*.11+(u.id||0);
   ctx.fillStyle=u.woundFlash?'#fff2ea':`hsl(${g.hue},${Math.max(12,g.saturation*(1-life.old*.6))}%,${g.lightness}%)`;
   ctx.beginPath();
   for(let i=0;i<=32;i++){
-   const a=i*TAU/32,w=1+Math.sin(a*3+phase)*(dead?0:.07)+Math.sin(a*5+g.pattern)*.035;
+   const a=i*TAU/32,w=1+Math.sin(a*3+blobPhase)*(dead?0:.07)+Math.sin(a*5+g.pattern)*.035;
    const x=Math.cos(a)*rx*w,y=Math.sin(a)*ry*w;
    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
   }
