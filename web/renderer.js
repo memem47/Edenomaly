@@ -5,7 +5,7 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
  for(let y=0;y<rows;y++)for(let x=0;x<columns;x++){ctx.fillStyle=TERRAIN_COLORS[s.tiles[y*columns+x]];ctx.fillRect(x*cell,y*cell,cell,cell);}
  ctx.strokeStyle='rgba(0,0,0,.11)';ctx.lineWidth=.5;ctx.beginPath();for(let x=0;x<width;x+=cell){ctx.moveTo(x,0);ctx.lineTo(x,height);}for(let y=0;y<height;y+=cell){ctx.moveTo(0,y);ctx.lineTo(width,y);}ctx.stroke();
  for(const f of s.food){ctx.fillStyle=f.source==='corpse'?'#f3cc78':'#b6f18b';ctx.beginPath();ctx.arc(f.x,f.y,2.5,0,TAU);ctx.fill();}
- for(const c of s.corpses){const radius=Math.max(2,Math.min(8,Math.sqrt(c.mass)*.9));ctx.fillStyle='#513553';ctx.beginPath();ctx.ellipse(c.x,c.y,radius*1.4,radius,0,0,TAU);ctx.fill();ctx.strokeStyle='#d9abd9';ctx.beginPath();ctx.moveTo(c.x-radius*.5,c.y-radius*.5);ctx.lineTo(c.x+radius*.5,c.y+radius*.5);ctx.moveTo(c.x+radius*.5,c.y-radius*.5);ctx.lineTo(c.x-radius*.5,c.y+radius*.5);ctx.stroke();}
+ // Corpses share the creature renderer, preserving inherited shape, eyes, legs and markings.
  // Courtship: a living couple is joined by a conspicuous animated magenta bond.
  for(const pair of s.courtships){
   const a=s.units.find(u=>u.id===pair.a),b=s.units.find(u=>u.id===pair.b);
@@ -37,8 +37,17 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   if(prog>.75){ctx.strokeStyle='#754765';ctx.beginPath();ctx.moveTo(-2,-3);ctx.lineTo(0,-1);ctx.lineTo(-1,2);ctx.stroke();}
   ctx.restore();
  }
- for(const u of s.units){
-  const g=u.g,signal=dietProfile(g).signal,life=vitality(u),scale=(u.stage==='juvenile'?.55:1)*(1-life.old*.12),halfL=g.r*g.elongation*scale,halfW=g.r*scale,phase=s.tick*.18+u.id;
+ for(const u of [...s.corpses.map(c=>({
+   id:-1,x:c.x,y:c.y,angle:c.angle,g:c.g,age:c.deathAge,
+   stage:c.stage,dead:true,corpse:true,bite:0,woundFlash:0,fleeing:false,
+   decayScale:Math.max(.50,Math.sqrt(c.mass/c.initialMass))
+  })),...s.units]){
+  const dead=!!u.corpse;
+  const g=u.g,signal=dietProfile(g).signal,life=vitality(u),
+   scale=(u.stage==='juvenile'?.55:1)*(1-life.old*.12)*(dead?u.decayScale:1),
+   halfL=g.r*g.elongation*scale,halfW=g.r*scale,phase=s.tick*.18+u.id;
+  if(dead){ctx.save();ctx.filter='grayscale(0.82) brightness(0.73)';ctx.globalAlpha=.85;}
+
   if(u.courtPartner||u.pregnancy){
    ctx.save();ctx.strokeStyle=u.pregnancy?'#ffe59b':'#ff93e9';ctx.lineWidth=2.5;
    ctx.beginPath();ctx.arc(u.x,u.y,Math.max(13,g.r*g.elongation+8),0,TAU);ctx.stroke();
@@ -122,8 +131,9 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
    }
   }
   if(u.fleeing){ctx.strokeStyle='#eefcff';ctx.lineWidth=1.8;ctx.beginPath();ctx.arc(-halfL*.35,0,Math.max(3,halfW*.7),-.9,.9);ctx.stroke();}
-  if(u===selected){ctx.strokeStyle='white';ctx.lineWidth=1.3;ctx.beginPath();ctx.ellipse(0,0,halfL+7,halfW+7,0,0,TAU);ctx.stroke();}
+  if(!dead&&u===selected){ctx.strokeStyle='white';ctx.lineWidth=1.3;ctx.beginPath();ctx.ellipse(0,0,halfL+7,halfW+7,0,0,TAU);ctx.stroke();}
   ctx.restore();
+  if(dead)ctx.restore();
  }
  if(showEffects){
   for(const fx of s.effects){
