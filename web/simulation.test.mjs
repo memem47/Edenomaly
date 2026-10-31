@@ -317,3 +317,45 @@ test('reset clears previously introduced life',()=>{
  s.reset();
  assert.equal(s.units.length,0);assert.equal(s.introducedCount,0);
 });
+
+test('water is impassable for poorly adapted creatures',()=>{
+ const world=new Ecosystem(501);
+ world.paint(220,220,1,2);
+ const g={...world.gene(),wet:0};
+ assert.equal(terrainFitness(g,1).passable,false);
+ assert.equal(terrainFitness({...g,wet:1},1).passable,true);
+});
+test('water adapted creatures retain underwater vision',()=>{
+ const g=new Ecosystem(502).gene();
+ const blind=terrainFitness({...g,wet:0},1);
+ const diver=terrainFitness({...g,wet:1},1);
+ assert.ok(diver.sight>blind.sight*2);
+ assert.ok(diver.sight>=1);
+});
+test('dryland intolerance causes potentially lethal hazard',()=>{
+ const g=new Ecosystem(503).gene();
+ assert.ok(terrainFitness({...g,dry:0},2).hazard>.5);
+ assert.equal(terrainFitness({...g,dry:1},2).hazard,0);
+});
+test('same founder classification shares lineage across individuals',()=>{
+ const s=new Ecosystem(504);
+ const result=s.introduce(350,200,1);
+ assert.equal(result.types,1);
+ assert.equal(new Set(s.units.map(u=>u.lineage)).size,8);
+ assert.equal(new Set(s.units.map(u=>u.category)).size,1);
+});
+test('disease reduces HP and delays reproduction',()=>{
+ const s=new Ecosystem(505);s.introduce(350,200,1);
+ const u=s.units[0];u.age=100;u.energy=170;u.infection=25;
+ assert.equal(s.isReadyToMate(u),false);
+ const hp=u.hp;s.units=[u];s.food=[];s.growth=0;s.step();
+ assert.ok(u.hp<hp);
+});
+test('local nutrient regeneration respects terrain cell capacity',()=>{
+ const s=new Ecosystem(506);
+ s.tiles.fill(0);s.growth=100;s.food=[];
+ for(let i=0;i<350;i++)s.step();
+ const counts=new Map();
+ for(const food of s.food){if(food.source!=='natural')continue;const cell=s.cell(food.x,food.y);counts.set(cell,(counts.get(cell)||0)+1);}
+ assert.ok([...counts.values()].every(c=>c<=4));
+});
