@@ -319,16 +319,16 @@ export class Ecosystem{
    for(const v of batch)if(v!==u&&!v.dead&&v.lineage===u.lineage&&distance(u,v)<38**2){
     relatives++;if(v.infection>0)infectious++;
    }
-   const crowd=Math.max(0,relatives-3);
+   const crowd=Math.max(0,relatives-2);
    if(u.infection>0){
     u.infection--;
-    u.hp-=.16+crowd*.028;
-   }else if(crowd>0&&this.rand()<Math.min(.075,crowd*.00045+infectious*.0035)){
+    u.hp-=.19+crowd*.055;
+   }else if(crowd>0&&this.rand()<Math.min(.10,crowd*.0025+infectious*.014)){
     u.infection=70+Math.floor(this.rand()*55);
     this.log('ill','#'+u.id+' が密集地で感染',u);
    }
    // Crowded colonies consume more energy and stop producing offspring as easily.
-   u.energy-=Math.min(.45,Math.max(0,rivals-4)*.045);
+   u.energy-=Math.min(.85,Math.max(0,rivals-3)*.075);
    u.localCrowd=relatives;
    const seekRefuge=!u.courtPartner&&!u.pregnancy&&!flight&&(pressure>1.35||relatives>7)&&u.energy<130;
    if(seekRefuge&&(this.tick+u.id)%14===0){
