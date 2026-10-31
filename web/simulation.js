@@ -88,7 +88,7 @@ export class Ecosystem{
   return best;
  }
  isReadyToMate(u){
-  return !u.dead&&u.stage==='adult'&&u.age>60&&u.energy>=85&&u.mateCooldown===0;
+  return !u.dead&&u.stage==='adult'&&u.age>42&&u.energy>=65&&u.mateCooldown===0;
  }
  findMate(u,batch){
   if(!this.isReadyToMate(u))return null;
@@ -108,9 +108,9 @@ export class Ecosystem{
   const g=this.recombine(parent.g,partner.g),traits=eggTraits(g),site=this.chooseNest(parent);
   const egg={id:this.nextId++,x:site.x,y:site.y,g,parent:parent.id,otherParent:partner.id,generation:Math.max(parent.generation,partner.generation)+1,age:0,hatchAt:traits.incubation,energy:traits.eggEnergy,dead:false};
   this.eggs.push(egg);
-  parent.energy-=37+traits.eggEnergy*.55+parent.g.nesting*6;
-  partner.energy-=27;
-  parent.mateCooldown=180;partner.mateCooldown=180;
+  parent.energy-=24+traits.eggEnergy*.5+parent.g.nesting*5;
+  partner.energy-=18;
+  parent.mateCooldown=145;partner.mateCooldown=145;
   this.matings++;
   this.log('mate','#'+parent.id+' × #'+partner.id+' が交配',parent);
   this.log('egg','両親 #'+parent.id+' / #'+partner.id+' の卵 #'+egg.id+' が産まれた',egg);
@@ -135,7 +135,7 @@ export class Ecosystem{
   this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.matings=0;this.recycledByTerrain=[0,0,0,0];this.growth=55;this.stress=20;
   this.setupTerrain();
   for(let i=0;i<400;i++){const x=this.range(0,W),y=this.range(0,H);if(this.rand()<GROWTH[this.terrain(x,y)])this.addFood(x,y,1,2);}
-  for(let i=0;i<27;i++)this.spawn(this.range(35,W-35),this.range(35,H-35),this.gene());
+  for(let i=0;i<27;i++){const u=this.spawn(this.range(35,W-35),this.range(35,H-35),this.gene());if(u){u.age=Math.floor(this.range(32,55));u.energy=this.range(85,108);}}
   this.log('info','地形、遺伝、捕食、死体分解の実験を開始');this.snapshot();
  }
  snapshot(){this.history.push({population:this.units.length,eggs:this.eggs.length,food:this.food.length,corpses:this.corpses.length});if(this.history.length>180)this.history.shift();}
