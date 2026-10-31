@@ -417,6 +417,13 @@ export class Ecosystem{
     if(!used.has(key))break;
    }
    if(used.has(key))continue;
+   // Introduced organisms are selected for minimal viability in the chosen habitat.
+   const placedTerrain=this.terrain(x,y);
+   if(placedTerrain===1)g.wet=Math.max(.52,g.wet);
+   if(placedTerrain===2)g.dry=Math.max(.56,g.dry);
+   if(placedTerrain===3)g.rock=Math.max(.56,g.rock);
+   key=this.category(g);
+   if(used.has(key))continue;
    used.add(key);
    const foundingLineage='founder-'+this.nextId;
    const hx=clamp(x+((k%3)-Math.min(1,count-1))*36,32,W-32);
