@@ -1,0 +1,54 @@
+# Edenomaly — 開発ロードマップ
+
+## 目指す体験
+An observable, evolving artificial ecosystem. The player edits terrain and resources, discovers organisms and documents surprising events. Rules stay simple, outcomes should be emergent rather than scripted.
+
+## 開発原則
+- Morphology affects survival; genes are inherited and mutated.
+- Terrain controls natural food generation and decomposition rates.
+- Dead organisms become corpses, which decay into nutrients.
+- Birth, death, feeding, predation and discoveries are visible and recorded.
+- Species are **provisional morphology bins**, not biological species.
+- Reproducible runs with fixed seeds; simulation logic stays separate from rendering.
+- Don't artificially guarantee endless novel events; measure novelty and stagnation.
+
+## リリース計画
+| Stage | Scope | Acceptance criteria | Status |
+|---|---|---|---|
+| v0.1 | Standalone HTML/CSS/JS | Run in a browser with no external dependencies | [x] |
+| v0.2 | Ecosystem and interaction | Organisms feed, reproduce, hunt, die and mutate | [x] |
+| v0.3 | Terrain | Four tile types, editable with paint tool | [x] |
+| v0.4 | Nutrient cycling | Corpses persist and decompose into edible particles | [x] |
+| v0.5 | Species and event observability | Species list (newest first), alive/ever born counts, birth/death/feeding/predation/decomposition log | [x] |
+| v0.6 | Reproducibility and monitoring | Explicit seed, batch simulation, charts, diversity, stagnation measures | [ ] |
+| v0.7 | Shape-driven body mechanics | Physical morphology matters for movement, contact and feeding | [ ] |
+| v0.8 | Ecological dynamics | Nutrient budgets, niches, stability and collapse diagnostics | [ ] |
+| v0.9 | Discovery play | Persistent catalog, lineage, world save/load and shareable discoveries | [ ] |
+| v1.0 | Public release | usability tests, itch.io browser release, public demo | [ ] |
+
+## コミット前の確認
+1. Run in browser and test terrain painting and restart.
+2. Observe births, deaths, meals and predation on canvas and in log.
+3. Check species counters: alive <= ever born; extinct species remain listed.
+4. Compare nutrient regeneration in grass/water vs dry/rock.
+5. Kill organisms and verify corpses decompose into particles without spawning unlimited food.
+6. Run longer, record whether new species appear and whether populations collapse.
+
+## 既知の制約
+- Approximate nutrient/energy conservation; external food regenerates indefinitely.
+- No realistic soft-body physics or spatial indexing yet.
+- Species classification is a fixed phenotype discretization; not speciation.
+- Event list is bounded; no persistence; no backend.
+- Not verified for large-scale or very long-running simulations.
+
+## リポジトリとライセンス
+- Repository visibility: **Public**.
+- No open-source license is granted initially (no LICENSE file); retain copyright.
+- Public source does not mean freely reusable source. Revisit license before accepting outside contributions.
+- Do not commit secrets or copyrighted third-party assets.
+
+## 公開方法
+To publish the browser demo later: copy `web/` to `docs/` and configure Settings > Pages > Deploy from a branch > main /docs, or use a GitHub Actions deployment for `web/`. For first preview, run a local HTTP server and visit localhost.
+
+## 将来の収益化
+Keep game design/code licensing separate from distribution policy. Start with playable free demos on GitHub Pages and itch.io; validate retention and discovery-sharing before paid release.
