@@ -341,7 +341,7 @@ test('same founder classification shares lineage across individuals',()=>{
  const s=new Ecosystem(504);
  const result=s.introduce(350,200,1);
  assert.equal(result.types,1);
- assert.equal(new Set(s.units.map(u=>u.lineage)).size,8);
+ assert.equal(new Set(s.units.map(u=>u.lineage)).size,1);
  assert.equal(new Set(s.units.map(u=>u.category)).size,1);
 });
 test('disease reduces HP and delays reproduction',()=>{
@@ -358,4 +358,12 @@ test('local nutrient regeneration respects terrain cell capacity',()=>{
  const counts=new Map();
  for(const food of s.food){if(food.source!=='natural')continue;const cell=s.cell(food.x,food.y);counts.set(cell,(counts.get(cell)||0)+1);}
  assert.ok([...counts.values()].every(c=>c<=4));
+});
+
+test('offspring inherit the founding lineage across morphology changes',()=>{
+ const s=new Ecosystem(507);s.introduce(350,200,1);
+ const [a,b]=s.units;for(const u of [a,b]){u.age=100;u.energy=175;}
+ const p=s.conceive(a,b);assert.ok(p);const e=s.layEgg(a);
+ assert.equal(e.lineage,a.lineage);
+ assert.equal(e.lineage,b.lineage);
 });
