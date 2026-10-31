@@ -27,7 +27,7 @@ test('egg hatches into a juvenile and grows into adult',()=>{
  for(let i=0;i<90;i++){kid.energy=100;s.step();}
  assert.equal(kid.stage,'adult');
 });
-test('eggs can be eaten and are removed',()=>{const s=new Ecosystem(11),parent=s.units[0],e=s.layEgg(parent);const predator=s.units[1];assert.ok(s.eatEgg(e,predator));assert.equal(e.dead,true);assert.ok(s.logs.some(l=>l.type==='eggeaten'));});
+test('eggs can be eaten and are removed',()=>{const s=new Ecosystem(11),parent=s.units[0],predator=s.units[1];parent.age=predator.age=100;parent.energy=predator.energy=160;const e=s.layEgg(parent,predator);assert.ok(s.eatEgg(e,predator));assert.equal(e.dead,true);assert.ok(s.logs.some(l=>l.type==='eggeaten'));});
 test('shell trades material for longer incubation and chewing',()=>{const g=new Ecosystem(4).gene();assert.ok(eggTraits({...g,shell:1}).incubation>eggTraits({...g,shell:0}).incubation);assert.ok(eggTraits({...g,shell:1}).eggEnergy>eggTraits({...g,shell:0}).eggEnergy);});
 test('egg protection genes are inherited and bounded',()=>{const s=new Ecosystem(30);for(let i=0;i<100;i++){const g=s.mutate(s.gene());for(const k of ['guard','shell','nesting'])assert.ok(g[k]>=0&&g[k]<=1);}});
 
