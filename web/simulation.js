@@ -57,7 +57,7 @@ export class Ecosystem{
  }
  spawn(x,y,g,parent=null){
   if(this.units.length>=155)return null;
-  const u={id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?37:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',mateCooldown:0};
+  const u={id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?37:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',mateCooldown:0,courtPartner:null,pregnancy:null};
   u.category=this.category(g);this.units.push(u);
   if(!this.species.has(u.category)){
    const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(n),current:0,total:0,hue:g.hue,first:this.tick});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(n),u);
@@ -68,7 +68,7 @@ export class Ecosystem{
  }
  die(u,cause,consumed=0){
   if(u.dead)return;
-  u.dead=true;this.species.get(u.category).current--;
+  u.dead=true;u.courtPartner=null;this.species.get(u.category).current--;
   const mass=Math.max(8,morphology(u.g).bodyMass*1.2+Math.max(0,u.energy)*.4-consumed);
   this.corpses.push({x:u.x,y:u.y,mass,reserve:0,age:0,cause});
   this.log('death','#'+u.id+' 死亡：'+cause,u);
@@ -88,14 +88,14 @@ export class Ecosystem{
   return best;
  }
  isReadyToMate(u){
-  return !u.dead&&u.stage==='adult'&&u.age>42&&u.energy>=65&&u.mateCooldown===0;
+  return !u.dead&&u.stage==='adult'&&u.age>42&&u.energy>=65&&u.mateCooldown===0&&!u.pregnancy;
  }
  findMate(u,batch){
   if(!this.isReadyToMate(u))return null;
   const sight=Math.max(100,morphology(u.g).eyeRange*1.6);
   let match=null,best=sight*sight;
   for(const v of batch){
-   if(v===u||!this.isReadyToMate(v))continue;
+   if(v===u||!this.isReadyToMate(v)||v.courtPartner&&v.courtPartner!==u.id)continue;
    // Direct parent-offspring pairing is excluded.
    if(u.parent===v.id||v.parent===u.id)continue;
    const d=distance(u,v);
@@ -103,18 +103,56 @@ export class Ecosystem{
   }
   return match;
  }
- layEgg(parent,partner){
+ // A pair must remain close while courting; pairing is not permanent.
+ startCourtship(a,b){
+  if(!a||!b||a===b||a.courtPartner||b.courtPartner||!this.isReadyToMate(a)||!this.isReadyToMate(b))return false;
+  a.courtPartner=b.id;b.courtPartner=a.id;
+  this.courtships.push({a:a.id,b:b.id,progress:0,required:24});
+  this.log('court','#'+a.id+' と #'+b.id+' が求愛を開始',a);
+  return true;
+ }
+ cancelCourtship(pair){
+  const a=this.units.find(u=>u.id===pair.a),b=this.units.find(u=>u.id===pair.b);
+  if(a&&a.courtPartner===pair.b)a.courtPartner=null;
+  if(b&&b.courtPartner===pair.a)b.courtPartner=null;
+ }
+ // Fertilization combines both parents' genomes. The egg does not appear yet.
+ conceive(parent,partner){
   if(!partner||parent===partner||!this.isReadyToMate(parent)||!this.isReadyToMate(partner)||this.eggs.length>=220)return null;
-  const g=this.recombine(parent.g,partner.g),traits=eggTraits(g),site=this.chooseNest(parent);
-  const egg={id:this.nextId++,x:site.x,y:site.y,g,parent:parent.id,otherParent:partner.id,generation:Math.max(parent.generation,partner.generation)+1,age:0,hatchAt:traits.incubation,energy:traits.eggEnergy,dead:false};
-  this.eggs.push(egg);
-  parent.energy-=24+traits.eggEnergy*.5+parent.g.nesting*5;
-  partner.energy-=18;
+  const g=this.recombine(parent.g,partner.g),traits=eggTraits(g);
+  const pregnancy={g,parent:parent.id,otherParent:partner.id,generation:Math.max(parent.generation,partner.generation)+1,remaining:45,total:45};
+  parent.pregnancy=pregnancy;
+  parent.energy-=24+traits.eggEnergy*.5+parent.g.nesting*5;partner.energy-=18;
   parent.mateCooldown=145;partner.mateCooldown=145;
   this.matings++;
-  this.log('mate','#'+parent.id+' × #'+partner.id+' が交配',parent);
-  this.log('egg','両親 #'+parent.id+' / #'+partner.id+' の卵 #'+egg.id+' が産まれた',egg);
+  this.log('mate','#'+parent.id+' × #'+partner.id+' が交配。#'+parent.id+' が産卵準備中',parent);
+  return pregnancy;
+ }
+ layEgg(parent,partner=null){
+  // Explicit test helper: two parents can conceive; actual egg laying is delayed.
+  if(partner)return this.conceive(parent,partner);
+  if(!parent.pregnancy||this.eggs.length>=220)return null;
+  const p=parent.pregnancy,traits=eggTraits(p.g),site=this.chooseNest(parent);
+  const egg={id:this.nextId++,x:site.x,y:site.y,g:p.g,parent:p.parent,otherParent:p.otherParent,generation:p.generation,age:0,hatchAt:traits.incubation,energy:traits.eggEnergy,dead:false};
+  parent.pregnancy=null;this.eggs.push(egg);
+  this.log('egg','#'+parent.id+' が卵 #'+egg.id+' を産んだ（相手 #'+egg.otherParent+'）',parent);
+  this.log('laid','卵 #'+egg.id+' が産卵地点に置かれた',egg);
+  this.eggTrails.push({parent:parent.id,egg:egg.id,x1:parent.x,y1:parent.y,x2:egg.x,y2:egg.y,age:0,life:42});
   return egg;
+ }
+ updateCourtships(){
+  for(const pair of this.courtships){
+   const a=this.units.find(u=>u.id===pair.a),b=this.units.find(u=>u.id===pair.b);
+   if(!a||!b||!this.isReadyToMate(a)||!this.isReadyToMate(b)||distance(a,b)>65**2){
+    this.cancelCourtship(pair);pair.done=true;continue;
+   }
+   if(distance(a,b)<35**2)pair.progress++;
+   if(pair.progress>=pair.required){
+    this.cancelCourtship(pair);pair.done=true;
+    this.conceive(a,b);
+   }
+  }
+  this.courtships=this.courtships.filter(p=>!p.done);
  }
  eatEgg(egg,hunter){
   if(egg.dead)return false;
@@ -132,7 +170,7 @@ export class Ecosystem{
   }
  }
  reset(){
-  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.matings=0;this.recycledByTerrain=[0,0,0,0];this.growth=55;this.stress=20;
+  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.matings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=55;this.stress=20;
   this.setupTerrain();
   for(let i=0;i<400;i++){const x=this.range(0,W),y=this.range(0,H);if(this.rand()<GROWTH[this.terrain(x,y)])this.addFood(x,y,1,2);}
   for(let i=0;i<27;i++){const u=this.spawn(this.range(35,W-35),this.range(35,H-35),this.gene());if(u){u.age=Math.floor(this.range(32,55));u.energy=this.range(85,108);}}
@@ -164,6 +202,7 @@ export class Ecosystem{
   const batch=this.units.slice();
   for(const u of batch){
    if(u.dead)continue;u.age++;if(u.bite>0)u.bite--;if(u.mateCooldown>0)u.mateCooldown--;
+   if(u.pregnancy){u.pregnancy.remaining--;if(u.pregnancy.remaining<=0)this.layEgg(u);}
    const g=u.g,t=this.terrain(u.x,u.y),m=morphology(g);
    const youth=u.stage==='juvenile'?.55:1;
    let nearest=null,df=m.eyeRange*m.eyeRange;
@@ -179,9 +218,9 @@ export class Ecosystem{
    }
   let prey=null,pd=m.eyeRange*m.eyeRange;
    if(m.predatory&&u.bite===0)for(const v of batch){if(v===u||v.dead||morphology(v.g).bodyMass>m.bodyMass*m.edibleRatio)continue;const d=distance(u,v);if(d<pd){pd=d;prey=v;}}
-   const mate=this.findMate(u,batch);
+   const mate=u.courtPartner?batch.find(v=>v.id===u.courtPartner&&!v.dead):this.findMate(u,batch);
    let target=prey&&pd<df*1.4?prey:nearest;
-   if(mate&&(!target||u.energy>=108))target=mate;
+   if(mate&&(u.courtPartner||!target||u.energy>=86))target=mate;
    if(targetEgg&&ed<Math.min(df,pd)*1.15)target=targetEgg;
    // Guarding trades feeding opportunities for staying near the offspring.
    const ownEgg=this.eggs.find(e=>e.parent===u.id&&!e.dead);
@@ -192,18 +231,22 @@ export class Ecosystem{
    const desired=target?Math.atan2(target.y-u.y,target.x-u.x):u.angle+this.range(-.5,.5);
    const turn=Math.atan2(Math.sin(desired-u.angle),Math.cos(desired-u.angle));u.angle+=clamp(turn,-m.turnRate,m.turnRate)+this.range(-.09,.09);
    const penalty=t===1?(1-g.wet)*.65:t===2?(1-g.dry)*.6:t===3?.73:0;
-   const speed=m.speed*(u.stage==='juvenile'?.8:1)*clamp(1-penalty,.23,1);
+   const courtingMate=u.courtPartner?batch.find(v=>v.id===u.courtPartner):null;
+   const speed=m.speed*(u.stage==='juvenile'?.8:1)*clamp(1-penalty,.23,1)*(courtingMate&&distance(u,courtingMate)<22**2?.20:1);
    u.x=clamp(u.x+Math.cos(u.angle)*speed,7,W-7);u.y=clamp(u.y+Math.sin(u.angle)*speed,7,H-7);
    u.energy-=m.upkeep*youth+(ownEgg?g.guard*.16:0)+this.stress*.0035+(t===1?(1-g.wet)*.45:t===2?(1-g.dry)*.44:t===3?.27:0)+(g.wet+g.dry)*.055;
    if(nearest&&distance(u,nearest)<(m.biteReach+3)**2){u.energy+=nearest.energy*m.foodGain;const pos=this.food.indexOf(nearest);if(pos>=0)this.food.splice(pos,1);this.log('meal','#'+u.id+' が食事した',u);}
    if(targetEgg&&!targetEgg.dead&&u.bite===0&&distance(u,targetEgg)<(m.biteReach+4)**2)this.eatEgg(targetEgg,u);
-   if(mate&&this.isReadyToMate(u)&&this.isReadyToMate(mate)&&distance(u,mate)<(u.g.r+mate.g.r+9)**2)this.layEgg(u,mate);
+   if(mate&&!u.courtPartner&&!mate.courtPartner&&distance(u,mate)<38**2)this.startCourtship(u,mate);
    if(prey&&!prey.dead&&distance(u,prey)<(m.biteReach+prey.g.r)**2){const eaten=Math.max(5,prey.energy*.45)*m.foodGain;u.energy+=eaten;u.bite=30;this.log('pred','#'+u.id+' が #'+prey.id+' を捕食',u);this.die(prey,'捕食',eaten);}
    if(u.stage==='juvenile'&&u.age>=85&&u.energy>=40){u.stage='adult';this.log('mature','#'+u.id+' が成体になった',u);}
 
    if(u.energy<=0)this.die(u,'飢餓');else if(u.age>1500)this.die(u,'寿命');
   }
+  this.updateCourtships();
   this.units=this.units.filter(u=>!u.dead);this.eggs=this.eggs.filter(e=>!e.dead);
+  for(const trail of this.eggTrails)trail.age++;
+  this.eggTrails=this.eggTrails.filter(t=>t.age<t.life);
   if(this.tick%20===0)this.snapshot();
   if(this.tick%160===0&&this.units.length===0)this.log('info','全個体が絶滅。生命を移入できます');
  }
