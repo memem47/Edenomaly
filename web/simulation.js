@@ -32,15 +32,15 @@ export const dietProfile=g=>{
 export const morphology=g=>{
  const width=g.r, length=g.r*g.elongation;
  const bodyMass=width*width*g.elongation;
- const eyeRange=20+g.eyes*9;
+ const eyeRange=28+g.eyes*10;
  const legsFactor=g.legs===0?.38:Math.min(1.65,.66+.17*g.legs);
- const speed=2.45/(.72+bodyMass*.018);
+ const speed=2.95/(.78+bodyMass*.015);
  const turnRate=clamp(.29/(.75+g.elongation*.21),.12,.29);
  const mouths=g.mouths;
  const biteReach=width*(.7+.15*mouths)+g.jaw*1.6;
  const edibleRatio=clamp(.60+.055*mouths+.06*g.jaw,.62,.88);
  const predatory=dietProfile(g).meat>.14&&g.jaw>=.55&&mouths>=1;
- const upkeep=.13+bodyMass*.011+Math.max(0,bodyMass-110)**1.25*.003+g.eyes*.025+g.legs*.022+mouths*.042+g.jaw*.028+Math.abs(g.deception-.5)*.055+(g.resist??.4)*.065;
+ const upkeep=.09+bodyMass*.008+Math.max(0,bodyMass-110)**1.2*.002+g.eyes*.018+mouths*.03+g.jaw*.02+Math.abs(g.deception-.5)*.035+(g.resist??.4)*.04;
  const foodGain=1+Math.min(.42,(mouths-1)*.13);
  return {width,length,bodyMass,eyeRange,speed,turnRate,biteReach,edibleRatio,predatory,upkeep,foodGain};
 };
@@ -271,7 +271,7 @@ export class Ecosystem{
   const attempts=4+Math.floor(this.growth/7);
   for(let i=0;i<attempts;i++){
    const id=Math.floor(this.rand()*this.tiles.length),t=this.tiles[id];
-   if(this.rand()<GROWTH[t]*this.growth/100&&foodInCell[id]<(t===0?4:t===1?3:2)&&this.food.length<1500){
+   if(this.rand()<GROWTH[t]*this.growth/100&&foodInCell[id]<(t===0?4:t===1?4:2)&&this.food.length<1500){
     this.addFood((id%NX+this.rand())*CELL,(Math.floor(id/NX)+this.rand())*CELL,1,0);
     foodInCell[id]++;
    }
@@ -300,15 +300,15 @@ export class Ecosystem{
    const aquatic=g.aquatic===1,underwater=t===1;
    if(aquatic){
     u.stranded=underwater?0:u.stranded+1;
-    u.hydration=underwater?Math.min(100,u.hydration+2):u.hydration-1.5;
+    u.hydration=underwater?Math.min(100,u.hydration+1.6):u.hydration-.85;
    }else{
     u.submerged=underwater?u.submerged+1:0;
-    u.hydration=this.nearWater(u.x,u.y,1)?Math.min(100,u.hydration+1):u.hydration-.48;
+    u.hydration=this.nearWater(u.x,u.y,1)?Math.min(100,u.hydration+.9):u.hydration-.24;
    }
-   if((aquatic&&u.stranded>65)||(!aquatic&&u.submerged>16)||u.hydration<=0){
-    this.die(u,aquatic?'離水':u.submerged>16?'溺水':'脱水');continue;
+   if((aquatic&&u.stranded>95)||(!aquatic&&u.submerged>24)||u.hydration<=0){
+    this.die(u,aquatic?'離水':u.submerged>24?'溺水':'脱水');continue;
    }
-   if(u.hydration<28)u.hp-=.16;
+   if(u.hydration<18)u.hp-=.06;
    let nearest=null,df=sight*sight;
    if(diet.plant>0)for(const f of this.food){const d=distance(u,f);if(d<df){df=d;nearest=f;}}
    // Eggs are stationary and cannot fight or flee. Guardians only deter some hunters.
@@ -488,7 +488,8 @@ export class Ecosystem{
     if(!u)break;
     u.lineage=foundingLineage;
     u.age=Math.floor(this.range(40,57));
-    u.energy=this.range(95,120);
+    u.energy=this.range(115,145);
+    u.hydration=this.range(85,100);
     spawned++;
    }
    if(spawned)founders.push({category:key,count:spawned});
