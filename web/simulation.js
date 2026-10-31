@@ -12,7 +12,12 @@ export const terrainFitness=(g,t)=>{
  // Traits are inherited; acquired acclimatization is deliberately not simulated.
  const tolerance=[1, g.wet, g.dry, g.rock??.2][t];
  const fitness=t===0?1:clamp(.28+.95*tolerance,.28,1.23);
- return {fitness,move:clamp(.43+.57*fitness,.45,1.14),
+ const passable=t!==1||g.wet>=.32;
+ const sight=t===1?clamp(.30+g.wet*1.08,.30,1.25):t===2?clamp(.52+g.dry*.56,.52,1.08):t===3?clamp(.67+(g.rock??.2)*.43,.67,1.10):1;
+ const hazard=t===1?clamp((.56-g.wet)*.37,0,.2):
+   t===2?clamp((.50-g.dry)*1.3,0,.65):
+   t===3?clamp((.45-(g.rock??.2))*.28,0,.15):0;
+ return {fitness,passable,sight,hazard,move:clamp(.30+.75*fitness,.32,1.22),
    upkeep:t===0?0:(1-tolerance)*[0,.38,.51,.61][t]+tolerance*.045};
 };
 export const dietProfile=g=>{
@@ -85,8 +90,8 @@ export class Ecosystem{
  }
  spawn(x,y,g,parent=null){
   if(this.units.length>=155)return null;
-  const u={id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?37:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null};
-  u.category=this.category(g);this.units.push(u);
+  const u={id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?37:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null};
+  u.category=this.category(g);u.lineage??=u.id;this.units.push(u);
   if(!this.species.has(u.category)){
    const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(n),current:0,total:0,hue:g.hue,saturation:g.saturation,lightness:g.lightness,pattern:g.pattern,diet:dietProfile(g).label,first:this.tick});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(n),u);
   }
@@ -116,7 +121,7 @@ export class Ecosystem{
   return best;
  }
  isReadyToMate(u){
-  return !u.dead&&u.stage==='adult'&&u.age>42&&u.energy>=65+Math.max(0,morphology(u.g).bodyMass-100)*.22&&u.mateCooldown===0&&!u.pregnancy&&vitality(u).vigor>.35;
+  return !u.dead&&u.infection===0&&(u.localCrowd??0)<9&&u.stage==='adult'&&u.age>42&&u.energy>=65+Math.max(0,morphology(u.g).bodyMass-100)*.22&&u.mateCooldown===0&&!u.pregnancy&&vitality(u).vigor>.35;
  }
  findMate(u,batch){
   if(!this.isReadyToMate(u))return null;
@@ -154,7 +159,7 @@ export class Ecosystem{
   const count=Math.min(desired,affordable,220-this.eggs.length);
   if(count<1)return null;
   const genomes=Array.from({length:count},()=>this.recombine(parent.g,partner.g));
-  const pregnancy={genomes,parent:parent.id,otherParent:partner.id,generation:Math.max(parent.generation,partner.generation)+1,remaining:36,total:36};
+  const pregnancy={genomes,parent:parent.id,otherParent:partner.id,lineage:this.rand()<.5?parent.lineage:partner.lineage,generation:Math.max(parent.generation,partner.generation)+1,remaining:36,total:36};
   parent.pregnancy=pregnancy;
   parent.energy-=15+count*8+parent.g.nesting*3+largeParentCost;partner.energy-=10+count*2+Math.max(0,morphology(partner.g).bodyMass-100)*.08;
   parent.mateCooldown=145;partner.mateCooldown=145;
@@ -175,7 +180,7 @@ export class Ecosystem{
   for(let i=0;i<count;i++){
    const g=p.genomes[i],traits=eggTraits(g);
    const rear=rearPosition(parent,5+i*2.5);
-   const egg={id:this.nextId++,x:clamp(rear.x+Math.cos(parent.angle+Math.PI/2)*this.range(-6,6),6,W-6),y:clamp(rear.y+Math.sin(parent.angle+Math.PI/2)*this.range(-6,6),6,H-6),g,parent:p.parent,otherParent:p.otherParent,generation:p.generation,age:0,hatchAt:traits.incubation,energy:traits.eggEnergy,dead:false,bornTick:this.tick,birthX:parent.x-Math.cos(parent.angle)*(parent.g.r*parent.g.elongation+1),birthY:parent.y-Math.sin(parent.angle)*(parent.g.r*parent.g.elongation+1)};
+   const egg={id:this.nextId++,x:clamp(rear.x+Math.cos(parent.angle+Math.PI/2)*this.range(-6,6),6,W-6),y:clamp(rear.y+Math.sin(parent.angle+Math.PI/2)*this.range(-6,6),6,H-6),g,parent:p.parent,otherParent:p.otherParent,generation:p.generation,lineage:p.lineage,age:0,hatchAt:traits.incubation,energy:traits.eggEnergy,dead:false,bornTick:this.tick,birthX:parent.x-Math.cos(parent.angle)*(parent.g.r*parent.g.elongation+1),birthY:parent.y-Math.sin(parent.angle)*(parent.g.r*parent.g.elongation+1)};
    laid.push(egg);this.eggs.push(egg);
   }
   parent.pregnancy=null;
@@ -240,10 +245,17 @@ export class Ecosystem{
  snapshot(){this.history.push({population:this.units.length,eggs:this.eggs.length,food:this.food.length,corpses:this.corpses.length});if(this.history.length>180)this.history.shift();}
  step(){
   this.tick++;
+  // Soil resources have local carrying capacities: food cannot accumulate
+  // indefinitely in a meadow simply because the rest of the world is empty.
+  const foodInCell=new Uint16Array(this.tiles.length);
+  for(const f of this.food)foodInCell[this.cell(f.x,f.y)]++;
   const attempts=4+Math.floor(this.growth/7);
   for(let i=0;i<attempts;i++){
    const id=Math.floor(this.rand()*this.tiles.length),t=this.tiles[id];
-   if(this.rand()<GROWTH[t]*this.growth/100&&this.food.length<1500)this.addFood((id%NX+this.rand())*CELL,(Math.floor(id/NX)+this.rand())*CELL,1,0);
+   if(this.rand()<GROWTH[t]*this.growth/100&&foodInCell[id]<(t===0?4:t===1?3:2)&&this.food.length<1500){
+    this.addFood((id%NX+this.rand())*CELL,(Math.floor(id/NX)+this.rand())*CELL,1,0);
+    foodInCell[id]++;
+   }
   }
   for(let i=this.corpses.length-1;i>=0;i--){
    const c=this.corpses[i];c.age++;
@@ -255,7 +267,7 @@ export class Ecosystem{
    egg.age++;
    if(egg.age>=egg.hatchAt&&this.units.length<155){
     egg.dead=true;
-    const child=this.spawn(egg.x,egg.y,egg.g,{id:egg.parent,otherParent:egg.otherParent,generation:egg.generation-1});
+    const child=this.spawn(egg.x,egg.y,egg.g,{id:egg.parent,otherParent:egg.otherParent,generation:egg.generation-1,lineage:egg.lineage});
     if(child){child.energy=egg.energy+17;child.stage='juvenile';this.log('hatch','卵 #'+egg.id+' から #'+child.id+' が孵化',egg);}
    }
   }
@@ -265,11 +277,11 @@ export class Ecosystem{
    if(u.dead)continue;u.age++;if(u.bite>0)u.bite--;if(u.woundFlash>0)u.woundFlash--;if(u.mateCooldown>0)u.mateCooldown--;
    if(u.pregnancy){u.pregnancy.remaining--;if(u.pregnancy.remaining<=0)this.layEgg(u);}
    const g=u.g,t=this.terrain(u.x,u.y),m=morphology(g),diet=dietProfile(g),home=terrainFitness(g,t);
-   const youth=u.stage==='juvenile'?.50:1,body=vitality(u);
-   let nearest=null,df=m.eyeRange*m.eyeRange;
+   const youth=u.stage==='juvenile'?.50:1,body=vitality(u),sight=m.eyeRange*home.sight;
+   let nearest=null,df=sight*sight;
    if(diet.plant>0)for(const f of this.food){const d=distance(u,f);if(d<df){df=d;nearest=f;}}
    // Eggs are stationary and cannot fight or flee. Guardians only deter some hunters.
-   let targetEgg=null,ed=m.eyeRange*m.eyeRange;
+   let targetEgg=null,ed=sight*sight;
    if(u.bite===0&&diet.meat>.12&&g.mouths>0)for(const egg of this.eggs){
     if(egg.dead||egg.parent===u.id||egg.otherParent===u.id)continue;
     let d=distance(u,egg);if(d>=ed)continue;
@@ -277,13 +289,13 @@ export class Ecosystem{
     const risk=guardian&&guardian!==u&&morphology(guardian.g).bodyMass>=m.bodyMass*.65?1+guardian.g.guard*3:1;
     d*=risk; if(d<ed){ed=d;targetEgg=egg;}
    }
-  let prey=null,pd=m.eyeRange*m.eyeRange;
+  let prey=null,pd=sight*sight;
    if(m.predatory&&u.bite===0)for(const v of batch){
     if(v===u||v.dead||v.id===u.courtPartner||morphology(v.g).bodyMass>m.bodyMass*m.edibleRatio)continue;
     const d=distance(u,v);if(d<pd){pd=d;prey=v;}
    }
    // Prey respond to the perceived, visible feeding signal, not hidden genome.
-   let danger=null,dangerD=m.eyeRange*m.eyeRange*1.6;
+   let danger=null,dangerD=sight*sight*1.6;
    for(const v of batch){
     if(v===u||v.dead)continue;
     const visible=dietProfile(v.g).signal;
@@ -301,7 +313,24 @@ export class Ecosystem{
     if(distance(u,v)<48**2){rivals++;if(morphology(v.g).bodyMass>m.bodyMass*.95)stronger++;}
    }
    const pressure=(rivals+stronger*.7)/(1+GROWTH[t]*5);
-   const seekRefuge=!u.courtPartner&&!u.pregnancy&&!flight&&pressure>1.35&&u.energy<115;
+   // Kin-specific contact disease is more likely in dense founder lineages.
+   // A new mutation is not instantly immune: lineage persists across offspring.
+   let relatives=0,infectious=0;
+   for(const v of batch)if(v!==u&&!v.dead&&v.lineage===u.lineage&&distance(u,v)<38**2){
+    relatives++;if(v.infection>0)infectious++;
+   }
+   const crowd=Math.max(0,relatives-3);
+   if(u.infection>0){
+    u.infection--;
+    u.hp-=.16+crowd*.028;
+   }else if(crowd>0&&this.rand()<Math.min(.075,crowd*.00045+infectious*.0035)){
+    u.infection=70+Math.floor(this.rand()*55);
+    this.log('ill','#'+u.id+' が密集地で感染',u);
+   }
+   // Crowded colonies consume more energy and stop producing offspring as easily.
+   u.energy-=Math.min(.45,Math.max(0,rivals-4)*.045);
+   u.localCrowd=relatives;
+   const seekRefuge=!u.courtPartner&&!u.pregnancy&&!flight&&(pressure>1.35||relatives>7)&&u.energy<130;
    if(seekRefuge&&(this.tick+u.id)%14===0){
     let best=null,bestScore=-Infinity;
     for(let i=0;i<12;i++){
@@ -309,7 +338,9 @@ export class Ecosystem{
      const terrain=this.terrain(x,y);
      let competitors=0;
      for(const v of batch)if(v!==u&&!v.dead&&dietProfile(v.g).plant>.25&&distance({x,y},v)<48**2)competitors++;
-     const fit=terrainFitness(g,terrain).fitness;
+     const habitat=terrainFitness(g,terrain);
+     if(!habitat.passable)continue;
+     const fit=habitat.fitness;
      const score=fit*.85+GROWTH[terrain]*.6-competitors*.37+this.range(-.12,.12);
      if(score>bestScore){bestScore=score;best={x,y,terrain};}
     }
@@ -346,7 +377,11 @@ export class Ecosystem{
    const courtingMate=u.courtPartner?batch.find(v=>v.id===u.courtPartner):null;
    const speed=m.speed*body.vigor*(u.stage==='juvenile'?.8:1)*terrainMove
      *(flight?1.24:courtingMate&&distance(u,courtingMate)<22**2?.20:1);
-   u.x=clamp(u.x+Math.cos(u.angle)*speed,7,W-7);u.y=clamp(u.y+Math.sin(u.angle)*speed,7,H-7);
+   const nextX=clamp(u.x+Math.cos(u.angle)*speed,7,W-7);
+   const nextY=clamp(u.y+Math.sin(u.angle)*speed,7,H-7);
+   if(terrainFitness(g,this.terrain(nextX,nextY)).passable){u.x=nextX;u.y=nextY;}
+   else u.angle+=Math.PI*.72;
+   u.hp-=home.hazard;
    u.energy-=m.upkeep*youth*(1+body.old*.18)+(flight?.10:0)+(ownEgg?g.guard*.16:0)+this.stress*.0035+home.upkeep+(g.wet+g.dry+g.rock)*.055;
    if(!flight&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+3)**2){u.energy+=nearest.energy*m.foodGain*diet.plant*home.fitness;
     u.hp=Math.min(u.maxHp,u.hp+nearest.energy*.09*(1-body.old*.6));const pos=this.food.indexOf(nearest);if(pos>=0)this.food.splice(pos,1);this.log('meal','#'+u.id+' が食事した',u);}
@@ -357,7 +392,7 @@ export class Ecosystem{
    if(newTerrain!==u.lastTerrain){u.lastTerrain=newTerrain;this.terrainCrossings++;}
    if(u.stage==='juvenile'&&u.age>=65&&u.energy>=32){u.stage='adult';this.log('mature','#'+u.id+' が成体になった',u);}
 
-   if(u.energy<=0)this.die(u,'飢餓');else if(u.age>1500)this.die(u,'寿命');
+   if(u.hp<=0)this.die(u,u.infection>0?'感染症':'環境衰弱');else if(u.energy<=0)this.die(u,'飢餓');else if(u.age>1500)this.die(u,'寿命');
   }
   this.updateCourtships();
   this.units=this.units.filter(u=>!u.dead);this.eggs=this.eggs.filter(e=>!e.dead);
