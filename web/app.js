@@ -14,7 +14,7 @@ function update(){
  $('events').innerHTML=game.logs.filter(e=>filter==='all'||e.type===filter).slice(0,60).map(e=>`<div class="log-entry"><span style="color:${eventColors[e.type]||'#9eb0b8'}">●</span> [${e.step}] ${escapeHTML(e.message)}</div>`).join('');
  const people=[0,0,0,0],food=[0,0,0,0],corpses=[0,0,0,0];for(const u of game.units)people[game.terrain(u.x,u.y)]++;for(const f of game.food)food[game.terrain(f.x,f.y)]++;for(const c of game.corpses)corpses[game.terrain(c.x,c.y)]++;
  $('habitats').innerHTML=TERRAIN_NAMES.map((name,i)=>`<div><span><span style="display:inline-block;width:11px;height:11px;background:${TERRAIN_COLORS[i]};margin-right:5px"></span>${name}</span><span>生命 ${people[i]} / 栄養 ${food[i]} / 死体 ${corpses[i]} / 還元 ${game.recycledByTerrain[i]}</span></div>`).join('');
- $('inspector').textContent=selected&&!selected.dead?`#${selected.id} ${game.species.get(selected.category)?.name}｜体格 ${selected.g.r.toFixed(1)}｜顎 ${selected.g.jaw.toFixed(2)}｜水適応 ${selected.g.wet.toFixed(2)}｜乾燥適応 ${selected.g.dry.toFixed(2)}｜エネルギー ${selected.energy.toFixed(1)}｜第${selected.generation}世代`:'観察モードで生命をクリック。';
+ $('inspector').textContent=selected&&!selected.dead?`#${selected.id} ${game.species.get(selected.category)?.name}｜幅 ${selected.g.r.toFixed(1)}｜長さ比 ${selected.g.elongation.toFixed(2)}｜目 ${selected.g.eyes}｜口 ${selected.g.mouths}｜脚 ${selected.g.legs}｜顎 ${selected.g.jaw.toFixed(2)}｜水適応 ${selected.g.wet.toFixed(2)}｜乾燥適応 ${selected.g.dry.toFixed(2)}｜エネルギー ${selected.energy.toFixed(1)}｜第${selected.generation}世代`:'観察モードで生命をクリック。';
  $('diagnostic').textContent=`新形態：直近300ステップで ${game.recentSpecies} 種。${game.units.length?'種数の増加だけでは創発的な行動を示しません。':'全個体が絶滅しました。移入で再開できます。'}`;
  drawChart(graph,game.history);
 }

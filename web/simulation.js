@@ -6,6 +6,22 @@ const GROWTH=[1,.75,.10,.015],DECAY=[.026,.038,.006,.003];
 const PREFIX=['モコ','ミュ','ルミ','ネム','ゾル','リュ','シル','ノク','ヴェル','テラ'];
 const SUFFIX=['リア','リス','ルン','ミア','ゾア','ティス','ノク','ピア'];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+// Morphology is the source of functional abilities; no separate speed/vision/attack genes.
+export const morphology=g=>{
+ const width=g.r, length=g.r*g.elongation;
+ const bodyMass=width*width*g.elongation;
+ const eyeRange=32+g.eyes*13;
+ const legsFactor=g.legs===0?.38:Math.min(1.65,.66+.17*g.legs);
+ const speed=3.8*legsFactor/(.73+bodyMass*.017);
+ const turnRate=clamp(.29/(.75+g.elongation*.21),.12,.29);
+ const mouths=g.mouths;
+ const biteReach=width*(.7+.15*mouths)+g.jaw*1.6;
+ const edibleRatio=clamp(.60+.055*mouths+.06*g.jaw,.62,.88);
+ const predatory=g.jaw>=1.16&&mouths>=1;
+ const upkeep=.13+bodyMass*.009+g.eyes*.025+g.legs*.022+mouths*.042+g.jaw*.028;
+ const foodGain=1+Math.min(.42,(mouths-1)*.13);
+ return {width,length,bodyMass,eyeRange,speed,turnRate,biteReach,edibleRatio,predatory,upkeep,foodGain};
+};
 const distance=(a,b)=>(a.x-b.x)**2+(a.y-b.y)**2;
 export class Ecosystem{
  constructor(seed=971253){this.initialSeed=seed;this.reset();}
@@ -13,9 +29,9 @@ export class Ecosystem{
  range(a,b){return a+(b-a)*this.rand();}
  cell(x,y){return clamp(Math.floor(y/CELL),0,NY-1)*NX+clamp(Math.floor(x/CELL),0,NX-1);}
  terrain(x,y){return this.tiles[this.cell(x,y)];}
- gene(){return {r:this.range(4.2,8),jaw:this.range(.3,1.7),wet:this.rand(),dry:this.rand(),hue:this.range(0,360)};}
- mutate(g){return {r:clamp(g.r+this.range(-.7,.7),3,12),jaw:clamp(g.jaw+this.range(-.22,.22),.2,2.5),wet:clamp(g.wet+this.range(-.11,.11),0,1),dry:clamp(g.dry+this.range(-.11,.11),0,1),hue:(g.hue+this.range(-18,18)+360)%360};}
- category(g){return [Math.floor(g.r/2),Math.floor(g.jaw/.65),Math.floor(g.wet*3),Math.floor(g.dry*3),Math.floor(g.hue/120)].join('-');}
+ gene(){return {r:this.range(3.6,7.3),elongation:this.range(.75,2.45),eyes:1+Math.floor(this.rand()*4),mouths:1+Math.floor(this.rand()*3),legs:2*Math.floor(this.rand()*4),jaw:this.range(.3,1.7),wet:this.rand(),dry:this.rand(),hue:this.range(0,360)};}
+ mutate(g){return {r:clamp(g.r+this.range(-.45,.45),3,9),elongation:clamp(g.elongation+this.range(-.22,.22),.65,3),eyes:clamp(g.eyes+(this.rand()<.13?(this.rand()<.5?-1:1):0),0,6),mouths:clamp(g.mouths+(this.rand()<.12?(this.rand()<.5?-1:1):0),1,4),legs:clamp(g.legs+(this.rand()<.17?(this.rand()<.5?-2:2):0),0,8),jaw:clamp(g.jaw+this.range(-.19,.19),.2,2.5),wet:clamp(g.wet+this.range(-.11,.11),0,1),dry:clamp(g.dry+this.range(-.11,.11),0,1),hue:(g.hue+this.range(-18,18)+360)%360};}
+ category(g){return [Math.floor(g.r/2),Math.floor(g.elongation/.65),g.eyes,g.mouths,g.legs,Math.floor(g.jaw/.65),Math.floor(g.wet*3),Math.floor(g.dry*3),Math.floor(g.hue/120)].join('-');}
  name(n){return PREFIX[(n*7+2)%PREFIX.length]+SUFFIX[(n*3+1)%SUFFIX.length]+'-'+String(n).padStart(3,'0');}
  log(type,message,point){this.logs.unshift({type,message,step:this.tick});if(this.logs.length>500)this.logs.pop();if(point&&this.effects.length<140)this.effects.push({type,x:point.x,y:point.y,age:0});}
  addFood(x,y,n,spread=8,source='natural'){
@@ -39,7 +55,7 @@ export class Ecosystem{
  die(u,cause,consumed=0){
   if(u.dead)return;
   u.dead=true;this.species.get(u.category).current--;
-  const mass=Math.max(8,u.g.r*6+Math.max(0,u.energy)*.4-consumed);
+  const mass=Math.max(8,morphology(u.g).bodyMass*1.2+Math.max(0,u.energy)*.4-consumed);
   this.corpses.push({x:u.x,y:u.y,mass,reserve:0,age:0,cause});
   this.log('death','#'+u.id+' 死亡：'+cause,u);
   if(this.species.get(u.category).current===0)this.log('info',this.species.get(u.category).name+' が絶滅');
@@ -75,20 +91,20 @@ export class Ecosystem{
   const batch=this.units.slice();
   for(const u of batch){
    if(u.dead)continue;u.age++;if(u.bite>0)u.bite--;
-   const g=u.g,t=this.terrain(u.x,u.y);
-   let nearest=null,df=3700;
+   const g=u.g,t=this.terrain(u.x,u.y),m=morphology(g);
+   let nearest=null,df=m.eyeRange*m.eyeRange;
    for(const f of this.food){const d=distance(u,f);if(d<df){df=d;nearest=f;}}
-   let prey=null,pd=1900;
-   if(g.jaw>1.33&&u.bite===0)for(const v of batch){if(v===u||v.dead||v.g.r>g.r*.75)continue;const d=distance(u,v);if(d<pd){pd=d;prey=v;}}
+   let prey=null,pd=m.eyeRange*m.eyeRange;
+   if(m.predatory&&u.bite===0)for(const v of batch){if(v===u||v.dead||morphology(v.g).bodyMass>m.bodyMass*m.edibleRatio)continue;const d=distance(u,v);if(d<pd){pd=d;prey=v;}}
    const target=prey&&pd<df*1.4?prey:nearest;
    const desired=target?Math.atan2(target.y-u.y,target.x-u.x):u.angle+this.range(-.5,.5);
-   const turn=Math.atan2(Math.sin(desired-u.angle),Math.cos(desired-u.angle));u.angle+=clamp(turn,-.23,.23)+this.range(-.09,.09);
+   const turn=Math.atan2(Math.sin(desired-u.angle),Math.cos(desired-u.angle));u.angle+=clamp(turn,-m.turnRate,m.turnRate)+this.range(-.09,.09);
    const penalty=t===1?(1-g.wet)*.65:t===2?(1-g.dry)*.6:t===3?.73:0;
-   const speed=3.7/(.75+g.r*.13)*clamp(1-penalty,.23,1);
+   const speed=m.speed*clamp(1-penalty,.23,1);
    u.x=clamp(u.x+Math.cos(u.angle)*speed,7,W-7);u.y=clamp(u.y+Math.sin(u.angle)*speed,7,H-7);
-   u.energy-=.17+g.r*.052+g.jaw*.025+this.stress*.0035+(t===1?(1-g.wet)*.45:t===2?(1-g.dry)*.44:t===3?.27:0)+(g.wet+g.dry)*.055;
-   if(nearest&&distance(u,nearest)<(g.r+4)**2){u.energy+=nearest.energy;const pos=this.food.indexOf(nearest);if(pos>=0)this.food.splice(pos,1);this.log('meal','#'+u.id+' が食事した',u);}
-   if(prey&&!prey.dead&&distance(u,prey)<(g.r+prey.g.r+2)**2){const eaten=Math.max(5,prey.energy*.45);u.energy+=eaten;u.bite=30;this.log('pred','#'+u.id+' が #'+prey.id+' を捕食',u);this.die(prey,'捕食',eaten);}
+   u.energy-=m.upkeep+this.stress*.0035+(t===1?(1-g.wet)*.45:t===2?(1-g.dry)*.44:t===3?.27:0)+(g.wet+g.dry)*.055;
+   if(nearest&&distance(u,nearest)<(m.biteReach+3)**2){u.energy+=nearest.energy*m.foodGain;const pos=this.food.indexOf(nearest);if(pos>=0)this.food.splice(pos,1);this.log('meal','#'+u.id+' が食事した',u);}
+   if(prey&&!prey.dead&&distance(u,prey)<(m.biteReach+prey.g.r)**2){const eaten=Math.max(5,prey.energy*.45)*m.foodGain;u.energy+=eaten;u.bite=30;this.log('pred','#'+u.id+' が #'+prey.id+' を捕食',u);this.die(prey,'捕食',eaten);}
    if(u.energy>115&&u.age>52&&this.units.length<155){u.energy-=54;this.spawn(u.x+this.range(-12,12),u.y+this.range(-12,12),this.mutate(g),u);}
    if(u.energy<=0)this.die(u,'飢餓');else if(u.age>1500)this.die(u,'寿命');
   }
