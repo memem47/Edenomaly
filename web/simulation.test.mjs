@@ -247,3 +247,37 @@ test('injury and old age reduce vigor',()=>{
  const old=vitality(u).vigor;
  assert.ok(young>injured&&injured>old);
 });
+
+test('corpses retain their complete hereditary anatomy and death orientation',()=>{
+ const s=new Ecosystem(401),u=s.units[0];u.angle=1.23;
+ const g={...u.g};s.die(u,'test');
+ const c=s.corpses[0];
+ assert.deepEqual(c.g,g);assert.equal(c.angle,1.23);
+ assert.equal(c.stage,u.stage);assert.equal(c.initialMass,c.mass);
+ assert.ok(c.initialMass>0);
+});
+test('giant mutations can exceed old radius limit but remain bounded',()=>{
+ const s=new Ecosystem(402),g={...s.gene(),r:14.9};
+ for(let i=0;i<80;i++){
+  const child=s.mutate(g);
+  assert.ok(child.r>=3&&child.r<=15);
+ }
+ const born=Array.from({length:300},()=>s.gene());
+ assert.ok(born.some(x=>x.r>9));
+});
+test('giants are tougher and hit harder but require more upkeep and move slower',()=>{
+ const s=new Ecosystem(403),g=s.gene();
+ const small={...g,r:5,elongation:1.25},giant={...g,r:13,elongation:1.25};
+ assert.ok(morphology(giant).upkeep>morphology(small).upkeep*3);
+ assert.ok(morphology(giant).speed<morphology(small).speed);
+ const a=s.spawn(210,160,small),b=s.spawn(280,160,giant);
+ assert.ok(b.maxHp>a.maxHp);
+ const prey=s.spawn(330,160,{...g,r:4,elongation:1});
+ a.g.diet=b.g.diet=1;
+ a.bite=b.bite=0;
+ prey.hp=prey.maxHp=1000;
+ s.attack(a,prey);const first=1000-prey.hp;
+ prey.hp=1000;
+ s.attack(b,prey);const second=1000-prey.hp;
+ assert.ok(second>first);
+});
