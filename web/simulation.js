@@ -470,7 +470,21 @@ export class Ecosystem{
        rock:clamp(g.rock+this.range(-.018,.018),0,1)};
      if(this.category(trial)===key)variant=trial;
     }
-    const u=this.spawn(hx+this.range(-20,20),hy+this.range(-20,20),variant);
+    let sx=hx+this.range(-20,20),sy=hy+this.range(-20,20);
+    // Keep each founder in its genetically required habitat.
+    if(variant.aquatic===1&&this.terrain(sx,sy)!==1){
+     const water=this.nearestWater(sx,sy,65);
+     if(water){sx=water.x;sy=water.y;}
+    }else if(variant.aquatic!==1&&this.terrain(sx,sy)===1){
+     let found=false;
+     for(let j=0;j<30;j++){
+      const tx=clamp(hx+this.range(-28,28),12,W-12);
+      const ty=clamp(hy+this.range(-28,28),12,H-12);
+      if(this.terrain(tx,ty)!==1){sx=tx;sy=ty;found=true;break;}
+     }
+     if(!found){sx=x;sy=y;}
+    }
+    const u=this.spawn(sx,sy,variant);
     if(!u)break;
     u.lineage=foundingLineage;
     u.age=Math.floor(this.range(40,57));
