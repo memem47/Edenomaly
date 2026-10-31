@@ -6,6 +6,13 @@ const GROWTH=[1,.75,.10,.015],DECAY=[.026,.038,.006,.003];
 const PREFIX=['モコ','ミュ','ルミ','ネム','ゾル','リュ','シル','ノク','ヴェル','テラ'];
 const SUFFIX=['リア','リス','ルン','ミア','ゾア','ティス','ノク','ピア'];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+export const dietProfile=g=>{
+ const diet=clamp(g.diet,0,1);
+ // The visual signal is heritable separately from feeding ability.
+ const signal=clamp(diet+(g.deception-.5)*1.35,0,1);
+ return {diet,plant:1-diet,meat:diet,signal,
+  label:diet<.3?'栄養食':diet>.7?'肉食':'雑食'};
+};
 // Morphology is the source of functional abilities; no separate speed/vision/attack genes.
 export const morphology=g=>{
  const width=g.r, length=g.r*g.elongation;
@@ -17,13 +24,13 @@ export const morphology=g=>{
  const mouths=g.mouths;
  const biteReach=width*(.7+.15*mouths)+g.jaw*1.6;
  const edibleRatio=clamp(.60+.055*mouths+.06*g.jaw,.62,.88);
- const predatory=g.jaw>=1.16&&mouths>=1;
- const upkeep=.13+bodyMass*.009+g.eyes*.025+g.legs*.022+mouths*.042+g.jaw*.028;
+ const predatory=dietProfile(g).meat>.14&&g.jaw>=.55&&mouths>=1;
+ const upkeep=.13+bodyMass*.009+g.eyes*.025+g.legs*.022+mouths*.042+g.jaw*.028+Math.abs(g.deception-.5)*.055;
  const foodGain=1+Math.min(.42,(mouths-1)*.13);
  return {width,length,bodyMass,eyeRange,speed,turnRate,biteReach,edibleRatio,predatory,upkeep,foodGain};
 };
 const distance=(a,b)=>(a.x-b.x)**2+(a.y-b.y)**2;
-const HERITABLE=['r','elongation','eyes','mouths','legs','jaw','wet','dry','shell','guard','nesting','hue','saturation','lightness','pattern','brood'];
+const HERITABLE=['r','elongation','eyes','mouths','legs','jaw','wet','dry','shell','guard','nesting','hue','saturation','lightness','pattern','brood','diet','deception'];
 export const eggTraits=g=>({
  shell:g.shell,guard:g.guard,nesting:g.nesting,
  incubation:Math.round(34+g.shell*30),
@@ -36,8 +43,8 @@ export class Ecosystem{
  range(a,b){return a+(b-a)*this.rand();}
  cell(x,y){return clamp(Math.floor(y/CELL),0,NY-1)*NX+clamp(Math.floor(x/CELL),0,NX-1);}
  terrain(x,y){return this.tiles[this.cell(x,y)];}
- gene(){return {r:this.range(3.6,7.3),elongation:this.range(.75,2.45),eyes:1+Math.floor(this.rand()*4),mouths:1+Math.floor(this.rand()*3),legs:2*Math.floor(this.rand()*4),jaw:this.range(.3,1.7),wet:this.rand(),dry:this.rand(),shell:this.rand(),guard:this.rand(),nesting:this.rand(),hue:this.range(0,360),saturation:this.range(48,100),lightness:this.range(42,81),pattern:Math.floor(this.rand()*4),brood:2+Math.floor(this.rand()*4)};}
- mutate(g){return {r:clamp(g.r+this.range(-.45,.45),3,9),elongation:clamp(g.elongation+this.range(-.22,.22),.65,3),eyes:clamp(g.eyes+(this.rand()<.13?(this.rand()<.5?-1:1):0),0,6),mouths:clamp(g.mouths+(this.rand()<.12?(this.rand()<.5?-1:1):0),1,4),legs:clamp(g.legs+(this.rand()<.17?(this.rand()<.5?-2:2):0),0,8),jaw:clamp(g.jaw+this.range(-.19,.19),.2,2.5),wet:clamp(g.wet+this.range(-.11,.11),0,1),dry:clamp(g.dry+this.range(-.11,.11),0,1),shell:clamp(g.shell+this.range(-.12,.12),0,1),guard:clamp(g.guard+this.range(-.12,.12),0,1),nesting:clamp(g.nesting+this.range(-.12,.12),0,1),hue:(g.hue+this.range(-32,32)+360)%360,saturation:clamp(g.saturation+this.range(-9,9),35,100),lightness:clamp(g.lightness+this.range(-9,9),35,85),pattern:clamp(g.pattern+(this.rand()<.15?(this.rand()<.5?-1:1):0),0,3),brood:clamp(g.brood+(this.rand()<.2?(this.rand()<.5?-1:1):0),1,8)};}
+ gene(){return {r:this.range(3.6,7.3),elongation:this.range(.75,2.45),eyes:1+Math.floor(this.rand()*4),mouths:1+Math.floor(this.rand()*3),legs:2*Math.floor(this.rand()*4),jaw:this.range(.3,1.7),wet:this.rand(),dry:this.rand(),shell:this.rand(),guard:this.rand(),nesting:this.rand(),hue:this.range(0,360),saturation:this.range(48,100),lightness:this.range(42,81),pattern:Math.floor(this.rand()*4),brood:2+Math.floor(this.rand()*4),diet:this.rand(),deception:clamp(.5+this.range(-.32,.32),0,1)};}
+ mutate(g){return {r:clamp(g.r+this.range(-.45,.45),3,9),elongation:clamp(g.elongation+this.range(-.22,.22),.65,3),eyes:clamp(g.eyes+(this.rand()<.13?(this.rand()<.5?-1:1):0),0,6),mouths:clamp(g.mouths+(this.rand()<.12?(this.rand()<.5?-1:1):0),1,4),legs:clamp(g.legs+(this.rand()<.17?(this.rand()<.5?-2:2):0),0,8),jaw:clamp(g.jaw+this.range(-.19,.19),.2,2.5),wet:clamp(g.wet+this.range(-.11,.11),0,1),dry:clamp(g.dry+this.range(-.11,.11),0,1),shell:clamp(g.shell+this.range(-.12,.12),0,1),guard:clamp(g.guard+this.range(-.12,.12),0,1),nesting:clamp(g.nesting+this.range(-.12,.12),0,1),hue:(g.hue+this.range(-32,32)+360)%360,saturation:clamp(g.saturation+this.range(-9,9),35,100),lightness:clamp(g.lightness+this.range(-9,9),35,85),pattern:clamp(g.pattern+(this.rand()<.15?(this.rand()<.5?-1:1):0),0,3),brood:clamp(g.brood+(this.rand()<.2?(this.rand()<.5?-1:1):0),1,8),diet:clamp(g.diet+this.range(-.16,.16),0,1),deception:clamp(g.deception+this.range(-.16,.16),0,1)};}
  // Each locus is inherited from either parent; small, rare mutations add novel alleles.
  recombine(a,b){
   const child={};
@@ -45,7 +52,7 @@ export class Ecosystem{
   // Mutation is secondary to recombination, not a clone-based reproduction mechanism.
   return this.rand()<.18?this.mutate(child):child;
  }
- category(g){return [Math.floor(g.r/2),Math.floor(g.elongation/.65),g.eyes,g.mouths,g.legs,Math.floor(g.jaw/.65),Math.floor(g.wet*3),Math.floor(g.dry*3),Math.floor(g.shell*3),Math.floor(g.guard*3),Math.floor(g.nesting*3),Math.floor(g.hue/60),Math.floor(g.saturation/25),Math.floor(g.lightness/25),g.pattern,Math.ceil(g.brood/2)].join('-');}
+ category(g){return [Math.floor(g.r/2),Math.floor(g.elongation/.65),g.eyes,g.mouths,g.legs,Math.floor(g.jaw/.65),Math.floor(g.wet*3),Math.floor(g.dry*3),Math.floor(g.shell*3),Math.floor(g.guard*3),Math.floor(g.nesting*3),Math.floor(g.hue/60),Math.floor(g.saturation/25),Math.floor(g.lightness/25),g.pattern,Math.ceil(g.brood/2),Math.floor(g.diet*4),Math.floor(dietProfile(g).signal*4)].join('-');}
  name(n){return PREFIX[(n*7+2)%PREFIX.length]+SUFFIX[(n*3+1)%SUFFIX.length]+'-'+String(n).padStart(3,'0');}
  log(type,message,point){this.logs.unshift({type,message,step:this.tick});if(this.logs.length>500)this.logs.pop();if(point&&this.effects.length<140)this.effects.push({type,x:point.x,y:point.y,age:0});}
  addFood(x,y,n,spread=8,source='natural'){
@@ -60,7 +67,7 @@ export class Ecosystem{
   const u={id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?37:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',mateCooldown:0,courtPartner:null,pregnancy:null};
   u.category=this.category(g);this.units.push(u);
   if(!this.species.has(u.category)){
-   const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(n),current:0,total:0,hue:g.hue,saturation:g.saturation,lightness:g.lightness,pattern:g.pattern,first:this.tick});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(n),u);
+   const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(n),current:0,total:0,hue:g.hue,saturation:g.saturation,lightness:g.lightness,pattern:g.pattern,diet:dietProfile(g).label,first:this.tick});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(n),u);
   }
   const s=this.species.get(u.category);s.current++;s.total++;
   this.log('birth','#'+u.id+' '+(u.stage==='juvenile'?'孵化':'移入')+'（'+s.name+' / 第'+u.generation+'世代）',u);
@@ -166,9 +173,9 @@ export class Ecosystem{
   this.courtships=this.courtships.filter(p=>!p.done);
  }
  eatEgg(egg,hunter){
-  if(egg.dead)return false;
+  if(egg.dead||dietProfile(hunter.g).meat===0)return false;
   egg.dead=true;
-  hunter.energy+=egg.energy*(.8+eggTraits(egg.g).shell*.12);
+  hunter.energy+=egg.energy*(.8+eggTraits(egg.g).shell*.12)*dietProfile(hunter.g).meat;
   hunter.bite=Math.round(12+egg.g.shell*27);
   this.log('eggeaten','#'+hunter.id+' が卵 #'+egg.id+' を食べた',egg);
   return true;
@@ -220,13 +227,13 @@ export class Ecosystem{
   for(const u of batch){
    if(u.dead)continue;u.age++;if(u.bite>0)u.bite--;if(u.mateCooldown>0)u.mateCooldown--;
    if(u.pregnancy){u.pregnancy.remaining--;if(u.pregnancy.remaining<=0)this.layEgg(u);}
-   const g=u.g,t=this.terrain(u.x,u.y),m=morphology(g);
+   const g=u.g,t=this.terrain(u.x,u.y),m=morphology(g),diet=dietProfile(g);
    const youth=u.stage==='juvenile'?.50:1;
    let nearest=null,df=m.eyeRange*m.eyeRange;
-   for(const f of this.food){const d=distance(u,f);if(d<df){df=d;nearest=f;}}
+   if(diet.plant>0)for(const f of this.food){const d=distance(u,f);if(d<df){df=d;nearest=f;}}
    // Eggs are stationary and cannot fight or flee. Guardians only deter some hunters.
    let targetEgg=null,ed=m.eyeRange*m.eyeRange;
-   if(u.bite===0&&g.mouths>0)for(const egg of this.eggs){
+   if(u.bite===0&&diet.meat>.12&&g.mouths>0)for(const egg of this.eggs){
     if(egg.dead||egg.parent===u.id||egg.otherParent===u.id)continue;
     let d=distance(u,egg);if(d>=ed)continue;
     const guardian=batch.find(v=>v.id===egg.parent&&!v.dead&&v.g.guard>.25&&distance(v,egg)<(14+v.g.guard*43)**2);
@@ -234,28 +241,45 @@ export class Ecosystem{
     d*=risk; if(d<ed){ed=d;targetEgg=egg;}
    }
   let prey=null,pd=m.eyeRange*m.eyeRange;
-   if(m.predatory&&u.bite===0)for(const v of batch){if(v===u||v.dead||morphology(v.g).bodyMass>m.bodyMass*m.edibleRatio)continue;const d=distance(u,v);if(d<pd){pd=d;prey=v;}}
+   if(m.predatory&&u.bite===0)for(const v of batch){
+    if(v===u||v.dead||v.id===u.courtPartner||morphology(v.g).bodyMass>m.bodyMass*m.edibleRatio)continue;
+    const d=distance(u,v);if(d<pd){pd=d;prey=v;}
+   }
+   // Prey respond to the perceived, visible feeding signal, not hidden genome.
+   let danger=null,dangerD=m.eyeRange*m.eyeRange*1.6;
+   for(const v of batch){
+    if(v===u||v.dead)continue;
+    const visible=dietProfile(v.g).signal;
+    if(visible<.48||morphology(v.g).bodyMass<m.bodyMass*.55)continue;
+    const d=distance(u,v);
+    if(d<dangerD){danger=v;dangerD=d;}
+   }
+   const flight=!!danger&&(diet.diet<.7||morphology(danger.g).bodyMass>m.bodyMass*1.5);
    const mate=u.courtPartner?batch.find(v=>v.id===u.courtPartner&&!v.dead):this.findMate(u,batch);
    let target=prey&&pd<df*1.4?prey:nearest;
    if(mate&&(u.courtPartner||!target||u.energy>=86))target=mate;
    if(targetEgg&&ed<Math.min(df,pd)*1.15)target=targetEgg;
    // Guarding trades feeding opportunities for staying near the offspring.
    const ownEgg=this.eggs.find(e=>e.parent===u.id&&!e.dead);
-   if(ownEgg&&g.guard>.15){
+   if(ownEgg&&g.guard>.15&&!flight){
     const guardRadius=12+g.guard*40;
     if(distance(u,ownEgg)>guardRadius**2||!target)target=ownEgg;
    }
-   const desired=target?Math.atan2(target.y-u.y,target.x-u.x):u.angle+this.range(-.5,.5);
+   // Immediate escape overrides food, reproduction and egg guarding.
+   if(flight)target=null;
+   const desired=flight?Math.atan2(u.y-danger.y,u.x-danger.x)
+      :target?Math.atan2(target.y-u.y,target.x-u.x):u.angle+this.range(-.5,.5);
    const turn=Math.atan2(Math.sin(desired-u.angle),Math.cos(desired-u.angle));u.angle+=clamp(turn,-m.turnRate,m.turnRate)+this.range(-.09,.09);
    const penalty=t===1?(1-g.wet)*.65:t===2?(1-g.dry)*.6:t===3?.73:0;
    const courtingMate=u.courtPartner?batch.find(v=>v.id===u.courtPartner):null;
-   const speed=m.speed*(u.stage==='juvenile'?.8:1)*clamp(1-penalty,.23,1)*(courtingMate&&distance(u,courtingMate)<22**2?.20:1);
+   const speed=m.speed*(u.stage==='juvenile'?.8:1)*clamp(1-penalty,.23,1)
+     *(flight?1.24:courtingMate&&distance(u,courtingMate)<22**2?.20:1);
    u.x=clamp(u.x+Math.cos(u.angle)*speed,7,W-7);u.y=clamp(u.y+Math.sin(u.angle)*speed,7,H-7);
-   u.energy-=m.upkeep*youth+(ownEgg?g.guard*.16:0)+this.stress*.0035+(t===1?(1-g.wet)*.45:t===2?(1-g.dry)*.44:t===3?.27:0)+(g.wet+g.dry)*.055;
-   if(nearest&&distance(u,nearest)<(m.biteReach+3)**2){u.energy+=nearest.energy*m.foodGain;const pos=this.food.indexOf(nearest);if(pos>=0)this.food.splice(pos,1);this.log('meal','#'+u.id+' が食事した',u);}
-   if(targetEgg&&!targetEgg.dead&&u.bite===0&&distance(u,targetEgg)<(m.biteReach+4)**2)this.eatEgg(targetEgg,u);
-   if(mate&&!u.courtPartner&&!mate.courtPartner&&distance(u,mate)<38**2)this.startCourtship(u,mate);
-   if(prey&&!prey.dead&&distance(u,prey)<(m.biteReach+prey.g.r)**2){const eaten=Math.max(5,prey.energy*.45)*m.foodGain;u.energy+=eaten;u.bite=30;this.log('pred','#'+u.id+' が #'+prey.id+' を捕食',u);this.die(prey,'捕食',eaten);}
+   u.energy-=m.upkeep*youth+(flight?.10:0)+(ownEgg?g.guard*.16:0)+this.stress*.0035+(t===1?(1-g.wet)*.45:t===2?(1-g.dry)*.44:t===3?.27:0)+(g.wet+g.dry)*.055;
+   if(!flight&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+3)**2){u.energy+=nearest.energy*m.foodGain*diet.plant;const pos=this.food.indexOf(nearest);if(pos>=0)this.food.splice(pos,1);this.log('meal','#'+u.id+' が食事した',u);}
+   if(!flight&&targetEgg&&!targetEgg.dead&&u.bite===0&&distance(u,targetEgg)<(m.biteReach+4)**2)this.eatEgg(targetEgg,u);
+   if(!flight&&mate&&!u.courtPartner&&!mate.courtPartner&&distance(u,mate)<38**2)this.startCourtship(u,mate);
+   if(!flight&&diet.meat>0&&prey&&!prey.dead&&distance(u,prey)<(m.biteReach+prey.g.r)**2){const eaten=Math.max(5,prey.energy*.45)*m.foodGain*diet.meat;u.energy+=eaten;u.bite=30;this.log('pred','#'+u.id+' が #'+prey.id+' を捕食',u);this.die(prey,'捕食',eaten);}
    if(u.stage==='juvenile'&&u.age>=65&&u.energy>=32){u.stage='adult';this.log('mature','#'+u.id+' が成体になった',u);}
 
    if(u.energy<=0)this.die(u,'飢餓');else if(u.age>1500)this.die(u,'寿命');
