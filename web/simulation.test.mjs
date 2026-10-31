@@ -367,3 +367,18 @@ test('offspring inherit the founding lineage across morphology changes',()=>{
  assert.equal(e.lineage,a.lineage);
  assert.equal(e.lineage,b.lineage);
 });
+
+test('infection resistance is inherited and has a survival cost',()=>{
+ const w=new Ecosystem(512),base=w.gene();
+ assert.ok(morphology({...base,resist:1}).upkeep>morphology({...base,resist:0}).upkeep);
+ for(let i=0;i<90;i++){
+  const g=w.mutate(w.gene());
+  assert.ok(g.resist>=0&&g.resist<=1);
+ }
+ const low=w.spawn(160,150,{...base,resist:0}),high=w.spawn(450,150,{...base,resist:1});
+ low.infection=5;high.infection=5;
+ low.energy=high.energy=200;
+ w.units=[low,high];w.food=[];w.growth=0;
+ const l=low.hp,h=high.hp;
+ w.step();assert.ok((l-low.hp)>(h-high.hp));
+});
