@@ -174,7 +174,7 @@ export class Ecosystem{
   for(let i=0;i<count;i++){
    const g=p.genomes[i],traits=eggTraits(g);
    const rear=rearPosition(parent,5+i*2.5);
-   const egg={id:this.nextId++,x:clamp(rear.x+Math.cos(parent.angle+Math.PI/2)*this.range(-6,6),6,W-6),y:clamp(rear.y+Math.sin(parent.angle+Math.PI/2)*this.range(-6,6),6,H-6),g,parent:p.parent,otherParent:p.otherParent,generation:p.generation,age:0,hatchAt:traits.incubation,energy:traits.eggEnergy,dead:false,bornTick:this.tick};
+   const egg={id:this.nextId++,x:clamp(rear.x+Math.cos(parent.angle+Math.PI/2)*this.range(-6,6),6,W-6),y:clamp(rear.y+Math.sin(parent.angle+Math.PI/2)*this.range(-6,6),6,H-6),g,parent:p.parent,otherParent:p.otherParent,generation:p.generation,age:0,hatchAt:traits.incubation,energy:traits.eggEnergy,dead:false,bornTick:this.tick,birthX:parent.x-Math.cos(parent.angle)*(parent.g.r*parent.g.elongation+1),birthY:parent.y-Math.sin(parent.angle)*(parent.g.r*parent.g.elongation+1)};
    laid.push(egg);this.eggs.push(egg);
   }
   parent.pregnancy=null;
@@ -203,7 +203,7 @@ export class Ecosystem{
   hunter.energy+=egg.energy*(.8+eggTraits(egg.g).shell*.12)*dietProfile(hunter.g).meat;
   hunter.bite=Math.round(12+egg.g.shell*27);
   this.log('eggeaten','#'+hunter.id+' が卵 #'+egg.id+' を食べた',egg);
-  this.effects.push({type:'consume',x:egg.x,y:egg.y,age:0});
+  if(this.effects.length<140)this.effects.push({type:'consume',x:egg.x,y:egg.y,age:0});
   return true;
  }
  attack(hunter,prey){
@@ -213,12 +213,12 @@ export class Ecosystem{
   prey.hp=Math.max(0,prey.hp-damage);
   prey.woundFlash=14;
   hunter.bite=22;
-  this.effects.push({type:'strike',x:prey.x,y:prey.y,fromX:hunter.x,fromY:hunter.y,age:0});
+  if(this.effects.length<140)this.effects.push({type:'strike',x:prey.x,y:prey.y,fromX:hunter.x,fromY:hunter.y,age:0});
   this.log('attack','#'+hunter.id+' が #'+prey.id+' に '+Math.round(damage)+' ダメージ',prey);
   if(prey.hp<=0){
    const gained=Math.max(5,prey.energy*.35)*dietProfile(hunter.g).meat;
    hunter.energy+=gained;this.die(prey,'捕食',gained);
-   this.effects.push({type:'consume',x:prey.x,y:prey.y,age:0});
+   if(this.effects.length<140)this.effects.push({type:'consume',x:prey.x,y:prey.y,age:0});
    this.log('pred','#'+hunter.id+' が #'+prey.id+' を捕食',prey);
   }
   return true;
