@@ -28,13 +28,13 @@ export const morphology=g=>{
  const bodyMass=width*width*g.elongation;
  const eyeRange=32+g.eyes*13;
  const legsFactor=g.legs===0?.38:Math.min(1.65,.66+.17*g.legs);
- const speed=3.8*legsFactor/(.73+bodyMass*.017);
+ const speed=3.8*legsFactor/(.73+bodyMass*.023);
  const turnRate=clamp(.29/(.75+g.elongation*.21),.12,.29);
  const mouths=g.mouths;
  const biteReach=width*(.7+.15*mouths)+g.jaw*1.6;
  const edibleRatio=clamp(.60+.055*mouths+.06*g.jaw,.62,.88);
  const predatory=dietProfile(g).meat>.14&&g.jaw>=.55&&mouths>=1;
- const upkeep=.13+bodyMass*.009+g.eyes*.025+g.legs*.022+mouths*.042+g.jaw*.028+Math.abs(g.deception-.5)*.055;
+ const upkeep=.13+bodyMass*.011+Math.max(0,bodyMass-110)**1.25*.003+g.eyes*.025+g.legs*.022+mouths*.042+g.jaw*.028+Math.abs(g.deception-.5)*.055;
  const foodGain=1+Math.min(.42,(mouths-1)*.13);
  return {width,length,bodyMass,eyeRange,speed,turnRate,biteReach,edibleRatio,predatory,upkeep,foodGain};
 };
@@ -64,8 +64,8 @@ export class Ecosystem{
  range(a,b){return a+(b-a)*this.rand();}
  cell(x,y){return clamp(Math.floor(y/CELL),0,NY-1)*NX+clamp(Math.floor(x/CELL),0,NX-1);}
  terrain(x,y){return this.tiles[this.cell(x,y)];}
- gene(){return {r:this.range(3.6,7.3),elongation:this.range(.75,2.45),eyes:1+Math.floor(this.rand()*4),mouths:1+Math.floor(this.rand()*3),legs:2*Math.floor(this.rand()*4),jaw:this.range(.3,1.7),wet:this.rand(),dry:this.rand(),shell:this.rand(),guard:this.rand(),nesting:this.rand(),hue:this.range(0,360),saturation:this.range(48,100),lightness:this.range(42,81),pattern:Math.floor(this.rand()*4),brood:2+Math.floor(this.rand()*4),diet:this.rand(),deception:clamp(.5+this.range(-.32,.32),0,1),rock:this.rand()};}
- mutate(g){return {r:clamp(g.r+this.range(-.45,.45),3,9),elongation:clamp(g.elongation+this.range(-.22,.22),.65,3),eyes:clamp(g.eyes+(this.rand()<.13?(this.rand()<.5?-1:1):0),0,6),mouths:clamp(g.mouths+(this.rand()<.12?(this.rand()<.5?-1:1):0),1,4),legs:clamp(g.legs+(this.rand()<.17?(this.rand()<.5?-2:2):0),0,8),jaw:clamp(g.jaw+this.range(-.19,.19),.2,2.5),wet:clamp(g.wet+this.range(-.11,.11),0,1),dry:clamp(g.dry+this.range(-.11,.11),0,1),shell:clamp(g.shell+this.range(-.12,.12),0,1),guard:clamp(g.guard+this.range(-.12,.12),0,1),nesting:clamp(g.nesting+this.range(-.12,.12),0,1),hue:(g.hue+this.range(-32,32)+360)%360,saturation:clamp(g.saturation+this.range(-9,9),35,100),lightness:clamp(g.lightness+this.range(-9,9),35,85),pattern:clamp(g.pattern+(this.rand()<.15?(this.rand()<.5?-1:1):0),0,3),brood:clamp(g.brood+(this.rand()<.2?(this.rand()<.5?-1:1):0),1,8),diet:clamp(g.diet+this.range(-.16,.16),0,1),deception:clamp(g.deception+this.range(-.16,.16),0,1),rock:clamp(g.rock+this.range(-.13,.13),0,1)};}
+ gene(){return {r:this.rand()<.10?this.range(8.5,11.5):this.range(3.6,7.3),elongation:this.range(.75,2.45),eyes:1+Math.floor(this.rand()*4),mouths:1+Math.floor(this.rand()*3),legs:2*Math.floor(this.rand()*4),jaw:this.range(.3,1.7),wet:this.rand(),dry:this.rand(),shell:this.rand(),guard:this.rand(),nesting:this.rand(),hue:this.range(0,360),saturation:this.range(48,100),lightness:this.range(42,81),pattern:Math.floor(this.rand()*4),brood:2+Math.floor(this.rand()*4),diet:this.rand(),deception:clamp(.5+this.range(-.32,.32),0,1),rock:this.rand()};}
+ mutate(g){return {r:clamp(g.r+this.range(-.8,.8),3,15),elongation:clamp(g.elongation+this.range(-.22,.22),.65,3),eyes:clamp(g.eyes+(this.rand()<.13?(this.rand()<.5?-1:1):0),0,6),mouths:clamp(g.mouths+(this.rand()<.12?(this.rand()<.5?-1:1):0),1,4),legs:clamp(g.legs+(this.rand()<.17?(this.rand()<.5?-2:2):0),0,8),jaw:clamp(g.jaw+this.range(-.19,.19),.2,2.5),wet:clamp(g.wet+this.range(-.11,.11),0,1),dry:clamp(g.dry+this.range(-.11,.11),0,1),shell:clamp(g.shell+this.range(-.12,.12),0,1),guard:clamp(g.guard+this.range(-.12,.12),0,1),nesting:clamp(g.nesting+this.range(-.12,.12),0,1),hue:(g.hue+this.range(-32,32)+360)%360,saturation:clamp(g.saturation+this.range(-9,9),35,100),lightness:clamp(g.lightness+this.range(-9,9),35,85),pattern:clamp(g.pattern+(this.rand()<.15?(this.rand()<.5?-1:1):0),0,3),brood:clamp(g.brood+(this.rand()<.2?(this.rand()<.5?-1:1):0),1,8),diet:clamp(g.diet+this.range(-.16,.16),0,1),deception:clamp(g.deception+this.range(-.16,.16),0,1),rock:clamp(g.rock+this.range(-.13,.13),0,1)};}
  // Each locus is inherited from either parent; small, rare mutations add novel alleles.
  recombine(a,b){
   const child={};
@@ -98,7 +98,7 @@ export class Ecosystem{
   if(u.dead)return;
   u.dead=true;u.courtPartner=null;this.species.get(u.category).current--;
   const mass=Math.max(8,morphology(u.g).bodyMass*1.2+Math.max(0,u.energy)*.4-consumed);
-  this.corpses.push({x:u.x,y:u.y,mass,reserve:0,age:0,cause});
+  this.corpses.push({x:u.x,y:u.y,angle:u.angle,g:{...u.g},stage:u.stage,deathAge:u.age,mass,initialMass:mass,reserve:0,age:0,cause});
   this.log('death','#'+u.id+' 死亡：'+cause,u);
   if(this.species.get(u.category).current===0)this.log('info',this.species.get(u.category).name+' が絶滅');
  }
@@ -116,7 +116,7 @@ export class Ecosystem{
   return best;
  }
  isReadyToMate(u){
-  return !u.dead&&u.stage==='adult'&&u.age>42&&u.energy>=65&&u.mateCooldown===0&&!u.pregnancy&&vitality(u).vigor>.35;
+  return !u.dead&&u.stage==='adult'&&u.age>42&&u.energy>=65+Math.max(0,morphology(u.g).bodyMass-100)*.22&&u.mateCooldown===0&&!u.pregnancy&&vitality(u).vigor>.35;
  }
  findMate(u,batch){
   if(!this.isReadyToMate(u))return null;
@@ -149,13 +149,14 @@ export class Ecosystem{
   if(!partner||parent===partner||!this.isReadyToMate(parent)||!this.isReadyToMate(partner)||this.eggs.length>=220)return null;
   // An inherited brood-size trait trades clutch size against parental energy.
   const desired=clamp(Math.round((parent.g.brood+partner.g.brood)/2),1,8);
-  const affordable=clamp(Math.floor((Math.min(parent.energy,160)-26)/8),1,8);
+  const largeParentCost=Math.max(0,morphology(parent.g).bodyMass-100)*.18;
+  const affordable=clamp(Math.floor((Math.min(parent.energy,180)-26-largeParentCost)/8),1,8);
   const count=Math.min(desired,affordable,220-this.eggs.length);
   if(count<1)return null;
   const genomes=Array.from({length:count},()=>this.recombine(parent.g,partner.g));
   const pregnancy={genomes,parent:parent.id,otherParent:partner.id,generation:Math.max(parent.generation,partner.generation)+1,remaining:36,total:36};
   parent.pregnancy=pregnancy;
-  parent.energy-=15+count*8+parent.g.nesting*3;partner.energy-=10+count*2;
+  parent.energy-=15+count*8+parent.g.nesting*3+largeParentCost;partner.energy-=10+count*2+Math.max(0,morphology(partner.g).bodyMass-100)*.08;
   parent.mateCooldown=145;partner.mateCooldown=145;
   this.matings++;
   this.log('mate','#'+parent.id+' × #'+partner.id+' が交配（卵 '+count+' 個を準備）',parent);
