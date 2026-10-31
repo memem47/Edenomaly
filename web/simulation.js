@@ -184,7 +184,13 @@ export class Ecosystem{
   this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.matings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.stress=15;
   this.setupTerrain();
   for(let i=0;i<400;i++){const x=this.range(0,W),y=this.range(0,H);if(this.rand()<GROWTH[this.terrain(x,y)])this.addFood(x,y,1,2);}
-  for(let i=0;i<34;i++){const u=this.spawn(this.range(35,W-35),this.range(35,H-35),this.gene());if(u){u.age=Math.floor(this.range(32,55));u.energy=this.range(85,108);}}
+  // Initial colonies create opportunities for mating without guaranteeing survival.
+  const colonies=[{x:160,y:135},{x:405,y:300},{x:655,y:160}];
+  for(let i=0;i<36;i++){
+   const hub=colonies[i%colonies.length];
+   const u=this.spawn(clamp(hub.x+this.range(-48,48),20,W-20),clamp(hub.y+this.range(-48,48),20,H-20),this.gene());
+   if(u){u.age=Math.floor(this.range(40,57));u.energy=this.range(95,120);}
+  }
   this.log('info','地形、遺伝、捕食、死体分解の実験を開始');this.snapshot();
  }
  snapshot(){this.history.push({population:this.units.length,eggs:this.eggs.length,food:this.food.length,corpses:this.corpses.length});if(this.history.length>180)this.history.shift();}
@@ -221,7 +227,7 @@ export class Ecosystem{
    // Eggs are stationary and cannot fight or flee. Guardians only deter some hunters.
    let targetEgg=null,ed=m.eyeRange*m.eyeRange;
    if(u.bite===0&&g.mouths>0)for(const egg of this.eggs){
-    if(egg.dead||egg.parent===u.id)continue;
+    if(egg.dead||egg.parent===u.id||egg.otherParent===u.id)continue;
     let d=distance(u,egg);if(d>=ed)continue;
     const guardian=batch.find(v=>v.id===egg.parent&&!v.dead&&v.g.guard>.25&&distance(v,egg)<(14+v.g.guard*43)**2);
     const risk=guardian&&guardian!==u&&morphology(guardian.g).bodyMass>=m.bodyMass*.65?1+guardian.g.guard*3:1;
