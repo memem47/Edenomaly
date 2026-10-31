@@ -17,7 +17,7 @@ import {eggTraits} from './simulation.js';
 test('egg hatches into a juvenile and grows into adult',()=>{
  const s=new Ecosystem(19),parent=s.units[0],partner=s.units[1];s.units=[parent,partner];
  for(const u of s.units){u.age=100;u.energy=160;u.stage='adult';u.mateCooldown=0;}
- const egg=s.layEgg(parent,partner);assert.ok(egg);assert.equal(egg.parent,parent.id);assert.equal(egg.otherParent,partner.id);
+ const preg=s.layEgg(parent,partner);assert.ok(preg);assert.equal(s.eggs.length,0);const egg=s.layEgg(parent);assert.ok(egg);assert.equal(egg.parent,parent.id);assert.equal(egg.otherParent,partner.id);
  // Isolate egg so it cannot be eaten during incubation.
  s.units=[];s.growth=100;
  for(let i=0;i<egg.hatchAt;i++)s.step();
@@ -27,7 +27,7 @@ test('egg hatches into a juvenile and grows into adult',()=>{
  for(let i=0;i<90;i++){kid.energy=100;s.step();}
  assert.equal(kid.stage,'adult');
 });
-test('eggs can be eaten and are removed',()=>{const s=new Ecosystem(11),parent=s.units[0],predator=s.units[1];parent.age=predator.age=100;parent.energy=predator.energy=160;const e=s.layEgg(parent,predator);assert.ok(s.eatEgg(e,predator));assert.equal(e.dead,true);assert.ok(s.logs.some(l=>l.type==='eggeaten'));});
+test('eggs can be eaten and are removed',()=>{const s=new Ecosystem(11),parent=s.units[0],predator=s.units[1];parent.age=predator.age=100;parent.energy=predator.energy=160;s.layEgg(parent,predator);const e=s.layEgg(parent);assert.ok(s.eatEgg(e,predator));assert.equal(e.dead,true);assert.ok(s.logs.some(l=>l.type==='eggeaten'));});
 test('shell trades material for longer incubation and chewing',()=>{const g=new Ecosystem(4).gene();assert.ok(eggTraits({...g,shell:1}).incubation>eggTraits({...g,shell:0}).incubation);assert.ok(eggTraits({...g,shell:1}).eggEnergy>eggTraits({...g,shell:0}).eggEnergy);});
 test('egg protection genes are inherited and bounded',()=>{const s=new Ecosystem(30);for(let i=0;i<100;i++){const g=s.mutate(s.gene());for(const k of ['guard','shell','nesting'])assert.ok(g[k]>=0&&g[k]<=1);}});
 
@@ -36,8 +36,8 @@ test('mating requires two distinct adults and consumes energy',()=>{
  a.age=b.age=100;a.energy=b.energy=160;
  assert.equal(s.layEgg(a,a),null);
  assert.equal(s.layEgg(a,{...b,stage:'juvenile'}),null);
- const e=s.layEgg(a,b);assert.ok(e);
- assert.equal(e.parent,a.id);assert.equal(e.otherParent,b.id);assert.ok(a.energy<160&&b.energy<160);
+ const pregnancy=s.layEgg(a,b);assert.ok(pregnancy);assert.equal(s.eggs.length,0);
+ const e=s.layEgg(a);assert.ok(e);assert.equal(e.parent,a.id);assert.equal(e.otherParent,b.id);assert.ok(a.energy<160&&b.energy<160);
  assert.ok(a.mateCooldown>0&&b.mateCooldown>0);
  assert.equal(s.layEgg(a,b),null);
 });
@@ -66,4 +66,28 @@ test('isolated adult cannot produce an egg by cloning',()=>{
  for(let i=0;i<25;i++)s.step();
  assert.equal(s.eggs.length,0);
  assert.equal(s.matings,0);
+});
+
+test('courtship links both living parents before conception',()=>{
+ const s=new Ecosystem(88),a=s.units[0],b=s.units[1];
+ s.units=[a,b];for(const u of s.units){u.age=100;u.energy=200;u.x=100;u.y=100;}
+ assert.equal(s.startCourtship(a,b),true);
+ assert.equal(a.courtPartner,b.id);assert.equal(b.courtPartner,a.id);
+ assert.equal(s.eggs.length,0);assert.equal(s.matings,0);
+ for(let i=0;i<24;i++)s.updateCourtships();
+ assert.equal(s.matings,1);assert.ok(a.pregnancy);
+ assert.equal(s.eggs.length,0);
+ for(let i=0;i<45;i++)a.pregnancy.remaining--;
+ const egg=s.layEgg(a);
+ assert.ok(egg);assert.equal(egg.parent,a.id);assert.equal(egg.otherParent,b.id);
+ assert.equal(s.eggTrails.length,1);
+});
+test('courtship breaks when the couple separates',()=>{
+ const s=new Ecosystem(89),a=s.units[0],b=s.units[1];
+ s.units=[a,b];for(const u of s.units){u.age=100;u.energy=200;}
+ a.x=100;a.y=100;b.x=105;b.y=105;
+ assert.ok(s.startCourtship(a,b));b.x=600;
+ s.updateCourtships();
+ assert.equal(s.courtships.length,0);assert.equal(s.matings,0);
+ assert.equal(a.courtPartner,null);assert.equal(b.courtPartner,null);
 });
