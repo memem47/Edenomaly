@@ -310,7 +310,7 @@ export class Ecosystem{
    }
    if(u.hydration<18)u.hp-=.06;
    let nearest=null,df=sight*sight;
-   if(diet.plant>0)for(const f of this.food){const d=distance(u,f);if(d<df){df=d;nearest=f;}}
+   if(diet.plant>0)for(const f of this.food){if(!terrainFitness(g,this.terrain(f.x,f.y)).passable)continue;const d=distance(u,f);if(d<df){df=d;nearest=f;}}
    // Eggs are stationary and cannot fight or flee. Guardians only deter some hunters.
    let targetEgg=null,ed=sight*sight;
    if(u.bite===0&&diet.meat>.12&&g.mouths>0)for(const egg of this.eggs){
@@ -393,10 +393,14 @@ export class Ecosystem{
    if(mate&&(u.courtPartner||!target||u.energy>=86))target=mate;
    if(targetEgg&&ed<Math.min(df,pd)*1.15)target=targetEgg;
    if(u.refugeTarget&&!flight&&!u.courtPartner)target=u.refugeTarget;
-   if((aquatic&&!underwater)||(!aquatic&&u.hydration<70&&!this.nearWater(u.x,u.y,1))){const water=this.nearestWater(u.x,u.y);if(water)target=water;}
+   const nearFood=nearest&&distance(u,nearest)<Math.max(14,sight*.55)**2;
+   const criticalWater=u.hydration<24||aquatic&&!underwater&&u.stranded>35;
+   if((aquatic&&!underwater||!aquatic&&u.hydration<45&&!this.nearWater(u.x,u.y,1))&&(!nearFood||criticalWater)){
+    const water=this.nearestWater(u.x,u.y);if(water)target=water;
+   }
    // Guarding trades feeding opportunities for staying near the offspring.
    const ownEgg=this.eggs.find(e=>e.parent===u.id&&!e.dead);
-   if(ownEgg&&g.guard>.15&&!flight){
+   if(ownEgg&&g.guard>.15&&!flight&&!criticalWater&&u.energy>45){
     const guardRadius=12+g.guard*40;
     if(distance(u,ownEgg)>guardRadius**2||!target)target=ownEgg;
    }
