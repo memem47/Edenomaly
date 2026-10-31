@@ -161,3 +161,16 @@ test('herbivore cannot gain energy by eating an egg',()=>{
  assert.equal(s.eatEgg(egg,hunter),false);
  assert.equal(hunter.energy,before);assert.equal(egg.dead,false);
 });
+
+test('strict carnivore leaves nutrient particles uneaten',()=>{
+ const s=new Ecosystem(145),u=s.units[0];
+ s.units=[u];u.g.diet=1;u.energy=100;s.food=[{x:u.x,y:u.y,energy:20,source:'natural'}];s.growth=0;
+ s.step();assert.equal(s.food.length,1);
+});
+test('strict nutrient eater does not hunt living prey',()=>{
+ const s=new Ecosystem(146),a=s.units[0],b=s.units[1];
+ s.units=[a,b];a.g.diet=0;a.g.jaw=2.5;a.g.eyes=6;a.g.deception=.5;
+ b.g.diet=0;b.g.deception=.5;b.g.r=3;
+ a.x=b.x=200;a.y=b.y=200;s.food=[];s.growth=0;
+ s.step();assert.equal(b.dead,false);
+});
