@@ -55,18 +55,20 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
    if(u.pregnancy){const v=1-u.pregnancy.remaining/u.pregnancy.total;ctx.beginPath();ctx.arc(u.x,u.y,Math.max(13,g.r*g.elongation+8)+4,-Math.PI/2,-Math.PI/2+TAU*v);ctx.stroke();}else{ctx.beginPath();ctx.arc(u.x,u.y,Math.max(13,g.r*g.elongation+8)+3,0,TAU);ctx.stroke();}ctx.restore();
   }
   ctx.save();ctx.translate(u.x,u.y);ctx.rotate(u.angle);
-  const rx=halfL*.82,ry=halfW*1.2,blobPhase=s.tick*.11+(u.id||0);
+  const blobPhase=s.tick*.11+(u.id||0);
+  const wobble=dead?0:Math.sin(blobPhase*1.35)*.10;
+  const rx=halfL*.82*(1+wobble*.55),ry=halfW*1.2*(1-wobble*.40);
   ctx.fillStyle=u.woundFlash?'#fff2ea':`hsl(${g.hue},${Math.max(12,g.saturation*(1-life.old*.6))}%,${g.lightness}%)`;
   ctx.beginPath();
-  for(let i=0;i<=32;i++){
-   const a=i*TAU/32,w=1+Math.sin(a*3+blobPhase)*(dead?0:.07)+Math.sin(a*5+g.pattern)*.035;
+  for(let i=0;i<=48;i++){
+   const a=i*TAU/48,w=1+Math.sin(a*2+blobPhase)*(dead?0:.10)+Math.sin(a*5+blobPhase*.65+g.pattern)*(dead?0:.055);
    const x=Math.cos(a)*rx*w,y=Math.sin(a)*ry*w;
    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
   }
   ctx.closePath();ctx.fill();ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=1.4;ctx.stroke();
-  ctx.fillStyle='rgba(255,255,255,.25)';ctx.beginPath();ctx.ellipse(-rx*.3,-ry*.35,rx*.3,ry*.15,-.4,0,TAU);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.25)';ctx.beginPath();ctx.ellipse(-rx*.3+Math.sin(blobPhase*.85)*(dead?0:ry*.12),-ry*.35+Math.cos(blobPhase*.7)*(dead?0:ry*.09),rx*.3,ry*.15,-.4,0,TAU);ctx.fill();
   for(let i=0;i<Math.min(g.eyes,6);i++){
-   const ex=rx*(.12+(i%3)*.22),ey=ry*(-.36+Math.floor(i/3)*.4),er=Math.max(1.6,ry*.22);
+   const ex=rx*(.12+(i%3)*.22)+(dead?0:Math.sin(blobPhase*.73+i*.4)*ry*.045),ey=ry*(-.36+Math.floor(i/3)*.4)+(dead?0:Math.cos(blobPhase*.83+i*.4)*ry*.045),er=Math.max(1.6,ry*.22);
    ctx.fillStyle='white';ctx.beginPath();ctx.arc(ex,ey,er,0,TAU);ctx.fill();
    ctx.fillStyle='#283449';ctx.beginPath();ctx.arc(ex+er*.2,ey,er*.45,0,TAU);ctx.fill();
   }
