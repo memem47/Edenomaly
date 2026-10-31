@@ -255,6 +255,7 @@ export class Ecosystem{
     if(d<dangerD){danger=v;dangerD=d;}
    }
    const flight=!!danger&&(diet.diet<.7||morphology(danger.g).bodyMass>m.bodyMass*1.5);
+   u.fleeing=flight;
    const mate=u.courtPartner?batch.find(v=>v.id===u.courtPartner&&!v.dead):this.findMate(u,batch);
    let target=prey&&pd<df*1.4?prey:nearest;
    if(mate&&(u.courtPartner||!target||u.energy>=86))target=mate;
