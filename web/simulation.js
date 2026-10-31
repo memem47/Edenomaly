@@ -230,6 +230,24 @@ export class Ecosystem{
   }
   return true;
  }
+ nearWater(x,y,radius=1){
+  const cx=this.cell(x,y)%NX,cy=Math.floor(this.cell(x,y)/NX);
+  for(let dy=-radius;dy<=radius;dy++)for(let dx=-radius;dx<=radius;dx++){
+   const a=cx+dx,b=cy+dy;
+   if(a>=0&&a<NX&&b>=0&&b<NY&&this.tiles[b*NX+a]===1)return true;
+  }
+  return false;
+ }
+ nearestWater(x,y,maxRange=145){
+  let best=null,dist=maxRange*maxRange;
+  for(let i=0;i<this.tiles.length;i++){
+   if(this.tiles[i]!==1)continue;
+   const a=(i%NX+.5)*CELL,b=(Math.floor(i/NX)+.5)*CELL;
+   const d=(x-a)**2+(y-b)**2;
+   if(d<dist){best={x:a,y:b};dist=d;}
+  }
+  return best;
+ }
  setupTerrain(){
   this.tiles=new Uint8Array(NX*NY);
   const hubs=[{x:10,y:9,t:1,r:6},{x:33,y:18,t:1,r:5},{x:30,y:5,t:2,r:9},{x:7,y:20,t:2,r:5},{x:21,y:17,t:3,r:4},{x:38,y:9,t:3,r:4}];
