@@ -197,7 +197,7 @@ export class Ecosystem{
   }
  }
  reset(){
-  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.matings=0;this.migrations=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.stress=15;
+  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.stress=15;
   this.setupTerrain();
   for(let i=0;i<400;i++){const x=this.range(0,W),y=this.range(0,H);if(this.rand()<GROWTH[this.terrain(x,y)])this.addFood(x,y,1,2);}
   // Initial colonies create opportunities for mating without guaranteeing survival.
@@ -290,7 +290,14 @@ export class Ecosystem{
      this.log('migration','#'+u.id+' が競争を避けて'+TERRAIN_NAMES[best.terrain]+'へ移動を開始',u);
     }
    }
-   if(u.refugeTarget&&(this.tick>=u.refugeTarget.until||distance(u,u.refugeTarget)<12**2))u.refugeTarget=null;
+   if(u.refugeTarget){
+    if(distance(u,u.refugeTarget)<12**2){
+     const destination=this.terrain(u.refugeTarget.x,u.refugeTarget.y);
+     this.migrations++;u.migrations++;
+     this.log('settle','#'+u.id+' が'+TERRAIN_NAMES[destination]+'に移住',u);
+     u.refugeTarget=null;
+    }else if(this.tick>=u.refugeTarget.until)u.refugeTarget=null;
+   }
    const mate=u.courtPartner?batch.find(v=>v.id===u.courtPartner&&!v.dead):this.findMate(u,batch);
    let target=prey&&pd<df*1.4?prey:nearest;
    if(mate&&(u.courtPartner||!target||u.energy>=86))target=mate;
@@ -318,7 +325,7 @@ export class Ecosystem{
    if(!flight&&mate&&!u.courtPartner&&!mate.courtPartner&&distance(u,mate)<38**2)this.startCourtship(u,mate);
    if(!flight&&diet.meat>0&&prey&&!prey.dead&&distance(u,prey)<(m.biteReach+prey.g.r)**2){const eaten=Math.max(5,prey.energy*.45)*m.foodGain*diet.meat;u.energy+=eaten;u.bite=30;this.log('pred','#'+u.id+' が #'+prey.id+' を捕食',u);this.die(prey,'捕食',eaten);}
    const newTerrain=this.terrain(u.x,u.y);
-   if(newTerrain!==u.lastTerrain){u.lastTerrain=newTerrain;u.migrations++;this.migrations++;}
+   if(newTerrain!==u.lastTerrain){u.lastTerrain=newTerrain;this.terrainCrossings++;}
    if(u.stage==='juvenile'&&u.age>=65&&u.energy>=32){u.stage='adult';this.log('mature','#'+u.id+' が成体になった',u);}
 
    if(u.energy<=0)this.die(u,'飢餓');else if(u.age>1500)this.die(u,'寿命');
