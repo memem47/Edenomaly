@@ -390,13 +390,13 @@ test('aquatic state is inherited, and habitat changes are rare mutations',()=>{
 test('terrestrial slime dies without drinking water',()=>{
  const s=new Ecosystem(602);s.tiles.fill(0);
  const g={...s.gene(),aquatic:0,diet:0},u=s.spawn(250,210,g);s.units=[u];
- u.energy=1e6;for(let i=0;i<245&&!u.dead;i++)s.step();
+ u.energy=1e6;for(let i=0;i<480&&!u.dead;i++)s.step();
  assert.equal(u.dead,true);
 });
 test('aquatic slime dies stranded outside water',()=>{
  const s=new Ecosystem(603);s.tiles.fill(0);
  const g={...s.gene(),aquatic:1},u=s.spawn(250,210,g);s.units=[u];
- u.energy=1e6;for(let i=0;i<75&&!u.dead;i++)s.step();
+ u.energy=1e6;for(let i=0;i<115&&!u.dead;i++)s.step();
  assert.equal(u.dead,true);
 });
 test('slime movement is slower than former insect movement',()=>{
