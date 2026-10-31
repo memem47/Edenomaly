@@ -232,17 +232,10 @@ export class Ecosystem{
   }
  }
  reset(){
-  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.stress=15;
+  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.stress=15;
   this.setupTerrain();
   for(let i=0;i<400;i++){const x=this.range(0,W),y=this.range(0,H);if(this.rand()<GROWTH[this.terrain(x,y)])this.addFood(x,y,1,2);}
-  // Initial colonies create opportunities for mating without guaranteeing survival.
-  const colonies=[{x:160,y:135},{x:405,y:300},{x:655,y:160}];
-  for(let i=0;i<36;i++){
-   const hub=colonies[i%colonies.length];
-   const u=this.spawn(clamp(hub.x+this.range(-48,48),20,W-20),clamp(hub.y+this.range(-48,48),20,H-20),this.gene());
-   if(u){u.age=Math.floor(this.range(40,57));u.energy=this.range(95,120);}
-  }
-  this.log('info','地形、遺伝、捕食、死体分解の実験を開始');this.snapshot();
+  this.log('info','生命は未移入。種類数を選んでフィールドへ生命を移入してください');this.snapshot();
  }
  snapshot(){this.history.push({population:this.units.length,eggs:this.eggs.length,food:this.food.length,corpses:this.corpses.length});if(this.history.length>180)this.history.shift();}
  step(){
@@ -374,7 +367,44 @@ export class Ecosystem{
   if(this.tick%160===0&&this.units.length===0)this.log('info','全個体が絶滅。生命を移入できます');
  }
  paint(x,y,type,radius){const cx=Math.floor(x/CELL),cy=Math.floor(y/CELL);for(let dy=-radius;dy<=radius;dy++)for(let dx=-radius;dx<=radius;dx++){if(dx*dx+dy*dy>radius*radius)continue;const xx=cx+dx,yy=cy+dy;if(xx>=0&&xx<NX&&yy>=0&&yy<NY)this.tiles[yy*NX+xx]=type;}}
- introduce(x,y){for(let i=0;i<5;i++)this.spawn(x+this.range(-15,15),y+this.range(-15,15),this.gene());this.log('info','生命を5体移入');}
+ introduce(x,y,typeCount=1){
+  // Exactly N morphological founder types, 8 independent individuals per type.
+  // The founding population is intentionally clustered, enabling sexual reproduction.
+  const count=clamp(Math.trunc(Number(typeCount)||1),1,6);
+  const founders=[];const used=new Set();
+  for(let k=0;k<count;k++){
+   let g,key;
+   for(let attempt=0;attempt<60;attempt++){
+    g=this.gene();key=this.category(g);
+    if(!used.has(key))break;
+   }
+   if(used.has(key))continue;
+   used.add(key);
+   const hx=clamp(x+((k%3)-Math.min(1,count-1))*36,32,W-32);
+   const hy=clamp(y+(Math.floor(k/3)-(count>3?.5:0))*42,32,H-32);
+   let spawned=0;
+   for(let i=0;i<8;i++){
+    // Small continuous variation within the same morphology bin retains founding type.
+    let variant={...g};
+    if(i>0){
+     const trial={...g,wet:clamp(g.wet+this.range(-.018,.018),0,1),
+       dry:clamp(g.dry+this.range(-.018,.018),0,1),
+       rock:clamp(g.rock+this.range(-.018,.018),0,1)};
+     if(this.category(trial)===key)variant=trial;
+    }
+    const u=this.spawn(hx+this.range(-20,20),hy+this.range(-20,20),variant);
+    if(!u)break;
+    u.age=Math.floor(this.range(40,57));
+    u.energy=this.range(95,120);
+    spawned++;
+   }
+   if(spawned)founders.push({category:key,count:spawned});
+  }
+  const total=founders.reduce((n,f)=>n+f.count,0);
+  this.introducedCount+=total;
+  this.log('info',founders.length+'種類・'+total+'体の生命を移入');
+  return {types:founders.length,individuals:total};
+ }
  epidemic(){let n=0;for(const u of this.units)if(this.rand()<.55){this.die(u,'疫病');n++;}this.units=this.units.filter(u=>!u.dead);this.log('info','疫病で'+n+'体が死亡');}
  drought(){this.growth=7;this.stress=85;this.food=this.food.slice(0,Math.floor(this.food.length*.2));this.log('info','干ばつが発生した');}
  rain(){this.growth=90;this.stress=8;this.log('info','降雨により栄養供給が増加した');}
