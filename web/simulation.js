@@ -39,7 +39,7 @@ export const morphology=g=>{
  const biteReach=width*(.7+.15*mouths)+g.jaw*1.6;
  const edibleRatio=clamp(.60+.055*mouths+.06*g.jaw,.62,.88);
  const predatory=dietProfile(g).meat>.14&&g.jaw>=.55&&mouths>=1;
- const upkeep=.13+bodyMass*.011+Math.max(0,bodyMass-110)**1.25*.003+g.eyes*.025+g.legs*.022+mouths*.042+g.jaw*.028+Math.abs(g.deception-.5)*.055;
+ const upkeep=.13+bodyMass*.011+Math.max(0,bodyMass-110)**1.25*.003+g.eyes*.025+g.legs*.022+mouths*.042+g.jaw*.028+Math.abs(g.deception-.5)*.055+(g.resist??.4)*.065;
  const foodGain=1+Math.min(.42,(mouths-1)*.13);
  return {width,length,bodyMass,eyeRange,speed,turnRate,biteReach,edibleRatio,predatory,upkeep,foodGain};
 };
@@ -56,7 +56,7 @@ export const rearPosition=(u,offset=0)=>({
  x:clamp(u.x-Math.cos(u.angle)*(u.g.r*u.g.elongation+5+offset),6,W-6),
  y:clamp(u.y-Math.sin(u.angle)*(u.g.r*u.g.elongation+5+offset),6,H-6)
 });
-const HERITABLE=['r','elongation','eyes','mouths','legs','jaw','wet','dry','shell','guard','nesting','hue','saturation','lightness','pattern','brood','diet','deception','rock'];
+const HERITABLE=['r','elongation','eyes','mouths','legs','jaw','wet','dry','shell','guard','nesting','hue','saturation','lightness','pattern','brood','diet','deception','rock','resist'];
 export const eggTraits=g=>({
  shell:g.shell,guard:g.guard,nesting:g.nesting,
  incubation:Math.round(34+g.shell*30),
@@ -69,8 +69,8 @@ export class Ecosystem{
  range(a,b){return a+(b-a)*this.rand();}
  cell(x,y){return clamp(Math.floor(y/CELL),0,NY-1)*NX+clamp(Math.floor(x/CELL),0,NX-1);}
  terrain(x,y){return this.tiles[this.cell(x,y)];}
- gene(){return {r:this.rand()<.10?this.range(8.5,11.5):this.range(3.6,7.3),elongation:this.range(.75,2.45),eyes:1+Math.floor(this.rand()*4),mouths:1+Math.floor(this.rand()*3),legs:2*Math.floor(this.rand()*4),jaw:this.range(.3,1.7),wet:this.rand(),dry:this.rand(),shell:this.rand(),guard:this.rand(),nesting:this.rand(),hue:this.range(0,360),saturation:this.range(48,100),lightness:this.range(42,81),pattern:Math.floor(this.rand()*4),brood:2+Math.floor(this.rand()*4),diet:this.rand(),deception:clamp(.5+this.range(-.32,.32),0,1),rock:this.rand()};}
- mutate(g){return {r:clamp(g.r+this.range(-.8,.8),3,15),elongation:clamp(g.elongation+this.range(-.22,.22),.65,3),eyes:clamp(g.eyes+(this.rand()<.13?(this.rand()<.5?-1:1):0),0,6),mouths:clamp(g.mouths+(this.rand()<.12?(this.rand()<.5?-1:1):0),1,4),legs:clamp(g.legs+(this.rand()<.17?(this.rand()<.5?-2:2):0),0,8),jaw:clamp(g.jaw+this.range(-.19,.19),.2,2.5),wet:clamp(g.wet+this.range(-.11,.11),0,1),dry:clamp(g.dry+this.range(-.11,.11),0,1),shell:clamp(g.shell+this.range(-.12,.12),0,1),guard:clamp(g.guard+this.range(-.12,.12),0,1),nesting:clamp(g.nesting+this.range(-.12,.12),0,1),hue:(g.hue+this.range(-32,32)+360)%360,saturation:clamp(g.saturation+this.range(-9,9),35,100),lightness:clamp(g.lightness+this.range(-9,9),35,85),pattern:clamp(g.pattern+(this.rand()<.15?(this.rand()<.5?-1:1):0),0,3),brood:clamp(g.brood+(this.rand()<.2?(this.rand()<.5?-1:1):0),1,8),diet:clamp(g.diet+this.range(-.16,.16),0,1),deception:clamp(g.deception+this.range(-.16,.16),0,1),rock:clamp(g.rock+this.range(-.13,.13),0,1)};}
+ gene(){return {r:this.rand()<.10?this.range(8.5,11.5):this.range(3.6,7.3),elongation:this.range(.75,2.45),eyes:1+Math.floor(this.rand()*4),mouths:1+Math.floor(this.rand()*3),legs:2*Math.floor(this.rand()*4),jaw:this.range(.3,1.7),wet:this.rand(),dry:this.rand(),shell:this.rand(),guard:this.rand(),nesting:this.rand(),hue:this.range(0,360),saturation:this.range(48,100),lightness:this.range(42,81),pattern:Math.floor(this.rand()*4),brood:2+Math.floor(this.rand()*4),diet:this.rand(),deception:clamp(.5+this.range(-.32,.32),0,1),rock:this.rand(),resist:this.rand()};}
+ mutate(g){return {r:clamp(g.r+this.range(-.8,.8),3,15),elongation:clamp(g.elongation+this.range(-.22,.22),.65,3),eyes:clamp(g.eyes+(this.rand()<.13?(this.rand()<.5?-1:1):0),0,6),mouths:clamp(g.mouths+(this.rand()<.12?(this.rand()<.5?-1:1):0),1,4),legs:clamp(g.legs+(this.rand()<.17?(this.rand()<.5?-2:2):0),0,8),jaw:clamp(g.jaw+this.range(-.19,.19),.2,2.5),wet:clamp(g.wet+this.range(-.11,.11),0,1),dry:clamp(g.dry+this.range(-.11,.11),0,1),shell:clamp(g.shell+this.range(-.12,.12),0,1),guard:clamp(g.guard+this.range(-.12,.12),0,1),nesting:clamp(g.nesting+this.range(-.12,.12),0,1),hue:(g.hue+this.range(-32,32)+360)%360,saturation:clamp(g.saturation+this.range(-9,9),35,100),lightness:clamp(g.lightness+this.range(-9,9),35,85),pattern:clamp(g.pattern+(this.rand()<.15?(this.rand()<.5?-1:1):0),0,3),brood:clamp(g.brood+(this.rand()<.2?(this.rand()<.5?-1:1):0),1,8),diet:clamp(g.diet+this.range(-.16,.16),0,1),deception:clamp(g.deception+this.range(-.16,.16),0,1),rock:clamp(g.rock+this.range(-.13,.13),0,1),resist:clamp((g.resist??.4)+this.range(-.14,.14),0,1)};}
  // Each locus is inherited from either parent; small, rare mutations add novel alleles.
  recombine(a,b){
   const child={};
@@ -78,7 +78,7 @@ export class Ecosystem{
   // Mutation is secondary to recombination, not a clone-based reproduction mechanism.
   return this.rand()<.18?this.mutate(child):child;
  }
- category(g){return [Math.floor(g.r/2),Math.floor(g.elongation/.65),g.eyes,g.mouths,g.legs,Math.floor(g.jaw/.65),Math.floor(g.wet*3),Math.floor(g.dry*3),Math.floor(g.shell*3),Math.floor(g.guard*3),Math.floor(g.nesting*3),Math.floor(g.hue/60),Math.floor(g.saturation/25),Math.floor(g.lightness/25),g.pattern,Math.ceil(g.brood/2),Math.floor(g.diet*4),Math.floor(dietProfile(g).signal*4),Math.floor(g.rock*3)].join('-');}
+ category(g){return [Math.floor(g.r/2),Math.floor(g.elongation/.65),g.eyes,g.mouths,g.legs,Math.floor(g.jaw/.65),Math.floor(g.wet*3),Math.floor(g.dry*3),Math.floor(g.shell*3),Math.floor(g.guard*3),Math.floor(g.nesting*3),Math.floor(g.hue/60),Math.floor(g.saturation/25),Math.floor(g.lightness/25),g.pattern,Math.ceil(g.brood/2),Math.floor(g.diet*4),Math.floor(dietProfile(g).signal*4),Math.floor(g.rock*3),Math.floor((g.resist??.4)*3)].join('-');}
  name(n){return PREFIX[(n*7+2)%PREFIX.length]+SUFFIX[(n*3+1)%SUFFIX.length]+'-'+String(n).padStart(3,'0');}
  log(type,message,point){this.logs.unshift({type,message,step:this.tick});if(this.logs.length>500)this.logs.pop();if(point&&this.effects.length<140)this.effects.push({type,x:point.x,y:point.y,age:0});}
  addFood(x,y,n,spread=8,source='natural'){
@@ -322,9 +322,9 @@ export class Ecosystem{
    const crowd=Math.max(0,relatives-2);
    if(u.infection>0){
     u.infection--;
-    u.hp-=.19+crowd*.055;
-   }else if(crowd>0&&this.rand()<Math.min(.10,crowd*.0025+infectious*.014)){
-    u.infection=70+Math.floor(this.rand()*55);
+    u.hp-=(.19+crowd*.055)*(1-(g.resist??.4)*.7);
+   }else if(crowd>0&&this.rand()<Math.min(.10,crowd*.0025+infectious*.014)*(1-(g.resist??.4)*.9)){
+    u.infection=Math.max(25,70+Math.floor(this.rand()*55)-Math.round((g.resist??.4)*40));
     this.log('ill','#'+u.id+' が密集地で感染',u);
    }
    // Crowded colonies consume more energy and stop producing offspring as easily.
