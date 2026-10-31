@@ -1,4 +1,4 @@
-import {WORLD,TERRAIN_COLORS} from './simulation.js';
+import {WORLD,TERRAIN_COLORS,dietProfile} from './simulation.js';
 const TAU=Math.PI*2;
 export function drawWorld(ctx,s,showEffects=true,selected=null){
  const {cell,columns,rows,width,height}=WORLD;
@@ -35,7 +35,7 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   ctx.restore();
  }
  for(const u of s.units){
-  const g=u.g,scale=u.stage==='juvenile'?.55:1,halfL=g.r*g.elongation*scale,halfW=g.r*scale,phase=s.tick*.18+u.id;
+  const g=u.g,signal=dietProfile(g).signal,scale=u.stage==='juvenile'?.55:1,halfL=g.r*g.elongation*scale,halfW=g.r*scale,phase=s.tick*.18+u.id;
   if(u.courtPartner||u.pregnancy){
    ctx.save();ctx.strokeStyle=u.pregnancy?'#ffe59b':'#ff93e9';ctx.lineWidth=2.5;
    ctx.beginPath();ctx.arc(u.x,u.y,Math.max(13,g.r*g.elongation+8),0,TAU);ctx.stroke();
@@ -51,6 +51,23 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
    const x=(i+1)/(g.legs/2+1)*halfL*1.5-halfL*.75;
    const wave=Math.sin(phase+i*2+side)*halfW*.22;
    ctx.beginPath();ctx.moveTo(x,side*halfW*.64);ctx.lineTo(x-halfW*.15+wave,side*halfW*1.35);ctx.lineTo(x+wave,side*halfW*1.62);ctx.stroke();
+  }
+  // Visible feeding signal: round leafy feelers for apparent grazers, sharp spines for apparent hunters.
+  // The signal is inherited separately from the actual diet, enabling deceptive appearances.
+  if(signal<.45){
+   ctx.strokeStyle=`hsl(${(g.hue+90)%360},73%,75%)`;ctx.lineWidth=Math.max(1,halfW*.19);
+   for(const side of [-1,1]){
+    ctx.beginPath();ctx.moveTo(-halfL*.38,side*halfW*.65);
+    ctx.quadraticCurveTo(-halfL*.65,side*halfW*1.55,-halfL*.82,side*halfW*1.65);ctx.stroke();
+    ctx.fillStyle='#b5f6af';ctx.beginPath();ctx.ellipse(-halfL*.84,side*halfW*1.66,halfW*.22,halfW*.40,side*.5,0,TAU);ctx.fill();
+   }
+  }else if(signal>.55){
+   const spikes=2+Math.floor(signal*4);
+   ctx.fillStyle=`hsl(${(g.hue+25)%360},${g.saturation}%,${Math.max(24,g.lightness-18)}%)`;
+   for(let i=0;i<spikes;i++){
+    const x=-halfL*.7+i*halfL*1.4/Math.max(1,spikes-1);
+    ctx.beginPath();ctx.moveTo(x-halfL*.13,-halfW*.65);ctx.lineTo(x, -halfW*(1.35+signal*.5));ctx.lineTo(x+halfL*.13,-halfW*.65);ctx.fill();
+   }
   }
   ctx.fillStyle=`hsl(${g.hue},${g.saturation}%,${g.lightness}%)`;ctx.beginPath();ctx.ellipse(0,0,halfL,halfW,0,0,TAU);ctx.fill();
   // Heritable spots, stripes and dorsal marks distinguish siblings and lineages.
@@ -79,6 +96,15 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
     ctx.beginPath();ctx.moveTo(halfL*.7,offset+side*radius*.85);ctx.lineTo(halfL*.91,offset);ctx.lineTo(halfL*1.04,offset+side*radius*.8);ctx.fill();
    }}
   }
+  // Warning appearance: tooth-like marks can be bluff, not necessarily actual predation.
+  if(signal>.50){
+   ctx.fillStyle='#fff6e8';
+   for(let j=0;j<Math.round(1+signal*3);j++){
+    const y=(j-(Math.round(1+signal*3)-1)/2)*halfW*.40;
+    ctx.beginPath();ctx.moveTo(halfL*.84,y-halfW*.14);ctx.lineTo(halfL*(1.04+signal*.07),y);ctx.lineTo(halfL*.84,y+halfW*.14);ctx.fill();
+   }
+  }
+  if(u.fleeing){ctx.strokeStyle='#eefcff';ctx.lineWidth=1.8;ctx.beginPath();ctx.arc(-halfL*.35,0,Math.max(3,halfW*.7),-.9,.9);ctx.stroke();}
   if(u===selected){ctx.strokeStyle='white';ctx.lineWidth=1.3;ctx.beginPath();ctx.ellipse(0,0,halfL+7,halfW+7,0,0,TAU);ctx.stroke();}
   ctx.restore();
  }
