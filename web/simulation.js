@@ -449,6 +449,23 @@ export class Ecosystem{
   if(type===1&&this.units.some(u=>u.g.aquatic!==1&&this.cell(u.x,u.y)===yy*NX+xx))continue;
   this.tiles[yy*NX+xx]=type;
  }}}
+ adaptFounderToTerrain(g,t){
+  const adapted={...g};
+  adapted.aquatic=t===1?1:0;
+  if(t===1)adapted.wet=Math.max(.83,adapted.wet);
+  if(t===2)adapted.dry=Math.max(.86,adapted.dry);
+  if(t===3)adapted.rock=Math.max(.86,adapted.rock);
+  // Grassland founders are terrestrial, and require nearby access to water.
+  return adapted;
+ }
+ founderSite(x,y,terrain){
+  for(let attempt=0;attempt<24;attempt++){
+   const px=clamp(x+this.range(-12,12),10,W-10);
+   const py=clamp(y+this.range(-12,12),10,H-10);
+   if(this.terrain(px,py)===terrain)return {x:px,y:py};
+  }
+  return {x:clamp(x,10,W-10),y:clamp(y,10,H-10)};
+ }
  introduce(x,y,typeCount=1){
   // Exactly N morphological founder types, 8 independent individuals per type.
   // The founding population is intentionally clustered, enabling sexual reproduction.
@@ -464,20 +481,17 @@ export class Ecosystem{
     if(!used.has(key))break;
    }
    if(used.has(key))continue;
-   // Introduced organisms are selected for minimal viability in the chosen habitat.
+   // Introduced founders adapt genetically to the terrain actually clicked.
+   // Natural offspring still inherit their parents' DNA without this shortcut.
    const placedTerrain=this.terrain(x,y);
-   if(placedTerrain===1){g.aquatic=1;g.wet=Math.max(.72,g.wet);}else{g.aquatic=0;}
-   if(placedTerrain===2)g.dry=Math.max(.56,g.dry);
-   if(placedTerrain===3)g.rock=Math.max(.56,g.rock);
+   g=this.adaptFounderToTerrain(g,placedTerrain);
    key=this.category(g);
    if(used.has(key))continue;
    used.add(key);
    const foundingLineage='founder-'+this.nextId;
-   const hx=clamp(x+((k%3)-Math.min(1,count-1))*36,32,W-32);
-   const hy=clamp(y+(Math.floor(k/3)-(count>3?.5:0))*42,32,H-32);
    let spawned=0;
    for(let i=0;i<8;i++){
-    // Small continuous variation within the same morphology bin retains founding type.
+    // Small variation, but no change to the adaptation category of the founder.
     let variant={...g};
     if(i>0){
      const trial={...g,wet:clamp(g.wet+this.range(-.018,.018),0,1),
@@ -485,20 +499,9 @@ export class Ecosystem{
        rock:clamp(g.rock+this.range(-.018,.018),0,1)};
      if(this.category(trial)===key)variant=trial;
     }
-    let sx=hx+this.range(-20,20),sy=hy+this.range(-20,20);
-    // Keep each founder in its genetically required habitat.
-    if(variant.aquatic===1&&this.terrain(sx,sy)!==1){
-     const water=this.nearestWater(sx,sy,65);
-     if(water){sx=water.x;sy=water.y;}
-    }else if(variant.aquatic!==1&&this.terrain(sx,sy)===1){
-     let found=false;
-     for(let j=0;j<30;j++){
-      const tx=clamp(hx+this.range(-28,28),12,W-12);
-      const ty=clamp(hy+this.range(-28,28),12,H-12);
-      if(this.terrain(tx,ty)!==1){sx=tx;sy=ty;found=true;break;}
-     }
-     if(!found){sx=x;sy=y;}
-    }
+    // The clicked terrain is authoritative; never drift into another biome.
+    const site=this.founderSite(x,y,placedTerrain);
+    const sx=site.x,sy=site.y;
     const u=this.spawn(sx,sy,variant);
     if(!u)break;
     u.lineage=foundingLineage;
