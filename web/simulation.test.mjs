@@ -297,13 +297,10 @@ test('giants are tougher and hit harder but require more upkeep and move slower'
  assert.ok(second>first);
 });
 
-test('new world starts empty, with no automatically introduced organisms',()=>{
- const world=new Ecosystem(907);
- assert.equal(world.units.length,0);
- assert.equal(world.species.size,0);
- assert.equal(world.introducedCount,0);
- assert.equal(world.tick,0);
- assert.ok(world.food.length>0);
+test('new world starts without creatures but has grass and water reserves',()=>{
+ const w=new Ecosystem(907);
+ assert.equal(w.units.length,0);assert.equal(w.species.size,0);
+ assert.ok(w.grass.some(v=>v>0));assert.ok(w.water.some(v=>v>0));
 });
 test('default introduction has one type and eight mating-capable founders',()=>{
  const s=new Ecosystem(908),result=s.introduce(400,230);
@@ -358,11 +355,11 @@ test('same founder classification shares lineage across individuals',()=>{
  assert.equal(new Set(s.units.map(u=>u.lineage)).size,1);
  assert.equal(new Set(s.units.map(u=>u.category)).size,1);
 });
-test('disease reduces HP and delays reproduction',()=>{
+test('infection reduces HP and delays reproduction',()=>{
  const s=new Ecosystem(505);s.introduce(350,200,1);
  const u=s.units[0];u.age=100;u.energy=170;u.infection=25;
  assert.equal(s.isReadyToMate(u),false);
- const hp=u.hp;s.units=[u];s.food=[];s.growth=0;s.step();
+ const hp=u.hp;s.units=[u];s.growth=0;s.step();
  assert.ok(u.hp<hp);
 });
 test('local nutrient regeneration respects terrain cell capacity',()=>{
@@ -446,32 +443,25 @@ test('species catalog stores a gene snapshot even after extinction',()=>{
  assert.deepEqual(world.species.get(u.category).genome,original);
 });
 
-test('rain regenerates food around occupied fertile habitats',()=>{
- const world=new Ecosystem(901);
- world.tiles.fill(0);world.food=[];
- const g={...world.gene(),aquatic:0};
- world.spawn(240,180,g);world.spawn(265,180,g);
- world.growth=0;world.stress=80;
- world.rain();
- assert.equal(world.growth,90);
- assert.equal(world.stress,8);
- assert.ok(world.food.length>=4);
- assert.ok(world.food.some(f=>Math.hypot(f.x-240,f.y-180)<35));
+test('rain replenishes exhausted waterbeds and reduces stress',()=>{
+ const w=new Ecosystem(901);const i=w.tiles.findIndex(t=>t===1);
+ assert.ok(i>=0);
+ w.water[i]=0;w.tiles[i]=2;w.growth=0;w.stress=80;
+ w.rain();
+ assert.equal(w.growth,90);assert.equal(w.stress,8);
+ assert.equal(w.tiles[i],1);assert.ok(w.water[i]>0);
 });
-test('manual feeding creates a concentrated edible patch',()=>{
- const world=new Ecosystem(902);world.food=[];
- world.addFood(220,140,32,17,'manual');
- assert.equal(world.food.length,32);
- assert.ok(world.food.every(f=>f.source==='manual'&&Math.abs(f.x-220)<=17&&Math.abs(f.y-140)<=17));
+test('player planting directly restores the grass biome',()=>{
+ const w=new Ecosystem(902);w.tiles.fill(2);w.grass.fill(0);
+ w.paint(220,140,0,1);
+ assert.equal(w.terrain(220,140),0);
+ assert.equal(w.grass[w.cell(220,140)],100);
+ assert.equal(w.food.length,0);
 });
-test('obsolete remote nutrients expire and free world capacity',()=>{
- const world=new Ecosystem(903);
- world.tiles.fill(0);world.food=[];
- for(let i=0;i<1500;i++)world.food.push({x:700,y:420,energy:8,source:'natural',age:380});
- world.growth=100;
- world.step();
- assert.ok(world.food.length<1500);
- assert.ok(world.food.some(f=>f.source==='natural'&&f.age<=1));
+test('grass is not spontaneously generated from a wholly barren map',()=>{
+ const w=new Ecosystem(903);w.tiles.fill(2);w.grass.fill(0);
+ w.growth=100;for(let i=0;i<120;i++)w.step();
+ assert.ok(w.grass.every(x=>x===0));
 });
 test('painting water preserves land creature safety on its occupied cell',()=>{
  const world=new Ecosystem(904);world.tiles.fill(0);
@@ -520,4 +510,32 @@ test('larger phenotype variation spans more than threefold speed and sight',()=>
  const huge=morphology({...g,r:12,elongation:2.5,eyes:0});
  assert.ok(quick.speed/huge.speed>3);
  assert.ok(quick.eyeRange/huge.eyeRange>4);
+});
+
+test('grazing depletes grass and converts it to bare terrain',()=>{
+ const w=new Ecosystem(905),i=w.cell(220,140);
+ w.tiles[i]=0;w.grass[i]=1.4;
+ assert.equal(w.consumeGrass(220,140,1.4),1.4);
+ assert.equal(w.tiles[i],2);assert.equal(w.grass[i],0);
+});
+test('drinking consumes finite map water',()=>{
+ const w=new Ecosystem(906),i=w.cell(220,140);
+ w.tiles[i]=1;w.waterbed[i]=1;w.water[i]=1;
+ assert.equal(w.consumeWater(220,140,1),1);
+ assert.equal(w.tiles[i],2);assert.equal(w.water[i],0);
+});
+test('neighboring grass can regrow but total extinction cannot',()=>{
+ const w=new Ecosystem(908);w.tiles.fill(2);w.grass.fill(0);
+ const i=w.cell(220,140);w.tiles[i]=0;w.grass[i]=50;
+ w.growth=100;
+ for(let j=0;j<1500;j++)w.step();
+ assert.ok(w.grass.some((v,k)=>k!==i&&v>0));
+});
+test('a decomposing corpse recycles organic matter to soil',()=>{
+ const w=new Ecosystem(909);w.tiles.fill(2);w.grass.fill(0);
+ const u=w.spawn(220,140,{...w.gene(),aquatic:0});
+ w.die(u,'test');w.units=[];
+ const i=w.cell(220,140),before=w.soil[i];
+ for(let j=0;j<60;j++)w.step();
+ assert.ok(w.soil[i]>before);
 });
