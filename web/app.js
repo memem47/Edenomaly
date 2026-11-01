@@ -17,7 +17,8 @@ function speciesAbilityText(g){
  const habitat=g.aquatic===1?'水生':'陸生';
  return `<span class="species-abilities"><span title="草地での基準移動速度">速 ${fmt(m.speed*.58)}</span><span title="草地での視界距離">視 ${Math.round(m.eyeRange)}</span><span title="最大HP（健康な成体）">HP ${hp}</span><span title="1ステップあたりの基礎代謝">代謝 ${fmt(m.upkeep)}</span><span title="食性"> ${escapeHTML(diet.label)}</span><span title="生息型">${habitat}</span><span title="乾燥地／岩場／水辺の適応度">適応 乾${fmt(terrainFitness(g,2).fitness)} 岩${fmt(terrainFitness(g,3).fitness)} 水${fmt(terrainFitness(g,1).fitness)}</span></span>`;
 }
-function catalogSpecies(){
+function catalogSpecies(liveBySpecies){
+ const phenotype=e=>speciesRepresentative(e[0],e[1],liveBySpecies);
  const entries=[...game.species.entries()].filter(([,s])=>$('showExtinct').checked||s.current>0);
  const comparators={
   current:(a,b)=>b[1].current-a[1].current||b[1].total-a[1].total||a[1].n-b[1].n,
@@ -25,10 +26,10 @@ function catalogSpecies(){
   newest:(a,b)=>b[1].first-a[1].first||b[1].n-a[1].n,
   oldest:(a,b)=>a[1].first-b[1].first||a[1].n-b[1].n,
   name:(a,b)=>a[1].name.localeCompare(b[1].name,'ja')||a[1].n-b[1].n,
-  speed:(a,b)=>morphology(b[1].genome).speed-morphology(a[1].genome).speed||a[1].n-b[1].n,
-  sight:(a,b)=>morphology(b[1].genome).eyeRange-morphology(a[1].genome).eyeRange||a[1].n-b[1].n,
-  hp:(a,b)=>morphology(b[1].genome).bodyMass-morphology(a[1].genome).bodyMass||a[1].n-b[1].n,
-  upkeep:(a,b)=>morphology(a[1].genome).upkeep-morphology(b[1].genome).upkeep||a[1].n-b[1].n
+  speed:(a,b)=>morphology(phenotype(b)).speed-morphology(phenotype(a)).speed||a[1].n-b[1].n,
+  sight:(a,b)=>morphology(phenotype(b)).eyeRange-morphology(phenotype(a)).eyeRange||a[1].n-b[1].n,
+  hp:(a,b)=>morphology(phenotype(b)).bodyMass-morphology(phenotype(a)).bodyMass||a[1].n-b[1].n,
+  upkeep:(a,b)=>morphology(phenotype(a)).upkeep-morphology(phenotype(b)).upkeep||a[1].n-b[1].n
  };
  return entries.sort(comparators[$('speciesSort').value]||comparators.current);
 }
@@ -54,7 +55,7 @@ function update(){
  for(const [id,value] of Object.entries(data))$(id).textContent=typeof value==='number'?value.toLocaleString('ja-JP'):value;
  $('stepCount').textContent=game.tick.toLocaleString('ja-JP');$('status').textContent=game.introducedCount===0?'移入待ち':running?'実行中':'停止中';$('play').textContent=running?'Ⅱ 停止':'▶ 再生';$('play').classList.toggle('active',running);
  const liveBySpecies=new Map();for(const u of game.units)if(!u.dead&&!liveBySpecies.has(u.category))liveBySpecies.set(u.category,u);
- const catalogRows=catalogSpecies();
+ const catalogRows=catalogSpecies(liveBySpecies);
  $('catalogCount').textContent=($('showExtinct').checked?'表示':'現存')+' '+catalogRows.length+'種';
  const nextCatalog=catalogRows.map(([key,sp])=>`<button type="button" class="species species-entry${selectedSpecies===key?' selected':''}" data-category="${escapeHTML(key)}" aria-expanded="${selectedSpecies===key}"><span class="dot" style="background:hsl(${sp.hue},${sp.saturation}%,${sp.lightness}%)"></span><span><b>${escapeHTML(sp.name)}</b><small>#${sp.n} · Step ${sp.first} · ${sp.current?'現存':'絶滅'}</small>${speciesAbilityText(speciesRepresentative(key,sp,liveBySpecies))}</span><span>${sp.current}</span><span>${sp.total}</span></button>${selectedSpecies===key?`<div class="genome-panel species-expanded">${speciesGenomeHTML(key)}</div>`:''}`).join('');
  if(nextCatalog!==catalogMarkup){$('catalog').innerHTML=nextCatalog;catalogMarkup=nextCatalog;}
