@@ -8,9 +8,9 @@ test('species counts reconcile',()=>{const s=populated();for(let i=0;i<25;i++)s.
 test('death creates a decomposable corpse',()=>{const s=populated();let u=s.units[0];s.die(u,'test');assert.equal(s.corpses.length,1);assert.equal(s.species.get(u.category).current>=0,true);});
 test('terrain painting changes terrain',()=>{const s=populated();s.paint(100,100,3,2);assert.equal(s.terrain(100,100),3);});
 
-test('morphological genes are inherited and bounded',()=>{const s=populated(42);for(let i=0;i<300;i++)s.step();for(const u of s.units){assert.ok(u.g.elongation>=.65&&u.g.elongation<=3);assert.ok(u.g.eyes>=0&&u.g.eyes<=6);assert.ok(u.g.mouths>=1&&u.g.mouths<=4);assert.ok(u.g.legs>=0&&u.g.legs<=8&&u.g.legs%2===0);}});
+test('morphological genes are inherited and bounded',()=>{const s=populated(42);for(let i=0;i<300;i++)s.step();for(const u of s.units){assert.ok(u.g.elongation>=.65&&u.g.elongation<=3);assert.ok(u.g.eyes>=0&&u.g.eyes<=6);assert.ok(u.g.mouths>=1&&u.g.mouths<=4);assert.equal('legs' in u.g,false);assert.equal('pattern' in u.g,false);}});
 test('more eyes increase sight but cost energy',()=>{const g=populated().gene();assert.ok(morphology({...g,eyes:6}).eyeRange>morphology({...g,eyes:0}).eyeRange);assert.ok(morphology({...g,eyes:6}).upkeep>morphology({...g,eyes:0}).upkeep);});
-test('slime movement is independent of leg count',()=>{const g=populated().gene();assert.equal(morphology({...g,legs:8}).speed,morphology({...g,legs:0}).speed);});
+test('slime has no vestigial legs or pattern genes',()=>{const g=populated().gene();assert.equal(g.legs,undefined);assert.equal(g.pattern,undefined);});
 test('longer body raises mass and energy consumption',()=>{const g=populated().gene();assert.ok(morphology({...g,elongation:2.8}).bodyMass>morphology({...g,elongation:.8}).bodyMass);assert.ok(morphology({...g,elongation:2.8}).upkeep>morphology({...g,elongation:.8}).upkeep);});
 test('mouth number influences feeding and attack reach',()=>{const g=populated().gene();assert.ok(morphology({...g,mouths:4}).foodGain>morphology({...g,mouths:1}).foodGain);assert.ok(morphology({...g,mouths:4}).biteReach>morphology({...g,mouths:1}).biteReach);});
 
@@ -42,14 +42,28 @@ test('mating requires two distinct adults and consumes energy',()=>{
  assert.ok(a.mateCooldown>0&&b.mateCooldown>0);
  assert.equal(s.layEgg(a,b),null);
 });
-test('recombination combines both parents without relying on mutation',()=>{
- const s=populated(52),a=s.gene(),b=s.gene();
- for(const k of Object.keys(a))b[k]=a[k]+(k==='hue'?50:k==='legs'?2:k==='eyes'||k==='mouths'?1:.2);
- const original=s.mutate;s.mutate=()=>{throw new Error('mutation must not be necessary');};
- s.rand=(()=>{let n=0;return ()=>{n++;return n<=12?(n%2?.1:.9):.9;};})();
+test('two allele copies are inherited from each parent',()=>{
+ const s=new Ecosystem(52),a=s.gene(),b=s.gene();
+ a.eyes=4;a.alleles.eyes=[4,1];
+ b.eyes=3;b.alleles.eyes=[3,1];
+ const original=s.mutate;s.mutate=()=>{throw Error('unexpected mutation');};
+ s.rand=()=>.5; // always choose the second genetic copy, mutation roll .5 > .12
  const c=s.recombine(a,b);
- assert.equal(c.r,a.r);assert.equal(c.elongation,b.elongation);assert.equal(c.eyes,a.eyes);assert.equal(c.mouths,b.mouths);
+ assert.deepEqual(c.alleles.eyes,[1,1]);
+ assert.equal(c.eyes,1);
+ assert.equal(c.alleles.r.length,2);
  s.mutate=original;
+});
+test('a recessive trait hidden in both parents reappears in grandchildren',()=>{
+ const s=new Ecosystem(53),father=s.gene(),mother=s.gene();
+ father.eyes=4;father.alleles.eyes=[4,1];
+ mother.eyes=4;mother.alleles.eyes=[4,1];
+ s.rand=()=>.5;
+ const child=s.recombine(father,mother);
+ assert.equal(father.eyes,4);
+ assert.equal(mother.eyes,4);
+ assert.equal(child.eyes,1);
+ assert.deepEqual(child.alleles.eyes,[1,1]);
 });
 test('mate search excludes self juveniles and direct descendants',()=>{
  const s=populated(33),a=s.units[0],b=s.units[1];
@@ -118,7 +132,7 @@ test('pigment and brood genes remain within bounds after mutation',()=>{
  for(let i=0;i<100;i++){
   const g=s.mutate(s.gene());
   assert.ok(g.brood>=1&&g.brood<=8&&Number.isInteger(g.brood));
-  assert.ok(g.pattern>=0&&g.pattern<=3&&Number.isInteger(g.pattern));
+  assert.equal(g.pattern,undefined);
   assert.ok(g.saturation>=35&&g.saturation<=100);
   assert.ok(g.lightness>=35&&g.lightness<=85);
  }
@@ -498,4 +512,12 @@ test('regular offspring inherit water adaptation rather than changing to terrain
  const child=world.spawn(210,180,{...g},parent);
  assert.equal(child.g.aquatic,1);
  assert.equal(child.g.dry,0);
+});
+
+test('larger phenotype variation spans more than threefold speed and sight',()=>{
+ const s=new Ecosystem(1555),g=s.gene();
+ const quick=morphology({...g,r:3.2,elongation:.75,eyes:6});
+ const huge=morphology({...g,r:12,elongation:2.5,eyes:0});
+ assert.ok(quick.speed/huge.speed>3);
+ assert.ok(quick.eyeRange/huge.eyeRange>4);
 });
