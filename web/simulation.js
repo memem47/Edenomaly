@@ -314,36 +314,63 @@ export class Ecosystem{
  reset(){
   this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.stress=15;
   this.setupTerrain();
-  for(let i=0;i<400;i++){const x=this.range(0,W),y=this.range(0,H);if(this.rand()<GROWTH[this.terrain(x,y)])this.addFood(x,y,1,2);}
+  this.grass=new Float32Array(this.tiles.length);
+  this.water=new Float32Array(this.tiles.length);
+  this.waterbed=new Uint8Array(this.tiles.length);
+  this.soil=new Float32Array(this.tiles.length);
+  for(let i=0;i<this.tiles.length;i++){
+   if(this.tiles[i]===0)this.grass[i]=65+this.rand()*35;
+   if(this.tiles[i]===1){this.water[i]=80+this.rand()*20;this.waterbed[i]=1;}
+  }
   this.log('info','生命は未移入。種類数を選んでフィールドへ生命を移入してください');this.snapshot();
  }
- snapshot(){this.history.push({population:this.units.length,eggs:this.eggs.length,food:this.food.length,corpses:this.corpses.length});if(this.history.length>180)this.history.shift();}
+ snapshot(){this.history.push({population:this.units.length,eggs:this.eggs.length,food:this.grass.reduce((a,b)=>a+b,0),corpses:this.corpses.length});if(this.history.length>180)this.history.shift();}
  step(){
   this.tick++;
-  // Resources decay instead of occupying the global food limit forever
-  // in far-away, unreachable cells.
-  for(let i=this.food.length-1;i>=0;i--){
-   const f=this.food[i];f.age=(f.age??0)+1;
-   const ttl=f.source==='manual'?240:f.source==='rain'?260:380;
-   if(f.age>ttl)this.food.splice(i,1);
+  // Map resources are finite. Grass regrows only from living adjacent patches,
+  // so complete overgrazing cannot recover without intervention.
+  if(this.tick%6===0){
+   const next=this.grass.slice();
+   for(let i=0;i<this.tiles.length;i++){
+    if(this.tiles[i]===0&&this.grass[i]>0){
+     next[i]=Math.min(100,this.grass[i]+(.17+this.soil[i]*.018)*this.growth/70);
+    }
+    if(this.grass[i]<=0&&this.tiles[i]!==1&&this.tiles[i]!==3){
+     const x=i%NX,y=Math.floor(i/NX);
+     const neighbors=[x>0?i-1:-1,x<NX-1?i+1:-1,y>0?i-NX:-1,y<NY-1?i+NX:-1];
+     // A completely bare world contains no propagules.
+     if(neighbors.some(j=>j>=0&&this.grass[j]>18)&&this.rand()<.035*this.growth/70)
+      next[i]=4;
+    }
+    this.soil[i]*=.995;
+   }
+   this.grass=next;
   }
-  // Soil resources have local carrying capacities: food cannot accumulate
-  // indefinitely in a meadow simply because the rest of the world is empty.
-  const foodInCell=new Uint16Array(this.tiles.length);
-  for(const f of this.food)foodInCell[this.cell(f.x,f.y)]++;
-  const attempts=4+Math.floor(this.growth/7);
-  for(let i=0;i<attempts;i++){
-   const id=Math.floor(this.rand()*this.tiles.length),t=this.tiles[id];
-   if(this.rand()<GROWTH[t]*this.growth/100&&foodInCell[id]<(t===0?4:t===1?4:2)&&this.food.length<1500){
-    this.addFood((id%NX+this.rand())*CELL,(Math.floor(id/NX)+this.rand())*CELL,1,0);
-    foodInCell[id]++;
+  // Standing water evaporates naturally. Rain replenishes depleted waterbeds.
+  if(this.tick%8===0){
+   for(let i=0;i<this.tiles.length;i++)if(this.water[i]>0){
+    this.water[i]=Math.max(0,this.water[i]-(.16+this.stress*.003));
+    if(this.water[i]===0&&this.tiles[i]===1)this.tiles[i]=2;
    }
   }
   for(let i=this.corpses.length-1;i>=0;i--){
    const c=this.corpses[i];c.age++;
    const loss=Math.min(c.mass,Math.max(.03,c.mass*DECAY[this.terrain(c.x,c.y)]));c.mass-=loss;c.reserve+=loss;
-   while(c.reserve>=9&&this.food.length<1580){c.reserve-=9;this.addFood(c.x,c.y,1,Math.min(17,5+c.age*.02),'corpse');}
-   if(c.mass<.6){if(c.reserve>=4&&this.food.length<1580)this.addFood(c.x,c.y,1,8,'corpse');this.corpses.splice(i,1);this.log('decay','死体が分解されて栄養になった',c);}
+   const id=this.cell(c.x,c.y);
+   // Decomposition nourishes soil; tissues also return moisture to the world.
+   this.soil[id]=Math.min(100,this.soil[id]+loss*.33);
+   if(this.tiles[id]!==1&&this.tiles[id]!==3){
+    // Cadaver-derived moisture can form a small new pool on barren ground,
+    // never instantly submerging an occupied terrestrial cell.
+    c.moisture=(c.moisture??0)+loss*.22;
+    if(c.moisture>15&&this.tiles[id]===2&&!this.units.some(u=>!u.dead&&u.g.aquatic!==1&&this.cell(u.x,u.y)===id)){
+     this.tiles[id]=1;this.waterbed[id]=1;this.water[id]=Math.min(100,24+c.moisture);
+     this.grass[id]=0;c.moisture=0;
+    }
+    if(this.grass[id]>0)this.grass[id]=Math.min(100,this.grass[id]+loss*.12);
+    else if(this.soil[id]>12&&this.rand()<.12){this.tiles[id]=0;this.grass[id]=4;}
+   }
+   if(c.mass<.6){this.corpses.splice(i,1);this.recycled++;this.recycledByTerrain[this.terrain(c.x,c.y)]++;this.log('decay','死体の有機物と水分が地形に還元された',c);}
   }
   for(const egg of this.eggs){
    egg.age++;
@@ -360,20 +387,23 @@ export class Ecosystem{
    if(u.pregnancy){u.pregnancy.remaining--;if(u.pregnancy.remaining<=0)this.layEgg(u);}
    const g=u.g,t=this.terrain(u.x,u.y),m=morphology(g),diet=dietProfile(g),home=terrainFitness(g,t);
    const youth=u.stage==='juvenile'?.50:1,body=vitality(u),sight=m.eyeRange*home.sight;
-   const aquatic=g.aquatic===1,underwater=t===1;
+   const aquatic=g.aquatic===1,underwater=t===1&&this.water[this.cell(u.x,u.y)]>0;
    if(aquatic){
     u.stranded=underwater?0:u.stranded+1;
     u.hydration=underwater?Math.min(100,u.hydration+1.6):u.hydration-.85;
+    if(underwater)this.consumeWater(u.x,u.y,.095);
    }else{
     u.submerged=underwater?u.submerged+1:0;
-    u.hydration=this.nearWater(u.x,u.y,1)?Math.min(100,u.hydration+.9):u.hydration-.24;
+    const drinking=this.nearWater(u.x,u.y,1);
+    u.hydration=drinking?Math.min(100,u.hydration+.9):u.hydration-.24;
+    if(drinking)this.drinkNearby(u.x,u.y,.12);
    }
    if((aquatic&&u.stranded>95)||(!aquatic&&u.submerged>24)||u.hydration<=0){
     this.die(u,aquatic?'離水':u.submerged>24?'溺水':'脱水');continue;
    }
    if(u.hydration<18)u.hp-=.06;
    let nearest=null,df=sight*sight;
-   if(diet.plant>0)for(const f of this.food){if(!terrainFitness(g,this.terrain(f.x,f.y)).passable)continue;const d=distance(u,f);if(d<df){df=d;nearest=f;}}
+   if(diet.plant>0){nearest=this.nearestGrass(u.x,u.y,sight,g);if(nearest)df=distance(u,nearest);}
    // Eggs are stationary and cannot fight or flee. Guardians only deter some hunters.
    let targetEgg=null,ed=sight*sight;
    if(u.bite===0&&diet.meat>.12&&g.mouths>0)for(const egg of this.eggs){
@@ -482,8 +512,11 @@ export class Ecosystem{
    else u.angle+=Math.PI*.72;
    u.hp-=home.hazard;
    u.energy-=m.upkeep*youth*(1+body.old*.18)+(flight?.10:0)+(ownEgg?g.guard*.16:0)+this.stress*.0035+home.upkeep+(g.wet+g.dry+g.rock)*.055;
-   if(!flight&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+3)**2){u.energy+=nearest.energy*m.foodGain*diet.plant*home.fitness;
-    u.hp=Math.min(u.maxHp,u.hp+nearest.energy*.09*(1-body.old*.6));const pos=this.food.indexOf(nearest);if(pos>=0)this.food.splice(pos,1);this.log('meal','#'+u.id+' が食事した',u);}
+   if(!flight&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+13)**2){
+    const eaten=this.consumeGrass(nearest.x,nearest.y,Math.min(2.5,1.25*m.foodGain));
+    if(eaten>0){u.energy+=eaten*5.8*diet.plant*home.fitness;
+     u.hp=Math.min(u.maxHp,u.hp+eaten*.22*(1-body.old*.6));this.log('meal','#'+u.id+' が草を食べた',u);}
+   }
    if(!flight&&targetEgg&&!targetEgg.dead&&u.bite===0&&distance(u,targetEgg)<(m.biteReach+4)**2)this.eatEgg(targetEgg,u);
    if(!flight&&mate&&!u.courtPartner&&!mate.courtPartner&&distance(u,mate)<38**2)this.startCourtship(u,mate);
    if(!flight&&diet.meat>0&&prey&&!prey.dead&&distance(u,prey)<(m.biteReach+prey.g.r)**2)this.attack(u,prey);
