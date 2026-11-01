@@ -65,6 +65,8 @@ $('catalog').addEventListener('click',e=>{
  const b=e.target.closest('[data-category]');if(!b)return;
  selectedSpecies=selectedSpecies===b.dataset.category?null:b.dataset.category;
  update();
+ const details=$('catalog').querySelector('.species-expanded');
+ if(details)details.scrollIntoView({block:'nearest'});
 });
 $('play').onclick=()=>{if(game.introducedCount===0){mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));return;}running=!running;update();};$('stepOnce').onclick=()=>{if(game.introducedCount===0)return;running=false;game.step();update();render();};$('speed').onclick=()=>{speed=speed===1?3:speed===3?8:1;$('speed').textContent='速度 ×'+speed;};$('reset').onclick=()=>reset();
 $('founderTypes').oninput=e=>{const n=Math.max(1,Math.min(6,Math.trunc(Number(e.target.value)||1)));$('founderPreview').textContent=n+'種類・'+(n*8)+'体';};
