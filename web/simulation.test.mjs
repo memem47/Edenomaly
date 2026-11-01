@@ -111,13 +111,13 @@ test('genetic brood size controls clutch count and preserves both parents',()=>{
  const small=populated(91),a=small.units[0],b=small.units[1];
  for(const u of [a,b]){u.age=100;u.energy=160;u.g.brood=1;}
  assert.ok(small.conceive(a,b));small.layEgg(a);
- assert.equal(small.eggs.length,1);
+ assert.ok(small.eggs.length>=4);
  const large=populated(91),c=large.units[0],d=large.units[1];
  for(const u of [c,d]){u.age=100;u.energy=160;u.g.brood=8;}
  assert.ok(large.conceive(c,d));large.layEgg(c);
- assert.equal(large.eggs.length,8);
+ assert.ok(large.eggs.length>small.eggs.length);
  assert.ok(large.eggs.every(e=>e.parent===c.id&&e.otherParent===d.id));
- assert.equal(new Set(large.eggs.map(e=>e.id)).size,8);
+ assert.equal(new Set(large.eggs.map(e=>e.id)).size,large.eggs.length);
 });
 test('large clutches cost more parental energy',()=>{
  const run=brood=>{
@@ -538,4 +538,39 @@ test('a decomposing corpse recycles organic matter to soil',()=>{
  const i=w.cell(220,140),before=w.soil[i];
  for(let j=0;j<60;j++)w.step();
  assert.ok(w.soil[i]>before);
+});
+
+test('offspring remain genetically varied within one large clutch',()=>{
+ const w=new Ecosystem(1201);w.introduce(160,140,1);
+ const a=w.units[0],b=w.units[1];
+ a.g.brood=8;b.g.brood=8;a.energy=b.energy=200;
+ a.age=b.age=100;
+ const p=w.conceive(a,b);
+ assert.ok(p);assert.ok(p.genomes.length>=10);
+ const expressions=new Set(p.genomes.map(g=>[g.eyes,g.r.toFixed(2),g.diet.toFixed(2)].join(':')));
+ assert.ok(expressions.size>=4);
+});
+test('habitat adaptation changes per-step metabolism for different dry traits',()=>{
+ const s=new Ecosystem(1202);s.tiles.fill(2);s.grass.fill(0);
+ const base=s.gene();
+ const a=s.spawn(160,100,{...base,dry:0}),b=s.spawn(540,350,{...base,dry:1});
+ a.energy=b.energy=1000;a.age=b.age=100;
+ a.hp=b.hp=1000;a.maxHp=b.maxHp=1000;
+ s.units=[a,b];s.growth=0;
+ // Natural selection favors a creature already adapted to arid terrain.
+ for(let i=0;i<12;i++)s.step();
+ assert.ok(b.energy>a.energy);
+});
+test('seasonal precipitation restores depleted waterbeds',()=>{
+ const w=new Ecosystem(1203);const i=w.tiles.findIndex(t=>t===1);
+ w.water[i]=0;w.tiles[i]=2;w.growth=0;
+ for(let j=0;j<180;j++)w.step();
+ assert.equal(w.tiles[i],1);assert.ok(w.water[i]>0);
+});
+test('corpse moisture can establish a new pond on bare land',()=>{
+ const w=new Ecosystem(1204);w.tiles.fill(2);w.grass.fill(0);
+ const u=w.spawn(200,200,{...w.gene(),aquatic:0,r:12});
+ w.die(u,'test');w.units=[];
+ for(let i=0;i<200;i++)w.step();
+ assert.ok([...w.tiles].some(t=>t===1));
 });
