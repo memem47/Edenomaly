@@ -15,3 +15,7 @@
 .gene small{color:#8ea5ad}
 .gene b{font-variant-numeric:tabular-nums;white-space:nowrap}
 @media(max-width:450px){.genome-grid{grid-template-columns:1fr}}
+
+.species-expanded{margin:0 2px 10px 22px;max-height:none;background:#203740;border-color:#5d8c85;box-shadow:inset 3px 0 0 #69c3a5}
+.species-expanded .genome-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:450px){.species-expanded .genome-grid{grid-template-columns:1fr}}
