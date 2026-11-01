@@ -1,4 +1,4 @@
-import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality} from './simulation.js';
+import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology} from './simulation.js';
 import {drawWorld,drawChart} from './renderer.js';
 const $=id=>document.getElementById(id);
 const game=new Ecosystem();
@@ -7,6 +7,16 @@ let running=false,speed=1,mode='spawn',filter='all',brush=3,selected=null,select
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const GENE_LABELS={r:'体の大きさ',elongation:'体の長さ比',eyes:'目の数',mouths:'口の能力',jaw:'顎の能力',wet:'水への適応',dry:'乾燥への適応',rock:'岩場への適応',aquatic:'水生／陸生',shell:'卵殻',guard:'卵の保護',nesting:'産卵場所',brood:'産卵数',diet:'食性',deception:'擬態',resist:'感染抵抗力',hue:'色相',saturation:'彩度',lightness:'明度'};
 function genomeValue(key,value){return key==='aquatic'?(value===1?'水生':'陸生'):typeof value==='number'?(Number.isInteger(value)?String(value):value.toFixed(3)):String(value);}
+function speciesRepresentative(key,species,liveBySpecies){
+ return liveBySpecies.get(key)?.g||species.genome;
+}
+function speciesAbilityText(g){
+ if(!g)return '能力情報なし';
+ const m=morphology(g),diet=dietProfile(g),hp=Math.max(25,Math.round(m.bodyMass*.48+25));
+ const fmt=v=>v.toFixed(2);
+ const habitat=g.aquatic===1?'水生':'陸生';
+ return `<span class="species-abilities"><span title="草地での基準移動速度">速 ${fmt(m.speed*.58)}</span><span title="草地での視界距離">視 ${Math.round(m.eyeRange)}</span><span title="最大HP（健康な成体）">HP ${hp}</span><span title="1ステップあたりの基礎代謝">代謝 ${fmt(m.upkeep)}</span><span title="食性"> ${escapeHTML(diet.label)}</span><span title="生息型">${habitat}</span><span title="乾燥地／岩場／水辺の適応度">適応 乾${fmt(terrainFitness(g,2).fitness)} 岩${fmt(terrainFitness(g,3).fitness)} 水${fmt(terrainFitness(g,1).fitness)}</span></span>`;
+}
 function catalogSpecies(){
  const entries=[...game.species.entries()].filter(([,s])=>$('showExtinct').checked||s.current>0);
  const comparators={
@@ -39,9 +49,10 @@ function update(){
  const data={maxGeneration:game.units.length?Math.max(...game.units.map(u=>u.generation)):0,offspringCount:descendants.length,averageFitness:averageFitness.toFixed(2),population:game.units.length,eggCount:game.eggs.length,matingCount:game.matings,juvenileCount:game.units.filter(u=>u.stage==='juvenile').length,livingSpecies:game.livingSpecies,totalSpecies:game.species.size,corpses:game.corpses.length,nutrients:Math.round(game.grass.reduce((a,b)=>a+b,0)),waterRemaining:Math.round(game.water.reduce((a,b)=>a+b,0)),recycled:game.recycled,migrationCount:game.migrations};
  for(const [id,value] of Object.entries(data))$(id).textContent=typeof value==='number'?value.toLocaleString('ja-JP'):value;
  $('stepCount').textContent=game.tick.toLocaleString('ja-JP');$('status').textContent=game.introducedCount===0?'移入待ち':running?'実行中':'停止中';$('play').textContent=running?'Ⅱ 停止':'▶ 再生';$('play').classList.toggle('active',running);
+ const liveBySpecies=new Map();for(const u of game.units)if(!u.dead&&!liveBySpecies.has(u.category))liveBySpecies.set(u.category,u);
  const catalogRows=catalogSpecies();
  $('catalogCount').textContent=($('showExtinct').checked?'表示':'現存')+' '+catalogRows.length+'種';
- const nextCatalog=catalogRows.map(([key,sp])=>`<button type="button" class="species species-entry${selectedSpecies===key?' selected':''}" data-category="${escapeHTML(key)}" aria-expanded="${selectedSpecies===key}"><span class="dot" style="background:hsl(${sp.hue},${sp.saturation}%,${sp.lightness}%)"></span><span><b>${escapeHTML(sp.name)}</b><small>#${sp.n} · Step ${sp.first} · ${sp.current?'現存':'絶滅'}</small></span><span>${sp.current}</span><span>${sp.total}</span></button>${selectedSpecies===key?`<div class="genome-panel species-expanded">${speciesGenomeHTML(key)}</div>`:''}`).join('');
+ const nextCatalog=catalogRows.map(([key,sp])=>`<button type="button" class="species species-entry${selectedSpecies===key?' selected':''}" data-category="${escapeHTML(key)}" aria-expanded="${selectedSpecies===key}"><span class="dot" style="background:hsl(${sp.hue},${sp.saturation}%,${sp.lightness}%)"></span><span><b>${escapeHTML(sp.name)}</b><small>#${sp.n} · Step ${sp.first} · ${sp.current?'現存':'絶滅'}</small>${speciesAbilityText(speciesRepresentative(key,sp,liveBySpecies))}</span><span>${sp.current}</span><span>${sp.total}</span></button>${selectedSpecies===key?`<div class="genome-panel species-expanded">${speciesGenomeHTML(key)}</div>`:''}`).join('');
  if(nextCatalog!==catalogMarkup){$('catalog').innerHTML=nextCatalog;catalogMarkup=nextCatalog;}
  const eventColors={birth:'#91f7ac',death:'#ff8290',meal:'#f9d36b',pred:'#be82ec',new:'#ffe486',decay:'#e2b96e',egg:'#eddfbd',hatch:'#a0e8bd',eggeaten:'#f5949c',mature:'#a0d9ff',attack:'#ffb7a1',ill:'#ed8bab',migration:'#b4e0ff',settle:'#88debc',mate:'#f5a5ed',court:'#ff91e8',laid:'#ffe3a1'};
  $('events').innerHTML=game.logs.filter(e=>filter==='all'||e.type===filter).slice(0,60).map(e=>`<div class="log-entry"><span style="color:${eventColors[e.type]||'#9eb0b8'}">●</span> [${e.step}] ${escapeHTML(e.message)}</div>`).join('');
