@@ -3,7 +3,7 @@ import {drawWorld,drawChart} from './renderer.js';
 const $=id=>document.getElementById(id);
 const game=new Ecosystem();
 const canvas=$('world'),ctx=canvas.getContext('2d'),graph=$('chart').getContext('2d');
-let running=false,speed=1,mode='spawn',filter='all',brush=3,selected=null,selectedSpecies=null,genomeRenderKey='',painting=false,last=0,acc=0,uiAt=0;
+let running=false,speed=1,mode='spawn',filter='all',brush=3,selected=null,selectedSpecies=null,painting=false,last=0,acc=0,uiAt=0;
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const GENE_LABELS={r:'体の大きさ',elongation:'体の長さ比',eyes:'目の数',mouths:'口の能力',legs:'脚（旧能力遺伝子）',jaw:'顎の能力',wet:'水への適応',dry:'乾燥への適応',rock:'岩場への適応',aquatic:'水生／陸生',shell:'卵殻',guard:'卵の保護',nesting:'産卵場所',brood:'産卵数',diet:'食性',deception:'擬態',resist:'感染抵抗力',hue:'色相',saturation:'彩度',lightness:'明度',pattern:'模様'};
 function genomeValue(key,value){return key==='aquatic'?(value===1?'水生':'陸生'):typeof value==='number'?(Number.isInteger(value)?String(value):value.toFixed(3)):String(value);}
@@ -18,20 +18,15 @@ function catalogSpecies(){
  };
  return entries.sort(comparators[$('speciesSort').value]||comparators.current);
 }
-function updateSpeciesGenome(){
- const panel=$('speciesGenome');
- if(!selectedSpecies){if(genomeRenderKey!=='none'){panel.textContent='種を選択すると遺伝子を表示します。';genomeRenderKey='none';}return;}
- const species=game.species.get(selectedSpecies);
- if(!species){selectedSpecies=null;panel.textContent='種を選択すると遺伝子を表示します。';return;}
- const representative=game.units.find(u=>u.category===selectedSpecies&&!u.dead);
+function speciesGenomeHTML(key){
+ const species=game.species.get(key);
+ if(!species)return '';
+ const representative=game.units.find(u=>u.category===key&&!u.dead);
  const genome=representative?.g||species.genome;
- if(!genome){panel.textContent='この種の遺伝子記録はありません。';return;}
+ if(!genome)return '<p class="muted">この種の遺伝子記録はありません。</p>';
  const origin=representative?'現存する代表個体 #'+representative.id:'発見時に保存した遺伝子';
- const renderKey=selectedSpecies+'|'+origin+'|'+JSON.stringify(genome);
- if(renderKey===genomeRenderKey)return;
- genomeRenderKey=renderKey;
- const fields=Object.entries(GENE_LABELS).filter(([key])=>genome[key]!==undefined).map(([key,label])=>`<div class="gene"><span>${escapeHTML(label)} <small>${key}</small></span><b>${escapeHTML(genomeValue(key,genome[key]))}</b></div>`).join('');
- panel.innerHTML=`<div class="genome-heading"><strong>${escapeHTML(species.name)} の遺伝子</strong><button type="button" id="closeGenome">閉じる</button></div><p class="muted">${escapeHTML(origin)}。同じ形態分類の個体でも遺伝子は完全に一致するとは限りません。</p><div class="genome-grid">${fields}</div>`;
+ const fields=Object.entries(GENE_LABELS).filter(([gene])=>genome[gene]!==undefined).map(([gene,label])=>`<div class="gene"><span>${escapeHTML(label)} <small>${gene}</small></span><b>${escapeHTML(genomeValue(gene,genome[gene]))}</b></div>`).join('');
+ return `<div class="genome-heading"><strong>${escapeHTML(species.name)} の遺伝子</strong><button type="button" data-close-genome="true">閉じる</button></div><p class="muted">${escapeHTML(origin)}。同じ形態分類内でも遺伝子は個体ごとに異なる場合があります。</p><div class="genome-grid">${fields}</div>`;
 }
 function update(){
  const dietCounts=[0,0,0];for(const u of game.units){const d=dietProfile(u.g).diet;dietCounts[d<.3?0:d>.7?2:1]++;}
@@ -44,8 +39,7 @@ function update(){
  $('stepCount').textContent=game.tick.toLocaleString('ja-JP');$('status').textContent=game.introducedCount===0?'移入待ち':running?'実行中':'停止中';$('play').textContent=running?'Ⅱ 停止':'▶ 再生';$('play').classList.toggle('active',running);
  const catalogRows=catalogSpecies();
  $('catalogCount').textContent=($('showExtinct').checked?'表示':'現存')+' '+catalogRows.length+'種';
- $('catalog').innerHTML=catalogRows.map(([key,sp])=>`<button type="button" class="species species-entry${selectedSpecies===key?' selected':''}" data-category="${escapeHTML(key)}"><span class="dot" style="background:hsl(${sp.hue},${sp.saturation}%,${sp.lightness}%)"></span><span><b>${escapeHTML(sp.name)}</b><small>#${sp.n} · Step ${sp.first} · ${sp.current?'現存':'絶滅'}</small></span><span>${sp.current}</span><span>${sp.total}</span></button>`).join('');
- updateSpeciesGenome();
+ $('catalog').innerHTML=catalogRows.map(([key,sp])=>`<button type="button" class="species species-entry${selectedSpecies===key?' selected':''}" data-category="${escapeHTML(key)}" aria-expanded="${selectedSpecies===key}"><span class="dot" style="background:hsl(${sp.hue},${sp.saturation}%,${sp.lightness}%)"></span><span><b>${escapeHTML(sp.name)}</b><small>#${sp.n} · Step ${sp.first} · ${sp.current?'現存':'絶滅'}</small></span><span>${sp.current}</span><span>${sp.total}</span></button>${selectedSpecies===key?`<div class="genome-panel species-expanded">${speciesGenomeHTML(key)}</div>`:''}`).join('');
  const eventColors={birth:'#91f7ac',death:'#ff8290',meal:'#f9d36b',pred:'#be82ec',new:'#ffe486',decay:'#e2b96e',egg:'#eddfbd',hatch:'#a0e8bd',eggeaten:'#f5949c',mature:'#a0d9ff',attack:'#ffb7a1',ill:'#ed8bab',migration:'#b4e0ff',settle:'#88debc',mate:'#f5a5ed',court:'#ff91e8',laid:'#ffe3a1'};
  $('events').innerHTML=game.logs.filter(e=>filter==='all'||e.type===filter).slice(0,60).map(e=>`<div class="log-entry"><span style="color:${eventColors[e.type]||'#9eb0b8'}">●</span> [${e.step}] ${escapeHTML(e.message)}</div>`).join('');
  const people=[0,0,0,0],food=[0,0,0,0],corpses=[0,0,0,0],fitness=[0,0,0,0];for(const u of game.units){const t=game.terrain(u.x,u.y);people[t]++;fitness[t]+=terrainFitness(u.g,t).fitness;}for(const f of game.food)food[game.terrain(f.x,f.y)]++;for(const c of game.corpses)corpses[game.terrain(c.x,c.y)]++;
@@ -65,8 +59,12 @@ document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',(
 document.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>{filter=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x===b));update();}));
 $('speciesSort').onchange=update;
 $('showExtinct').onchange=update;
-$('catalog').addEventListener('click',e=>{const b=e.target.closest('[data-category]');if(b){selectedSpecies=b.dataset.category;update();}});
-$('speciesGenome').addEventListener('click',e=>{if(e.target.closest('#closeGenome')){selectedSpecies=null;update();}});
+$('catalog').addEventListener('click',e=>{
+ if(e.target.closest('[data-close-genome]')){selectedSpecies=null;update();return;}
+ const b=e.target.closest('[data-category]');if(!b)return;
+ selectedSpecies=selectedSpecies===b.dataset.category?null:b.dataset.category;
+ update();
+});
 $('play').onclick=()=>{if(game.introducedCount===0){mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));return;}running=!running;update();};$('stepOnce').onclick=()=>{if(game.introducedCount===0)return;running=false;game.step();update();render();};$('speed').onclick=()=>{speed=speed===1?3:speed===3?8:1;$('speed').textContent='速度 ×'+speed;};$('reset').onclick=()=>reset();
 $('founderTypes').oninput=e=>{const n=Math.max(1,Math.min(6,Math.trunc(Number(e.target.value)||1)));$('founderPreview').textContent=n+'種類・'+(n*8)+'体';};
 $('brush').oninput=e=>{brush=Number(e.target.value);$('brushValue').value=brush;};$('growth').oninput=e=>{game.growth=Number(e.target.value);$('growthValue').value=game.growth;};$('stress').oninput=e=>{game.stress=Number(e.target.value);$('stressValue').value=game.stress;};
