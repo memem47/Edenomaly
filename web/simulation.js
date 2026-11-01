@@ -437,7 +437,11 @@ export class Ecosystem{
   if(this.tick%20===0)this.snapshot();
   if(this.tick%160===0&&this.units.length===0)this.log('info','全個体が絶滅。生命を移入できます');
  }
- paint(x,y,type,radius){const cx=Math.floor(x/CELL),cy=Math.floor(y/CELL);for(let dy=-radius;dy<=radius;dy++)for(let dx=-radius;dx<=radius;dx++){if(dx*dx+dy*dy>radius*radius)continue;const xx=cx+dx,yy=cy+dy;if(xx>=0&&xx<NX&&yy>=0&&yy<NY)this.tiles[yy*NX+xx]=type;}}
+ paint(x,y,type,radius){const cx=Math.floor(x/CELL),cy=Math.floor(y/CELL);for(let dy=-radius;dy<=radius;dy++)for(let dx=-radius;dx<=radius;dx++){if(dx*dx+dy*dy>radius*radius)continue;const xx=cx+dx,yy=cy+dy;if(xx>=0&&xx<NX&&yy>=0&&yy<NY){
+  // Do not instantly submerge terrestrial organisms when creating ponds.
+  if(type===1&&this.units.some(u=>u.g.aquatic!==1&&this.cell(u.x,u.y)===yy*NX+xx))continue;
+  this.tiles[yy*NX+xx]=type;
+ }}}
  introduce(x,y,typeCount=1){
   // Exactly N morphological founder types, 8 independent individuals per type.
   // The founding population is intentionally clustered, enabling sexual reproduction.
@@ -505,7 +509,25 @@ export class Ecosystem{
  }
  epidemic(){let n=0;for(const u of this.units)if(this.rand()<.55){this.die(u,'疫病');n++;}this.units=this.units.filter(u=>!u.dead);this.log('info','疫病で'+n+'体が死亡');}
  drought(){this.growth=7;this.stress=85;this.food=this.food.slice(0,Math.floor(this.food.length*.2));this.log('info','干ばつが発生した');}
- rain(){this.growth=90;this.stress=8;this.log('info','降雨により栄養供給が増加した');}
+ rain(){
+  this.growth=90;this.stress=8;
+  // Rain revives edible resources close to occupied grass/wetland habitats.
+  // This makes ecosystem care possible without introducing more creatures.
+  let gained=0;
+  const occupied=new Set();
+  for(const u of this.units){
+   const cell=this.cell(u.x,u.y);
+   if(occupied.has(cell))continue;
+   occupied.add(cell);
+   const t=this.terrain(u.x,u.y);
+   if(t===0||t===1){
+    const before=this.food.length;
+    this.addFood(u.x,u.y,4,18,'rain');
+    gained+=this.food.length-before;
+   }
+  }
+  this.log('info','降雨：環境負荷を緩和し、生息地に栄養を'+gained+'粒再生');
+ }
  get livingSpecies(){return [...this.species.values()].filter(s=>s.current>0).length;}
  get recentSpecies(){return this.discoveries.filter(t=>this.tick-t<300).length;}
 }
