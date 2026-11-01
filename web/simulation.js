@@ -133,7 +133,7 @@ export class Ecosystem{
    child.alleles[key]=pair;
    child[key]=alleleExpression(key,pair);
   }
-  return this.rand()<.12?this.mutate(child):child;
+  return this.rand()<.23?this.mutate(child):child;
  }
  category(g){return [Math.floor(g.r/2),Math.floor(g.elongation/.65),g.eyes,g.mouths,Math.floor(g.jaw/.65),Math.floor(g.wet*3),Math.floor(g.dry*3),Math.floor(g.shell*3),Math.floor(g.guard*3),Math.floor(g.nesting*3),Math.floor(g.hue/60),Math.floor(g.saturation/25),Math.floor(g.lightness/25),Math.ceil(g.brood/2),Math.floor(g.diet*4),Math.floor(dietProfile(g).signal*4),Math.floor(g.rock*3),Math.floor((g.resist??.4)*3),g.aquatic??0].join('-');}
  name(n){return PREFIX[(n*7+2)%PREFIX.length]+SUFFIX[(n*3+1)%SUFFIX.length]+'-'+String(n).padStart(3,'0');}
@@ -392,6 +392,13 @@ export class Ecosystem{
    this.grass=next;
   }
   // Standing water evaporates naturally. Rain replenishes depleted waterbeds.
+  // Weak natural showers also restore depleted waterbeds periodically.
+  if(this.tick%180===0){
+   for(let i=0;i<this.tiles.length;i++)if(this.waterbed[i]&&this.tiles[i]!==0&&this.tiles[i]!==3){
+    if(this.tiles[i]!==1&&this.units.some(u=>!u.dead&&u.g.aquatic!==1&&this.cell(u.x,u.y)===i))continue;
+    this.tiles[i]=1;this.water[i]=Math.min(100,this.water[i]+20);
+   }
+  }
   if(this.tick%8===0){
    for(let i=0;i<this.tiles.length;i++)if(this.water[i]>0){
     this.water[i]=Math.max(0,this.water[i]-(.16+this.stress*.003));
@@ -562,7 +569,9 @@ export class Ecosystem{
    if(terrainFitness(g,this.terrain(nextX,nextY)).passable){u.x=nextX;u.y=nextY;}
    else u.angle+=Math.PI*.72;
    u.hp-=home.hazard;
-   u.energy-=m.upkeep*youth*(1+body.old*.18)+(flight?.10:0)+(ownEgg?g.guard*.16:0)+this.stress*.0035+home.upkeep+(g.wet+g.dry+g.rock)*.055;
+   // Terrain-fit offspring retain energy and can reproduce more successfully.
+   const adaptationCost=clamp(1.65-home.fitness*.75,.70,1.5);
+   u.energy-=m.upkeep*youth*adaptationCost*(1+body.old*.18)+(flight?.10:0)+(ownEgg?g.guard*.16:0)+this.stress*.0035+home.upkeep+(g.wet+g.dry+g.rock)*.055;
    if(!flight&&aquatic&&underwater&&diet.plant>0){
     const eaten=this.consumeWater(u.x,u.y,.16);
     u.energy+=eaten*29*diet.plant*home.fitness;
