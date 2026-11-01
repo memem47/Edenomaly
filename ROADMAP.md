@@ -150,6 +150,15 @@ An observable, evolving artificial ecosystem. The player edits terrain and resou
 - [ ] 実ブラウザでのクリック動作、長期複数世代での生存率と介入効果を定量検証
 - 注意：絶滅を禁止する設計ではなく、適切な環境操作により生存確率を改善する設計
 
+## 地形に適合した生命の移入
+- [x] 移入クリック地点の地形を遺伝的な初期適応の基準にする
+- [x] 水辺では水生遺伝子と高い湿地適応、乾燥地・岩場ではそれぞれ高い適応値を保証
+- [x] 草地は陸生とし、移入個体をクリック地点と同じ地形のセルに配置
+- [x] 複数種類の移入時も各個体の配置を指定地形内に保つ
+- [x] 自然繁殖した卵からの子は親の遺伝子を継承し、孵化場所に合わせた遺伝子改変をしない
+- [x] 全4地形と境界条件のテストを追加（67件成功）
+- 注：現在の「生命を移入」は卵ではなく成体を直接8体生成する既存仕様
+
 ## コミット前の確認
 1. Run in browser and test terrain painting and restart.
 2. Observe births, deaths, meals and predation on canvas and in log.
