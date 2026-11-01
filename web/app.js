@@ -24,7 +24,11 @@ function catalogSpecies(){
   total:(a,b)=>b[1].total-a[1].total||b[1].current-a[1].current||a[1].n-b[1].n,
   newest:(a,b)=>b[1].first-a[1].first||b[1].n-a[1].n,
   oldest:(a,b)=>a[1].first-b[1].first||a[1].n-b[1].n,
-  name:(a,b)=>a[1].name.localeCompare(b[1].name,'ja')||a[1].n-b[1].n
+  name:(a,b)=>a[1].name.localeCompare(b[1].name,'ja')||a[1].n-b[1].n,
+  speed:(a,b)=>morphology(b[1].genome).speed-morphology(a[1].genome).speed||a[1].n-b[1].n,
+  sight:(a,b)=>morphology(b[1].genome).eyeRange-morphology(a[1].genome).eyeRange||a[1].n-b[1].n,
+  hp:(a,b)=>morphology(b[1].genome).bodyMass-morphology(a[1].genome).bodyMass||a[1].n-b[1].n,
+  upkeep:(a,b)=>morphology(a[1].genome).upkeep-morphology(b[1].genome).upkeep||a[1].n-b[1].n
  };
  return entries.sort(comparators[$('speciesSort').value]||comparators.current);
 }
