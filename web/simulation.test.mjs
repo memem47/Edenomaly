@@ -467,3 +467,35 @@ test('painting water preserves land creature safety on its occupied cell',()=>{
  assert.equal(world.tiles[cell],0);
  assert.ok([...world.tiles].some(t=>t===1));
 });
+
+test('introduced founder genomes match all four clicked terrains',()=>{
+ for(const terrain of [0,1,2,3]){
+  const world=new Ecosystem(1100+terrain);
+  world.tiles.fill(terrain);
+  const result=world.introduce(360,200,1);
+  assert.equal(result.individuals,8);
+  assert.ok(world.units.every(u=>world.terrain(u.x,u.y)===terrain));
+  assert.ok(world.units.every(u=>u.g.aquatic===(terrain===1?1:0)));
+  if(terrain===1)assert.ok(world.units.every(u=>u.g.wet>=.8));
+  if(terrain===2)assert.ok(world.units.every(u=>u.g.dry>=.84));
+  if(terrain===3)assert.ok(world.units.every(u=>u.g.rock>=.84));
+ }
+});
+test('founders stay in the clicked biome near its boundary',()=>{
+ const world=new Ecosystem(1105);
+ world.tiles.fill(0);
+ const cell=world.cell(200,200);
+ world.tiles[cell]=1;
+ const result=world.introduce(201,201,1);
+ assert.equal(result.individuals,8);
+ assert.ok(world.units.every(u=>world.terrain(u.x,u.y)===1&&u.g.aquatic===1));
+});
+test('regular offspring inherit water adaptation rather than changing to terrain',()=>{
+ const world=new Ecosystem(1106);
+ world.tiles.fill(2);
+ const g={...world.gene(),aquatic:1,wet:1,dry:0};
+ const parent=world.spawn(210,180,g);
+ const child=world.spawn(210,180,{...g},parent);
+ assert.equal(child.g.aquatic,1);
+ assert.equal(child.g.dry,0);
+});
