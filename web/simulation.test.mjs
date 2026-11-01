@@ -431,3 +431,39 @@ test('species catalog stores a gene snapshot even after extinction',()=>{
  assert.equal(entry.current,0);
  assert.deepEqual(world.species.get(u.category).genome,original);
 });
+
+test('rain regenerates food around occupied fertile habitats',()=>{
+ const world=new Ecosystem(901);
+ world.tiles.fill(0);world.food=[];
+ const g={...world.gene(),aquatic:0};
+ world.spawn(240,180,g);world.spawn(265,180,g);
+ world.growth=0;world.stress=80;
+ world.rain();
+ assert.equal(world.growth,90);
+ assert.equal(world.stress,8);
+ assert.ok(world.food.length>=4);
+ assert.ok(world.food.some(f=>Math.hypot(f.x-240,f.y-180)<35));
+});
+test('manual feeding creates a concentrated edible patch',()=>{
+ const world=new Ecosystem(902);world.food=[];
+ world.addFood(220,140,32,17,'manual');
+ assert.equal(world.food.length,32);
+ assert.ok(world.food.every(f=>f.source==='manual'&&Math.abs(f.x-220)<=17&&Math.abs(f.y-140)<=17));
+});
+test('obsolete remote nutrients expire and free world capacity',()=>{
+ const world=new Ecosystem(903);
+ world.tiles.fill(0);world.food=[];
+ for(let i=0;i<1500;i++)world.food.push({x:700,y:420,energy:8,source:'natural',age:380});
+ world.growth=100;
+ world.step();
+ assert.ok(world.food.length<1500);
+ assert.ok(world.food.some(f=>f.source==='natural'&&f.age<=1));
+});
+test('painting water preserves land creature safety on its occupied cell',()=>{
+ const world=new Ecosystem(904);world.tiles.fill(0);
+ const u=world.spawn(200,160,{...world.gene(),aquatic:0});
+ const cell=world.cell(u.x,u.y);
+ world.paint(200,160,1,2);
+ assert.equal(world.tiles[cell],0);
+ assert.ok([...world.tiles].some(t=>t===1));
+});
