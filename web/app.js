@@ -3,8 +3,33 @@ import {drawWorld,drawChart} from './renderer.js';
 const $=id=>document.getElementById(id);
 const game=new Ecosystem();
 const canvas=$('world'),ctx=canvas.getContext('2d'),graph=$('chart').getContext('2d');
-let running=false,speed=1,mode='spawn',filter='all',brush=3,selected=null,painting=false,last=0,acc=0,uiAt=0;
+let running=false,speed=1,mode='spawn',filter='all',brush=3,selected=null,selectedSpecies=null,painting=false,last=0,acc=0,uiAt=0;
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const GENE_LABELS={r:'体の大きさ',elongation:'体の長さ比',eyes:'目の数',mouths:'口の能力',legs:'脚（旧能力遺伝子）',jaw:'顎の能力',wet:'水への適応',dry:'乾燥への適応',rock:'岩場への適応',aquatic:'水生／陸生',shell:'卵殻',guard:'卵の保護',nesting:'産卵場所',brood:'産卵数',diet:'食性',deception:'擬態',resist:'感染抵抗力',hue:'色相',saturation:'彩度',lightness:'明度',pattern:'模様'};
+function genomeValue(key,value){return key==='aquatic'?(value===1?'水生':'陸生'):typeof value==='number'?(Number.isInteger(value)?String(value):value.toFixed(3)):String(value);}
+function catalogSpecies(){
+ const entries=[...game.species.entries()].filter(([,s])=>$('showExtinct').checked||s.current>0);
+ const comparators={
+  current:(a,b)=>b[1].current-a[1].current||b[1].total-a[1].total||a[1].n-b[1].n,
+  total:(a,b)=>b[1].total-a[1].total||b[1].current-a[1].current||a[1].n-b[1].n,
+  newest:(a,b)=>b[1].first-a[1].first||b[1].n-a[1].n,
+  oldest:(a,b)=>a[1].first-b[1].first||a[1].n-b[1].n,
+  name:(a,b)=>a[1].name.localeCompare(b[1].name,'ja')||a[1].n-b[1].n
+ };
+ return entries.sort(comparators[$('speciesSort').value]||comparators.current);
+}
+function updateSpeciesGenome(){
+ const panel=$('speciesGenome');
+ if(!selectedSpecies){panel.textContent='種を選択すると遺伝子を表示します。';return;}
+ const species=game.species.get(selectedSpecies);
+ if(!species){selectedSpecies=null;panel.textContent='種を選択すると遺伝子を表示します。';return;}
+ const representative=game.units.find(u=>u.category===selectedSpecies&&!u.dead);
+ const genome=representative?.g||species.genome;
+ if(!genome){panel.textContent='この種の遺伝子記録はありません。';return;}
+ const origin=representative?'現存する代表個体 #'+representative.id:'発見時に保存した遺伝子';
+ const fields=Object.entries(GENE_LABELS).filter(([key])=>genome[key]!==undefined).map(([key,label])=>`<div class="gene"><span>${escapeHTML(label)} <small>${key}</small></span><b>${escapeHTML(genomeValue(key,genome[key]))}</b></div>`).join('');
+ panel.innerHTML=`<div class="genome-heading"><strong>${escapeHTML(species.name)} の遺伝子</strong><button type="button" id="closeGenome">閉じる</button></div><p class="muted">${escapeHTML(origin)}。同じ形態分類の個体でも遺伝子は完全に一致するとは限りません。</p><div class="genome-grid">${fields}</div>`;
+}
 function update(){
  const dietCounts=[0,0,0];for(const u of game.units){const d=dietProfile(u.g).diet;dietCounts[d<.3?0:d>.7?2:1]++;}
  $('dietStats').textContent=`栄養食 ${dietCounts[0]} ／ 雑食 ${dietCounts[1]} ／ 肉食 ${dietCounts[2]}`;
@@ -14,7 +39,10 @@ function update(){
  const data={population:game.units.length,eggCount:game.eggs.length,matingCount:game.matings,juvenileCount:game.units.filter(u=>u.stage==='juvenile').length,livingSpecies:game.livingSpecies,totalSpecies:game.species.size,corpses:game.corpses.length,nutrients:game.food.length,recycled:game.recycled,migrationCount:game.migrations};
  for(const [id,value] of Object.entries(data))$(id).textContent=value.toLocaleString('ja-JP');
  $('stepCount').textContent=game.tick.toLocaleString('ja-JP');$('status').textContent=game.introducedCount===0?'移入待ち':running?'実行中':'停止中';$('play').textContent=running?'Ⅱ 停止':'▶ 再生';$('play').classList.toggle('active',running);
- $('catalog').innerHTML=[...game.species.values()].sort((a,b)=>b.n-a.n).map(s=>`<div class="species"><span class="dot" style="background:hsl(${s.hue},${s.saturation}%,${s.lightness}%)"></span><span><b>${escapeHTML(s.name)}</b><small>#${s.n} · Step ${s.first} · ${s.current?'現存':'絶滅'}</small></span><span>${s.current}</span><span>${s.total}</span></div>`).join('');
+ const catalogRows=catalogSpecies();
+ $('catalogCount').textContent=($('showExtinct').checked?'表示':'現存')+' '+catalogRows.length+'種';
+ $('catalog').innerHTML=catalogRows.map(([key,sp])=>`<button type="button" class="species species-entry${selectedSpecies===key?' selected':''}" data-category="${escapeHTML(key)}"><span class="dot" style="background:hsl(${sp.hue},${sp.saturation}%,${sp.lightness}%)"></span><span><b>${escapeHTML(sp.name)}</b><small>#${sp.n} · Step ${sp.first} · ${sp.current?'現存':'絶滅'}</small></span><span>${sp.current}</span><span>${sp.total}</span></button>`).join('');
+ updateSpeciesGenome();
  const eventColors={birth:'#91f7ac',death:'#ff8290',meal:'#f9d36b',pred:'#be82ec',new:'#ffe486',decay:'#e2b96e',egg:'#eddfbd',hatch:'#a0e8bd',eggeaten:'#f5949c',mature:'#a0d9ff',attack:'#ffb7a1',ill:'#ed8bab',migration:'#b4e0ff',settle:'#88debc',mate:'#f5a5ed',court:'#ff91e8',laid:'#ffe3a1'};
  $('events').innerHTML=game.logs.filter(e=>filter==='all'||e.type===filter).slice(0,60).map(e=>`<div class="log-entry"><span style="color:${eventColors[e.type]||'#9eb0b8'}">●</span> [${e.step}] ${escapeHTML(e.message)}</div>`).join('');
  const people=[0,0,0,0],food=[0,0,0,0],corpses=[0,0,0,0],fitness=[0,0,0,0];for(const u of game.units){const t=game.terrain(u.x,u.y);people[t]++;fitness[t]+=terrainFitness(u.g,t).fitness;}for(const f of game.food)food[game.terrain(f.x,f.y)]++;for(const c of game.corpses)corpses[game.terrain(c.x,c.y)]++;
@@ -24,7 +52,7 @@ function update(){
  drawChart(graph,game.history);
 }
 function render(){drawWorld(ctx,game,$('effects').checked,selected);}
-function reset(){game.reset();selected=null;running=false;mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));syncSliders();update();render();}
+function reset(){game.reset();selected=null;selectedSpecies=null;running=false;mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));syncSliders();update();render();}
 function syncSliders(){$('growth').value=game.growth;$('growthValue').value=game.growth;$('stress').value=game.stress;$('stressValue').value=game.stress;}
 function frame(time){if(!last)last=time;const dt=Math.min(.08,(time-last)/1000);last=time;if(running){acc+=dt*14*speed;let n=Math.min(10,Math.floor(acc));acc-=n;for(let i=0;i<n;i++)game.step();}for(const fx of game.effects)fx.age+=dt*30;game.effects=game.effects.filter(fx=>fx.age<35);render();if(time-uiAt>180){update();uiAt=time;}requestAnimationFrame(frame);}
 function coords(e){const b=canvas.getBoundingClientRect();return {x:Math.max(0,Math.min(WORLD.width-.1,(e.clientX-b.left)/b.width*WORLD.width)),y:Math.max(0,Math.min(WORLD.height-.1,(e.clientY-b.top)/b.height*WORLD.height))};}
@@ -32,6 +60,10 @@ function interact(e){const {x,y}=coords(e);if(['0','1','2','3'].includes(mode))g
 canvas.addEventListener('pointerdown',e=>{painting=true;canvas.setPointerCapture(e.pointerId);interact(e);});canvas.addEventListener('pointermove',e=>{if(painting&&['0','1','2','3'].includes(mode))interact(e);});canvas.addEventListener('pointerup',()=>painting=false);canvas.addEventListener('pointercancel',()=>painting=false);
 document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{mode=b.dataset.mode;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x===b));}));
 document.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>{filter=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x===b));update();}));
+$('speciesSort').onchange=update;
+$('showExtinct').onchange=update;
+$('catalog').addEventListener('click',e=>{const b=e.target.closest('[data-category]');if(b){selectedSpecies=b.dataset.category;update();}});
+$('speciesGenome').addEventListener('click',e=>{if(e.target.closest('#closeGenome')){selectedSpecies=null;update();}});
 $('play').onclick=()=>{if(game.introducedCount===0){mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));return;}running=!running;update();};$('stepOnce').onclick=()=>{if(game.introducedCount===0)return;running=false;game.step();update();render();};$('speed').onclick=()=>{speed=speed===1?3:speed===3?8:1;$('speed').textContent='速度 ×'+speed;};$('reset').onclick=()=>reset();
 $('founderTypes').oninput=e=>{const n=Math.max(1,Math.min(6,Math.trunc(Number(e.target.value)||1)));$('founderPreview').textContent=n+'種類・'+(n*8)+'体';};
 $('brush').oninput=e=>{brush=Number(e.target.value);$('brushValue').value=brush;};$('growth').oninput=e=>{game.growth=Number(e.target.value);$('growthValue').value=game.growth;};$('stress').oninput=e=>{game.stress=Number(e.target.value);$('stressValue').value=game.stress;};
