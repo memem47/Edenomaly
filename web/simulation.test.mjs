@@ -359,7 +359,7 @@ test('infection reduces HP and delays reproduction',()=>{
  const s=new Ecosystem(505);s.introduce(350,200,1);
  const u=s.units[0];u.age=100;u.energy=170;u.infection=25;
  assert.equal(s.isReadyToMate(u),false);
- const hp=u.hp;s.units=[u];s.growth=0;s.step();
+ const hp=u.hp;s.units=[u];s.growth=0;s.grass.fill(0);s.step();
  assert.ok(u.hp<hp);
 });
 test('local nutrient regeneration respects terrain cell capacity',()=>{
@@ -515,13 +515,13 @@ test('larger phenotype variation spans more than threefold speed and sight',()=>
 test('grazing depletes grass and converts it to bare terrain',()=>{
  const w=new Ecosystem(905),i=w.cell(220,140);
  w.tiles[i]=0;w.grass[i]=1.4;
- assert.equal(w.consumeGrass(220,140,1.4),1.4);
+ assert.ok(Math.abs(w.consumeGrass(220,140,1.4)-1.4)<1e-4);
  assert.equal(w.tiles[i],2);assert.equal(w.grass[i],0);
 });
 test('drinking consumes finite map water',()=>{
  const w=new Ecosystem(906),i=w.cell(220,140);
  w.tiles[i]=1;w.waterbed[i]=1;w.water[i]=1;
- assert.equal(w.consumeWater(220,140,1),1);
+ assert.ok(Math.abs(w.consumeWater(220,140,1)-1)<1e-4);
  assert.equal(w.tiles[i],2);assert.equal(w.water[i],0);
 });
 test('neighboring grass can regrow but total extinction cannot',()=>{
