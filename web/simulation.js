@@ -32,9 +32,8 @@ export const dietProfile=g=>{
 export const morphology=g=>{
  const width=g.r, length=g.r*g.elongation;
  const bodyMass=width*width*g.elongation;
- const eyeRange=28+g.eyes*10;
- const legsFactor=g.legs===0?.38:Math.min(1.65,.66+.17*g.legs);
- const speed=2.95/(.78+bodyMass*.015);
+ const eyeRange=20+g.eyes*14;
+ const speed=3.45/(.65+bodyMass*.017);
  const turnRate=clamp(.29/(.75+g.elongation*.21),.12,.29);
  const mouths=g.mouths;
  const biteReach=width*(.7+.15*mouths)+g.jaw*1.6;
@@ -57,7 +56,21 @@ export const rearPosition=(u,offset=0)=>({
  x:clamp(u.x-Math.cos(u.angle)*(u.g.r*u.g.elongation+5+offset),6,W-6),
  y:clamp(u.y-Math.sin(u.angle)*(u.g.r*u.g.elongation+5+offset),6,H-6)
 });
-const HERITABLE=['r','elongation','eyes','mouths','legs','jaw','wet','dry','shell','guard','nesting','hue','saturation','lightness','pattern','brood','diet','deception','rock','resist','aquatic'];
+const HERITABLE=['r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','hue','saturation','lightness','brood','diet','deception','rock','resist','aquatic'];
+const INTEGER_GENES=new Set(['eyes','mouths','brood','aquatic']);
+const LIMITS={r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],hue:[0,360],saturation:[35,100],lightness:[35,85],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1]};
+const alleleExpression=(key,pair)=>{
+ // Eyes: more-eye allele is dominant; hidden low-eye alleles can reappear in grandchildren.
+ // Other continuous traits use incomplete dominance (mean of the two inherited copies).
+ const raw=key==='eyes'||key==='aquatic'?Math.max(...pair):(pair[0]+pair[1])/2;
+ const [lo,hi]=LIMITS[key];
+ const val=clamp(INTEGER_GENES.has(key)?Math.round(raw):raw,lo,hi);
+ return key==='hue'?val%360:val;
+};
+const allelePair=(g,key)=>{
+ const pair=g.alleles?.[key];
+ return Array.isArray(pair)&&pair.length===2&&Math.abs(alleleExpression(key,pair)-g[key])<1e-6?pair:[g[key],g[key]];
+};
 export const eggTraits=g=>({
  shell:g.shell,guard:g.guard,nesting:g.nesting,
  incubation:Math.round(34+g.shell*30),
@@ -70,16 +83,59 @@ export class Ecosystem{
  range(a,b){return a+(b-a)*this.rand();}
  cell(x,y){return clamp(Math.floor(y/CELL),0,NY-1)*NX+clamp(Math.floor(x/CELL),0,NX-1);}
  terrain(x,y){return this.tiles[this.cell(x,y)];}
- gene(){return {r:this.rand()<.10?this.range(8.5,11.5):this.range(3.6,7.3),elongation:this.range(.75,2.45),eyes:1+Math.floor(this.rand()*4),mouths:1+Math.floor(this.rand()*3),legs:2*Math.floor(this.rand()*4),jaw:this.range(.3,1.7),wet:this.rand(),dry:this.rand(),shell:this.rand(),guard:this.rand(),nesting:this.rand(),hue:this.range(0,360),saturation:this.range(48,100),lightness:this.range(42,81),pattern:Math.floor(this.rand()*4),brood:2+Math.floor(this.rand()*4),diet:this.rand(),deception:clamp(.5+this.range(-.32,.32),0,1),rock:this.rand(),resist:this.rand(),aquatic:this.rand()<.25?1:0};}
- mutate(g){return {r:clamp(g.r+this.range(-.8,.8),3,15),elongation:clamp(g.elongation+this.range(-.22,.22),.65,3),eyes:clamp(g.eyes+(this.rand()<.13?(this.rand()<.5?-1:1):0),0,6),mouths:clamp(g.mouths+(this.rand()<.12?(this.rand()<.5?-1:1):0),1,4),legs:clamp(g.legs+(this.rand()<.17?(this.rand()<.5?-2:2):0),0,8),jaw:clamp(g.jaw+this.range(-.19,.19),.2,2.5),wet:clamp(g.wet+this.range(-.11,.11),0,1),dry:clamp(g.dry+this.range(-.11,.11),0,1),shell:clamp(g.shell+this.range(-.12,.12),0,1),guard:clamp(g.guard+this.range(-.12,.12),0,1),nesting:clamp(g.nesting+this.range(-.12,.12),0,1),hue:(g.hue+this.range(-32,32)+360)%360,saturation:clamp(g.saturation+this.range(-9,9),35,100),lightness:clamp(g.lightness+this.range(-9,9),35,85),pattern:clamp(g.pattern+(this.rand()<.15?(this.rand()<.5?-1:1):0),0,3),brood:clamp(g.brood+(this.rand()<.2?(this.rand()<.5?-1:1):0),1,8),diet:clamp(g.diet+this.range(-.16,.16),0,1),deception:clamp(g.deception+this.range(-.16,.16),0,1),rock:clamp(g.rock+this.range(-.13,.13),0,1),resist:clamp((g.resist??.4)+this.range(-.14,.14),0,1),aquatic:this.rand()<.018?1-(g.aquatic??0):(g.aquatic??0)};}
- // Each locus is inherited from either parent; small, rare mutations add novel alleles.
- recombine(a,b){
-  const child={};
-  for(const key of HERITABLE)child[key]=this.rand()<.5?a[key]:b[key];
-  // Mutation is secondary to recombination, not a clone-based reproduction mechanism.
-  return this.rand()<.18?this.mutate(child):child;
+ gene(){
+  const g={r:this.rand()<.15?this.range(8.5,12):this.range(3.1,7.5),
+   elongation:this.range(.65,2.85),eyes:Math.floor(this.rand()*7),
+   mouths:1+Math.floor(this.rand()*4),jaw:this.range(.2,2.5),
+   wet:this.rand(),dry:this.rand(),rock:this.rand(),
+   shell:this.rand(),guard:this.rand(),nesting:this.rand(),
+   hue:this.range(0,360),saturation:this.range(48,100),lightness:this.range(42,81),
+   brood:1+Math.floor(this.rand()*8),diet:this.rand(),
+   deception:clamp(.5+this.range(-.42,.42),0,1),resist:this.rand(),
+   aquatic:this.rand()<.25?1:0};
+  // Each founding individual carries two genetic copies per locus, including
+  // recessive alleles that are not necessarily visible in its phenotype.
+  g.alleles={};
+  for(const key of HERITABLE){
+   let second=g[key];
+   if(key==='eyes'&&this.rand()<.48)second=Math.floor(this.rand()*(g.eyes+1));
+   else if(key!=='aquatic'&&key!=='eyes'&&this.rand()<.38){
+    const range=LIMITS[key][1]-LIMITS[key][0];
+    second=clamp(g[key]+this.range(-.36,.36)*range,...LIMITS[key]);
+   }
+   const pair=[g[key],second];
+   g.alleles[key]=pair;
+   g[key]=alleleExpression(key,pair);
+  }
+  return g;
  }
- category(g){return [Math.floor(g.r/2),Math.floor(g.elongation/.65),g.eyes,g.mouths,g.legs,Math.floor(g.jaw/.65),Math.floor(g.wet*3),Math.floor(g.dry*3),Math.floor(g.shell*3),Math.floor(g.guard*3),Math.floor(g.nesting*3),Math.floor(g.hue/60),Math.floor(g.saturation/25),Math.floor(g.lightness/25),g.pattern,Math.ceil(g.brood/2),Math.floor(g.diet*4),Math.floor(dietProfile(g).signal*4),Math.floor(g.rock*3),Math.floor((g.resist??.4)*3),g.aquatic??0].join('-');}
+ mutate(g){
+  const next={...g,alleles:{}};
+  for(const key of HERITABLE)next.alleles[key]=[...allelePair(g,key)];
+  // Most offspring inherit their grandparents' alleles without change.
+  // A mutation alters a single genetic copy, not the entire visible phenotype.
+  const key=HERITABLE[Math.floor(this.rand()*HERITABLE.length)];
+  const index=this.rand()<.5?0:1;
+  const [lo,hi]=LIMITS[key],width=hi-lo;
+  let value=next.alleles[key][index];
+  if(key==='aquatic')value=1-value;
+  else if(INTEGER_GENES.has(key))value+=this.rand()<.5?-1:1;
+  else value+=this.range(-.12,.12)*width;
+  next.alleles[key][index]=clamp(value,lo,hi);
+  for(const trait of HERITABLE)next[trait]=alleleExpression(trait,next.alleles[trait]);
+  return next;
+ }
+ recombine(a,b){
+  const child={alleles:{}};
+  for(const key of HERITABLE){
+   const maternal=allelePair(a,key),paternal=allelePair(b,key);
+   const pair=[maternal[this.rand()<.5?0:1],paternal[this.rand()<.5?0:1]];
+   child.alleles[key]=pair;
+   child[key]=alleleExpression(key,pair);
+  }
+  return this.rand()<.12?this.mutate(child):child;
+ }
+ category(g){return [Math.floor(g.r/2),Math.floor(g.elongation/.65),g.eyes,g.mouths,Math.floor(g.jaw/.65),Math.floor(g.wet*3),Math.floor(g.dry*3),Math.floor(g.shell*3),Math.floor(g.guard*3),Math.floor(g.nesting*3),Math.floor(g.hue/60),Math.floor(g.saturation/25),Math.floor(g.lightness/25),Math.ceil(g.brood/2),Math.floor(g.diet*4),Math.floor(dietProfile(g).signal*4),Math.floor(g.rock*3),Math.floor((g.resist??.4)*3),g.aquatic??0].join('-');}
  name(n){return PREFIX[(n*7+2)%PREFIX.length]+SUFFIX[(n*3+1)%SUFFIX.length]+'-'+String(n).padStart(3,'0');}
  log(type,message,point){this.logs.unshift({type,message,step:this.tick});if(this.logs.length>500)this.logs.pop();if(point&&this.effects.length<140)this.effects.push({type,x:point.x,y:point.y,age:0});}
  addFood(x,y,n,spread=8,source='natural'){
@@ -94,7 +150,7 @@ export class Ecosystem{
   const u={id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?37:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null};
   u.category=this.category(g);u.lineage??=u.id;this.units.push(u);
   if(!this.species.has(u.category)){
-   const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(n),current:0,total:0,hue:g.hue,saturation:g.saturation,lightness:g.lightness,pattern:g.pattern,diet:dietProfile(g).label,first:this.tick,genome:{...g}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(n),u);
+   const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(n),current:0,total:0,hue:g.hue,saturation:g.saturation,lightness:g.lightness,diet:dietProfile(g).label,first:this.tick,genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(n),u);
   }
   const s=this.species.get(u.category);s.current++;s.total++;
   this.log('birth','#'+u.id+' '+(u.stage==='juvenile'?'孵化':'移入')+'（'+s.name+' / 第'+u.generation+'世代）',u);
@@ -456,6 +512,8 @@ export class Ecosystem{
   if(t===2)adapted.dry=Math.max(.86,adapted.dry);
   if(t===3)adapted.rock=Math.max(.86,adapted.rock);
   // Grassland founders are terrestrial, and require nearby access to water.
+  adapted.alleles=Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]));
+  for(const key of ['aquatic','wet','dry','rock'])if(adapted[key]!==g[key])adapted.alleles[key]=[adapted[key],adapted[key]];
   return adapted;
  }
  founderSite(x,y,terrain){
