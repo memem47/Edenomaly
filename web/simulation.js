@@ -286,22 +286,64 @@ export class Ecosystem{
   }
   return true;
  }
+ consumeGrass(x,y,amount){
+  const i=this.cell(x,y);
+  if(this.tiles[i]!==0)return 0;
+  const taken=Math.min(this.grass[i],amount);
+  this.grass[i]-=taken;
+  // An exhausted pasture becomes bare ground until grass spreads in again.
+  if(this.grass[i]<=.001){this.grass[i]=0;this.tiles[i]=2;}
+  return taken;
+ }
+ consumeWater(x,y,amount){
+  const i=this.cell(x,y);if(this.tiles[i]!==1)return 0;
+  const taken=Math.min(this.water[i],amount);
+  this.water[i]-=taken;
+  if(this.water[i]<=.001){this.water[i]=0;this.tiles[i]=2;}
+  return taken;
+ }
  nearWater(x,y,radius=1){
   const cx=this.cell(x,y)%NX,cy=Math.floor(this.cell(x,y)/NX);
   for(let dy=-radius;dy<=radius;dy++)for(let dx=-radius;dx<=radius;dx++){
    const a=cx+dx,b=cy+dy;
-   if(a>=0&&a<NX&&b>=0&&b<NY&&this.tiles[b*NX+a]===1)return true;
+   if(a>=0&&a<NX&&b>=0&&b<NY){
+    const id=b*NX+a;
+    if(this.tiles[id]===1&&this.water[id]>0)return true;
+   }
   }
   return false;
+ }
+ drinkNearby(x,y,amount){
+  const cx=this.cell(x,y)%NX,cy=Math.floor(this.cell(x,y)/NX);
+  let best=-1,bestD=Infinity;
+  for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+   const a=cx+dx,b=cy+dy;if(a<0||a>=NX||b<0||b>=NY)continue;
+   const id=b*NX+a;if(this.tiles[id]!==1||this.water[id]<=0)continue;
+   const d=dx*dx+dy*dy;if(d<bestD){bestD=d;best=id;}
+  }
+  if(best>=0)this.consumeWater((best%NX+.5)*CELL,(Math.floor(best/NX)+.5)*CELL,amount);
  }
  nearestWater(x,y,maxRange=145){
   let best=null,dist=maxRange*maxRange;
   for(let i=0;i<this.tiles.length;i++){
-   if(this.tiles[i]!==1)continue;
+   if(this.tiles[i]!==1||this.water[i]<=0)continue;
    const a=(i%NX+.5)*CELL,b=(Math.floor(i/NX)+.5)*CELL;
    const d=(x-a)**2+(y-b)**2;
    if(d<dist){best={x:a,y:b};dist=d;}
   }
+  return best;
+ }
+ nearestGrass(x,y,radius,g){
+  let best=null,score=radius*radius;
+  const cx=Math.floor(x/CELL),cy=Math.floor(y/CELL),reach=Math.ceil(radius/CELL)+1;
+  for(let yy=Math.max(0,cy-reach);yy<=Math.min(NY-1,cy+reach);yy++)
+   for(let xx=Math.max(0,cx-reach);xx<=Math.min(NX-1,cx+reach);xx++){
+    const id=yy*NX+xx;if(this.tiles[id]!==0||this.grass[id]<=.2)continue;
+    if(!terrainFitness(g,0).passable)continue;
+    const a=(xx+.5)*CELL,b=(yy+.5)*CELL;
+    const d=(a-x)**2+(b-y)**2;
+    if(d<score){score=d;best={x:a,y:b};}
+   }
   return best;
  }
  setupTerrain(){
