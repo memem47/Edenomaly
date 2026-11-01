@@ -98,8 +98,8 @@ export class Ecosystem{
   g.alleles={};
   for(const key of HERITABLE){
    let second=g[key];
-   if(key==='eyes'&&this.rand()<.48)second=Math.floor(this.rand()*(g.eyes+1));
-   else if(key!=='aquatic'&&key!=='eyes'&&this.rand()<.38){
+   if(key==='eyes'&&this.rand()<.82)second=Math.max(0,g.eyes-1-Math.floor(this.rand()*3));
+   else if(key!=='aquatic'&&key!=='eyes'&&this.rand()<.75){
     const range=LIMITS[key][1]-LIMITS[key][0];
     second=clamp(g[key]+this.range(-.36,.36)*range,...LIMITS[key]);
    }
