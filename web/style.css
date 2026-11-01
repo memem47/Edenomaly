@@ -19,3 +19,9 @@
 .species-expanded{margin:0 2px 10px 22px;max-height:none;background:#203740;border-color:#5d8c85;box-shadow:inset 3px 0 0 #69c3a5}
 .species-expanded .genome-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 @media(max-width:450px){.species-expanded .genome-grid{grid-template-columns:1fr}}
+
+/* Species catalog: compare calculated abilities at a glance. */
+.species-abilities{display:flex;flex-wrap:wrap;gap:3px 5px;margin-top:5px;line-height:1.35}
+.species-abilities>span{white-space:nowrap;font-size:10px;color:#c8e5e3;background:#203c45;border:1px solid #35525b;border-radius:4px;padding:2px 4px;font-variant-numeric:tabular-nums}
+.species-entry{align-items:start}
+.species-entry>span:nth-child(3),.species-entry>span:nth-child(4){padding-top:4px;font-variant-numeric:tabular-nums}
