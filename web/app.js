@@ -3,7 +3,7 @@ import {drawWorld,drawChart} from './renderer.js';
 const $=id=>document.getElementById(id);
 const game=new Ecosystem();
 const canvas=$('world'),ctx=canvas.getContext('2d'),graph=$('chart').getContext('2d');
-let running=false,speed=1,mode='spawn',filter='all',brush=3,selected=null,selectedSpecies=null,painting=false,last=0,acc=0,uiAt=0;
+let running=false,speed=1,mode='spawn',filter='all',brush=3,selected=null,selectedSpecies=null,genomeRenderKey='',painting=false,last=0,acc=0,uiAt=0;
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const GENE_LABELS={r:'体の大きさ',elongation:'体の長さ比',eyes:'目の数',mouths:'口の能力',legs:'脚（旧能力遺伝子）',jaw:'顎の能力',wet:'水への適応',dry:'乾燥への適応',rock:'岩場への適応',aquatic:'水生／陸生',shell:'卵殻',guard:'卵の保護',nesting:'産卵場所',brood:'産卵数',diet:'食性',deception:'擬態',resist:'感染抵抗力',hue:'色相',saturation:'彩度',lightness:'明度',pattern:'模様'};
 function genomeValue(key,value){return key==='aquatic'?(value===1?'水生':'陸生'):typeof value==='number'?(Number.isInteger(value)?String(value):value.toFixed(3)):String(value);}
@@ -20,13 +20,16 @@ function catalogSpecies(){
 }
 function updateSpeciesGenome(){
  const panel=$('speciesGenome');
- if(!selectedSpecies){panel.textContent='種を選択すると遺伝子を表示します。';return;}
+ if(!selectedSpecies){if(genomeRenderKey!=='none'){panel.textContent='種を選択すると遺伝子を表示します。';genomeRenderKey='none';}return;}
  const species=game.species.get(selectedSpecies);
  if(!species){selectedSpecies=null;panel.textContent='種を選択すると遺伝子を表示します。';return;}
  const representative=game.units.find(u=>u.category===selectedSpecies&&!u.dead);
  const genome=representative?.g||species.genome;
  if(!genome){panel.textContent='この種の遺伝子記録はありません。';return;}
  const origin=representative?'現存する代表個体 #'+representative.id:'発見時に保存した遺伝子';
+ const renderKey=selectedSpecies+'|'+origin+'|'+JSON.stringify(genome);
+ if(renderKey===genomeRenderKey)return;
+ genomeRenderKey=renderKey;
  const fields=Object.entries(GENE_LABELS).filter(([key])=>genome[key]!==undefined).map(([key,label])=>`<div class="gene"><span>${escapeHTML(label)} <small>${key}</small></span><b>${escapeHTML(genomeValue(key,genome[key]))}</b></div>`).join('');
  panel.innerHTML=`<div class="genome-heading"><strong>${escapeHTML(species.name)} の遺伝子</strong><button type="button" id="closeGenome">閉じる</button></div><p class="muted">${escapeHTML(origin)}。同じ形態分類の個体でも遺伝子は完全に一致するとは限りません。</p><div class="genome-grid">${fields}</div>`;
 }
