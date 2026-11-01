@@ -420,3 +420,14 @@ test('terrestrial founders are not placed in water',()=>{
  w.introduce(site.x,site.y,1);
  assert.ok(w.units.every(u=>u.g.aquatic===0&&w.terrain(u.x,u.y)!==1));
 });
+
+test('species catalog stores a gene snapshot even after extinction',()=>{
+ const world=new Ecosystem(801);world.introduce(210,140,1);
+ const u=world.units[0],entry=world.species.get(u.category);
+ assert.deepEqual(entry.genome,u.g);
+ const original={...entry.genome};u.g.wet=0.999;
+ assert.deepEqual(entry.genome,original);
+ for(const member of [...world.units])world.die(member,'test');
+ assert.equal(entry.current,0);
+ assert.deepEqual(world.species.get(u.category).genome,original);
+});
