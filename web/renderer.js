@@ -2,9 +2,22 @@ import {WORLD,TERRAIN_COLORS,dietProfile,vitality} from './simulation.js';
 const TAU=Math.PI*2;
 export function drawWorld(ctx,s,showEffects=true,selected=null){
  const {cell,columns,rows,width,height}=WORLD;
- for(let y=0;y<rows;y++)for(let x=0;x<columns;x++){ctx.fillStyle=TERRAIN_COLORS[s.tiles[y*columns+x]];ctx.fillRect(x*cell,y*cell,cell,cell);}
+ for(let y=0;y<rows;y++)for(let x=0;x<columns;x++){
+  const i=y*columns+x,t=s.tiles[i];
+  ctx.fillStyle=TERRAIN_COLORS[t];ctx.fillRect(x*cell,y*cell,cell,cell);
+  if(t===0){
+   ctx.fillStyle='rgba(114,224,112,.5)';
+   const coverage=(s.grass?.[i]??0)/100;
+   ctx.fillRect(x*cell,y*cell+cell*(1-coverage),cell,cell*coverage);
+  }
+  if(t===1){
+   ctx.fillStyle='rgba(90,188,248,.55)';
+   const level=(s.water?.[i]??0)/100;
+   ctx.fillRect(x*cell,y*cell+cell*(1-level),cell,cell*level);
+  }
+ }
  ctx.strokeStyle='rgba(0,0,0,.11)';ctx.lineWidth=.5;ctx.beginPath();for(let x=0;x<width;x+=cell){ctx.moveTo(x,0);ctx.lineTo(x,height);}for(let y=0;y<height;y+=cell){ctx.moveTo(0,y);ctx.lineTo(width,y);}ctx.stroke();
- for(const f of s.food){ctx.fillStyle=f.source==='corpse'?'#f3cc78':'#b6f18b';ctx.beginPath();ctx.arc(f.x,f.y,2.5,0,TAU);ctx.fill();}
+
  // Corpses share the creature renderer, preserving the inherited oval proportions and eyes.
  // Courtship: a living couple is joined by a conspicuous animated magenta bond.
  for(const pair of s.courtships){
