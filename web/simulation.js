@@ -361,6 +361,7 @@ export class Ecosystem{
   this.water=new Float32Array(this.tiles.length);
   this.waterbed=new Uint8Array(this.tiles.length);
   this.soil=new Float32Array(this.tiles.length);
+  this.soilWater=new Float32Array(this.tiles.length);
   for(let i=0;i<this.tiles.length;i++){
    if(this.tiles[i]===0)this.grass[i]=65+this.rand()*35;
    if(this.tiles[i]===1){this.water[i]=80+this.rand()*20;this.waterbed[i]=1;}
@@ -402,14 +403,20 @@ export class Ecosystem{
    const id=this.cell(c.x,c.y);
    // Decomposition nourishes soil; tissues also return moisture to the world.
    this.soil[id]=Math.min(100,this.soil[id]+loss*.33);
-   if(this.tiles[id]!==1&&this.tiles[id]!==3){
-    // Cadaver-derived moisture can form a small new pool on barren ground,
-    // never instantly submerging an occupied terrestrial cell.
-    c.moisture=(c.moisture??0)+loss*.22;
-    if(c.moisture>15&&this.tiles[id]===2&&!this.units.some(u=>!u.dead&&u.g.aquatic!==1&&this.cell(u.x,u.y)===id)){
-     this.tiles[id]=1;this.waterbed[id]=1;this.water[id]=Math.min(100,24+c.moisture);
-     this.grass[id]=0;c.moisture=0;
+   // Moisture from multiple corpses accumulates in adjacent bare ground.
+   // A pool appears only after enough organic water has been returned.
+   const cx=id%NX,cy=Math.floor(id/NX);
+   const candidates=[id,cx>0?id-1:-1,cx<NX-1?id+1:-1,cy>0?id-NX:-1,cy<NY-1?id+NX:-1];
+   const deposit=candidates.find(j=>j>=0&&this.tiles[j]===2);
+   if(deposit!==undefined){
+    this.soilWater[deposit]+=loss*.38;
+    if(this.soilWater[deposit]>=10&&!this.units.some(u=>!u.dead&&u.g.aquatic!==1&&this.cell(u.x,u.y)===deposit)){
+     this.tiles[deposit]=1;this.waterbed[deposit]=1;
+     this.water[deposit]=Math.min(100,18+this.soilWater[deposit]);
+     this.grass[deposit]=0;this.soilWater[deposit]=0;
     }
+   }
+   if(this.tiles[id]!==1&&this.tiles[id]!==3){
     if(this.grass[id]>0)this.grass[id]=Math.min(100,this.grass[id]+loss*.12);
     else if(this.soil[id]>12&&this.rand()<.12){this.tiles[id]=0;this.grass[id]=4;}
    }
