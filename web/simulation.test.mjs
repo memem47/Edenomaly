@@ -399,7 +399,7 @@ test('aquatic state is inherited, and habitat changes are rare mutations',()=>{
  for(let i=0;i<30;i++)assert.ok([0,1].includes(s.recombine(a,b).aquatic));
 });
 test('terrestrial slime dies without drinking water',()=>{
- const s=new Ecosystem(602);s.tiles.fill(0);
+ const s=new Ecosystem(602);s.tiles.fill(0);s.water.fill(0);s.waterbed.fill(0);
  const g={...s.gene(),aquatic:0,diet:0},u=s.spawn(250,210,g);s.units=[u];
  u.energy=1e6;for(let i=0;i<480&&!u.dead;i++)s.step();
  assert.equal(u.dead,true);
