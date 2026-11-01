@@ -5,7 +5,7 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
  for(let y=0;y<rows;y++)for(let x=0;x<columns;x++){ctx.fillStyle=TERRAIN_COLORS[s.tiles[y*columns+x]];ctx.fillRect(x*cell,y*cell,cell,cell);}
  ctx.strokeStyle='rgba(0,0,0,.11)';ctx.lineWidth=.5;ctx.beginPath();for(let x=0;x<width;x+=cell){ctx.moveTo(x,0);ctx.lineTo(x,height);}for(let y=0;y<height;y+=cell){ctx.moveTo(0,y);ctx.lineTo(width,y);}ctx.stroke();
  for(const f of s.food){ctx.fillStyle=f.source==='corpse'?'#f3cc78':'#b6f18b';ctx.beginPath();ctx.arc(f.x,f.y,2.5,0,TAU);ctx.fill();}
- // Corpses share the creature renderer, preserving inherited shape, eyes, legs and markings.
+ // Corpses share the creature renderer, preserving the inherited oval proportions and eyes.
  // Courtship: a living couple is joined by a conspicuous animated magenta bond.
  for(const pair of s.courtships){
   const a=s.units.find(u=>u.id===pair.a),b=s.units.find(u=>u.id===pair.b);
@@ -59,13 +59,8 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   const wobble=dead?0:Math.sin(blobPhase*1.35)*.10;
   const rx=halfL*.82*(1+wobble*.55),ry=halfW*1.2*(1-wobble*.40);
   ctx.fillStyle=u.woundFlash?'#fff2ea':`hsl(${g.hue},${Math.max(12,g.saturation*(1-life.old*.6))}%,${g.lightness}%)`;
-  ctx.beginPath();
-  for(let i=0;i<=48;i++){
-   const a=i*TAU/48,w=1+Math.sin(a*2+blobPhase)*(dead?0:.10)+Math.sin(a*5+blobPhase*.65+g.pattern)*(dead?0:.055);
-   const x=Math.cos(a)*rx*w,y=Math.sin(a)*ry*w;
-   i?ctx.lineTo(x,y):ctx.moveTo(x,y);
-  }
-  ctx.closePath();ctx.fill();ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=1.4;ctx.stroke();
+  // Keep a perfectly smooth oval: only its two axes squash and stretch.
+  ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.fill();ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=1.4;ctx.stroke();
   ctx.fillStyle='rgba(255,255,255,.25)';ctx.beginPath();ctx.ellipse(-rx*.3+Math.sin(blobPhase*.85)*(dead?0:ry*.12),-ry*.35+Math.cos(blobPhase*.7)*(dead?0:ry*.09),rx*.3,ry*.15,-.4,0,TAU);ctx.fill();
   for(let i=0;i<Math.min(g.eyes,6);i++){
    const ex=rx*(.12+(i%3)*.22)+(dead?0:Math.sin(blobPhase*.73+i*.4)*ry*.045),ey=ry*(-.36+Math.floor(i/3)*.4)+(dead?0:Math.cos(blobPhase*.83+i*.4)*ry*.045),er=Math.max(1.6,ry*.22);
