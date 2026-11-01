@@ -139,12 +139,13 @@ export class Ecosystem{
  name(n){return PREFIX[(n*7+2)%PREFIX.length]+SUFFIX[(n*3+1)%SUFFIX.length]+'-'+String(n).padStart(3,'0');}
  log(type,message,point){this.logs.unshift({type,message,step:this.tick});if(this.logs.length>500)this.logs.pop();if(point&&this.effects.length<140)this.effects.push({type,x:point.x,y:point.y,age:0});}
  addFood(x,y,n,spread=8,source='natural'){
-  for(let i=0;i<n&&this.food.length<1600;i++){
-   const px=clamp(x+this.range(-spread,spread),4,W-4),py=clamp(y+this.range(-spread,spread),4,H-4);
-   const amount=this.range(7,14);this.food.push({x:px,y:py,energy:amount,source,age:0});
-   if(source==='corpse'){this.recycled++;this.recycledByTerrain[this.terrain(px,py)]++;}
-  }
+  // Compatibility with older controls/tests: fertilizer replenishes the map,
+  // never creates floating food objects.
+  const radius=Math.max(1,Math.ceil(spread/CELL));
+  this.paint(x,y,0,radius);
+  if(source==='corpse')this.recycled++;
  }
+
  spawn(x,y,g,parent=null){
   if(this.units.length>=155)return null;
   const u={id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?37:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null};
@@ -554,6 +555,10 @@ export class Ecosystem{
    else u.angle+=Math.PI*.72;
    u.hp-=home.hazard;
    u.energy-=m.upkeep*youth*(1+body.old*.18)+(flight?.10:0)+(ownEgg?g.guard*.16:0)+this.stress*.0035+home.upkeep+(g.wet+g.dry+g.rock)*.055;
+   if(!flight&&aquatic&&underwater&&diet.plant>0){
+    const eaten=this.consumeWater(u.x,u.y,.16);
+    u.energy+=eaten*29*diet.plant*home.fitness;
+   }
    if(!flight&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+13)**2){
     const eaten=this.consumeGrass(nearest.x,nearest.y,Math.min(2.5,1.25*m.foodGain));
     if(eaten>0){u.energy+=eaten*5.8*diet.plant*home.fitness;
@@ -575,11 +580,20 @@ export class Ecosystem{
   if(this.tick%20===0)this.snapshot();
   if(this.tick%160===0&&this.units.length===0)this.log('info','全個体が絶滅。生命を移入できます');
  }
- paint(x,y,type,radius){const cx=Math.floor(x/CELL),cy=Math.floor(y/CELL);for(let dy=-radius;dy<=radius;dy++)for(let dx=-radius;dx<=radius;dx++){if(dx*dx+dy*dy>radius*radius)continue;const xx=cx+dx,yy=cy+dy;if(xx>=0&&xx<NX&&yy>=0&&yy<NY){
-  // Do not instantly submerge terrestrial organisms when creating ponds.
-  if(type===1&&this.units.some(u=>u.g.aquatic!==1&&this.cell(u.x,u.y)===yy*NX+xx))continue;
-  this.tiles[yy*NX+xx]=type;
- }}}
+ paint(x,y,type,radius){
+  const cx=Math.floor(x/CELL),cy=Math.floor(y/CELL);
+  for(let dy=-radius;dy<=radius;dy++)for(let dx=-radius;dx<=radius;dx++){
+   if(dx*dx+dy*dy>radius*radius)continue;
+   const xx=cx+dx,yy=cy+dy;if(xx<0||xx>=NX||yy<0||yy>=NY)continue;
+   const i=yy*NX+xx;
+   if(type===1&&this.units.some(u=>!u.dead&&u.g.aquatic!==1&&this.cell(u.x,u.y)===i))continue;
+   this.tiles[i]=type;
+   this.grass[i]=type===0?100:0;
+   this.water[i]=type===1?100:0;
+   this.waterbed[i]=type===1?1:0;
+  }
+ }
+
  adaptFounderToTerrain(g,t){
   const adapted={...g};
   adapted.aquatic=t===1?1:0;
@@ -651,25 +665,26 @@ export class Ecosystem{
   return {types:founders.length,individuals:total};
  }
  epidemic(){let n=0;for(const u of this.units)if(this.rand()<.55){this.die(u,'疫病');n++;}this.units=this.units.filter(u=>!u.dead);this.log('info','疫病で'+n+'体が死亡');}
- drought(){this.growth=7;this.stress=85;this.food=this.food.slice(0,Math.floor(this.food.length*.2));this.log('info','干ばつが発生した');}
+ drought(){
+  this.growth=7;this.stress=85;
+  for(let i=0;i<this.tiles.length;i++){
+   if(this.tiles[i]===1)this.consumeWater((i%NX+.5)*CELL,(Math.floor(i/NX)+.5)*CELL,35);
+   if(this.tiles[i]===0)this.consumeGrass((i%NX+.5)*CELL,(Math.floor(i/NX)+.5)*CELL,18);
+  }
+  this.log('info','干ばつ：水と草が減少した');
+ }
  rain(){
   this.growth=90;this.stress=8;
-  // Rain revives edible resources close to occupied grass/wetland habitats.
-  // This makes ecosystem care possible without introducing more creatures.
-  let gained=0;
-  const occupied=new Set();
-  for(const u of this.units){
-   const cell=this.cell(u.x,u.y);
-   if(occupied.has(cell))continue;
-   occupied.add(cell);
-   const t=this.terrain(u.x,u.y);
-   if(t===0||t===1){
-    const before=this.food.length;
-    this.addFood(u.x,u.y,4,18,'rain');
-    gained+=this.food.length-before;
+  let restored=0;
+  for(let i=0;i<this.tiles.length;i++)if(this.waterbed[i]){
+   if(this.tiles[i]===2||this.tiles[i]===1){
+    if(this.tiles[i]!==1&&this.units.some(u=>!u.dead&&u.g.aquatic!==1&&this.cell(u.x,u.y)===i))continue;
+    this.tiles[i]=1;this.grass[i]=0;
+    this.water[i]=Math.min(100,this.water[i]+55);
+    restored++;
    }
   }
-  this.log('info','降雨：環境負荷を緩和し、生息地に栄養を'+gained+'粒再生');
+  this.log('info','降雨：'+restored+' マスの水場を回復した');
  }
  get livingSpecies(){return [...this.species.values()].filter(s=>s.current>0).length;}
  get recentSpecies(){return this.discoveries.filter(t=>this.tick-t<300).length;}
