@@ -129,6 +129,15 @@ An observable, evolving artificial ecosystem. The player edits terrain and resou
 - [ ] 長期安定性・多世代の分化・実ブラウザ描画を別途検証
 - 留意：環境・水へのアクセス・食糧配置により個体群は依然として絶滅し得る。確実な存続は保証しない
 
+## 種の図鑑の並び替えと遺伝子観察
+- [x] 初期表示を現存種のみ・現在の個体数降順に変更
+- [x] 累計個体数／新しい発見順／古い発見順／名前順の切り替え
+- [x] 絶滅種の表示・非表示フィルター
+- [x] 行を選ぶと代表個体の遺伝子を確認できる詳細パネル
+- [x] 発見時の遺伝子を保存し、絶滅した種についても代表遺伝子を表示
+- [x] 詳細パネルの再描画を必要時だけに限定し、スクロールを維持
+- 注：種は「形態分類」であり、現存代表個体の遺伝子が種内の全個体と完全一致するとは限らない
+
 ## コミット前の確認
 1. Run in browser and test terrain painting and restart.
 2. Observe births, deaths, meals and predation on canvas and in log.
