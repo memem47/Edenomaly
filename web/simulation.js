@@ -85,7 +85,7 @@ export class Ecosystem{
  addFood(x,y,n,spread=8,source='natural'){
   for(let i=0;i<n&&this.food.length<1600;i++){
    const px=clamp(x+this.range(-spread,spread),4,W-4),py=clamp(y+this.range(-spread,spread),4,H-4);
-   const amount=this.range(7,14);this.food.push({x:px,y:py,energy:amount,source});
+   const amount=this.range(7,14);this.food.push({x:px,y:py,energy:amount,source,age:0});
    if(source==='corpse'){this.recycled++;this.recycledByTerrain[this.terrain(px,py)]++;}
   }
  }
@@ -264,6 +264,13 @@ export class Ecosystem{
  snapshot(){this.history.push({population:this.units.length,eggs:this.eggs.length,food:this.food.length,corpses:this.corpses.length});if(this.history.length>180)this.history.shift();}
  step(){
   this.tick++;
+  // Resources decay instead of occupying the global food limit forever
+  // in far-away, unreachable cells.
+  for(let i=this.food.length-1;i>=0;i--){
+   const f=this.food[i];f.age=(f.age??0)+1;
+   const ttl=f.source==='manual'?240:f.source==='rain'?260:380;
+   if(f.age>ttl)this.food.splice(i,1);
+  }
   // Soil resources have local carrying capacities: food cannot accumulate
   // indefinitely in a meadow simply because the rest of the world is empty.
   const foodInCell=new Uint16Array(this.tiles.length);
