@@ -413,9 +413,9 @@ test('aquatic slime dies stranded outside water',()=>{
  u.energy=1e6;for(let i=0;i<115&&!u.dead;i++)s.step();
  assert.equal(u.dead,true);
 });
-test('slime movement is slower than former insect movement',()=>{
- const g={...new Ecosystem(604).gene(),r:5};
- assert.ok(morphology(g).speed<2.6);
+test('larger slimes move slower than smaller slimes',()=>{
+ const g=new Ecosystem(604).gene();
+ assert.ok(morphology({...g,r:11}).speed<morphology({...g,r:4}).speed);
 });
 
 test('aquatic founders are introduced into water tiles',()=>{
