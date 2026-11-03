@@ -1948,3 +1948,48 @@ test('large colonies retain cheap glossy sheen without allocating gradients per 
  assert.equal(gradients,0);
  assert.ok(softSheen>=250);
 });
+
+import {speciesNameFromCategory,genomeCode} from './simulation.js';
+test('classification-derived katakana names are deterministic across resets and discovery order',()=>{
+ const a=new Ecosystem(9111),b=new Ecosystem(9112);
+ const g=a.gene(),key=a.category(g),expected=speciesNameFromCategory(key);
+ assert.equal(a.name(key),expected);
+ assert.equal(b.name(key),expected);
+ a.spawn(120,130,g);
+ assert.equal(a.species.get(key).name,expected);
+ a.reset();
+ a.spawn(120,130,g);
+ assert.equal(a.species.get(key).name,expected);
+ const c=new Ecosystem(9113);
+ c.spawn(100,110,{...c.gene(),diet:1,aquatic:1});
+ c.spawn(120,130,g);
+ assert.equal(c.species.get(key).name,expected);
+});
+test('all 15552 ecological classifications map to distinct four-kana species names',()=>{
+ const habitats=['land','aquatic','dry','rock'];
+ const groups=[['plant','mixed','hunter'],['tiny','medium','large','giant'],
+  ['round','oval','long'],['blind','few','several','allround'],
+  ['general','guardian','egg-hunter'],['repro0','repro1','repro2'],
+  ['temperate','cold','hot']];
+ const names=new Set();
+ const traverse=(parts,index)=>{
+  if(index===groups.length){
+   const name=speciesNameFromCategory(parts.join('-'));
+   assert.ok(/^[モルガロ][アカサタナハマヤラワキシチニヒミ]{3}$/.test(name));
+   assert.ok(!names.has(name));
+   names.add(name);return;
+  }
+  for(const category of groups[index])traverse([...parts,category],index+1);
+ };
+ for(const habitat of habitats)traverse([habitat],0);
+ assert.equal(names.size,15552);
+});
+test('genome code is stable, quantized, and changes when a trait crosses a bin',()=>{
+ const w=new Ecosystem(9114),g=w.gene();
+ const code=genomeCode(g);
+ assert.equal(code,genomeCode({...g}));
+ assert.ok(/^[0-9A-F]{4}(-[0-9A-F]{4}){4}-[0-9A-F]$/.test(code));
+ const variant={...g,longevity:2};
+ assert.notEqual(genomeCode(variant),code);
+ assert.equal(genomeCode({...g,wet:.401}),genomeCode({...g,wet:.402}));
+});
