@@ -1,7 +1,7 @@
 // Run with: node --test web/simulation.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Ecosystem,morphology,organismMorphology,MAX_NUTRITION_GROWTH,adaptationColor} from './simulation.js';
+import {Ecosystem,morphology,organismMorphology,bodyCollisionAxes,MAX_NUTRITION_GROWTH,adaptationColor} from './simulation.js';
 import {slimeEyeAngles,slimeEyeColor,slimeEyeLocation,drawWorld} from './renderer.js';
 const populated=seed=>{const s=new Ecosystem(seed);s.introduce(160,135,3);return s;};
 test('same seed creates same initial ecosystem',()=>{const a=populated(42),b=populated(42);assert.deepEqual(a.tiles,b.tiles);assert.deepEqual(a.units,b.units);});
@@ -868,4 +868,49 @@ test('offspring inherit adapted body color only through their environment genes'
   assert.equal(Object.hasOwn(child,key),false);
   assert.equal(Object.hasOwn(child.alleles,key),false);
  }
+});
+
+test('coincident slimes acquire separate positions without changing genes',()=>{
+ const w=new Ecosystem(2101);w.tiles.fill(0);
+ const g={...w.gene(),r:7,elongation:1,aquatic:0};
+ const a=w.spawn(300,200,g),b=w.spawn(300,200,{...g});
+ const before=JSON.stringify(a.g);
+ w.resolveUnitOverlap();
+ const distance=Math.hypot(a.x-b.x,a.y-b.y);
+ assert.ok(distance>10,'overlapping centers remained superimposed');
+ assert.equal(JSON.stringify(a.g),before);
+ assert.ok([a,b].every(u=>Number.isFinite(u.x)&&Number.isFinite(u.y)));
+});
+test('giant body has a larger collision footprint and displaces a smaller slime',()=>{
+ const w=new Ecosystem(2102);w.tiles.fill(0);
+ const a=w.spawn(320,210,{...w.gene(),r:6,elongation:1,aquatic:0});
+ const b=w.spawn(325,210,{...w.gene(),r:6,elongation:1,aquatic:0});
+ a.growthScale=2.2;b.growthScale=1;
+ const originalA=a.x,originalB=b.x;
+ const large=bodyCollisionAxes(a),small=bodyCollisionAxes(b);
+ assert.ok(large.rx>small.rx*2);
+ w.resolveUnitOverlap();
+ assert.ok(Math.abs(b.x-originalB)>Math.abs(a.x-originalA));
+ assert.ok(Math.hypot(a.x-b.x,a.y-b.y)>15);
+});
+test('elongated slimes need more front-to-front separation than side-by-side',()=>{
+ const g={...new Ecosystem(2103).gene(),r:8,elongation:2.6};
+ const trial=position=>{
+  const w=new Ecosystem(2104);w.tiles.fill(0);
+  const a=w.spawn(300,210,g),b=w.spawn(300+position.x,210+position.y,{...g});
+  a.angle=b.angle=0;
+  w.resolveUnitOverlap();
+  return Math.hypot(b.x-a.x,b.y-a.y);
+ };
+ const frontal=trial({x:6,y:0}),side=trial({x:0,y:6});
+ assert.ok(frontal>side*1.5);
+});
+test('separation respects impassable water tiles for terrestrial slimes',()=>{
+ const w=new Ecosystem(2105);w.tiles.fill(0);w.water.fill(0);
+ const a=w.spawn(200,210,{...w.gene(),aquatic:0,r:10,elongation:1});
+ const b=w.spawn(200,210,{...w.gene(),aquatic:0,r:10,elongation:1});
+ for(let y=0;y<460;y+=20)for(let x=220;x<800;x+=20)w.tiles[w.cell(x,y)]=1;
+ for(let i=0;i<12;i++)w.resolveUnitOverlap();
+ assert.ok([a,b].every(u=>w.terrain(u.x,u.y)!==1));
+ assert.ok([a,b].every(u=>u.x>=7&&u.x<=793&&u.y>=7&&u.y<=453));
 });
