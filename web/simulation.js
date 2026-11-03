@@ -215,7 +215,8 @@ export const longevityUpkeep=g=>{
 export const vitality=u=>{
  const max=u.maxHp??Math.max(25,Math.round(organismMorphology(u).bodyMass*.48+25));
  const health=clamp((u.hp??max)/max,0,1);
- const old=clamp((u.age-420)/900,0,1);
+ const longevity=clamp(u.g?.longevity??1,.6,2);
+ const old=clamp((u.age-420*longevity)/(900*longevity),0,1);
  const vigor=clamp((.40+.60*health)*(1-.60*old),.12,1);
  return {max,health,old,vigor};
 };
@@ -1179,7 +1180,7 @@ export class Ecosystem{
    // Zero food no longer kills instantaneously: the accelerated life drain
    // gives a short but real chance to feed before starvation completes.
    if(u.energy<0)u.energy=0;
-   if(u.hp<=0)this.die(u,u.energy===0?'飢餓':thermal.excess>0?'気温による衰弱':u.infection>0?'感染症':'寿命・衰弱');else if(u.age>3200)this.die(u,'寿命');
+   if(u.hp<=0)this.die(u,u.energy===0?'飢餓':thermal.excess>0?'気温による衰弱':u.infection>0?'感染症':'寿命・衰弱');
   }
   this.resolveUnitOverlap();
   this.updateCourtships();
