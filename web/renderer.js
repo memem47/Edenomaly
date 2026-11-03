@@ -127,18 +127,10 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   ctx.fillStyle='#fff1fc';ctx.font='bold 11px system-ui';ctx.textAlign='center';const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;ctx.strokeStyle='#ffe1f9';ctx.lineWidth=2;ctx.beginPath();ctx.arc(mx,my,9+2*pulse,-Math.PI/2,-Math.PI/2+TAU*(pair.progress/pair.required));ctx.stroke();
   ctx.restore();
  }
- // A translucent path shows where the laying parent deposited its egg.
- for(const trail of s.eggTrails){
-  const alpha=Math.max(0,1-trail.age/trail.life);
-  ctx.save();ctx.globalAlpha=alpha;ctx.strokeStyle='#ffe3a1';ctx.lineWidth=2.5;ctx.setLineDash([3,4]);
-  ctx.beginPath();ctx.moveTo(trail.x1,trail.y1);ctx.lineTo(trail.x2,trail.y2);ctx.stroke();ctx.setLineDash([]);
-  ctx.fillStyle='#fff0ad';ctx.font='bold 11px system-ui';ctx.textAlign='center';ctx.strokeStyle='#ffe3a1';ctx.lineWidth=1.5+alpha*2;ctx.beginPath();ctx.arc(trail.x2,trail.y2,10+(1-alpha)*23,0,TAU);ctx.stroke();
-  ctx.restore();
- }
  // Eggs have a shell, do not move, and visibly develop before hatching.
  for(const egg of s.eggs){
   const shell=egg.g.shell,prog=egg.age/egg.hatchAt;
-  const emergence=Math.min(1,(s.tick-(egg.bornTick??s.tick))/9);
+  const emergence=Math.min(1,(s.tick-(egg.bornTick??s.tick))/3);
   const x=(egg.birthX??egg.x)*(1-emergence)+egg.x*emergence;
   const y=(egg.birthY??egg.y)*(1-emergence)+egg.y*emergence;
   ctx.save();ctx.translate(x,y);ctx.scale(.65+.35*emergence,.65+.35*emergence);
