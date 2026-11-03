@@ -1868,3 +1868,16 @@ test('longevity postpones physiological senescence and has no hard death age',()
  const oldLong={...long,age:3300};
  assert.ok(lifeDrain(oldLong,{temperature:long.g.idealTemp,terrain:0})>0);
 });
+
+test('routine ecological events leave logs without flooding the world with ripples',()=>{
+ const w=new Ecosystem(8701);w.effects=[];w.logs=[];
+ const at={x:220,y:180};
+ for(const type of ['mate','egg','decay','migration','settle','new','info','court','birth','hatch']){
+  w.log(type,type,at);
+ }
+ assert.equal(w.logs.length,10);
+ assert.equal(w.effects.length,0);
+ w.log('death','death',at);
+ assert.equal(w.effects.length,1);
+ assert.equal(w.effects[0].type,'death');
+});
