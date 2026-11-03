@@ -130,7 +130,7 @@ export const crowdMetrics=(u,neighbors)=>{
   }
   occupied+=otherArea*(1-d/65);
  }
- return {density,habitatLoad:Math.max(0,occupied/170-1.5)};
+ return {density,habitatLoad:Math.max(0,occupied/900-.35)};
 };
 export const crowdStress=density=>Math.min(9,Math.max(0,density-2.5));
 // Carrying capacity is based on ABSOLUTE occupied area, not body size relative
@@ -146,7 +146,7 @@ export const habitatCrowding=(u,neighbors)=>{
   const b=bodyCollisionAxes(v);
   occupied+=b.rx*b.ry*(1-d/radius);
  }
- return Math.max(0,(occupied/170-1.5));
+ return Math.max(0,(occupied/900-.35));
 };
 
 
@@ -368,7 +368,8 @@ export class Ecosystem{
  }
 
  spawn(x,y,g,parent=null){
-  if(this.units.length>=600)return null;
+  // Safety guard only: far above the intended ecological carrying capacity.
+  if(this.units.length>=2000)return null;
   const mode=reproductiveMode(g);
    const sex=mode===1?'H':mode===2?'F':(this.rand()<.5?'F':'M');
    const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,recentFood:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null};
@@ -409,7 +410,7 @@ export class Ecosystem{
  isReadyToMate(u){
   const thermal=thermalFitness(u.g,this.temperatureAt(u.x,u.y));
   if(!thermal.reproduction)return false;
-  return !u.dead&&u.infection===0&&(u.habitatLoad??0)<1.8&&(u.crowdStress??0)<3&&(u.localCrowd??0)<13&&u.stage==='adult'&&u.age>42&&u.energy>=58+Math.max(0,organismMorphology(u).bodyMass-100)*.22&&u.mateCooldown===0&&!u.pregnancy&&vitality(u).vigor>.35;
+  return !u.dead&&u.infection===0&&u.stage==='adult'&&u.age>42&&u.energy>=58+Math.max(0,organismMorphology(u).bodyMass-100)*.22+(u.crowdStress??0)*2.4+(u.habitatLoad??0)*3.2&&u.mateCooldown===0&&!u.pregnancy&&vitality(u).vigor>.35;
  }
  findMate(u,batch){
   if(!this.isReadyToMate(u))return null;
@@ -439,14 +440,14 @@ export class Ecosystem{
  }
  // Fertilization combines both parents' genomes. The egg does not appear yet.
  conceive(parent,partner){
-  if(!partner||!this.canMate(parent,partner)||this.eggs.length>=900)return null;
+  if(!partner||!this.canMate(parent,partner)||this.eggs.length>=2500)return null;
   // Whichever organism can lay eggs becomes the gestating parent.
   if(parent.sex==='M'&&partner.sex!=='M')return this.conceive(partner,parent);
   // An inherited brood-size trait trades clutch size against parental energy.
   const desired=clamp(Math.round((parent.g.brood+partner.g.brood)/2)*2+2,4,18);
   const largeParentCost=Math.max(0,organismMorphology(parent).bodyMass-100)*.18;
   const affordable=clamp(Math.floor((Math.min(parent.energy,220)-22-largeParentCost)/3),1,18);
-  const count=Math.min(desired,affordable,900-this.eggs.length);
+  const count=Math.min(desired,affordable,2500-this.eggs.length);
   if(count<1)return null;
   const genomes=Array.from({length:count},()=>this.recombine(parent.g,partner.g));
   const pregnancy={genomes,parent:parent.id,otherParent:partner.id,lineage:this.rand()<.5?parent.lineage:partner.lineage,generation:Math.max(parent.generation,partner.generation)+1,remaining:25,total:25};
@@ -460,9 +461,9 @@ export class Ecosystem{
   return pregnancy;
  }
  conceiveSolo(parent){
-  if(reproductiveMode(parent.g)!==2||parent.sex!=='F'||!this.isReadyToMate(parent)||parent.energy<115||this.eggs.length>=900)return null;
+  if(reproductiveMode(parent.g)!==2||parent.sex!=='F'||!this.isReadyToMate(parent)||parent.energy<115||this.eggs.length>=2500)return null;
   // Few expensive eggs, with reduced recombination and no unrelated genome.
-  const count=Math.min(1+Math.floor(parent.g.brood/4),900-this.eggs.length);
+  const count=Math.min(1+Math.floor(parent.g.brood/4),2500-this.eggs.length);
   const genomes=Array.from({length:count},()=>this.rand()<.025?this.mutate(this.recombine(parent.g,parent.g)):this.recombine(parent.g,parent.g));
   const pregnancy={genomes,parent:parent.id,otherParent:null,lineage:parent.lineage,generation:parent.generation+1,remaining:32,total:32};
   parent.pregnancy=pregnancy;
@@ -495,11 +496,11 @@ export class Ecosystem{
  layEgg(parent,partner=null){
   // Explicit test helper: two parents can conceive; actual egg laying is delayed.
   if(partner)return this.conceive(parent,partner);
-  if(!parent.pregnancy||this.eggs.length>=900)return null;
+  if(!parent.pregnancy||this.eggs.length>=2500)return null;
   const p=parent.pregnancy;
   // Oviposition is anchored behind the parent's actual facing direction.
   const site=rearPosition(parent,7);
-  const count=Math.min(p.genomes.length,900-this.eggs.length);
+  const count=Math.min(p.genomes.length,2500-this.eggs.length);
   if(count===0)return null;
   const laid=[];
   for(let i=0;i<count;i++){
@@ -809,7 +810,7 @@ export class Ecosystem{
    egg.heatExposure=(egg.heatExposure??0)+eggClimate.excess*.016;
    if(egg.heatExposure>22){egg.dead=true;this.log('death','卵 #'+egg.id+' が極端な気温で死亡',egg);continue;}
 
-   if(!egg.dead&&egg.age>=egg.hatchAt&&this.units.length<600){
+   if(!egg.dead&&egg.age>=egg.hatchAt&&this.units.length<2000){
     egg.dead=true;
     const child=this.spawn(egg.x,egg.y,egg.g,{id:egg.parent,otherParent:egg.otherParent,generation:egg.generation-1,lineage:egg.lineage});
     if(child){child.energy=egg.energy+35;child.stage='juvenile';this.log('hatch','卵 #'+egg.id+' から #'+child.id+' が孵化',egg);}
@@ -919,7 +920,7 @@ export class Ecosystem{
    // Crowded colonies consume more energy and stop producing offspring as easily.
    u.energy-=Math.min(.85,Math.max(0,rivals-3)*.075)+congestion*.11;
    // The area burden is especially expensive for large, near-stationary bodies.
-   u.energy-=Math.min(55,habitatLoad*(1.7+Math.max(0,(u.growthScale??1)-1)*2.9));
+   u.energy-=Math.min(12,habitatLoad*(1.7+Math.max(0,(u.growthScale??1)-1)*2.9));
    u.localCrowd=relatives;
    const seekRefuge=!u.courtPartner&&!u.pregnancy&&!flight&&(pressure>1.35||relatives>7||congestion>2||habitatLoad>1.2);
    if(seekRefuge&&(this.tick+u.id)%14===0){
@@ -1003,7 +1004,7 @@ export class Ecosystem{
     u.energy-=m.upkeep*youth*adaptationCost*(1+body.old*.18)+acquiredSizeMaintenance(u)*youth*adaptationCost+(flight?.10:0)+(ownEgg?g.guard*.16:0)+this.stress*.0035+home.upkeep+(g.wet+g.dry+g.rock)*.055;
    if(!flight&&aquatic&&underwater&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+14)**2){
     const eaten=this.consumeWaterweed(nearest.x,nearest.y,Math.min(5.5,1.3*m.foodGain*feedingCapacity(u)));
-    if(eaten>0){u.energy+=eaten*6.2*diet.plant*home.fitness;
+    if(eaten>0){u.energy+=eaten*7.5*diet.plant*home.fitness;
      u.recentFood=(u.recentFood??0)+eaten*4;
      u.hp=Math.min(u.maxHp,u.hp+eaten*.2);
      if((this.tick+u.id)%9===0)this.addVisualEffect('waterweed',u,{fromX:nearest.x,fromY:nearest.y});
@@ -1011,7 +1012,7 @@ export class Ecosystem{
    }
    if(!flight&&!aquatic&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+13)**2){
     const eaten=this.consumeGrass(nearest.x,nearest.y,Math.min(4.8,1.05*m.foodGain*feedingCapacity(u)));
-    if(eaten>0){u.energy+=eaten*8.8*diet.plant*home.fitness;
+    if(eaten>0){u.energy+=eaten*10.5*diet.plant*home.fitness;
      u.recentFood=(u.recentFood??0)+eaten*4;
      u.seedBank=Math.min(100,(u.seedBank??0)+eaten*.35);
      u.hp=Math.min(u.maxHp,u.hp+eaten*.22*(1-body.old*.6));
@@ -1127,6 +1128,27 @@ export class Ecosystem{
    }
    if(!moved)break;
   }
+ }
+ // A player-managed soil intervention raises local primary production.
+ // There is no population-number gating; the added biomass must still grow,
+ // be eaten, and compete for space just like naturally occurring resources.
+ fertilize(x,y,radius=3){
+  const cx=Math.floor(x/CELL),cy=Math.floor(y/CELL);
+  let treated=0;
+  for(let dy=-radius;dy<=radius;dy++)for(let dx=-radius;dx<=radius;dx++){
+   if(dx*dx+dy*dy>radius*radius)continue;
+   const xx=cx+dx,yy=cy+dy;if(xx<0||xx>=NX||yy<0||yy>=NY)continue;
+   const id=yy*NX+xx,t=this.tiles[id];
+   if(t===3)continue;
+   this.soil[id]=Math.min(100,this.soil[id]+65);
+   if(t===2&&this.grass[id]===0&&this.water[id]<=0){
+    this.tiles[id]=0;this.grass[id]=8;
+   }
+   if(t===1&&this.water[id]>0&&this.waterweed[id]<=.001)this.waterweed[id]=5;
+   treated++;
+  }
+  if(treated)this.log('info','土壌を改良：'+treated+'マスの生産力を回復',{x,y});
+  return treated;
  }
  paint(x,y,type,radius){
   const cx=Math.floor(x/CELL),cy=Math.floor(y/CELL);
