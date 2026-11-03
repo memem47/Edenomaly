@@ -520,14 +520,13 @@ export class Ecosystem{
   if(!parent.pregnancy||this.eggs.length>=2500)return null;
   const p=parent.pregnancy;
   // Oviposition is anchored behind the parent's actual facing direction.
-  const site=rearPosition(parent,7);
   const count=Math.min(p.genomes.length,2500-this.eggs.length);
   if(count===0)return null;
   const laid=[];
   for(let i=0;i<count;i++){
    const g=p.genomes[i],traits=eggTraits(g);
-   const rear=rearPosition(parent,5+i*2.5);
-   const egg={id:this.nextId++,x:clamp(rear.x+Math.cos(parent.angle+Math.PI/2)*this.range(-6,6),6,W-6),y:clamp(rear.y+Math.sin(parent.angle+Math.PI/2)*this.range(-6,6),6,H-6),g,parent:p.parent,otherParent:p.otherParent,generation:p.generation,lineage:p.lineage,age:0,hatchAt:traits.incubation,energy:traits.eggEnergy,dead:false,bornTick:this.tick,birthX:parent.x-Math.cos(parent.angle)*(parent.g.r*parent.g.elongation+1),birthY:parent.y-Math.sin(parent.angle)*(parent.g.r*parent.g.elongation+1)};
+   const rear=rearPosition(parent,3+i*.65);
+   const egg={id:this.nextId++,x:clamp(rear.x+Math.cos(parent.angle+Math.PI/2)*this.range(-3,3),6,W-6),y:clamp(rear.y+Math.sin(parent.angle+Math.PI/2)*this.range(-6,6),6,H-6),g,parent:p.parent,otherParent:p.otherParent,generation:p.generation,lineage:p.lineage,age:0,hatchAt:traits.incubation,energy:traits.eggEnergy,dead:false,bornTick:this.tick,birthX:parent.x-Math.cos(parent.angle)*(parent.g.r*parent.g.elongation+2),birthY:parent.y-Math.sin(parent.angle)*(parent.g.r*parent.g.elongation+2)};
    if(g.aquatic!==parent.g.aquatic){
     const site=this.shoreEggSite(egg.x,egg.y,g);
     egg.x=site.x;egg.y=site.y;
@@ -536,8 +535,6 @@ export class Ecosystem{
   }
   parent.pregnancy=null;
   this.log('egg','#'+parent.id+' が '+laid.length+' 個の卵を産んだ（'+(p.otherParent===null?'単為生殖':'相手 #'+p.otherParent)+'）',parent);
-  const tail=rearPosition(parent,0);
-  this.eggTrails.push({parent:parent.id,egg:laid[0].id,x1:tail.x,y1:tail.y,x2:site.x,y2:site.y,age:0,life:38});
   return laid[0];
  }
  updateCourtships(){
