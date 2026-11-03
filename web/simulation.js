@@ -136,6 +136,9 @@ const allelePair=(g,key)=>{
  const pair=g.alleles?.[key];
  return Array.isArray(pair)&&pair.length===2&&Math.abs(alleleExpression(key,pair)-g[key])<1e-6?pair:[g[key],g[key]];
 };
+// Strategies emerge from existing inherited diet, jaw and guarding traits.
+export const eggPredationDrive=g=>clamp(dietProfile(g).meat*(1-.65*(g.guard??0))*(1.1-.08*(g.jaw??1)),0,1);
+export const protectiveDrive=g=>clamp((g.guard??0)*(.35+.65*clamp((g.jaw??1)/2.5,0,1)),0,1);
 export const eggTraits=g=>({
  shell:g.shell,guard:g.guard,nesting:g.nesting,
  incubation:Math.round(34+g.shell*30),
@@ -410,11 +413,12 @@ export class Ecosystem{
   this.addVisualEffect('consume',egg);
   return true;
  }
- attack(hunter,prey){
-  if(hunter===prey||hunter.dead||prey.dead||hunter.bite>0||dietProfile(hunter.g).meat<=0)return false;
+ attack(hunter,prey,defensive=false){
+  if(hunter===prey||hunter.dead||prey.dead||hunter.bite>0||(!defensive&&dietProfile(hunter.g).meat<=0)||(defensive&&protectiveDrive(hunter.g)<=.34))return false;
   const mm=organismMorphology(hunter),v=vitality(hunter),def=vitality(prey);
-  const damage=Math.max(2,(4+hunter.g.jaw*7+mm.bodyMass*.065)*dietProfile(hunter.g).meat*v.vigor);
+  const damage=Math.max(2,(4+hunter.g.jaw*7+mm.bodyMass*.065)*(defensive?.65+protectiveDrive(hunter.g)*.65:dietProfile(hunter.g).meat)*v.vigor);
   prey.hp=Math.max(0,prey.hp-damage);
+  if(defensive)hunter.energy-=2.5;
   prey.woundFlash=14;
   hunter.bite=22;
   hunter.attackFlash=16;
@@ -423,12 +427,12 @@ export class Ecosystem{
   if(prey.hp<=0){
    // A large prey supplies an exceptional meal, but the eaten tissue is
    // removed from the corpse so nutrients are never counted twice.
-   const meat=dietProfile(hunter.g).meat;
+   const meat=defensive?0:dietProfile(hunter.g).meat;
    const tissue=Math.max(4,organismMorphology(prey).bodyMass*.23);
    const gained=(Math.max(5,prey.energy*.35)+tissue)*meat;
    hunter.energy+=gained;
    hunter.recentFood=(hunter.recentFood??0)+tissue*meat*1.3;
-   this.die(prey,'捕食',tissue*meat);
+   this.die(prey,defensive?'防衛':'捕食',tissue*meat);
    this.addVisualEffect('consume',prey);
    this.log('pred','#'+hunter.id+' が #'+prey.id+' を捕食',prey);
   }
@@ -696,8 +700,8 @@ export class Ecosystem{
     if(d<corpseDist){corpseDist=d;nearestCorpse=corpse;}
    }
    // Eggs are stationary and cannot fight or flee. Guardians only deter some hunters.
-   let targetEgg=null,ed=sight*sight;
-   if(u.bite===0&&diet.meat>.12&&g.mouths>0)for(const egg of this.eggs){
+   let targetEgg=null,ed=sight*sight*(.65+eggPredationDrive(g)*1.5);
+   if(u.bite===0&&eggPredationDrive(g)>.24&&g.mouths>0)for(const egg of this.eggs){
     if(egg.dead||egg.parent===u.id||egg.otherParent===u.id)continue;
     let d=distance(u,egg);if(d>=ed)continue;
     const guardian=batch.find(v=>v.id===egg.parent&&!v.dead&&v.g.guard>.25&&distance(v,egg)<(14+v.g.guard*43)**2);
@@ -718,7 +722,18 @@ export class Ecosystem{
     const d=distance(u,v);
     if(d<dangerD){danger=v;dangerD=d;}
    }
-   const flight=!!danger&&(diet.diet<.7||organismMorphology(danger).bodyMass>m.bodyMass*1.5);
+   // Guardians attack only nearby threats to their own or related eggs.
+   let defenderTarget=null,defendDist=65*65;
+   if(protectiveDrive(g)>.34&&u.bite===0&&u.energy>18){
+    const guardedEggs=this.eggs.filter(e=>!e.dead&&(e.parent===u.id||e.lineage===u.lineage)&&distance(u,e)<78*78);
+    if(guardedEggs.length)for(const v of batch){
+     if(v===u||v.dead||v.lineage===u.lineage||eggPredationDrive(v.g)<.30)continue;
+     if(!guardedEggs.some(e=>distance(v,e)<54*54))continue;
+     const d=distance(u,v);
+     if(d<defendDist){defendDist=d;defenderTarget=v;}
+    }
+   }
+   const flight=!defenderTarget&&!!danger&&(diet.diet<.7||organismMorphology(danger).bodyMass>m.bodyMass*1.5);
    u.fleeing=flight;
    // Competition is local crowding for the same food, not an arbitrary caste.
    // When nearby rivals monopolize a rich tile, search for a less crowded refuge.
@@ -780,6 +795,7 @@ export class Ecosystem{
    if(nearestCorpse&&corpseDist<Math.min(df,pd)*1.35)target=nearestCorpse;
    if(mate&&(u.courtPartner||!target||u.energy>=86))target=mate;
    if(targetEgg&&ed<Math.min(df,pd)*1.15)target=targetEgg;
+   if(defenderTarget&&!u.courtPartner)target=defenderTarget;
    if(u.refugeTarget&&!flight&&!u.courtPartner)target=u.refugeTarget;
    const nearFood=nearest&&distance(u,nearest)<Math.max(14,sight*.55)**2;
    const criticalWater=u.hydration<24||aquatic&&!underwater&&u.stranded>35;
@@ -788,7 +804,7 @@ export class Ecosystem{
    }
    // Guarding trades feeding opportunities for staying near the offspring.
    const ownEgg=this.eggs.find(e=>e.parent===u.id&&!e.dead);
-   if(ownEgg&&g.guard>.15&&!flight&&!criticalWater&&u.energy>45){
+   if(ownEgg&&g.guard>.15&&!flight&&!defenderTarget&&!criticalWater&&u.energy>45){
     const guardRadius=12+g.guard*40;
     if(distance(u,ownEgg)>guardRadius**2||!target)target=ownEgg;
    }
@@ -836,6 +852,8 @@ export class Ecosystem{
     if(eaten>0){if((this.tick+u.id)%9===0)this.addVisualEffect('scavenge',u,{fromX:nearestCorpse.x,fromY:nearestCorpse.y});this.log('meal','#'+u.id+' が死体を食べた',u);}
    }
    if(!flight&&targetEgg&&!targetEgg.dead&&u.bite===0&&distance(u,targetEgg)<(m.biteReach+4)**2)this.eatEgg(targetEgg,u);
+   if(defenderTarget&&!defenderTarget.dead&&u.bite===0&&distance(u,defenderTarget)<(m.biteReach+defenderTarget.g.r+5)**2)
+    this.attack(u,defenderTarget,true);
    if(!flight&&mate&&!u.courtPartner&&!mate.courtPartner&&distance(u,mate)<38**2)this.startCourtship(u,mate);
    if(!flight&&diet.meat>0&&prey&&!prey.dead&&distance(u,prey)<(m.biteReach+prey.g.r)**2)this.attack(u,prey);
    const newTerrain=this.terrain(u.x,u.y);
