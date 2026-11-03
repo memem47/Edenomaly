@@ -194,6 +194,24 @@ export class SpatialLookup{
  }
 }
 // Health and senescence directly affect movement, fighting and mating.
+// Lifespan evolves independently of body size and maximum HP.
+// Food, appropriate habitat and temperature slow aging, without healing HP.
+export const lifeDrain=(u,{temperature=22,terrain=0}={})=>{
+ const g=u.g,longevity=clamp(g.longevity??1,.6,2);
+ const energy=u.energy??100,max=Math.max(1,u.maxHp??50);
+ const foodFactor=energy>=110?.55:energy>=65?.55+(110-energy)*.45/45:
+   energy>=25?1+(65-energy)*1.35/40:energy>0?2.35+(25-energy)*1.65/25:4;
+ const climate=thermalFitness(g,temperature);
+ const climateFactor=1+(1-climate.comfort)*.42+climate.excess*.09;
+ const habitat=terrainFitness(g,terrain);
+ const terrainFactor=1+Math.max(0,1-habitat.fitness)*1.5;
+ const ageFactor=1+Math.max(0,(u.age??0)-550)/(1250*longevity);
+ return max/1300/longevity*ageFactor*foodFactor*climateFactor*terrainFactor;
+};
+export const longevityUpkeep=g=>{
+ const x=Math.max(0,(g.longevity??1)-.9);
+ return .34*x*x;
+};
 export const vitality=u=>{
  const max=u.maxHp??Math.max(25,Math.round(organismMorphology(u).bodyMass*.48+25));
  const health=clamp((u.hp??max)/max,0,1);
@@ -205,9 +223,9 @@ export const rearPosition=(u,offset=0)=>({
  x:clamp(u.x-Math.cos(u.angle)*(u.g.r*u.g.elongation+5+offset),6,W-6),
  y:clamp(u.y-Math.sin(u.angle)*(u.g.r*u.g.elongation+5+offset),6,H-6)
 });
-const HERITABLE=['repro','idealTemp','tempTolerance','r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic','albino'];
+const HERITABLE=['repro','idealTemp','tempTolerance','longevity','r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic','albino'];
 const INTEGER_GENES=new Set(['eyes','mouths','brood','aquatic','albino','repro']);
-const LIMITS={repro:[0,2],idealTemp:[-5,40],tempTolerance:[3,18],r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1],albino:[0,1]};
+const LIMITS={repro:[0,2],idealTemp:[-5,40],tempTolerance:[3,18],longevity:[.6,2],r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1],albino:[0,1]};
 const alleleExpression=(key,pair)=>{
  // Eyes: more-eye allele is dominant; hidden low-eye alleles can reappear in grandchildren.
  // Other continuous traits use incomplete dominance (mean of the two inherited copies).
@@ -245,7 +263,7 @@ export class Ecosystem{
  cell(x,y){return clamp(Math.floor(y/CELL),0,NY-1)*NX+clamp(Math.floor(x/CELL),0,NX-1);}
  terrain(x,y){return this.tiles[this.cell(x,y)];}
  gene(){
-  const g={idealTemp:this.range(15,29),tempTolerance:this.range(8,14),repro:(()=>{const roll=this.rand();return roll<.004?1:roll<.006?2:0;})(),r:this.rand()<.065?this.range(8.5,12):this.range(3.1,7.5),
+  const g={idealTemp:this.range(15,29),tempTolerance:this.range(8,14),longevity:this.range(.8,1.5),repro:(()=>{const roll=this.rand();return roll<.004?1:roll<.006?2:0;})(),r:this.rand()<.065?this.range(8.5,12):this.range(3.1,7.5),
    elongation:(()=>{const roll=this.rand();
     return roll<.82?this.range(.94,1.16):roll<.98?this.range(1.43,2.04):this.range(2.35,2.83);
    })(),eyes:(()=>{const roll=this.rand();return roll<.08?0:roll<.36?1:roll<.71?2:roll<.90?3:roll<.975?4:roll<.995?5:6;})(),
@@ -263,6 +281,7 @@ export class Ecosystem{
    if(key==='repro')second=0;
     else if(key==='idealTemp')second=clamp(g.idealTemp+this.range(-3,3),...LIMITS.idealTemp);
     else if(key==='tempTolerance')second=clamp(g.tempTolerance+this.range(-2,2),...LIMITS.tempTolerance);
+    else if(key==='longevity')second=clamp(g.longevity+this.range(-.2,.2),...LIMITS.longevity);
     else if(key==='elongation')second=clamp(g.elongation+this.range(-.11,.11),...LIMITS.elongation);
    else if(key==='albino')second=0;
    else if(key==='aquatic'&&this.rand()<.14)second=1-g.aquatic;
@@ -294,6 +313,7 @@ export class Ecosystem{
    if(key==='repro')value=this.rand()<.5?1:2;
     else if(key==='idealTemp')value+=this.range(-7,7);
     else if(key==='tempTolerance')value+=this.range(-3.5,3.5);
+     else if(key==='longevity')value+=this.range(-.20,.20);
     else if(key==='aquatic')value=1-value;
    else if(key==='albino')value=1-value;
    else if(key==='elongation')value+=this.rand()<.85?this.range(-.13,.08):this.range(-.20,.24);
@@ -903,7 +923,7 @@ export class Ecosystem{
    u.thermalComfort=thermal.comfort;u.temperature=this.temperatureAt(u.x,u.y);
    // Life declines naturally each step; damage, infection, and harsh environments
    // consume the same finite reserve. Feeding provides energy, not extra years.
-   u.hp-=u.maxHp/1350*(1+Math.max(0,u.age-500)/1200);
+   u.hp-=lifeDrain(u,{temperature:u.temperature,terrain:t});
    u.hp-=thermal.damage;u.energy-=thermal.upkeep;
    const near=unitGrid.query(u.x,u.y,Math.max(145,sight*1.6),false);
    const aquatic=g.aquatic===1,underwater=t===1&&this.water[this.cell(u.x,u.y)]>0;
@@ -1092,7 +1112,7 @@ export class Ecosystem{
    // Terrain-fit offspring retain energy and can reproduce more successfully.
    const adaptationCost=clamp(1.65-home.fitness*.75,.70,1.5)*(1.08-.08*thermal.comfort);
    u.energy-=reproductiveUpkeep(g)*youth;
-    u.energy-=m.upkeep*youth*adaptationCost*(1+body.old*.18)+acquiredSizeMaintenance(u)*youth*adaptationCost+(flight?.10:0)+(ownEgg?g.guard*.16:0)+this.stress*.0035+home.upkeep+(g.wet+g.dry+g.rock)*.055;
+    u.energy-=(m.upkeep+longevityUpkeep(g))*youth*adaptationCost*(1+body.old*.18)+acquiredSizeMaintenance(u)*youth*adaptationCost+(flight?.10:0)+(ownEgg?g.guard*.16:0)+this.stress*.0035+home.upkeep+(g.wet+g.dry+g.rock)*.055;
    if(!flight&&aquatic&&underwater&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+14)**2){
     const eaten=this.consumeWaterweed(nearest.x,nearest.y,Math.min(5.5,1.3*m.foodGain*feedingCapacity(u)));
     if(eaten>0){u.energy+=eaten*7.5*diet.plant*home.fitness;
@@ -1156,7 +1176,10 @@ export class Ecosystem{
     u.growthScale=Math.max(1,u.growthScale-(85-u.energy)*.000045);
    // Limit stored reserves so immobile giants cannot live on old stockpiles.
    if((u.growthScale??1)>1.05)u.energy=Math.min(u.energy,energyStorageLimit(u));
-   if(u.hp<=0)this.die(u,thermal.excess>0?'気温による衰弱':u.infection>0?'感染症':'寿命・衰弱');else if(u.energy<=0)this.die(u,'飢餓');else if(u.age>2500)this.die(u,'寿命');
+   // Zero food no longer kills instantaneously: the accelerated life drain
+   // gives a short but real chance to feed before starvation completes.
+   if(u.energy<0)u.energy=0;
+   if(u.hp<=0)this.die(u,u.energy===0?'飢餓':thermal.excess>0?'気温による衰弱':u.infection>0?'感染症':'寿命・衰弱');else if(u.age>3200)this.die(u,'寿命');
   }
   this.resolveUnitOverlap();
   this.updateCourtships();
