@@ -173,7 +173,7 @@ test('nutrient eater runs away from apparent large predator',()=>{
 });
 test('herbivore cannot gain energy by eating an egg',()=>{
  const s=populated(144),hunter=s.units[0],parent=s.units[1],partner=s.units[2];
- hunter.g.diet=0;parent.age=partner.age=100;parent.energy=partner.energy=160;
+ hunter.g.diet=0;parent.sex='F';partner.sex='M';parent.age=partner.age=100;parent.energy=partner.energy=160;
  s.conceive(parent,partner);const egg=s.layEgg(parent);
  const before=hunter.energy;
  assert.equal(s.eatEgg(egg,hunter),false);
@@ -380,7 +380,7 @@ test('local nutrient regeneration respects terrain cell capacity',()=>{
 
 test('offspring inherit the founding lineage across morphology changes',()=>{
  const s=new Ecosystem(507);s.introduce(350,200,1);
- const [a,b]=s.units;for(const u of [a,b]){u.age=100;u.energy=175;}
+ const [a,b]=s.units;a.sex='F';b.sex='M';for(const u of [a,b]){u.age=100;u.energy=175;}
  const p=s.conceive(a,b);assert.ok(p);const e=s.layEgg(a);
  assert.equal(e.lineage,a.lineage);
  assert.equal(e.lineage,b.lineage);
@@ -550,7 +550,7 @@ test('a decomposing corpse recycles organic matter to soil',()=>{
 
 test('offspring remain genetically varied within one large clutch',()=>{
  const w=new Ecosystem(1201);w.introduce(160,140,1);
- const a=w.units[0],b=w.units[1];
+ const a=w.units[0],b=w.units[1];a.sex='F';b.sex='M';
  a.g.brood=8;b.g.brood=8;a.energy=b.energy=200;
  a.age=b.age=100;
  for(const u of [a,b]){u.g.r=7;u.g.alleles.r=[4,10];u.g.diet=.5;u.g.alleles.diet=[.1,.9];u.g.eyes=6;u.g.alleles.eyes=[2,6];}
