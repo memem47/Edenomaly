@@ -387,7 +387,7 @@ export class Ecosystem{
   }
  }
  reset(){
-  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.stress=15;this.rainfall=25;
+  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;
   this.setupTerrain();
   this.grass=new Float32Array(this.tiles.length);
   this.water=new Float32Array(this.tiles.length);
@@ -402,8 +402,21 @@ export class Ecosystem{
   this.log('info','生命は未移入。種類数を選んでフィールドへ生命を移入してください');this.snapshot();
  }
  snapshot(){this.history.push({population:this.units.length,eggs:this.eggs.length,food:this.grass.reduce((a,b)=>a+b,0)+this.waterweed.reduce((a,b)=>a+b,0),corpses:this.corpses.length});if(this.history.length>180)this.history.shift();}
+ updateWeather(){
+  // Deterministic climate phases; rain frequency follows the rain slider.
+  if(this.tick>=this.weatherUntil){
+   const roll=this.rand(),rainChance=clamp(this.rainfall/100*.65,0,.65);
+   this.weather=roll<rainChance?'rain':roll<rainChance+.40?'cloudy':'sunny';
+   this.weatherStrength=this.weather==='rain'?clamp(this.rainfall/100,.1,1):0;
+   this.weatherUntil=this.tick+160+Math.floor(this.rand()*180);
+   this.log('info','天候：'+({rain:'雨',cloudy:'曇り',sunny:'晴れ'}[this.weather]));
+  }
+  if(this.weather==='rain'&&this.rainfall>0&&this.tick%30===0)
+   this.replenishWater(1.8*this.weatherStrength);
+ }
  step(){
   this.tick++;
+  this.updateWeather();
   // Map resources are finite. Grass regrows only from living adjacent patches,
   // so complete overgrazing cannot recover without intervention.
   if(this.tick%6===0){
@@ -764,6 +777,7 @@ export class Ecosystem{
  }
  rain(){
   this.growth=90;this.stress=8;
+  this.weather='rain';this.weatherStrength=Math.max(.7,this.rainfall/100);this.weatherUntil=this.tick+150;
   const restored=this.replenishWater(55);
   this.log('info','降雨：'+restored+' マスの既存水場が復活した');
  }
