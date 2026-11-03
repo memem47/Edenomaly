@@ -60,6 +60,18 @@ export const morphology=g=>{
 // Nutrition-derived growth changes physical performance without changing inherited genes.
 export const organismMorphology=u=>morphology({...u.g,r:u.g.r*(u.growthScale??1)});
 export const MAX_NUTRITION_GROWTH=2.35;
+// Collision geometry follows the actual drawn ellipse, including adult growth.
+// Treats infants as smaller bodies; collisions are soft, not rigid-body physics.
+export const bodyCollisionAxes=u=>{
+ const scale=(u.stage==='juvenile'?.55:1)*(u.growthScale??1)*(1-clamp(((u.age??0)-420)/900,0,1)*.12);
+ const ry=Math.max(2,u.g.r*scale*1.06);
+ return {rx:ry*Math.max(1,Math.min(3,u.g.elongation??1)),ry};
+};
+const ellipseExtent=(u,axes,nx,ny)=>{
+ const a=u.angle??0,cos=Math.cos(a),sin=Math.sin(a);
+ const lx=nx*cos+ny*sin,ly=-nx*sin+ny*cos;
+ return 1/Math.sqrt((lx/axes.rx)**2+(ly/axes.ry)**2);
+};
 const distance=(a,b)=>(a.x-b.x)**2+(a.y-b.y)**2;
 // Health and senescence directly affect movement, fighting and mating.
 export const vitality=u=>{
@@ -734,12 +746,71 @@ export class Ecosystem{
    }
    if(u.hp<=0)this.die(u,u.infection>0?'感染症':'環境衰弱');else if(u.energy<=0)this.die(u,'飢餓');else if(u.age>1500)this.die(u,'寿命');
   }
+  this.resolveUnitOverlap();
   this.updateCourtships();
   this.units=this.units.filter(u=>!u.dead);this.eggs=this.eggs.filter(e=>!e.dead);
   for(const trail of this.eggTrails)trail.age++;
   this.eggTrails=this.eggTrails.filter(t=>t.age<t.life);
   if(this.tick%20===0)this.snapshot();
   if(this.tick%160===0&&this.units.length===0)this.log('info','全個体が絶滅。生命を移入できます');
+ }
+ resolveUnitOverlap(){
+  const units=this.units.filter(u=>!u.dead);
+  if(units.length<2)return;
+  const cellSize=48,softness=.88,iterations=3;
+  const geometry=new Map(),byId=new Map();
+  let maxAxis=0;
+  for(const u of units){
+   const axes=bodyCollisionAxes(u);
+   geometry.set(u.id,{...axes,max:axes.rx,mass:Math.max(1,axes.rx*axes.ry)});
+   byId.set(u.id,u);maxAxis=Math.max(maxAxis,axes.rx);
+  }
+  // Only physically neighboring organisms are tested. Grid is refreshed after
+  // each correction pass so displaced individuals cannot miss new neighbors.
+  const canStand=(u,x,y)=>terrainFitness(u.g,this.terrain(x,y)).passable;
+  const move=(u,dx,dy)=>{
+   const x=clamp(u.x+dx,7,W-7),y=clamp(u.y+dy,7,H-7);
+   if(canStand(u,x,y)){u.x=x;u.y=y;return;}
+   // Sliding along a shore is preferable to pushing an amphibious boundary.
+   if(canStand(u,x,u.y))u.x=x;
+   if(canStand(u,u.x,y))u.y=y;
+  };
+  for(let iteration=0;iteration<iterations;iteration++){
+   const grid=new Map();
+   const bucket=(x,y)=>`${x},${y}`;
+   for(const u of units){
+    const key=bucket(Math.floor(u.x/cellSize),Math.floor(u.y/cellSize));
+    if(!grid.has(key))grid.set(key,[]);
+    grid.get(key).push(u);
+   }
+   let moved=false;
+   for(const u of units){
+    const cx=Math.floor(u.x/cellSize),cy=Math.floor(u.y/cellSize);
+    const g=geometry.get(u.id);
+    const range=Math.ceil((g.max+maxAxis)/cellSize);
+    for(let dy=-range;dy<=range;dy++)for(let dx=-range;dx<=range;dx++){
+     for(const v of grid.get(bucket(cx+dx,cy+dy))??[]){
+      if(v.id<=u.id)continue;
+      const h=geometry.get(v.id);
+      const vx=v.x-u.x,vy=v.y-u.y,d2=vx*vx+vy*vy;
+      if(d2>(g.max+h.max)**2)continue;
+      const d=Math.sqrt(d2);
+      // Identical coordinates must still separate deterministically.
+      const angle=d>1e-7?Math.atan2(vy,vx):((u.id*31+v.id*17)%360)*Math.PI/180;
+      const nx=Math.cos(angle),ny=Math.sin(angle);
+      const target=softness*(ellipseExtent(u,g,nx,ny)+ellipseExtent(v,h,-nx,-ny));
+      if(d>=target)continue;
+      const push=Math.min(18,(target-d)*.75);
+      const total=g.mass+h.mass;
+      const ux=u.x,uy=u.y,vx0=v.x,vy0=v.y;
+      move(u,-nx*push*h.mass/total,-ny*push*h.mass/total);
+      move(v,nx*push*g.mass/total,ny*push*g.mass/total);
+      if(u.x!==ux||u.y!==uy||v.x!==vx0||v.y!==vy0)moved=true;
+     }
+    }
+   }
+   if(!moved)break;
+  }
  }
  paint(x,y,type,radius){
   const cx=Math.floor(x/CELL),cy=Math.floor(y/CELL);
