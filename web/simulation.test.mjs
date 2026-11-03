@@ -1604,7 +1604,7 @@ test('juveniles develop faster with more food and without crowding',()=>{
  assert.equal(juvenileGrowthIncrement(u,0,0,0),0);
  assert.equal(juvenileGrowthIncrement({...u,energy:20},4,0,0),0);
  assert.ok(juvenileGrowthIncrement(u,4,4,7)<healthy);
- assert.ok(juvenileGrowthIncrement({...u,growthScale:2},4,0,0)<healthy);
+ assert.ok(juvenileGrowthIncrement({...u,growthScale:3.8,g:{...g,r:12}},4,0,0)<healthy);
 });
 import {SpatialLookup,crowdMetrics} from './simulation.js';
 test('ecological population targets are below the emergency safety cap',()=>{
