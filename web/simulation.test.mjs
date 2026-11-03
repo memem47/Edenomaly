@@ -966,3 +966,31 @@ test('albinism is rare, inherited and visually separate from a wound flash',()=>
  assert.ok(color.saturation<=8&&color.lightness>=88);
  assert.notEqual(slimeEyeColor(white),slimeEyeColor({...white,albino:0}));
 });
+
+test('rounded founders dominate while long ovals remain rare',()=>{
+ const w=new Ecosystem(2301),count={round:0,oval:0,long:0};
+ for(let i=0;i<10000;i++){
+  const v=w.gene().elongation;
+  if(v<1.38)count.round++;
+  else if(v<2.25)count.oval++;
+  else count.long++;
+ }
+ assert.ok(count.round>=7500&&count.round<=9000);
+ assert.ok(count.oval>=800&&count.oval<=2300);
+ assert.ok(count.long>50&&count.long<400);
+});
+test('elongation remains heritable and rare long forms can reproduce',()=>{
+ const w=new Ecosystem(2302),a=w.gene(),b=w.gene();
+ a.elongation=b.elongation=2.65;
+ a.alleles.elongation=b.alleles.elongation=[2.65,2.65];
+ let long=0;
+ for(let i=0;i<150;i++)if(w.recombine(a,b).elongation>2.25)long++;
+ assert.ok(long>110);
+});
+test('elongation mutations make small changes more often than large jumps',()=>{
+ const w=new Ecosystem(2303),g=w.gene();
+ g.elongation=1.05;g.alleles.elongation=[1.05,1.05];
+ let extreme=0;
+ for(let i=0;i<2000;i++)if(w.mutate(g).elongation>2.25)extreme++;
+ assert.equal(extreme,0);
+});
