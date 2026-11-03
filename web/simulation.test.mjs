@@ -1021,7 +1021,8 @@ test('mixed lineages and mixed diets still exert physical crowd pressure',()=>{
  assert.ok(pressure<=9);
  anchor.stage='adult';anchor.age=100;anchor.energy=300;
  anchor.mateCooldown=0;anchor.infection=0;anchor.crowdStress=pressure;
- assert.equal(w.isReadyToMate(anchor),false);
+ // High crowding raises metabolic and reproductive energy costs without a categorical veto.
+ assert.equal(w.isReadyToMate(anchor),true);
 });
 test('larger neighboring slimes exert stronger density load',()=>{
  const w=new Ecosystem(2403),g={...w.gene(),r:5,elongation:1,aquatic:0};
