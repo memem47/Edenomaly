@@ -618,3 +618,24 @@ test('aquatic plants need surviving plants to reproduce',()=>{
  for(let j=0;j<24;j++)w.step();
  assert.ok(w.waterweed[i]>20);
 });
+
+test('fertilizer accelerates grass propagation from surviving neighbors',()=>{
+ const run=fertilized=>{
+  const w=new Ecosystem(1503);w.tiles.fill(2);w.grass.fill(0);
+  const center=w.cell(210,150),near=center+1;
+  w.tiles[center]=0;w.grass[center]=70;
+  w.soil[near]=fertilized?70:0;w.growth=70;
+  w.rand=()=>.2;
+  for(let t=0;t<6;t++)w.step();
+  return w.grass[near];
+ };
+ assert.equal(run(false),0);assert.ok(run(true)>0);
+});
+test('dry and rocky founders inherit carnivorous traits',()=>{
+ for(const terrain of [2,3]){
+  const w=new Ecosystem(1504+terrain);w.tiles.fill(terrain);w.grass.fill(0);
+  w.introduce(200,150,1);
+  assert.ok(w.units.length>0);
+  assert.ok(w.units.every(u=>u.g.aquatic===0&&u.g.diet>=.82&&u.g.jaw>=1.2));
+ }
+});
