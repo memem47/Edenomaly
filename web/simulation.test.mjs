@@ -1768,3 +1768,19 @@ test('acquired giant shrinks in shortage rather than remaining permanently huge'
  w.step();
  assert.ok(u.growthScale<size);
 });
+
+test('hungry meat-eaters can attack similarly sized members of their own species',()=>{
+ const w=new Ecosystem(6601);
+ w.tiles.fill(0);w.grass.fill(0);w.water.fill(0);w.growth=0;w.stress=0;
+ const g={...w.gene(),aquatic:0,diet:.85,r:5,elongation:1,eyes:3,jaw:2,mouths:3};
+ const hunter=w.spawn(200,180,g),other=w.spawn(205,180,g);
+ assert.equal(hunter.category,other.category);
+ hunter.energy=35;other.energy=160;
+ hunter.age=other.age=90;
+ hunter.mateCooldown=other.mateCooldown=900;
+ hunter.hp=hunter.maxHp=1000;
+ other.hp=other.maxHp=1000;
+ w.step();
+ assert.ok(other.hp<1000);
+ assert.ok(hunter.attackFlash>0);
+});
