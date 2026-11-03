@@ -1904,3 +1904,30 @@ test('routine ecological events leave logs without flooding the world with rippl
  assert.equal(w.effects.length,1);
  assert.equal(w.effects[0].type,'death');
 });
+
+test('a crowded clutch cannot all mature without enough resources',()=>{
+ const simulate=(dense,food)=>{
+  const w=new Ecosystem(8123);
+  w.tiles.fill(food?0:2);w.grass.fill(food?100:0);
+  w.water.fill(100);w.waterbed.fill(0);w.growth=food?80:0;
+  const g={...w.gene(),aquatic:0,diet:0,r:4,elongation:1,
+   idealTemp:22,tempTolerance:18};
+  const ids=[];
+  for(let i=0;i<24;i++){
+   const x=dense?220+(i%6)*3:30+(i%6)*120;
+   const y=dense?170+Math.floor(i/6)*3:50+Math.floor(i/6)*90;
+   const u=w.spawn(x,y,g,{id:1,generation:0,lineage:1});
+   u.energy=70;u.hydration=100;ids.push(u.id);
+  }
+  for(let i=0;i<90;i++)w.step();
+  const survivors=ids.map(id=>w.units.find(u=>u.id===id)).filter(Boolean);
+  return {alive:survivors.length,adults:survivors.filter(u=>u.stage==='adult').length};
+ };
+ const separated=simulate(false,true);
+ const crowded=simulate(true,true);
+ const barren=simulate(true,false);
+ assert.equal(separated.adults,24);
+ assert.ok(crowded.adults<separated.adults);
+ assert.equal(barren.adults,0);
+ assert.ok(barren.alive<crowded.alive);
+});
