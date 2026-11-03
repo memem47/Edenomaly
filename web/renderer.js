@@ -1,5 +1,24 @@
 import {WORLD,TERRAIN_COLORS,dietProfile,vitality} from './simulation.js';
 const TAU=Math.PI*2;
+// Angles are measured around the rim of a top-down oval; +X is forward.
+// Predators look forward, herbivores to either side, and many-eyed slimes all around.
+export function slimeEyeAngles(g){
+ const count=Math.max(0,Math.min(6,Math.trunc(g.eyes??0)));
+ if(count===0)return [];
+ if(count>=5)return Array.from({length:count},(_,i)=>TAU*i/count);
+ const diet=g.diet??.5;
+ if(diet>.7){
+  return Array.from({length:count},(_,i)=>count===1?0:(i/(count-1)-.5)*1.12);
+ }
+ if(diet<.3){
+  return Array.from({length:count},(_,i)=>{
+   const side=i%2===0?-1:1;
+   const row=Math.floor(i/2);
+   return side*(Math.PI/2)+(row?side*.28:0);
+  });
+ }
+ return Array.from({length:count},(_,i)=>count===1?0:(i/(count-1)-.5)*Math.PI*1.6);
+}
 export function drawWorld(ctx,s,showEffects=true,selected=null){
  const {cell,columns,rows,width,height}=WORLD;
  // Bright, layered handheld-console-style terrain, drawn procedurally.
@@ -100,28 +119,31 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   ctx.ellipse(u.x+2,u.y+halfW*.62,Math.max(3,halfL*.8),Math.max(2,halfW*.35),u.angle,0,TAU);ctx.fill();ctx.restore();
   ctx.save();ctx.translate(u.x,u.y);ctx.rotate(u.angle);
   const blobPhase=s.tick*.11+(u.id||0);
-  const wobble=dead?0:Math.sin(blobPhase*1.35)*.10;
-  const rx=halfL*.82*(1+wobble*.55),ry=halfW*1.2*(1-wobble*.40);
+  // A mathematically exact circle or ellipse, with a tiny whole-body squash.
+  const squash=dead?0:Math.sin(blobPhase*1.35)*.032;
+  const aspect=Math.max(1,Math.min(3,g.elongation??1));
+  const rx=halfW*1.06*aspect*(1+squash);
+  const ry=halfW*1.06*(1-squash);
   const sat=Math.min(100,Math.max(28,g.saturation*(1-life.old*.42)+12));
   const light=Math.min(85,Math.max(38,g.lightness+8));
   const base=u.woundFlash?'#fff0e2':`hsl(${g.hue},${sat}%,${light}%)`;
   const outline=`hsl(${g.hue},${Math.max(30,sat-8)}%,${Math.max(19,light-29)}%)`;
-  // Strict oval with brighter upper glow and deeper bottom shadow.
-  const shine=ctx.createRadialGradient(-rx*.38,-ry*.46,0,0,ry*.2,Math.max(rx,ry)*1.5);
-  shine.addColorStop(0,'rgba(255,255,255,.82)');
-  shine.addColorStop(.38,base);
+  const shine=ctx.createRadialGradient(-rx*.38,-ry*.42,0,0,0,Math.max(rx,ry)*1.45);
+  shine.addColorStop(0,'rgba(255,255,255,.68)');
+  shine.addColorStop(.36,base);
   shine.addColorStop(1,outline);
   ctx.fillStyle=shine;ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.fill();
   ctx.strokeStyle=outline;ctx.lineWidth=1.6;ctx.stroke();
-  ctx.fillStyle='rgba(255,255,255,.65)';ctx.beginPath();ctx.ellipse(-rx*.35+Math.sin(blobPhase*.85)*(dead?0:ry*.09),-ry*.38,rx*.26,ry*.13,-.4,0,TAU);ctx.fill();
-  ctx.fillStyle='rgba(255,255,255,.28)';ctx.beginPath();ctx.ellipse(-rx*.39,-ry*.15,rx*.10,ry*.055,-.5,0,TAU);ctx.fill();
-  for(let i=0;i<Math.min(g.eyes,6);i++){
-   const ex=rx*(.12+(i%3)*.22)+(dead?0:Math.sin(blobPhase*.73+i*.4)*ry*.045),ey=ry*(-.36+Math.floor(i/3)*.4)+(dead?0:Math.cos(blobPhase*.83+i*.4)*ry*.045),er=Math.max(1.6,ry*.22);
-   ctx.fillStyle='white';ctx.beginPath();ctx.arc(ex,ey,er,0,TAU);ctx.fill();
-   ctx.fillStyle='#283449';ctx.beginPath();ctx.arc(ex+er*.2,ey,er*.45,0,TAU);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.36)';ctx.beginPath();
+  ctx.ellipse(-rx*.30,-ry*.36,rx*.21,ry*.10,-.35,0,TAU);ctx.fill();
+  // Eyes are small single-color spots anchored to the SIDE EDGE, not the top.
+  // No sclera, pupil highlights, or visible mouth: food is engulfed by moving forward.
+  const eyes=slimeEyeAngles(g),eyeRadius=Math.max(1.2,Math.min(3.6,ry*.19));
+  ctx.fillStyle=dead?'#4a4b59':'#142b46';
+  for(const angle of eyes){
+   const ex=rx*.91*Math.cos(angle),ey=ry*.91*Math.sin(angle);
+   ctx.beginPath();ctx.arc(ex,ey,eyeRadius,0,TAU);ctx.fill();
   }
-  ctx.strokeStyle='#65405e';ctx.lineWidth=Math.max(1.5,ry*.12);ctx.beginPath();ctx.arc(rx*.4,ry*.27,Math.max(2,ry*.24),.1,Math.PI-.1);ctx.stroke();
-  if(u.bite>0){ctx.fillStyle='#703b55';ctx.beginPath();ctx.ellipse(rx*.47,ry*.28,ry*.20,ry*.23,0,0,TAU);ctx.fill();}
   if(!dead&&u===selected){ctx.strokeStyle='white';ctx.beginPath();ctx.ellipse(0,0,rx+7,ry+7,0,0,TAU);ctx.stroke();}
   ctx.restore();
   if(dead)ctx.restore();
