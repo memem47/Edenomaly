@@ -65,7 +65,7 @@ export const MAX_NUTRITION_GROWTH=2.35;
 // Heritable body size is already reflected in morphology.upkeep.
 export const acquiredSizeMaintenance=u=>{
  const scale=Math.max(1,u.growthScale??1);
- return 2.4*(scale**3-1);
+ return 1.85*(scale**3-1);
 };
 export const feedingCapacity=u=>{
  const scale=Math.max(1,u.growthScale??1);
