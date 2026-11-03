@@ -573,6 +573,7 @@ export class Ecosystem{
   if(this.tiles[i]!==1||this.water[i]<=0)return 0;
   const taken=Math.min(this.waterweed[i],amount);
   this.waterweed[i]-=taken;
+   if(taken>0)this.soil[i]=Math.max(0,this.soil[i]-taken*.05);
   if(this.waterweed[i]<.001)this.waterweed[i]=0;
   return taken;
  }
@@ -593,6 +594,7 @@ export class Ecosystem{
   if(this.tiles[i]!==0)return 0;
   const taken=Math.min(this.grass[i],amount);
   this.grass[i]-=taken;
+   if(taken>0)this.soil[i]=Math.max(0,this.soil[i]-taken*.12);
   // An exhausted pasture becomes bare ground until grass spreads in again.
   if(this.grass[i]<=.001){this.grass[i]=0;this.tiles[i]=2;}
   return taken;
@@ -664,6 +666,7 @@ export class Ecosystem{
   this.waterbed=new Uint8Array(this.tiles.length);
   this.soil=new Float32Array(this.tiles.length);
   this.soilWater=new Float32Array(this.tiles.length);
+   this.grazingPressure=new Float32Array(this.tiles.length);
   this.waterweed=new Float32Array(this.tiles.length);
   this.seedRainCount=0;this.waterweedSeedCount=0;this.corpseSproutCount=0;
   for(let i=0;i<this.tiles.length;i++){
@@ -751,13 +754,32 @@ export class Ecosystem{
   this.tick++;
   this.updateWeather();
   this.updateTemperature();
+  // Regrowth is suppressed by local biomass demand instead of a population threshold.
+  if(this.tick%6===0){
+   this.grazingPressure.fill(0);
+   for(const u of this.units){
+    if(u.dead)continue;
+    const diet=dietProfile(u.g);
+    if(diet.plant<.12)continue;
+    const i=this.cell(u.x,u.y);
+    this.grazingPressure[i]+=diet.plant*Math.min(3.5,Math.sqrt(organismMorphology(u).bodyMass)/6);
+   }
+  }
   // Map resources are finite. Grass regrows only from living adjacent patches,
   // so complete overgrazing cannot recover without intervention.
   if(this.tick%6===0){
    const next=this.grass.slice();
    for(let i=0;i<this.tiles.length;i++){
     if(this.tiles[i]===0&&this.grass[i]>0){
-     next[i]=Math.min(100,this.grass[i]+(2.5+this.soil[i]*.11)*this.growth/70);
+     const localGrazing=this.grazingPressure[i];
+      const productivity=clamp(.28+this.soil[i]/120,.28,1.12);
+      const regen=(1.8+this.soil[i]*.05)*this.growth/70*productivity/(1+localGrazing*.52);
+      next[i]=Math.min(100,this.grass[i]+regen);
+      if(localGrazing>2.5){
+       next[i]=Math.max(0,next[i]-Math.min(4.5,(localGrazing-2.5)*.23));
+       this.soil[i]=Math.max(0,this.soil[i]-.075*Math.min(10,localGrazing));
+       if(next[i]<.2){next[i]=0;this.tiles[i]=2;}
+      }
     }
     if(this.grass[i]<=0&&this.tiles[i]!==1&&this.tiles[i]!==3){
      const x=i%NX,y=Math.floor(i/NX);
@@ -771,7 +793,7 @@ export class Ecosystem{
     }
     // Waterweed is a separate, edible plant resource: water itself is not food.
     if(this.tiles[i]===1&&this.water[i]>0&&this.waterweed[i]>0)
-     this.waterweed[i]=Math.min(100,this.waterweed[i]+(.7+this.soil[i]*.025)*this.growth/70);
+     this.waterweed[i]=Math.min(100,this.waterweed[i]+(.55+this.soil[i]*.024)*this.growth/70/(1+this.grazingPressure[i]*.4));
     this.soil[i]*=.997;
    }
    this.grass=next;
@@ -970,7 +992,7 @@ export class Ecosystem{
    // Crowded colonies consume more energy and stop producing offspring as easily.
    u.energy-=Math.min(.85,Math.max(0,rivals-3)*.075)+congestion*.11;
    // The area burden is especially expensive for large, near-stationary bodies.
-   u.energy-=Math.min(12,habitatLoad*(1.7+Math.max(0,(u.growthScale??1)-1)*2.9));
+   u.energy-=Math.min(20,habitatLoad*(2.2+Math.max(0,(u.growthScale??1)-1)*3.5));
    u.localCrowd=relatives;
    const seekRefuge=!u.courtPartner&&!u.pregnancy&&!flight&&(pressure>1.35||relatives>7||congestion>2||habitatLoad>1.2);
    if(seekRefuge&&(this.tick+u.id)%14===0){
@@ -1104,9 +1126,9 @@ export class Ecosystem{
    const exceptional=u.growthScale>=NORMAL_NUTRITION_GROWTH;
    // Beyond ordinary adult size, food must remain abundant over time:
    // even high reserves alone cannot cause growth without active feeding.
-   const foodNeeded=exceptional?48+Math.max(0,u.growthScale-NORMAL_NUTRITION_GROWTH)*45:2.5;
-   const energyNeeded=exceptional?190:115;
-   if(u.stage==='adult'&&(u.habitatLoad??0)<.8&&u.energy>energyNeeded&&u.recentFood>foodNeeded&&u.growthScale<MAX_NUTRITION_GROWTH){
+   const foodNeeded=exceptional?58+Math.max(0,u.growthScale-NORMAL_NUTRITION_GROWTH)*55:16;
+   const energyNeeded=exceptional?205:158;
+   if(u.stage==='adult'&&(u.habitatLoad??0)<.45&&u.energy>energyNeeded&&u.recentFood>foodNeeded&&u.growthScale<MAX_NUTRITION_GROWTH){
     const baseRate=.0018+Math.min(.003,u.recentFood*.00014);
     const increment=Math.min(MAX_NUTRITION_GROWTH-u.growthScale,baseRate*(exceptional?.42:1));
     const cost=increment*(135+115*u.growthScale+(exceptional?110*u.growthScale*u.growthScale:0));
@@ -1118,6 +1140,9 @@ export class Ecosystem{
      if(maxHp>u.maxHp){u.hp+=maxHp-u.maxHp;u.maxHp=maxHp;}
     }
    }
+   // Starved organisms gradually lose their acquired oversized body mass.
+   if((u.growthScale??1)>1.03&&u.energy<85)
+    u.growthScale=Math.max(1,u.growthScale-(85-u.energy)*.000045);
    // Limit stored reserves so immobile giants cannot live on old stockpiles.
    if((u.growthScale??1)>1.05)u.energy=Math.min(u.energy,energyStorageLimit(u));
    if(u.hp<=0)this.die(u,thermal.excess>0?'気温による衰弱':u.infection>0?'感染症':'環境衰弱');else if(u.energy<=0)this.die(u,'飢餓');else if(u.age>1500)this.die(u,'寿命');
