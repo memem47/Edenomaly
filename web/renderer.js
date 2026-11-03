@@ -109,7 +109,7 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   })),...s.units]){
   const dead=!!u.corpse;
   const g=u.g,signal=dietProfile(g).signal,life=vitality(u),
-   scale=(u.stage==='juvenile'?.55:1)*(1-life.old*.12)*(dead?u.decayScale:1),
+   scale=(u.stage==='juvenile'?.55:1)*(u.growthScale??1)*(1-life.old*.12)*(dead?u.decayScale:1),
    halfL=g.r*g.elongation*scale,halfW=g.r*scale,phase=s.tick*.18+u.id;
   if(dead){ctx.save();ctx.filter='grayscale(0.82) brightness(0.73)';ctx.globalAlpha=.85;}
 
