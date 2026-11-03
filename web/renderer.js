@@ -234,6 +234,14 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
     ctx.beginPath();ctx.arc(Math.cos(a)*rx*rad,Math.sin(a)*ry*rad,Math.max(.9,Math.min(2.4,1.3+relative)),0,TAU);ctx.fill();
    }
   }
+  if(!dead&&u===selected){
+   ctx.save();ctx.rotate(-u.angle);
+   ctx.font='bold 15px system-ui';ctx.textAlign='center';
+   ctx.lineWidth=3;ctx.strokeStyle='rgba(18,31,55,.9)';
+   const symbol=u.sex==='H'?'⚥':u.sex==='F'?'♀':'♂';
+   ctx.strokeText(symbol,0,-ry-11);ctx.fillStyle='#fff';ctx.fillText(symbol,0,-ry-11);
+   ctx.restore();
+  }
   if(!dead&&u===selected){ctx.strokeStyle='white';ctx.beginPath();ctx.ellipse(0,0,rx+7,ry+7,0,0,TAU);ctx.stroke();}
   ctx.restore();
   if(dead)ctx.restore();
@@ -241,12 +249,12 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
  // Each gameplay action uses a distinct visual language; effect time is frame-based.
  if(showEffects){
   for(const fx of s.effects){
-   if(!['strike','consume','graze','waterweed','drink','scavenge'].includes(fx.type))continue;
-   const life=fx.type==='strike'?22:fx.type==='consume'?30:fx.type==='drink'?24:30;
+   if(!['strike','rivalStrike','consume','graze','waterweed','drink','scavenge'].includes(fx.type))continue;
+   const life=(fx.type==='strike'||fx.type==='rivalStrike')?22:fx.type==='consume'?30:fx.type==='drink'?24:30;
    const t=Math.min(1,fx.age/life),fade=Math.max(0,1-t);
    if(fade<=0)continue;
    ctx.save();ctx.globalAlpha=fade;ctx.lineCap='round';
-   if(fx.type==='strike'){
+   if(fx.type==='strike'||fx.type==='rivalStrike'){
     // Orange strike trajectory connects attacker to the impact briefly.
     if(Number.isFinite(fx.fromX)&&Number.isFinite(fx.fromY)){
      ctx.strokeStyle='rgba(255,185,75,.65)';
@@ -254,7 +262,7 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
      ctx.beginPath();ctx.moveTo(fx.fromX,fx.fromY);ctx.lineTo(fx.x,fx.y);ctx.stroke();
     }
     // Sharp, warm impact burst plus outward shock ring.
-    ctx.strokeStyle='#ff633d';ctx.lineWidth=3.6*(1-t)+1;
+    ctx.strokeStyle=fx.type==='rivalStrike'?'#e244c5':'#ff633d';ctx.lineWidth=3.6*(1-t)+1;
     ctx.beginPath();ctx.arc(fx.x,fx.y,4+t*17,0,TAU);ctx.stroke();
     ctx.strokeStyle='#fff0a8';ctx.lineWidth=2.2*(1-t)+.4;
     for(let i=0;i<5;i++){const a=TAU*i/5;const inner=6+t*7,outer=inner+7*(1-t);
@@ -310,6 +318,6 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   }
   ctx.stroke();ctx.restore();
  }
- if(showEffects){const colors={birth:'#91f7ac',death:'#ff8290',meal:'#f9d36b',pred:'#be82ec',new:'#ffe486',decay:'#e2b96e',mate:'#f5a5ed',egg:'#efd6a4',hatch:'#95eec2',eggeaten:'#f7818d'};for(const f of s.effects){if(['strike','consume','graze','waterweed','drink','scavenge'].includes(f.type))continue;ctx.save();ctx.globalAlpha=Math.max(0,1-f.age/35);ctx.strokeStyle=colors[f.type]||'#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(f.x,f.y,5+f.age*.65,0,TAU);ctx.stroke();ctx.restore();}}
+ if(showEffects){const colors={rival:'#e244c5',birth:'#91f7ac',death:'#ff8290',meal:'#f9d36b',pred:'#be82ec',new:'#ffe486',decay:'#e2b96e',mate:'#f5a5ed',egg:'#efd6a4',hatch:'#95eec2',eggeaten:'#f7818d'};for(const f of s.effects){if(['strike','consume','graze','waterweed','drink','scavenge'].includes(f.type))continue;ctx.save();ctx.globalAlpha=Math.max(0,1-f.age/35);ctx.strokeStyle=colors[f.type]||'#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(f.x,f.y,5+f.age*.65,0,TAU);ctx.stroke();ctx.restore();}}
 }
 export function drawChart(ctx,history){const w=ctx.canvas.width,h=ctx.canvas.height;ctx.fillStyle='#172731';ctx.fillRect(0,0,w,h);if(history.length<2)return;for(const [k,color] of [['population','#77dc9a'],['food','#e6c56a'],['corpses','#bc8ed6']]){const max=Math.max(1,...history.map(d=>d[k]))*1.12;ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();history.forEach((d,i)=>{const x=i/(history.length-1)*w,y=h-6-d[k]/max*(h-14);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();}}
