@@ -618,13 +618,16 @@ test('aquatic plants supply energy without consuming water as food',()=>{
  assert.ok(u.energy>25);assert.ok(w.waterweed[i]<weed);
  assert.ok(w.water[i]>water-.3);
 });
-test('aquatic plants need surviving plants to reproduce',()=>{
+test('extinct aquatic vegetation can recover by rare external seeds',()=>{
  const w=new Ecosystem(1502);w.tiles.fill(1);w.water.fill(100);w.waterweed.fill(0);
- w.growth=100;for(let i=0;i<60;i++)w.step();
- assert.ok(w.waterweed.every(v=>v===0));
- const i=w.cell(210,150);w.waterweed[i]=20;
+ w.growth=100;
+ for(let i=0;i<120;i++)w.step();
+ assert.ok(w.waterweedSeedCount>0);
+ assert.ok(w.waterweed.some(v=>v>0));
+ const seeded=w.waterweed.findIndex(v=>v>0);
+ const before=w.waterweed[seeded];
  for(let j=0;j<24;j++)w.step();
- assert.ok(w.waterweed[i]>20);
+ assert.ok(w.waterweed[seeded]>before);
 });
 
 test('fertilizer accelerates grass propagation from surviving neighbors',()=>{
@@ -1122,4 +1125,44 @@ test('young corpses fade as light translucent overlays, while old remains still 
  drawWorld(ctx,w,false);
  assert.equal(w.corpses.length,1);
  assert.ok(!alpha.some(n=>n>0&&n<=.22));
+});
+
+test('isolated wet pond can regrow waterweed without a neighboring source',()=>{
+ const w=new Ecosystem(2701);w.tiles.fill(2);w.water.fill(0);w.waterweed.fill(0);
+ const i=w.cell(220,160);w.tiles[i]=1;w.water[i]=80;
+ w.growth=70;w.rand=()=>0;
+ for(let n=0;n<12;n++)w.step();
+ assert.ok(w.waterweed[i]>0);
+ assert.equal(w.waterweedSeedCount,1);
+ assert.equal(w.tiles[i],1);
+});
+test('waterweed seeds cannot germinate in dry or depleted water tiles',()=>{
+ const w=new Ecosystem(2702);w.tiles.fill(2);w.waterweed.fill(0);w.water.fill(0);
+ const dry=w.cell(220,160),empty=w.cell(240,160),shallow=w.cell(260,160);
+ w.tiles[empty]=1;w.tiles[shallow]=1;w.water[shallow]=8;
+ w.growth=100;w.rand=()=>0;
+ for(let n=0;n<72;n++)w.step();
+ assert.equal(w.waterweed[dry],0);
+ assert.equal(w.waterweed[empty],0);
+ assert.equal(w.waterweed[shallow],0);
+ assert.equal(w.waterweedSeedCount,0);
+});
+test('waterweed seed arrivals are disabled by zero vegetation growth',()=>{
+ const w=new Ecosystem(2703);w.tiles.fill(1);w.water.fill(100);w.waterweed.fill(0);
+ w.growth=0;w.rand=()=>0;
+ for(let n=0;n<120;n++)w.step();
+ assert.equal(w.waterweedSeedCount,0);
+ assert.ok(w.waterweed.every(v=>v===0));
+});
+test('rain and greater water depth improve external aquatic seed germination chance',()=>{
+ const sample=(weather,depth)=>{
+  const w=new Ecosystem(2704);w.tiles.fill(2);w.water.fill(0);w.waterweed.fill(0);
+  const i=w.cell(220,160);w.tiles[i]=1;w.water[i]=depth;
+  w.growth=70;w.weather=weather;w.weatherUntil=1e6;w.rand=()=>.007;
+  for(let n=0;n<12;n++)w.step();
+  return w.waterweed[i];
+ };
+ assert.ok(sample('rain',100)>0);
+ assert.equal(sample('sunny',100),0);
+ assert.equal(sample('rain',15),0);
 });
