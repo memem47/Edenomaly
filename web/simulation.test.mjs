@@ -1855,3 +1855,13 @@ test('life runs down slowly in a healthy habitat, faster when starved',()=>{
  const starved=lifeDrain({...u,energy:0},{temperature:22,terrain:0});
  assert.ok(starved>healthy*5);
 });
+
+test('longevity postpones physiological senescence and has no hard death age',()=>{
+ const w=new Ecosystem(8243),g=w.gene();
+ const short={g:{...g,longevity:.7},age:1000,maxHp:100,hp:100};
+ const long={g:{...g,longevity:1.9},age:1000,maxHp:100,hp:100};
+ assert.ok(vitality(long).vigor>vitality(short).vigor);
+ assert.ok(vitality(long).old<vitality(short).old);
+ const oldLong={...long,age:3300};
+ assert.ok(lifeDrain(oldLong,{temperature:long.g.idealTemp,terrain:0})>0);
+});
