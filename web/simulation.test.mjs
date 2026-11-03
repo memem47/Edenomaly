@@ -1,7 +1,7 @@
 // Run with: node --test web/simulation.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Ecosystem,morphology,organismMorphology,bodyCollisionAxes,localDensity,crowdStress,acquiredSizeMaintenance,feedingCapacity,energyStorageLimit,MAX_NUTRITION_GROWTH,adaptationColor} from './simulation.js';
+import {Ecosystem,morphology,organismMorphology,bodyCollisionAxes,localDensity,crowdStress,acquiredSizeMaintenance,feedingCapacity,energyStorageLimit,MAX_NUTRITION_GROWTH,adaptationColor,eggPredationDrive,protectiveDrive} from './simulation.js';
 import {slimeEyeAngles,slimeEyeColor,slimeEyeLocation,organismVisualState,drawWorld} from './renderer.js';
 const populated=seed=>{const s=new Ecosystem(seed);s.introduce(160,135,3);return s;};
 test('same seed creates same initial ecosystem',()=>{const a=populated(42),b=populated(42);assert.deepEqual(a.tiles,b.tiles);assert.deepEqual(a.units,b.units);});
@@ -1277,4 +1277,61 @@ test('infection, persistent wounds and attacking have distinct draw colors',()=>
  assert.ok(styles.stroke.includes('rgba(255,148,42,.92)'));
  assert.ok(styles.stroke.includes('rgba(185,44,84,.85)'));
  assert.ok(styles.fill.includes('rgba(255,92,75,.27)'));
+});
+
+test('typical eyes face forward while rare side-eye combinations persist',()=>{
+ const w=new Ecosystem(3001);
+ let forward=0,lateral=0,multi=0;
+ for(let i=0;i<6000;i++){
+  const g=w.gene();
+  if(g.eyes<2||g.eyes>4)continue;
+  multi++;
+  const angles=slimeEyeAngles(g);
+  const far=Math.max(...angles.map(a=>Math.abs(a)));
+  if(far<1.05)forward++;
+  if(far>1.50)lateral++;
+ }
+ assert.ok(forward/multi>.9);
+ assert.ok(lateral>0&&lateral/multi<.06);
+});
+test('egg hunter and protective strategies are heritable, not fixed species assignments',()=>{
+ const w=new Ecosystem(3002);
+ const g=w.gene();
+ const hunter={...g,diet:1,guard:0,jaw:1};
+ const guardian={...g,diet:0,guard:1,jaw:2.5};
+ assert.ok(eggPredationDrive(hunter)>.6);
+ assert.ok(protectiveDrive(guardian)>.6);
+ assert.ok(protectiveDrive(hunter)<.34);
+ assert.notEqual(w.category(hunter),w.category(guardian));
+ const inherited={...guardian,alleles:{...guardian.alleles,diet:[0,0],guard:[1,1],jaw:[2.5,2.5]}};
+ const child=w.recombine(inherited,inherited);
+ assert.ok(protectiveDrive(child)>.6);
+});
+test('guarding herbivore attacks a nearby egg eater to protect its clutch',()=>{
+ const w=new Ecosystem(3003);w.tiles.fill(0);w.grass.fill(100);
+ const g=w.gene();
+ const parent=w.spawn(210,200,{...g,guard:1,jaw:2.5,diet:0,r:6});
+ const predator=w.spawn(221,200,{...g,guard:0,jaw:1.0,diet:1,r:5});
+ parent.age=predator.age=90;parent.energy=predator.energy=150;
+ parent.bite=0;predator.bite=0;
+ w.eggs=[{id:4000,x:214,y:204,g:parent.g,parent:parent.id,otherParent:0,
+  generation:1,lineage:parent.lineage,age:0,hatchAt:500,energy:14,dead:false,bornTick:0,
+  birthX:214,birthY:204}];
+ const before=predator.hp;
+ w.step();
+ assert.ok(predator.hp<before,'guardian must strike approaching egg hunter');
+ assert.ok(parent.defendFlash>0);
+ assert.ok(w.logs.some(l=>l.type==='defend'));
+ assert.ok(w.eggs.some(e=>!e.dead));
+});
+test('without eggs the same herbivore does not attack harmlessly',()=>{
+ const w=new Ecosystem(3004);w.tiles.fill(0);w.grass.fill(100);
+ const g=w.gene();
+ const parent=w.spawn(210,200,{...g,guard:1,jaw:2.5,diet:0,r:6});
+ const predator=w.spawn(220,200,{...g,guard:0,jaw:1,diet:1,r:5});
+ parent.age=predator.age=90;parent.energy=predator.energy=150;
+ const before=predator.hp;
+ w.step();
+ assert.equal(parent.defendFlash,0);
+ assert.equal(predator.hp,before);
 });
