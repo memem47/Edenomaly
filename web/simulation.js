@@ -137,13 +137,13 @@ export const rearPosition=(u,offset=0)=>({
  x:clamp(u.x-Math.cos(u.angle)*(u.g.r*u.g.elongation+5+offset),6,W-6),
  y:clamp(u.y-Math.sin(u.angle)*(u.g.r*u.g.elongation+5+offset),6,H-6)
 });
-const HERITABLE=['r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic','albino'];
-const INTEGER_GENES=new Set(['eyes','mouths','brood','aquatic','albino']);
-const LIMITS={r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1],albino:[0,1]};
+const HERITABLE=['repro','r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic','albino'];
+const INTEGER_GENES=new Set(['eyes','mouths','brood','aquatic','albino','repro']);
+const LIMITS={repro:[0,2],r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1],albino:[0,1]};
 const alleleExpression=(key,pair)=>{
  // Eyes: more-eye allele is dominant; hidden low-eye alleles can reappear in grandchildren.
  // Other continuous traits use incomplete dominance (mean of the two inherited copies).
- const raw=key==='eyes'?Math.max(...pair):key==='aquatic'?pair[0]:key==='albino'?Math.max(...pair):(pair[0]+pair[1])/2;
+ const raw=key==='repro'?Math.max(...pair):key==='eyes'?Math.max(...pair):key==='aquatic'?pair[0]:key==='albino'?Math.max(...pair):(pair[0]+pair[1])/2;
  const [lo,hi]=LIMITS[key];
  const val=clamp(INTEGER_GENES.has(key)?Math.round(raw):raw,lo,hi);
  return val;
@@ -153,6 +153,15 @@ const allelePair=(g,key)=>{
  return Array.isArray(pair)&&pair.length===2&&Math.abs(alleleExpression(key,pair)-g[key])<1e-6?pair:[g[key],g[key]];
 };
 // Strategies emerge from existing inherited diet, jaw and guarding traits.
+// 0 = separate sexes, 1 = hermaphrodite, 2 = facultative parthenogenesis.
+export const reproductiveMode=g=>Math.round(clamp(g.repro??0,0,2));
+export const sexLabel=u=>u.sex==='H'?'⚥':u.sex==='F'?'♀':'♂';
+export const sexualCompatibility=(a,b)=>{
+ if(!a||!b||a===b||a.dead||b.dead)return false;
+ const x=a.sex??'F',y=b.sex??'M';
+ return (x==='H'||y==='H'||x!==y)&&!(x==='M'&&y==='M');
+};
+export const reproductiveUpkeep=g=>reproductiveMode(g)===1?.23:reproductiveMode(g)===2?.14:0;
 export const eggPredationDrive=g=>clamp(dietProfile(g).meat*(1-.65*(g.guard??0))*(1.1-.08*(g.jaw??1)),0,1);
 export const protectiveDrive=g=>clamp((g.guard??0)*(.35+.65*clamp((g.jaw??1)/2.5,0,1)),0,1);
 export const eggTraits=g=>({
@@ -168,7 +177,7 @@ export class Ecosystem{
  cell(x,y){return clamp(Math.floor(y/CELL),0,NY-1)*NX+clamp(Math.floor(x/CELL),0,NX-1);}
  terrain(x,y){return this.tiles[this.cell(x,y)];}
  gene(){
-  const g={r:this.rand()<.15?this.range(8.5,12):this.range(3.1,7.5),
+  const g={repro:(()=>{const roll=this.rand();return roll<.004?1:roll<.006?2:0;})(),r:this.rand()<.15?this.range(8.5,12):this.range(3.1,7.5),
    elongation:(()=>{const roll=this.rand();
     return roll<.82?this.range(.94,1.16):roll<.98?this.range(1.43,2.04):this.range(2.35,2.83);
    })(),eyes:(()=>{const roll=this.rand();return roll<.08?0:roll<.36?1:roll<.71?2:roll<.90?3:roll<.975?4:roll<.995?5:6;})(),
@@ -183,7 +192,8 @@ export class Ecosystem{
   g.alleles={};
   for(const key of HERITABLE){
    let second=g[key];
-   if(key==='elongation')second=clamp(g.elongation+this.range(-.11,.11),...LIMITS.elongation);
+   if(key==='repro')second=0;
+    else if(key==='elongation')second=clamp(g.elongation+this.range(-.11,.11),...LIMITS.elongation);
    else if(key==='albino')second=0;
    else if(key==='aquatic'&&this.rand()<.14)second=1-g.aquatic;
    else if(key==='eyes'&&this.rand()<.82)second=Math.max(0,g.eyes-1-Math.floor(this.rand()*3));
@@ -207,10 +217,12 @@ export class Ecosystem{
    const key=HERITABLE[Math.floor(this.rand()*HERITABLE.length)];
    // Do not let the generic mutation path make albinos common.
    if(key==='albino'&&this.rand()<.93)continue;
+    if(key==='repro'&&this.rand()<.95)continue;
    const index=this.rand()<.5?0:1;
    const [lo,hi]=LIMITS[key],width=hi-lo;
    let value=next.alleles[key][index];
-   if(key==='aquatic')value=1-value;
+   if(key==='repro')value=this.rand()<.5?1:2;
+    else if(key==='aquatic')value=1-value;
    else if(key==='albino')value=1-value;
    else if(key==='elongation')value+=this.rand()<.85?this.range(-.13,.08):this.range(-.20,.24);
    else if(INTEGER_GENES.has(key))value+=this.rand()<.5?-1:1;
@@ -263,7 +275,7 @@ export class Ecosystem{
   const strategy=protectiveDrive(g)>.52?'guardian':eggPredationDrive(g)>.62?'egg-hunter':'general';
   // Habitat is a functional trait, not just a difference in appearance.
   const habitat=g.aquatic===1?'aquatic':g.dry>=.70&&g.dry>g.rock+.10?'dry':g.rock>=.70&&g.rock>g.dry+.10?'rock':'land';
-  return [habitat,diet,body,shape,eyes,strategy].join('-');
+  return [habitat,diet,body,shape,eyes,strategy,'repro'+reproductiveMode(g)].join('-');
  }
  name(n){return PREFIX[(n*7+2)%PREFIX.length]+SUFFIX[(n*3+1)%SUFFIX.length]+'-'+String(n).padStart(3,'0');}
  addVisualEffect(type,point,extra={}){
@@ -284,7 +296,9 @@ export class Ecosystem{
 
  spawn(x,y,g,parent=null){
   if(this.units.length>=155)return null;
-  const u={id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,recentFood:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null};
+  const mode=reproductiveMode(g);
+   const sex=mode===1?'H':mode===2?'F':(this.rand()<.5?'F':'M');
+   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,recentFood:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null};
   u.category=this.category(g);u.lineage??=u.id;this.units.push(u);
   if(!this.species.has(u.category)){
    const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(n),current:0,total:0,diet:dietProfile(g).label,first:this.tick,genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(n),u);
@@ -314,6 +328,11 @@ export class Ecosystem{
   }
   return best;
  }
+ canMate(a,b){
+  if(!sexualCompatibility(a,b)||!this.isReadyToMate(a)||!this.isReadyToMate(b))return false;
+  if(a.parent===b.id||b.parent===a.id)return false;
+  return true;
+ }
  isReadyToMate(u){
   return !u.dead&&u.infection===0&&(u.habitatLoad??0)<1.8&&(u.crowdStress??0)<3&&(u.localCrowd??0)<13&&u.stage==='adult'&&u.age>42&&u.energy>=58+Math.max(0,organismMorphology(u).bodyMass-100)*.22&&u.mateCooldown===0&&!u.pregnancy&&vitality(u).vigor>.35;
  }
@@ -322,7 +341,7 @@ export class Ecosystem{
   const sight=Math.max(52,organismMorphology(u).eyeRange*1.3);
   let match=null,best=sight*sight;
   for(const v of batch){
-   if(v===u||!this.isReadyToMate(v)||v.courtPartner&&v.courtPartner!==u.id)continue;
+   if(v===u||!this.canMate(u,v)||v.courtPartner&&v.courtPartner!==u.id)continue;
    // Direct parent-offspring pairing is excluded.
    if(u.parent===v.id||v.parent===u.id)continue;
    const d=distance(u,v);
@@ -332,7 +351,7 @@ export class Ecosystem{
  }
  // A pair must remain close while courting; pairing is not permanent.
  startCourtship(a,b){
-  if(!a||!b||a===b||a.courtPartner||b.courtPartner||!this.isReadyToMate(a)||!this.isReadyToMate(b))return false;
+  if(!a||!b||a===b||a.courtPartner||b.courtPartner||!this.canMate(a,b))return false;
   a.courtPartner=b.id;b.courtPartner=a.id;
   this.courtships.push({a:a.id,b:b.id,progress:0,required:24});
   this.log('court','#'+a.id+' と #'+b.id+' が求愛を開始',a);
@@ -345,7 +364,9 @@ export class Ecosystem{
  }
  // Fertilization combines both parents' genomes. The egg does not appear yet.
  conceive(parent,partner){
-  if(!partner||parent===partner||!this.isReadyToMate(parent)||!this.isReadyToMate(partner)||this.eggs.length>=360)return null;
+  if(!partner||!this.canMate(parent,partner)||this.eggs.length>=360)return null;
+  // Whichever organism can lay eggs becomes the gestating parent.
+  if(parent.sex==='M'&&partner.sex!=='M')return this.conceive(partner,parent);
   // An inherited brood-size trait trades clutch size against parental energy.
   const desired=clamp(Math.round((parent.g.brood+partner.g.brood)/2)*2+2,4,18);
   const largeParentCost=Math.max(0,organismMorphology(parent).bodyMass-100)*.18;
@@ -355,10 +376,25 @@ export class Ecosystem{
   const genomes=Array.from({length:count},()=>this.recombine(parent.g,partner.g));
   const pregnancy={genomes,parent:parent.id,otherParent:partner.id,lineage:this.rand()<.5?parent.lineage:partner.lineage,generation:Math.max(parent.generation,partner.generation)+1,remaining:25,total:25};
   parent.pregnancy=pregnancy;
-  parent.energy-=11+count*3+parent.g.nesting*3+largeParentCost;partner.energy-=8+count*1.5+Math.max(0,organismMorphology(partner).bodyMass-100)*.08;
+  const dual=reproductiveMode(parent.g)===1||reproductiveMode(partner.g)===1;
+  parent.energy-=11+count*3+parent.g.nesting*3+largeParentCost+(dual?4:0);
+  partner.energy-=8+count*1.5+Math.max(0,organismMorphology(partner).bodyMass-100)*.08;
   parent.mateCooldown=90;partner.mateCooldown=90;
   this.matings++;
   this.log('mate','#'+parent.id+' × #'+partner.id+' が交配（卵 '+count+' 個を準備）',parent);
+  return pregnancy;
+ }
+ conceiveSolo(parent){
+  if(reproductiveMode(parent.g)!==2||parent.sex!=='F'||!this.isReadyToMate(parent)||parent.energy<115||this.eggs.length>=360)return null;
+  // Few expensive eggs, with reduced recombination and no unrelated genome.
+  const count=Math.min(1+Math.floor(parent.g.brood/4),360-this.eggs.length);
+  const genomes=Array.from({length:count},()=>this.rand()<.025?this.mutate(this.recombine(parent.g,parent.g)):this.recombine(parent.g,parent.g));
+  const pregnancy={genomes,parent:parent.id,otherParent:null,lineage:parent.lineage,generation:parent.generation+1,remaining:32,total:32};
+  parent.pregnancy=pregnancy;
+  parent.energy-=25+count*11+parent.g.nesting*3;
+  parent.mateCooldown=175;
+  this.matings++;
+  this.log('mate','#'+parent.id+' が単為生殖（卵 '+count+' 個を準備）',parent);
   return pregnancy;
  }
  shoreEggSite(x,y,g){
@@ -402,7 +438,7 @@ export class Ecosystem{
    laid.push(egg);this.eggs.push(egg);
   }
   parent.pregnancy=null;
-  this.log('egg','#'+parent.id+' が '+laid.length+' 個の卵を産んだ（相手 #'+p.otherParent+'）',parent);
+  this.log('egg','#'+parent.id+' が '+laid.length+' 個の卵を産んだ（'+(p.otherParent===null?'単為生殖':'相手 #'+p.otherParent)+'）',parent);
   const tail=rearPosition(parent,0);
   this.eggTrails.push({parent:parent.id,egg:laid[0].id,x1:tail.x,y1:tail.y,x2:site.x,y2:site.y,age:0,life:38});
   return laid[0];
@@ -410,13 +446,13 @@ export class Ecosystem{
  updateCourtships(){
   for(const pair of this.courtships){
    const a=this.units.find(u=>u.id===pair.a),b=this.units.find(u=>u.id===pair.b);
-   if(!a||!b||!this.isReadyToMate(a)||!this.isReadyToMate(b)||distance(a,b)>65**2){
+   if(!a||!b||!this.canMate(a,b)||distance(a,b)>65**2){
     this.cancelCourtship(pair);pair.done=true;continue;
    }
    if(distance(a,b)<35**2)pair.progress++;
    if(pair.progress>=pair.required){
     this.cancelCourtship(pair);pair.done=true;
-    this.conceive(a,b);
+    this.conceive(a.sex==='M'?b:a,a.sex==='M'?a:b);
    }
   }
   this.courtships=this.courtships.filter(p=>!p.done);
@@ -433,26 +469,26 @@ export class Ecosystem{
  attack(hunter,prey,defensive=false){
   if(hunter===prey||hunter.dead||prey.dead||hunter.bite>0||(!defensive&&dietProfile(hunter.g).meat<=0)||(defensive&&protectiveDrive(hunter.g)<=.34))return false;
   const mm=organismMorphology(hunter),v=vitality(hunter),def=vitality(prey);
-  const damage=Math.max(2,(4+hunter.g.jaw*7+mm.bodyMass*.065)*(defensive?.65+protectiveDrive(hunter.g)*.65:dietProfile(hunter.g).meat)*v.vigor);
+  const damage=Math.max(2,(4+hunter.g.jaw*7+mm.bodyMass*.065)*(defensive==='rival'?.42:defensive?.65+protectiveDrive(hunter.g)*.65:dietProfile(hunter.g).meat)*v.vigor);
   prey.hp=Math.max(0,prey.hp-damage);
-  if(defensive){hunter.energy-=2.5;prey.bite=Math.max(prey.bite,14);}
+  if(defensive){hunter.energy-=defensive==='rival'?4:2.5;prey.bite=Math.max(prey.bite,14);}
   prey.woundFlash=14;
   hunter.bite=22;
   hunter.attackFlash=16;
-  if(defensive)hunter.defendFlash=16;
-  this.addVisualEffect('strike',prey,{fromX:hunter.x,fromY:hunter.y});
-  this.log(defensive?'defend':'attack','#'+hunter.id+(defensive?' が卵を守って #':' が #')+prey.id+' に '+Math.round(damage)+' ダメージ',prey);
+  if(defensive===true)hunter.defendFlash=16;
+  this.addVisualEffect(defensive==='rival'?'rivalStrike':'strike',prey,{fromX:hunter.x,fromY:hunter.y});
+  this.log(defensive==='rival'?'rival':defensive?'defend':'attack','#'+hunter.id+(defensive==='rival'?' が同性の #':defensive?' が卵を守って #':' が #')+prey.id+' に '+Math.round(damage)+' ダメージ',prey);
   if(prey.hp<=0){
    // A large prey supplies an exceptional meal, but the eaten tissue is
    // removed from the corpse so nutrients are never counted twice.
-   const meat=defensive?0:dietProfile(hunter.g).meat;
+   const meat=defensive===true?0:dietProfile(hunter.g).meat*(defensive==='rival'?.65:1);
    const tissue=Math.max(4,organismMorphology(prey).bodyMass*.23);
    const gained=(Math.max(5,prey.energy*.35)+tissue)*meat;
    hunter.energy+=gained;
    hunter.recentFood=(hunter.recentFood??0)+tissue*meat*1.3;
-   this.die(prey,defensive?'防衛':'捕食',tissue*meat);
+   this.die(prey,defensive==='rival'?'同性間の争い':defensive?'防衛':'捕食',tissue*meat);
    this.addVisualEffect('consume',prey);
-   this.log('pred','#'+hunter.id+' が #'+prey.id+' を捕食',prey);
+   if(meat>0)this.log('pred','#'+hunter.id+' が #'+prey.id+' を捕食',prey);
   }
   return true;
  }
@@ -813,11 +849,26 @@ export class Ecosystem{
     }else if(this.tick>=u.refugeTarget.until)u.refugeTarget=null;
    }
    const mate=u.courtPartner?batch.find(v=>v.id===u.courtPartner&&!v.dead):this.findMate(u,batch);
+    // Without an eligible partner, a well-fed parthenogen can repopulate alone.
+    if(!mate&&!u.courtPartner&&reproductiveMode(g)===2&&u.sex==='F'&&
+       u.energy>120&&(this.tick+u.id)%135===0)this.conceiveSolo(u);
+    // Competition over mates and scarce food can escalate into same-sex fighting.
+    // Peaceful cohabitation remains the default when space and nutrition suffice.
+    let rival=null;
+    if(!u.courtPartner&&!u.pregnancy&&u.stage==='adult'&&u.bite===0&&u.energy>35&&
+       (pressure>1.1||u.energy<83)&&((this.tick+u.id)%23===0)){
+     const candidates=batch.filter(v=>v!==u&&!v.dead&&v.stage==='adult'&&
+        v.sex===u.sex&&v.sex!=='H'&&v.lineage!==u.lineage&&
+        distance(u,v)<Math.min(38,sight)**2);
+     if(candidates.length&&this.rand()<Math.min(.55,.12+pressure*.12))
+      rival=candidates.reduce((best,v)=>!best||distance(u,v)<distance(u,best)?v:best,null);
+    }
    let target=prey&&pd<df*1.4?prey:nearest;
    if(nearestCorpse&&corpseDist<Math.min(df,pd)*1.35)target=nearestCorpse;
    if(mate&&(u.courtPartner||!target||u.energy>=86))target=mate;
    if(targetEgg&&ed<Math.min(df,pd)*1.15)target=targetEgg;
    if(defenderTarget&&!u.courtPartner)target=defenderTarget;
+    if(rival&&!mate&&!defenderTarget&&!flight)target=rival;
    if(u.refugeTarget&&!flight&&!u.courtPartner)target=u.refugeTarget;
    const nearFood=nearest&&distance(u,nearest)<Math.max(14,sight*.55)**2;
    const criticalWater=u.hydration<24||aquatic&&!underwater&&u.stranded>35;
@@ -847,7 +898,8 @@ export class Ecosystem{
    u.hp-=home.hazard;
    // Terrain-fit offspring retain energy and can reproduce more successfully.
    const adaptationCost=clamp(1.65-home.fitness*.75,.70,1.5);
-   u.energy-=m.upkeep*youth*adaptationCost*(1+body.old*.18)+acquiredSizeMaintenance(u)*youth*adaptationCost+(flight?.10:0)+(ownEgg?g.guard*.16:0)+this.stress*.0035+home.upkeep+(g.wet+g.dry+g.rock)*.055;
+   u.energy-=reproductiveUpkeep(g)*youth;
+    u.energy-=m.upkeep*youth*adaptationCost*(1+body.old*.18)+acquiredSizeMaintenance(u)*youth*adaptationCost+(flight?.10:0)+(ownEgg?g.guard*.16:0)+this.stress*.0035+home.upkeep+(g.wet+g.dry+g.rock)*.055;
    if(!flight&&aquatic&&underwater&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+14)**2){
     const eaten=this.consumeWaterweed(nearest.x,nearest.y,Math.min(5.5,1.3*m.foodGain*feedingCapacity(u)));
     if(eaten>0){u.energy+=eaten*6.2*diet.plant*home.fitness;
@@ -877,7 +929,9 @@ export class Ecosystem{
    if(defenderTarget&&!defenderTarget.dead&&u.bite===0&&distance(u,defenderTarget)<(m.biteReach+defenderTarget.g.r+5)**2)
     this.attack(u,defenderTarget,true);
    if(!flight&&!defenderTarget&&mate&&!u.courtPartner&&!mate.courtPartner&&distance(u,mate)<38**2)this.startCourtship(u,mate);
-   if(!flight&&diet.meat>0&&prey&&!prey.dead&&distance(u,prey)<(m.biteReach+prey.g.r)**2)this.attack(u,prey);
+   if(rival&&!flight&&!rival.dead&&distance(u,rival)<(m.biteReach+rival.g.r+3)**2)
+     this.attack(u,rival,'rival');
+    if(!flight&&diet.meat>0&&prey&&!prey.dead&&distance(u,prey)<(m.biteReach+prey.g.r)**2)this.attack(u,prey);
    const newTerrain=this.terrain(u.x,u.y);
    if(newTerrain!==u.lastTerrain){u.lastTerrain=newTerrain;this.terrainCrossings++;}
    if(u.stage==='juvenile'&&u.age>=65&&u.energy>=32){u.stage='adult';this.log('mature','#'+u.id+' が成体になった',u);}
