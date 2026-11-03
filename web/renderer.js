@@ -205,7 +205,7 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   // Predator attack flashes toward its facing direction (+X in local space).
   if(condition.attacking){
    const strength=Math.min(1,(u.attackFlash??0)/16);
-   ctx.strokeStyle='rgba(255,148,42,.92)';ctx.lineWidth=2+3*strength;
+   ctx.strokeStyle=(u.defendFlash??0)>0?'rgba(75,240,231,.93)':'rgba(255,148,42,.92)';ctx.lineWidth=2+3*strength;
    ctx.beginPath();ctx.arc(0,0,Math.max(rx,ry)+4,-.68,.68);ctx.stroke();
    ctx.fillStyle='rgba(255,245,133,.90)';
    for(const a of [-.33,.33]){
