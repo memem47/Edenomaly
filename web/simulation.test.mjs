@@ -1631,7 +1631,7 @@ test('damage mark positions vary per individual but are stable across renders',(
 
 test('soil intervention increases local fertility and can revive depleted dry land',()=>{
  const w=new Ecosystem(8661);
- w.tiles.fill(2);w.grass.fill(0);w.soil.fill(0);
+ w.tiles.fill(2);w.grass.fill(0);w.soil.fill(0);w.water.fill(0);
  const center=w.cell(200,180),stone=w.cell(240,180);
  w.tiles[stone]=3;
  const treated=w.fertilize(200,180,2);
