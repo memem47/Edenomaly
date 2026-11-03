@@ -169,10 +169,11 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   const light=g.albino===1?91:Math.min(85,Math.max(38,pigment.lightness+6));
   const base=`hsl(${pigment.hue},${sat}%,${light}%)`;
   const outline=g.albino===1?'hsl(335,15%,64%)':`hsl(${pigment.hue},${Math.max(30,sat-8)}%,${Math.max(19,light-29)}%)`;
-  const shine=ctx.createRadialGradient(-rx*.38,-ry*.42,0,0,0,Math.max(rx,ry)*1.45);
-  shine.addColorStop(0,'rgba(255,255,255,.38)');
-  shine.addColorStop(.36,base);
-  shine.addColorStop(1,outline);
+  // Simplify tiny bodies once the screen is crowded; preserve rich shading
+  // for large organisms and the selected creature.
+  const simpleBody=s.units.length>250&&Math.max(rx,ry)<18&&!dead&&u!==selected;
+  const shine=simpleBody?base:ctx.createRadialGradient(-rx*.38,-ry*.42,0,0,0,Math.max(rx,ry)*1.45);
+  if(!simpleBody){shine.addColorStop(0,'rgba(255,255,255,.38)');shine.addColorStop(.36,base);shine.addColorStop(1,outline);}
   ctx.fillStyle=dead?'#9e9788':shine;ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.fill();
   ctx.strokeStyle=dead?'#655f56':outline;ctx.lineWidth=dead?1.5:1.6;ctx.stroke();
   if(condition.hit){
