@@ -61,6 +61,18 @@ export const morphology=g=>{
 // Nutrition-derived growth changes physical performance without changing inherited genes.
 export const organismMorphology=u=>morphology({...u.g,r:u.g.r*(u.growthScale??1)});
 export const MAX_NUTRITION_GROWTH=2.35;
+// The extra cost of acquired size follows approximate tissue volume.
+// Heritable body size is already reflected in morphology.upkeep.
+export const acquiredSizeMaintenance=u=>{
+ const scale=Math.max(1,u.growthScale??1);
+ return 2.4*(scale**3-1);
+};
+export const feedingCapacity=u=>{
+ const scale=Math.max(1,u.growthScale??1);
+ return Math.min(3.8,1+1.15*(scale-1));
+};
+export const energyStorageLimit=u=>210+30*Math.max(0,(u.growthScale??1)-1);
+
 // Crowding is measured by physical proximity, regardless of kinship or diet.
 // A large nearby body occupies more shared space than a small one.
 export const localDensity=(u,neighbors)=>{
@@ -775,9 +787,9 @@ export class Ecosystem{
    u.hp-=home.hazard;
    // Terrain-fit offspring retain energy and can reproduce more successfully.
    const adaptationCost=clamp(1.65-home.fitness*.75,.70,1.5);
-   u.energy-=m.upkeep*youth*adaptationCost*(1+body.old*.18)+(flight?.10:0)+(ownEgg?g.guard*.16:0)+this.stress*.0035+home.upkeep+(g.wet+g.dry+g.rock)*.055;
+   u.energy-=m.upkeep*youth*adaptationCost*(1+body.old*.18)+acquiredSizeMaintenance(u)*youth*adaptationCost+(flight?.10:0)+(ownEgg?g.guard*.16:0)+this.stress*.0035+home.upkeep+(g.wet+g.dry+g.rock)*.055;
    if(!flight&&aquatic&&underwater&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+14)**2){
-    const eaten=this.consumeWaterweed(nearest.x,nearest.y,Math.min(2.3,1.3*m.foodGain));
+    const eaten=this.consumeWaterweed(nearest.x,nearest.y,Math.min(5.5,1.3*m.foodGain*feedingCapacity(u)));
     if(eaten>0){u.energy+=eaten*6.2*diet.plant*home.fitness;
      u.recentFood=(u.recentFood??0)+eaten*4;
      u.hp=Math.min(u.maxHp,u.hp+eaten*.2);
@@ -785,7 +797,7 @@ export class Ecosystem{
      this.log('meal','#'+u.id+' が水草を食べた',u);}
    }
    if(!flight&&!aquatic&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+13)**2){
-    const eaten=this.consumeGrass(nearest.x,nearest.y,Math.min(1.55,1.05*m.foodGain));
+    const eaten=this.consumeGrass(nearest.x,nearest.y,Math.min(4.8,1.05*m.foodGain*feedingCapacity(u)));
     if(eaten>0){u.energy+=eaten*8.8*diet.plant*home.fitness;
      u.recentFood=(u.recentFood??0)+eaten*4;
      u.seedBank=Math.min(100,(u.seedBank??0)+eaten*.35);
@@ -795,7 +807,7 @@ export class Ecosystem{
    }
    // A carnivore can also scavenge a corpse: deserts cannot support herbivores.
    if(!flight&&diet.meat>.3&&nearestCorpse&&distance(u,nearestCorpse)<(m.biteReach+14)**2&&u.energy<175){
-    const eaten=Math.min(nearestCorpse.mass,2.4*m.foodGain);
+    const eaten=Math.min(nearestCorpse.mass,2.4*m.foodGain*feedingCapacity(u));
     nearestCorpse.mass-=eaten;
     u.energy+=eaten*5.5*diet.meat;
     u.recentFood=(u.recentFood??0)+eaten*4;
@@ -822,6 +834,8 @@ export class Ecosystem{
      if(maxHp>u.maxHp){u.hp+=maxHp-u.maxHp;u.maxHp=maxHp;}
     }
    }
+   // Limit stored reserves so immobile giants cannot live on old stockpiles.
+   if((u.growthScale??1)>1.05)u.energy=Math.min(u.energy,energyStorageLimit(u));
    if(u.hp<=0)this.die(u,u.infection>0?'感染症':'環境衰弱');else if(u.energy<=0)this.die(u,'飢餓');else if(u.age>1500)this.die(u,'寿命');
   }
   this.resolveUnitOverlap();
