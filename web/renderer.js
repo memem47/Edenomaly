@@ -70,7 +70,9 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
  for(let y=0;y<height;y+=cell){ctx.moveTo(0,y);ctx.lineTo(width,y);}
  ctx.stroke();
 
- // Corpses share the creature renderer, preserving the inherited oval proportions and eyes.
+ // Bodies leave nutrients for a long time, but their silhouettes fade quickly.
+ // Do not render old resource corpses as opaque black stains.
+ // Corpses share inherited body shape and eye positions.
  // Courtship: a living couple is joined by a conspicuous animated magenta bond.
  for(const pair of s.courtships){
   const a=s.units.find(u=>u.id===pair.a),b=s.units.find(u=>u.id===pair.b);
@@ -102,16 +104,16 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   if(prog>.75){ctx.strokeStyle='#754765';ctx.beginPath();ctx.moveTo(-2,-3);ctx.lineTo(0,-1);ctx.lineTo(-1,2);ctx.stroke();}
   ctx.restore();
  }
- for(const u of [...s.corpses.map(c=>({
+ for(const u of [...s.corpses.filter(c=>c.age<135&&c.mass>0).map(c=>({
    id:-1,x:c.x,y:c.y,angle:c.angle,g:c.g,age:c.deathAge,
-   stage:c.stage,dead:true,corpse:true,bite:0,woundFlash:0,fleeing:false,
-   decayScale:Math.max(.50,Math.sqrt(c.mass/c.initialMass))
+   stage:c.stage,dead:true,corpse:true,corpseAge:c.age,growthScale:c.growthScale??1,bite:0,woundFlash:0,fleeing:false,
+   decayScale:Math.max(.24,Math.sqrt(Math.max(0,c.mass/c.initialMass)))
   })),...s.units]){
   const dead=!!u.corpse;
   const g=u.g,signal=dietProfile(g).signal,life=vitality(u),
    scale=(u.stage==='juvenile'?.55:1)*(u.growthScale??1)*(1-life.old*.12)*(dead?u.decayScale:1),
    halfL=g.r*g.elongation*scale,halfW=g.r*scale,phase=s.tick*.18+u.id;
-  if(dead){ctx.save();ctx.filter='grayscale(0.82) brightness(0.73)';ctx.globalAlpha=.85;}
+  if(dead){ctx.save();ctx.filter='grayscale(0.65) brightness(1.12)';ctx.globalAlpha=.50*Math.max(0,1-(u.corpseAge??0)/135);}
 
   if(u.courtPartner||u.pregnancy){
    ctx.save();ctx.strokeStyle=u.pregnancy?'#ffe59b':'#ff93e9';ctx.lineWidth=2.5;
@@ -120,8 +122,11 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
    if(u.pregnancy){const v=1-u.pregnancy.remaining/u.pregnancy.total;ctx.beginPath();ctx.arc(u.x,u.y,Math.max(13,g.r*g.elongation+8)+4,-Math.PI/2,-Math.PI/2+TAU*v);ctx.stroke();}else{ctx.beginPath();ctx.arc(u.x,u.y,Math.max(13,g.r*g.elongation+8)+3,0,TAU);ctx.stroke();}ctx.restore();
   }
   // Ground shadow gives every slime some separation from the bright terrain.
-  ctx.save();ctx.fillStyle='rgba(29,42,75,.22)';ctx.beginPath();
-  ctx.ellipse(u.x+2,u.y+halfW*.62,Math.max(3,halfL*.8),Math.max(2,halfW*.35),u.angle,0,TAU);ctx.fill();ctx.restore();
+  if(!dead){
+   ctx.save();ctx.fillStyle='rgba(29,42,75,.075)';ctx.beginPath();
+   ctx.ellipse(u.x+1.5,u.y+Math.min(halfW*.40,10),Math.max(2,Math.min(halfL*.48,20)),Math.max(1.5,Math.min(halfW*.20,6)),u.angle,0,TAU);
+   ctx.fill();ctx.restore();
+  }
   ctx.save();ctx.translate(u.x,u.y);ctx.rotate(u.angle);
   const blobPhase=s.tick*.11+(u.id||0);
   // A mathematically exact circle or ellipse, with a tiny whole-body squash.
@@ -141,12 +146,13 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   ctx.strokeStyle=outline;ctx.lineWidth=1.6;ctx.stroke();
   ctx.fillStyle='rgba(255,255,255,.36)';ctx.beginPath();
   ctx.ellipse(-rx*.30,-ry*.36,rx*.21,ry*.10,-.35,0,TAU);ctx.fill();
-  // Eyes are small single-color spots anchored to the SIDE EDGE, not the top.
-  // No sclera, pupil highlights, or visible mouth: food is engulfed by moving forward.
+  // Solid-colored, body-harmonized eyes, set inside the oval rather than on the rim.
+  // No sclera or mouth: these slimes eat by enveloping food.
   const eyes=slimeEyeAngles(g),eyeRadius=Math.max(1.2,Math.min(3.6,ry*.19));
-  ctx.fillStyle=dead?'#4a4b59':'#142b46';
+  const eyeHue=(g.hue+115+(Math.round(g.eyes*17)+Math.round(g.jaw*29))%110)%360;
+  ctx.fillStyle=dead?'#77707e':`hsl(${eyeHue},${Math.min(85,Math.max(45,g.saturation))}%,${Math.max(21,Math.min(35,g.lightness*.52))}%)`;
   for(const angle of eyes){
-   const ex=rx*.91*Math.cos(angle),ey=ry*.91*Math.sin(angle);
+   const ex=rx*.70*Math.cos(angle),ey=ry*.70*Math.sin(angle);
    ctx.beginPath();ctx.arc(ex,ey,eyeRadius,0,TAU);ctx.fill();
   }
   if(!dead&&u===selected){ctx.strokeStyle='white';ctx.beginPath();ctx.ellipse(0,0,rx+7,ry+7,0,0,TAU);ctx.stroke();}
