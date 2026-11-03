@@ -410,7 +410,7 @@ export class Ecosystem{
  isReadyToMate(u){
   const thermal=thermalFitness(u.g,this.temperatureAt(u.x,u.y));
   if(!thermal.reproduction)return false;
-  return !u.dead&&u.infection===0&&u.stage==='adult'&&u.age>42&&u.energy>=58+Math.max(0,organismMorphology(u).bodyMass-100)*.22+(u.crowdStress??0)*2.4+(u.habitatLoad??0)*3.2&&u.mateCooldown===0&&!u.pregnancy&&vitality(u).vigor>.35;
+  return !u.dead&&u.infection===0&&u.stage==='adult'&&u.age>42&&u.energy>=68+Math.max(0,organismMorphology(u).bodyMass-100)*.22+(u.crowdStress??0)*3.1+(u.habitatLoad??0)*4.2&&u.mateCooldown===0&&!u.pregnancy&&vitality(u).vigor>.35;
  }
  findMate(u,batch){
   if(!this.isReadyToMate(u))return null;
@@ -446,14 +446,14 @@ export class Ecosystem{
   // An inherited brood-size trait trades clutch size against parental energy.
   const desired=clamp(Math.round((parent.g.brood+partner.g.brood)/2)*2+2,4,18);
   const largeParentCost=Math.max(0,organismMorphology(parent).bodyMass-100)*.18;
-  const affordable=clamp(Math.floor((Math.min(parent.energy,220)-22-largeParentCost)/3),1,18);
+  const affordable=clamp(Math.floor((Math.min(parent.energy,220)-55-largeParentCost)/7),1,18);
   const count=Math.min(desired,affordable,2500-this.eggs.length);
   if(count<1)return null;
   const genomes=Array.from({length:count},()=>this.recombine(parent.g,partner.g));
   const pregnancy={genomes,parent:parent.id,otherParent:partner.id,lineage:this.rand()<.5?parent.lineage:partner.lineage,generation:Math.max(parent.generation,partner.generation)+1,remaining:25,total:25};
   parent.pregnancy=pregnancy;
   const dual=reproductiveMode(parent.g)===1||reproductiveMode(partner.g)===1;
-  parent.energy-=11+count*3+parent.g.nesting*3+largeParentCost+(dual?4:0);
+  parent.energy-=16+count*5+parent.g.nesting*3+largeParentCost+(dual?4:0);
   partner.energy-=8+count*1.5+Math.max(0,organismMorphology(partner).bodyMass-100)*.08;
   parent.mateCooldown=90;partner.mateCooldown=90;
   this.matings++;
@@ -938,7 +938,13 @@ export class Ecosystem{
    }
   let prey=null,pd=sight*sight;
    if(m.predatory&&u.bite===0)for(const v of near){
-    if(v===u||v.dead||v.id===u.courtPartner||organismMorphology(v).bodyMass>m.bodyMass*m.edibleRatio)continue;
+    if(v===u||v.dead||v.id===u.courtPartner)continue;
+     const preyMass=organismMorphology(v).bodyMass;
+     // Under famine, capable predators risk attacking similarly sized
+     // conspecifics; successful attacks yield calories, not free biomass.
+     const hungry=u.energy<65&&diet.meat>.24;
+     const cannibal=hungry&&v.category===u.category;
+     if(preyMass>m.bodyMass*(cannibal?1.15:m.edibleRatio))continue;
     const d=distance(u,v);if(d<pd){pd=d;prey=v;}
    }
    // Prey respond to the perceived, visible feeding signal, not hidden genome.
@@ -1115,7 +1121,9 @@ export class Ecosystem{
    if(!flight&&!defenderTarget&&mate&&!u.courtPartner&&!mate.courtPartner&&distance(u,mate)<38**2)this.startCourtship(u,mate);
    if(rival&&!flight&&!rival.dead&&distance(u,rival)<(m.biteReach+rival.g.r+3)**2)
      this.attack(u,rival,'rival');
-    if(!flight&&diet.meat>0&&prey&&!prey.dead&&distance(u,prey)<(m.biteReach+prey.g.r)**2)this.attack(u,prey);
+    if(!flight&&diet.meat>0&&prey&&!prey.dead&&distance(u,prey)<(m.biteReach+prey.g.r)**2){
+     this.attack(u,prey);
+    }
    const newTerrain=this.terrain(u.x,u.y);
    if(newTerrain!==u.lastTerrain){u.lastTerrain=newTerrain;this.terrainCrossings++;}
    if(u.stage==='juvenile'&&u.age>=65&&u.energy>=32){u.stage='adult';this.log('mature','#'+u.id+' が成体になった',u);}
