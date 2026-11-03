@@ -28,6 +28,14 @@ export function slimeEyeColor(g){
 export function slimeEyeLocation(angle,rx,ry){
  return {x:rx*.70*Math.cos(angle),y:ry*.70*Math.sin(angle)};
 }
+export function organismVisualState(u){
+ const hp=Math.max(0,Math.min(1,(u.hp??1)/Math.max(1,u.maxHp??1)));
+ return {infected:!u.dead&&(u.infection??0)>0,
+  attacking:!u.dead&&(u.attackFlash??0)>0,
+  injured:!u.dead&&hp<.75,
+  injurySeverity:Math.max(0,Math.min(1,(.75-hp)/.75)),
+  hit:!u.dead&&(u.woundFlash??0)>0};
+}
 export function drawWorld(ctx,s,showEffects=true,selected=null){
  const {cell,columns,rows,width,height}=WORLD;
  // Bright, layered handheld-console-style terrain, drawn procedurally.
@@ -128,6 +136,7 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
    decayScale:Math.max(.18,Math.sqrt(Math.max(0,c.mass/c.initialMass)))
   })),...s.units]){
   const dead=!!u.corpse;
+  const condition=organismVisualState(u);
   const g=u.g,signal=dietProfile(g).signal,life=vitality(u),
    scale=(u.stage==='juvenile'?.55:1)*(u.growthScale??1)*(1-life.old*.12)*(dead?u.decayScale:1),
    halfL=g.r*g.elongation*scale,halfW=g.r*scale,phase=s.tick*.18+u.id;
