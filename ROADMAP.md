@@ -288,6 +288,13 @@ An observable, evolving artificial ecosystem. The player edits terrain and resou
 - [ ] 長期的な水陸移行系統の定着率・高乾燥耐性・高岩場耐性の選択を評価
 - 注：水陸変化は簡略化した進化モデルであり、実生物の進化速度を表すものではない
 
+## 円形を主流とし、細長い個体を希少にする形態分布
+- [x] 創始個体の基本形状を円形約82%、通常の楕円約16%、細長い楕円約2%に調整
+- [x] 長さの対立遺伝子のばらつきを小さくし、円形が意図せず細長くなる確率を抑制
+- [x] 長さ遺伝子の突然変異を小さな変化中心に変更。極端に長い形態は稀に発生
+- [x] 遺伝する長い体形は保持し、交配で子孫にも伝わる
+- [x] 10,000個体の形状分布と3種類の回帰テストを確認（合計117件成功）
+
 ## コミット前の確認
 1. Run in browser and test terrain painting and restart.
 2. Observe births, deaths, meals and predation on canvas and in log.
