@@ -2092,6 +2092,22 @@ test('version upgrades discard obsolete ecology logs and never retain stale rows
 });
 
 import {seasonPalette} from './renderer.js';
+test('Japan-like seasonal targets are 35C in summer and 0C in winter at default baseline',()=>{
+ const w=new Ecosystem(9403);
+ w.baseTemperature=22;
+ const expect=[{step:300,name:'spring',temp:22},{step:900,name:'summer',temp:35},
+  {step:1500,name:'autumn',temp:19},{step:2100,name:'winter',temp:0}];
+ for(const sample of expect){
+  w.tick=sample.step;
+  assert.equal(w.seasonName(),sample.name);
+  assert.equal(w.seasonalTemperature(),sample.temp);
+ }
+ // Weather can shift the current temperature, but seasonal targets stay fixed.
+ w.tick=900;w.weather='sunny';w.updateTemperature();
+ assert.ok(w.temperature>=33&&w.temperature<=37);
+ w.tick=2100;w.weather='cloudy';w.updateTemperature();
+ assert.ok(w.temperature>=-2&&w.temperature<=2);
+});
 test('season temperatures match their visible seasons and change smoothly',()=>{
  const w=new Ecosystem(9401);
  w.weather='cloudy';w.baseTemperature=22;
