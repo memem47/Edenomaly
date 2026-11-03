@@ -396,7 +396,7 @@ test('infection resistance is inherited and has a survival cost',()=>{
  const low=w.spawn(160,150,{...base,resist:0}),high=w.spawn(450,150,{...base,resist:1});
  low.infection=5;high.infection=5;
  low.energy=high.energy=200;
- w.units=[low,high];w.food=[];w.growth=0;
+ w.units=[low,high];w.food=[];w.growth=0;w.tiles.fill(2);w.grass.fill(0);w.water.fill(0);w.waterbed.fill(0);
  const l=low.hp,h=high.hp;
  w.step();assert.ok((l-low.hp)>(h-high.hp));
 });
