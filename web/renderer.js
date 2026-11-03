@@ -181,8 +181,9 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   ctx.strokeStyle='rgba(220,251,255,.67)';ctx.lineWidth=1.2;ctx.lineCap='round';
   ctx.beginPath();
   for(let i=0;i<count;i++){
-   const x=((i*137.47+s.tick*2.8+i%5*14)% (width+40))-20;
-   const y=((i*83.19+s.tick*7.2)% (height+40))-20;
+   const animation=s.visualTick??s.tick;
+   const x=((i*137.47+animation*2.8+i%5*14)% (width+40))-20;
+   const y=((i*83.19+animation*7.2)% (height+40))-20;
    const len=8+strength*8+(i%4);
    ctx.moveTo(x,y);ctx.lineTo(x-4,y+len);
   }
