@@ -2036,3 +2036,57 @@ test('crowding costs keep rising smoothly beyond former fixed upper limits',()=>
  assert.ok(crowdStress(50)>9);
  assert.ok(crowdStress(100)>crowdStress(50));
 });
+
+import {EcologyLogbook,observeEcology,ECOLOGY_LOG_KEY,ECOLOGY_LOG_INTERVAL} from './ecology-log.js';
+test('long-term ecology snapshot captures population resources and cumulative deaths',()=>{
+ const w=new Ecosystem(9931);
+ const g=w.gene();w.spawn(210,160,g);
+ const u=w.spawn(230,180,g);
+ w.die(u,'飢餓');
+ const row=observeEcology(w);
+ assert.equal(row.population,1);
+ assert.equal(row.births,2);
+ assert.equal(row.deaths,1);
+ assert.equal(row.deathStarvation,1);
+ assert.ok(row.grass>0);
+ assert.ok(row.water>0);
+ assert.equal(row.step,0);
+});
+test('long-term ecology log stores regular steps, distinct runs and csv columns',()=>{
+ const values=new Map();
+ const storage={getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v)};
+ const b=new EcologyLogbook(storage,'test-1');
+ assert.equal(b.sampleCount,0);
+ const first=b.start(4);
+ assert.equal(ECOLOGY_LOG_INTERVAL,50);
+ assert.equal(b.record({step:1,population:2}),false);
+ assert.equal(b.record({step:50,population:3}),true);
+ assert.equal(b.record({step:50,population:4}),true);
+ assert.equal(b.sampleCount,1);
+ b.end({step:75,population:5});
+ const second=b.start(4);
+ b.record({step:0,population:6},true);
+ assert.notEqual(first,second);
+ assert.equal(b.sampleCount,3);
+ const csv=b.toCSV();
+ assert.ok(csv.includes('run,version,step,population'));
+ assert.ok(csv.includes('test-1,50,4'));
+ assert.ok(csv.includes('test-1,75,5'));
+ const restored=new EcologyLogbook(storage,'test-1');
+ assert.equal(restored.sampleCount,3);
+ assert.equal(restored.data.runs.length,2);
+});
+test('version upgrades discard obsolete ecology logs and never retain stale rows',()=>{
+ const values=new Map();
+ const storage={getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v)};
+ const first=new EcologyLogbook(storage,'old-code');
+ first.start(11);first.record({step:50,population:500},true);
+ const upgrade=new EcologyLogbook(storage,'new-code');
+ assert.equal(upgrade.sampleCount,0);
+ assert.equal(upgrade.data.runs.length,0);
+ assert.equal(JSON.parse(values.get(ECOLOGY_LOG_KEY)).version,'new-code');
+ upgrade.start(11);upgrade.record({step:50,population:5},true);
+ assert.ok(!upgrade.toCSV().includes('500'));
+ upgrade.clear();
+ assert.equal(new EcologyLogbook(storage,'new-code').sampleCount,0);
+});
