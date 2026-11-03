@@ -1720,3 +1720,47 @@ test('a world-edge goal does not keep the creature rotating without movement',()
  }
  assert.ok(shifted);
 });
+
+test('overgrazing slows regrowth and recovers when grazers leave',()=>{
+ const create=crowded=>{
+  const w=new Ecosystem(6201);
+  w.tiles.fill(2);w.grass.fill(0);w.water.fill(0);w.growth=70;
+  const at=w.cell(210,150);
+  w.tiles[at]=0;w.grass[at]=40;w.soil[at]=50;
+  if(crowded){
+   const g={...w.gene(),aquatic:0,diet:0,r:6,elongation:1};
+   for(let i=0;i<12;i++){const u=w.spawn(210,150,g);u.energy=80;u.mateCooldown=999;}
+  }
+  for(let i=0;i<6;i++)w.step();
+  return {w,at};
+ };
+ const open=create(false),packed=create(true);
+ assert.ok(open.w.grass[open.at]>packed.w.grass[packed.at]);
+ assert.ok(open.w.soil[open.at]>=packed.w.soil[packed.at]);
+ const before=packed.w.grass[packed.at];
+ packed.w.units=[];
+ for(let i=0;i<18;i++)packed.w.step();
+ assert.ok(packed.w.grass[packed.at]>before);
+});
+test('eating plants draws down finite soil nutrients',()=>{
+ const w=new Ecosystem(6202);w.tiles.fill(2);w.grass.fill(0);
+ const at=w.cell(210,150);
+ w.tiles[at]=0;w.grass[at]=30;w.soil[at]=55;
+ assert.ok(w.consumeGrass(210,150,7)>0);
+ assert.ok(w.soil[at]<55);
+});
+test('large inherited body sizes are possible but initially uncommon',()=>{
+ const w=new Ecosystem(6203);
+ let large=0;
+ for(let i=0;i<500;i++)if(w.gene().r>=8.5)large++;
+ assert.ok(large>0&&large<65);
+});
+test('acquired giant shrinks in shortage rather than remaining permanently huge',()=>{
+ const w=new Ecosystem(6204);
+ w.tiles.fill(2);w.grass.fill(0);w.water.fill(0);
+ const u=w.spawn(210,160,{...w.gene(),aquatic:0,diet:0});
+ u.age=100;u.growthScale=2;u.energy=30;u.mateCooldown=999;
+ const size=u.growthScale;
+ w.step();
+ assert.ok(u.growthScale<size);
+});
