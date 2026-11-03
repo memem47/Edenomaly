@@ -148,6 +148,8 @@ export class Ecosystem{
   const changes=1+(this.rand()<.28?1:0)+(this.rand()<.08?1:0);
   for(let n=0;n<changes;n++){
    const key=HERITABLE[Math.floor(this.rand()*HERITABLE.length)];
+   // Do not let the generic mutation path make albinos common.
+   if(key==='albino'&&this.rand()<.93)continue;
    const index=this.rand()<.5?0:1;
    const [lo,hi]=LIMITS[key],width=hi-lo;
    let value=next.alleles[key][index];
