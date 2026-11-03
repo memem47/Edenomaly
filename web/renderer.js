@@ -75,6 +75,11 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
    ctx.strokeStyle='#65638e';ctx.lineWidth=1;ctx.stroke();
   }
  }
+ // Seasonal palette shifts are visual-only and never change simulation RNG.
+ const season=s.climateEnabled===false?null:s.seasonName?.();
+ const seasonalTint={spring:'rgba(152,241,160,.045)',summer:'rgba(255,187,104,.065)',
+  autumn:'rgba(190,111,42,.105)',winter:'rgba(191,217,255,.14)'};
+ if(seasonalTint[season]){ctx.fillStyle=seasonalTint[season];ctx.fillRect(0,0,width,height);}
  // Weather darkens the terrain lightly without hiding organisms or map resources.
  if(s.weather==='cloudy'||s.weather==='rain'){
   ctx.fillStyle=s.weather==='rain'?'rgba(30,64,126,.13)':'rgba(50,78,107,.085)';
@@ -138,7 +143,7 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   const g=u.g,signal=dietProfile(g).signal,life=vitality(u),
    scale=(u.stage==='juvenile'?.55:1)*(u.growthScale??1)*(1-life.old*.12)*(dead?u.decayScale:1),
    halfL=g.r*g.elongation*scale,halfW=g.r*scale,phase=s.tick*.18+u.id;
-  if(dead){ctx.save();ctx.globalAlpha=.88*Math.max(.28,Math.sqrt(Math.max(0,u.corpseMass/u.corpseInitialMass)));}
+  if(dead){ctx.save();ctx.globalAlpha=.96*Math.max(.42,Math.sqrt(Math.max(0,u.corpseMass/u.corpseInitialMass)));}
 
   if(u.courtPartner||u.pregnancy){
    ctx.save();ctx.strokeStyle=u.pregnancy?'#ffe59b':'#ff93e9';ctx.lineWidth=2.5;
@@ -168,8 +173,8 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   shine.addColorStop(0,'rgba(255,255,255,.38)');
   shine.addColorStop(.36,base);
   shine.addColorStop(1,outline);
-  ctx.fillStyle=dead?'#c2cf9e':shine;ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.fill();
-  ctx.strokeStyle=dead?'#718e76':outline;ctx.lineWidth=dead?1.5:1.6;ctx.stroke();
+  ctx.fillStyle=dead?'#9e9788':shine;ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.fill();
+  ctx.strokeStyle=dead?'#655f56':outline;ctx.lineWidth=dead?1.5:1.6;ctx.stroke();
   if(condition.hit){
    ctx.fillStyle='rgba(255,92,75,.27)';ctx.fill();
    ctx.strokeStyle='rgba(255,89,65,.85)';ctx.lineWidth=2.4;ctx.stroke();
@@ -230,7 +235,7 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
    for(let i=0;i<particles;i++){
     const a=i*2.39996+(u.corpseAge??0)*.015;
     const rad=Math.sqrt((i+.5)/particles)*.78;
-    ctx.fillStyle=i%3===0?'#f8e79c':'#81d97c';
+    ctx.fillStyle=i%3===0?'#d9cf98':'#7fa07a';
     ctx.beginPath();ctx.arc(Math.cos(a)*rx*rad,Math.sin(a)*ry*rad,Math.max(.9,Math.min(2.4,1.3+relative)),0,TAU);ctx.fill();
    }
   }
@@ -301,6 +306,27 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
    ctx.restore();
   }
  }
+ // Seasonal particles: animated leaves and snow, based on time rather than RNG.
+ if(season==='autumn'||season==='winter'){
+  ctx.save();ctx.beginPath();ctx.rect(0,0,width,height);ctx.clip();
+  const animation=s.visualTick??s.tick;
+  const winter=season==='winter';
+  const count=winter?42:22;
+  for(let i=0;i<count;i++){
+   const x=((i*97.31+animation*(winter?.48:1.1))%(width+40))-20;
+   const y=((i*71.73+animation*(winter?.75:.42))%(height+30))-15;
+   ctx.beginPath();
+   if(winter){
+    ctx.fillStyle='rgba(249,253,255,.83)';
+    ctx.arc(x,y,1.2+(i%4)*.34,0,TAU);
+   }else{
+    ctx.fillStyle=['rgba(180,92,33,.7)','rgba(229,165,69,.75)','rgba(160,117,46,.65)'][i%3];
+    ctx.ellipse(x,y,3+(i%3),1.8,(i*.65+animation*.025),0,TAU);
+   }
+   ctx.fill();
+  }
+  ctx.restore();
+ }
  // Falling rain: deterministic diagonal streaks, never one particle object per drop.
  // This is visual-only and works even when the world is paused.
  if(s.weather==='rain'){
@@ -318,6 +344,6 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   }
   ctx.stroke();ctx.restore();
  }
- if(showEffects){const colors={rival:'#e244c5',birth:'#91f7ac',death:'#ff8290',meal:'#f9d36b',pred:'#be82ec',new:'#ffe486',decay:'#e2b96e',mate:'#f5a5ed',egg:'#efd6a4',hatch:'#95eec2',eggeaten:'#f7818d'};for(const f of s.effects){if(['strike','consume','graze','waterweed','drink','scavenge'].includes(f.type))continue;ctx.save();ctx.globalAlpha=Math.max(0,1-f.age/35);ctx.strokeStyle=colors[f.type]||'#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(f.x,f.y,5+f.age*.65,0,TAU);ctx.stroke();ctx.restore();}}
+ if(showEffects){const colors={rival:'#e244c5',birth:'#91f7ac',death:'#ff8290',meal:'#f9d36b',pred:'#be82ec',new:'#ffe486',decay:'#e2b96e',mate:'#f5a5ed',egg:'#efd6a4',hatch:'#95eec2',eggeaten:'#f7818d'};for(const f of s.effects){if(['strike','rivalStrike','consume','graze','waterweed','drink','scavenge'].includes(f.type))continue;ctx.save();ctx.globalAlpha=Math.max(0,1-f.age/35);ctx.strokeStyle=colors[f.type]||'#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(f.x,f.y,5+f.age*.65,0,TAU);ctx.stroke();ctx.restore();}}
 }
 export function drawChart(ctx,history){const w=ctx.canvas.width,h=ctx.canvas.height;ctx.fillStyle='#172731';ctx.fillRect(0,0,w,h);if(history.length<2)return;for(const [k,color] of [['population','#77dc9a'],['food','#e6c56a'],['corpses','#bc8ed6']]){const max=Math.max(1,...history.map(d=>d[k]))*1.12;ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();history.forEach((d,i)=>{const x=i/(history.length-1)*w,y=h-6-d[k]/max*(h-14);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();}}
