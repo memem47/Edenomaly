@@ -53,6 +53,7 @@ function update(){
  const descendants=game.units.filter(u=>u.generation>0);
  const data={maxGeneration:game.units.length?Math.max(...game.units.map(u=>u.generation)):0,offspringCount:descendants.length,averageFitness:averageFitness.toFixed(2),population:game.units.length,eggCount:game.eggs.length,matingCount:game.matings,juvenileCount:game.units.filter(u=>u.stage==='juvenile').length,livingSpecies:game.livingSpecies,totalSpecies:game.species.size,corpses:game.corpses.length,nutrients:Math.round(game.grass.reduce((a,b)=>a+b,0)),waterRemaining:Math.round(game.water.reduce((a,b)=>a+b,0)),waterweedRemaining:Math.round(game.waterweed.reduce((a,b)=>a+b,0)),recycled:game.recycled,migrationCount:game.migrations};
  for(const [id,value] of Object.entries(data))$(id).textContent=typeof value==='number'?value.toLocaleString('ja-JP'):value;
+ $('weatherStatus').textContent=({sunny:'☀ 晴れ',cloudy:'☁ 曇り',rain:'🌧 雨'}[game.weather]||'☀ 晴れ');
  $('stepCount').textContent=game.tick.toLocaleString('ja-JP');$('status').textContent=game.introducedCount===0?'移入待ち':running?'実行中':'停止中';$('play').textContent=running?'Ⅱ 停止':'▶ 再生';$('play').classList.toggle('active',running);
  const liveBySpecies=new Map();for(const u of game.units)if(!u.dead&&!liveBySpecies.has(u.category))liveBySpecies.set(u.category,u);
  const catalogRows=catalogSpecies(liveBySpecies);
