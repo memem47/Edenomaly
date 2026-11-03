@@ -520,7 +520,7 @@ export class Ecosystem{
   this.soil=new Float32Array(this.tiles.length);
   this.soilWater=new Float32Array(this.tiles.length);
   this.waterweed=new Float32Array(this.tiles.length);
-  this.seedRainCount=0;this.corpseSproutCount=0;
+  this.seedRainCount=0;this.waterweedSeedCount=0;this.corpseSproutCount=0;
   for(let i=0;i<this.tiles.length;i++){
    if(this.tiles[i]===0)this.grass[i]=65+this.rand()*35;
    if(this.tiles[i]===1){this.water[i]=80+this.rand()*20;this.waterbed[i]=1;this.waterweed[i]=48+this.rand()*30;}
@@ -582,13 +582,24 @@ export class Ecosystem{
     }
    }
   }
-  // Aquatic plants spread from surviving waterweed into nearby water cells.
-  if(this.tick%12===0){
+  // Aquatic plants spread locally, but an extinct pond can also recover via
+  // rare windborne / waterfowl-carried seeds. No spontaneous growth on dry land.
+  // Germination needs actual water; wetter ponds and rain favor seed arrival.
+  if(this.tick%12===0&&this.growth>0){
    const next=this.waterweed.slice();
-   for(let i=0;i<this.tiles.length;i++)if(this.tiles[i]===1&&this.water[i]>0&&this.waterweed[i]===0){
+   for(let i=0;i<this.tiles.length;i++)if(this.tiles[i]===1&&this.water[i]>=12&&this.waterweed[i]<=.001){
     const x=i%NX,y=Math.floor(i/NX);
     const adjacent=[x>0?i-1:-1,x<NX-1?i+1:-1,y>0?i-NX:-1,y<NY-1?i+NX:-1];
-    if(adjacent.some(j=>j>=0&&this.tiles[j]===1&&this.waterweed[j]>15)&&this.rand()<.08*this.growth/70)next[i]=3;
+    if(adjacent.some(j=>j>=0&&this.tiles[j]===1&&this.waterweed[j]>15)&&this.rand()<.08*this.growth/70){
+     next[i]=3;
+    }else{
+     const rain=this.weather==='rain'?1.7:1;
+     const depth=clamp(this.water[i]/65,.25,1);
+     if(this.rand()<.006*rain*depth*this.growth/70){
+      next[i]=4+this.rand()*3;
+      this.waterweedSeedCount++;
+     }
+    }
    }
    this.waterweed=next;
   }
