@@ -1,7 +1,7 @@
 // Run with: node --test web/simulation.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Ecosystem,morphology,organismMorphology,bodyCollisionAxes,MAX_NUTRITION_GROWTH,adaptationColor} from './simulation.js';
+import {Ecosystem,morphology,organismMorphology,bodyCollisionAxes,localDensity,crowdStress,MAX_NUTRITION_GROWTH,adaptationColor} from './simulation.js';
 import {slimeEyeAngles,slimeEyeColor,slimeEyeLocation,drawWorld} from './renderer.js';
 const populated=seed=>{const s=new Ecosystem(seed);s.introduce(160,135,3);return s;};
 test('same seed creates same initial ecosystem',()=>{const a=populated(42),b=populated(42);assert.deepEqual(a.tiles,b.tiles);assert.deepEqual(a.units,b.units);});
@@ -993,4 +993,53 @@ test('elongation mutations make small changes more often than large jumps',()=>{
  let extreme=0;
  for(let i=0;i<2000;i++)if(w.mutate(g).elongation>2.25)extreme++;
  assert.equal(extreme,0);
+});
+
+test('physical crowd penalty stays zero for a dispersed colony',()=>{
+ const w=new Ecosystem(2401),g={...w.gene(),r:5,elongation:1,aquatic:0};
+ const a=w.spawn(120,110,g),b=w.spawn(480,290,g);
+ assert.equal(localDensity(a,w.units),0);
+ assert.equal(crowdStress(localDensity(a,w.units)),0);
+ assert.equal(localDensity(b,w.units),0);
+});
+test('mixed lineages and mixed diets still exert physical crowd pressure',()=>{
+ const w=new Ecosystem(2402),g={...w.gene(),r:6,elongation:1,aquatic:0};
+ const anchor=w.spawn(280,190,{...g,diet:0});
+ for(let i=0;i<18;i++){
+  const other=w.spawn(280+(i%5)*3,190+Math.floor(i/5)*3,{...g,diet:1});
+  other.lineage=i+200;
+ }
+ const pressure=crowdStress(localDensity(anchor,w.units));
+ assert.ok(pressure>3);
+ assert.ok(pressure<=9);
+ anchor.stage='adult';anchor.age=100;anchor.energy=300;
+ anchor.mateCooldown=0;anchor.infection=0;anchor.crowdStress=pressure;
+ assert.equal(w.isReadyToMate(anchor),false);
+});
+test('larger neighboring slimes exert stronger density load',()=>{
+ const w=new Ecosystem(2403),g={...w.gene(),r:5,elongation:1,aquatic:0};
+ const a=w.spawn(240,170,g),b=w.spawn(250,170,g);
+ const small=localDensity(a,w.units);
+ b.growthScale=2.2;
+ const large=localDensity(a,w.units);
+ assert.ok(large>small);
+});
+test('high-density groups pay an actual extra energy cost during a simulation tick',()=>{
+ const setup=dense=>{
+  const w=new Ecosystem(2404);w.tiles.fill(2);w.grass.fill(0);w.water.fill(0);
+  const g={...w.gene(),r:5,elongation:1,eyes:1,aquatic:0,diet:0};
+  const a=w.spawn(220,170,g);a.age=100;a.energy=300;a.hp=a.maxHp=10000;
+  a.hydration=100;a.mateCooldown=300;
+  if(dense)for(let i=0;i<18;i++){
+   const b=w.spawn(220+(i%5)*3,170+Math.floor(i/5)*3,g);
+   b.age=100;b.energy=300;b.hp=b.maxHp=10000;b.mateCooldown=300;
+   b.lineage=i+500;
+  }
+  return {w,a};
+ };
+ const sparse=setup(false),packed=setup(true);
+ sparse.w.step();packed.w.step();
+ assert.ok(packed.a.crowdStress>0);
+ assert.ok(packed.a.energy<sparse.a.energy-.15);
+ assert.ok(packed.a.crowdStress<=9);
 });
