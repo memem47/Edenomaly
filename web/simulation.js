@@ -460,6 +460,7 @@ export class Ecosystem{
  die(u,cause,consumed=0){
   if(u.dead)return;
   u.dead=true;u.courtPartner=null;this.species.get(u.category).current--;
+  this.deathCauses[cause]=(this.deathCauses[cause]??0)+1;
   const mass=Math.max(8,organismMorphology(u).bodyMass*1.2+Math.max(0,u.energy)*.4-consumed);
   this.corpses.push({x:u.x,y:u.y,angle:u.angle,g:{...u.g},growthScale:u.growthScale??1,stage:u.stage,deathAge:u.age,mass,initialMass:mass,reserve:0,age:0,cause,seedBank:u.seedBank??0,seedPlanted:false});
   this.log('death','#'+u.id+' 死亡：'+cause,u);
@@ -738,7 +739,7 @@ export class Ecosystem{
   }
  }
  reset(){
-  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];this.climateEnabled=true;this.seasonLength=600;
+  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.deathCauses={};this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];this.climateEnabled=true;this.seasonLength=600;
   this.setupTerrain();
   this.grass=new Float32Array(this.tiles.length);
   this.water=new Float32Array(this.tiles.length);
