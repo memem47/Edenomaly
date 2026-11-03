@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Ecosystem,morphology,organismMorphology,MAX_NUTRITION_GROWTH} from './simulation.js';
-import {slimeEyeAngles} from './renderer.js';
+import {slimeEyeAngles,slimeEyeColor,slimeEyeLocation,drawWorld} from './renderer.js';
 const populated=seed=>{const s=new Ecosystem(seed);s.introduce(160,135,3);return s;};
 test('same seed creates same initial ecosystem',()=>{const a=populated(42),b=populated(42);assert.deepEqual(a.tiles,b.tiles);assert.deepEqual(a.units,b.units);});
 test('species counts reconcile',()=>{const s=populated();for(let i=0;i<25;i++)s.step();assert.equal([...s.species.values()].reduce((v,x)=>v+x.current,0),s.units.length);assert.ok([...s.species.values()].every(x=>x.total>=x.current));});
@@ -783,4 +783,58 @@ test('starvation cannot generate growth, and acquired growth is bounded',()=>{
  u.energy=300;u.recentFood=100;u.growthScale=MAX_NUTRITION_GROWTH-.0001;
  w.step();
  assert.ok(u.growthScale<=MAX_NUTRITION_GROWTH);
+});
+
+test('eye color follows inherited body hue and eyes stay visibly inside the oval',()=>{
+ const w=new Ecosystem(1901),g=w.gene();
+ const red={...g,hue:2},blue={...g,hue:210};
+ assert.notEqual(slimeEyeColor(red),slimeEyeColor(blue));
+ const pos=slimeEyeLocation(.9,35,20);
+ assert.ok((pos.x/35)**2+(pos.y/20)**2<.6);
+});
+test('grass and waterweed feeding generate separate visual effects',()=>{
+ const a=new Ecosystem(1902);a.tiles.fill(0);a.grass.fill(90);
+ const grazer=a.spawn(210,150,{...a.gene(),aquatic:0,diet:0});
+ grazer.age=100;grazer.energy=20;a.growth=0;
+ for(let j=0;j<12;j++)a.step();
+ assert.ok(a.effects.some(f=>f.type==='graze'));
+ assert.ok(!a.effects.some(f=>f.type==='meal'));
+ const b=new Ecosystem(1903);b.tiles.fill(1);b.water.fill(90);b.waterweed.fill(90);
+ const swimmer=b.spawn(210,150,{...b.gene(),aquatic:1,diet:0});
+ swimmer.age=100;swimmer.energy=20;b.growth=0;
+ for(let j=0;j<12;j++)b.step();
+ assert.ok(b.effects.some(f=>f.type==='waterweed'));
+});
+test('drinking gives blue ripple events without a per-step event flood',()=>{
+ const w=new Ecosystem(1904);w.tiles.fill(1);w.water.fill(100);w.waterweed.fill(0);
+ const u=w.spawn(210,150,{...w.gene(),aquatic:1,diet:0});
+ u.age=100;w.growth=0;
+ for(let j=0;j<60;j++)w.step();
+ const drops=w.effects.filter(f=>f.type==='drink');
+ assert.ok(drops.length>=2&&drops.length<=3);
+ assert.ok(w.water[w.cell(210,150)]<100);
+});
+test('direct attack and kill produce different visible effects',()=>{
+ const w=new Ecosystem(1905);w.introduce(200,150,1);
+ const hunter=w.units[0],prey=w.units[1];
+ hunter.g.diet=1;hunter.g.jaw=2.5;hunter.bite=0;prey.hp=500;
+ assert.ok(w.attack(hunter,prey));
+ assert.ok(w.effects.some(f=>f.type==='strike'));
+ assert.ok(!w.effects.some(f=>f.type==='consume'));
+ hunter.bite=0;prey.hp=1;
+ assert.ok(w.attack(hunter,prey));
+ assert.ok(w.effects.some(f=>f.type==='consume'));
+});
+test('old corpse remains recyclable but is not drawn as a dark stain',()=>{
+ const w=new Ecosystem(1906);const u=w.spawn(210,150,w.gene());
+ w.die(u,'test');w.units=[];
+ const corpse=w.corpses[0];corpse.age=200;
+ const saved=corpse.mass;
+ const ctx=new Proxy({canvas:{width:800,height:460},createRadialGradient:()=>({addColorStop(){}})},{
+  get(obj,key){return key in obj?obj[key]:()=>{};},
+  set(obj,key,val){obj[key]=val;return true;}
+ });
+ drawWorld(ctx,w,false);
+ assert.equal(corpse.mass,saved);
+ assert.equal(w.corpses.length,1);
 });
