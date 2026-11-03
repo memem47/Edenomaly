@@ -419,7 +419,7 @@ export class Ecosystem{
   const mm=organismMorphology(hunter),v=vitality(hunter),def=vitality(prey);
   const damage=Math.max(2,(4+hunter.g.jaw*7+mm.bodyMass*.065)*(defensive?.65+protectiveDrive(hunter.g)*.65:dietProfile(hunter.g).meat)*v.vigor);
   prey.hp=Math.max(0,prey.hp-damage);
-  if(defensive)hunter.energy-=2.5;
+  if(defensive){hunter.energy-=2.5;prey.bite=Math.max(prey.bite,14);}
   prey.woundFlash=14;
   hunter.bite=22;
   hunter.attackFlash=16;
@@ -853,10 +853,10 @@ export class Ecosystem{
     u.recentFood=(u.recentFood??0)+eaten*4;
     if(eaten>0){if((this.tick+u.id)%9===0)this.addVisualEffect('scavenge',u,{fromX:nearestCorpse.x,fromY:nearestCorpse.y});this.log('meal','#'+u.id+' が死体を食べた',u);}
    }
-   if(!flight&&targetEgg&&!targetEgg.dead&&u.bite===0&&distance(u,targetEgg)<(m.biteReach+4)**2)this.eatEgg(targetEgg,u);
+   if(!flight&&!defenderTarget&&targetEgg&&!targetEgg.dead&&u.bite===0&&distance(u,targetEgg)<(m.biteReach+4)**2)this.eatEgg(targetEgg,u);
    if(defenderTarget&&!defenderTarget.dead&&u.bite===0&&distance(u,defenderTarget)<(m.biteReach+defenderTarget.g.r+5)**2)
     this.attack(u,defenderTarget,true);
-   if(!flight&&mate&&!u.courtPartner&&!mate.courtPartner&&distance(u,mate)<38**2)this.startCourtship(u,mate);
+   if(!flight&&!defenderTarget&&mate&&!u.courtPartner&&!mate.courtPartner&&distance(u,mate)<38**2)this.startCourtship(u,mate);
    if(!flight&&diet.meat>0&&prey&&!prey.dead&&distance(u,prey)<(m.biteReach+prey.g.r)**2)this.attack(u,prey);
    const newTerrain=this.terrain(u.x,u.y);
    if(newTerrain!==u.lastTerrain){u.lastTerrain=newTerrain;this.terrainCrossings++;}
