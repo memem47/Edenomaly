@@ -1147,7 +1147,7 @@ export class Ecosystem{
    if(t===1&&this.water[id]>0&&this.waterweed[id]<=.001)this.waterweed[id]=5;
    treated++;
   }
-  if(treated)this.log('info','土壌を改良：'+treated+'マスの生産力を回復',{x,y});
+  // Painting may run many times during a drag; avoid flooding the event log.
   return treated;
  }
  paint(x,y,type,radius){
