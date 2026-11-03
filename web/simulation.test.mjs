@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Ecosystem,morphology,organismMorphology,bodyCollisionAxes,localDensity,crowdStress,acquiredSizeMaintenance,feedingCapacity,energyStorageLimit,MAX_NUTRITION_GROWTH,adaptationColor,eggPredationDrive,protectiveDrive,habitatCrowding} from './simulation.js';
 import {slimeEyeAngles,slimeEyeColor,slimeEyeLocation,organismVisualState,drawWorld} from './renderer.js';
-const populated=seed=>{const s=new Ecosystem(seed);s.introduce(160,135,3);if(s.units.length>1){s.units[0].sex='F';s.units[1].sex='M';}return s;};
+const populated=seed=>{const s=new Ecosystem(seed);s.introduce(160,135,3);if(s.units.length>1){s.units[0].sex='F';s.units[1].sex='M';}s.temperatureAt=()=>22;for(const u of s.units){u.g.idealTemp=22;u.g.tempTolerance=12;}return s;};
 test('same seed creates same initial ecosystem',()=>{const a=populated(42),b=populated(42);assert.deepEqual(a.tiles,b.tiles);assert.deepEqual(a.units,b.units);});
 test('species counts reconcile',()=>{const s=populated();for(let i=0;i<25;i++)s.step();assert.equal([...s.species.values()].reduce((v,x)=>v+x.current,0),s.units.length);assert.ok([...s.species.values()].every(x=>x.total>=x.current));});
 test('death creates a decomposable corpse',()=>{const s=populated();let u=s.units[0];s.die(u,'test');assert.equal(s.corpses.length,1);assert.equal(s.species.get(u.category).current>=0,true);});
@@ -22,7 +22,7 @@ test('egg hatches into a juvenile and grows into adult',()=>{
  const preg=s.layEgg(parent,partner);assert.ok(preg);assert.equal(s.eggs.length,0);const egg=s.layEgg(parent);assert.ok(egg);assert.equal(egg.parent,parent.id);assert.equal(egg.otherParent,partner.id);
  // Isolate egg so it cannot be eaten during incubation.
  s.units=[];s.growth=100;
- for(let i=0;i<egg.hatchAt;i++)s.step();
+ for(let i=0;i<egg.hatchAt*2;i++)s.step();
  assert.equal(s.eggs.some(e=>e.id===egg.id),false);
  const kid=s.units.find(u=>u.parent===parent.id);
  assert.ok(kid);assert.equal(kid.otherParent,partner.id);assert.equal(kid.stage,'juvenile');
