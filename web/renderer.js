@@ -192,6 +192,14 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   }
   ctx.fillStyle=dead?'#9e9788':shine;ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.fill();
   ctx.strokeStyle=dead?'#655f56':outline;ctx.lineWidth=dead?1.5:1.6;ctx.stroke();
+  // Above 250 organisms, radial gradients are too expensive to create for
+  // every tiny slime. A cheap clipped sheen keeps the body glossy instead.
+  if(!dead&&simpleBody&&fade<.98){
+   ctx.save();ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.clip();
+   ctx.fillStyle=`rgba(255,255,255,${(.16*(1-fade)).toFixed(3)})`;
+   ctx.beginPath();ctx.ellipse(-rx*.29,-ry*.36,rx*.70,ry*.53,-.20,0,TAU);ctx.fill();
+   ctx.restore();
+  }
   if(condition.hit){
    ctx.fillStyle='rgba(255,92,75,.27)';ctx.fill();
    ctx.strokeStyle='rgba(255,89,65,.85)';ctx.lineWidth=2.4;ctx.stroke();
