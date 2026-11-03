@@ -379,7 +379,14 @@ export class Ecosystem{
   this.effects.push({type,x:point.x,y:point.y,age:0,...extra});
   return true;
  }
- log(type,message,point){this.logs.unshift({type,message,step:this.tick});if(this.logs.length>500)this.logs.pop();if(point&&type!=='meal'&&type!=='attack'&&type!=='pred'&&type!=='eggeaten'&&type!=='hatch'&&!(type==='birth'&&point.stage==='juvenile'))this.addVisualEffect(type,point);}
+ log(type,message,point){
+  this.logs.unshift({type,message,step:this.tick});
+  if(this.logs.length>500)this.logs.pop();
+  // Only deaths need a world-space notification ring. Mating, egg-laying,
+  // migration, decomposition, species discovery and ordinary info remain in
+  // the log but no longer fill dense colonies with expanding circles.
+  if(point&&type==='death')this.addVisualEffect('death',point);
+ }
  addFood(x,y,n,spread=8,source='natural'){
   // Compatibility with older controls/tests: fertilizer replenishes the map,
   // never creates floating food objects.
