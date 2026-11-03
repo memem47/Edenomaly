@@ -191,6 +191,29 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   }
   if(!dead){ctx.fillStyle='rgba(255,255,255,.36)';ctx.beginPath();
   ctx.ellipse(-rx*.30,-ry*.36,rx*.21,ry*.10,-.35,0,TAU);ctx.fill();}
+  // Infection persists on the body as a green dashed rim with orbiting spores.
+  if(condition.infected){
+   const pulse=.5+.5*Math.sin(s.tick*.19+(u.id||0));
+   ctx.strokeStyle='rgba(59,212,99,.86)';
+   ctx.lineWidth=1.8+pulse;
+   ctx.setLineDash([3,3]);ctx.beginPath();
+   ctx.ellipse(0,0,rx+4,ry+4,0,0,TAU);ctx.stroke();ctx.setLineDash([]);
+   ctx.fillStyle='rgba(104,248,121,.88)';
+   for(let i=0;i<3;i++){
+    const a=s.tick*.035+i*TAU/3+(u.id||0);
+    ctx.beginPath();ctx.arc(Math.cos(a)*(rx+6),Math.sin(a)*(ry+6)-2,2,0,TAU);ctx.fill();
+   }
+  }
+  // Predator attack flashes toward its facing direction (+X in local space).
+  if(condition.attacking){
+   const strength=Math.min(1,(u.attackFlash??0)/16);
+   ctx.strokeStyle='rgba(255,148,42,.92)';ctx.lineWidth=2+3*strength;
+   ctx.beginPath();ctx.arc(0,0,Math.max(rx,ry)+4,-.68,.68);ctx.stroke();
+   ctx.fillStyle='rgba(255,245,133,.90)';
+   for(const a of [-.33,.33]){
+    ctx.beginPath();ctx.arc((rx+6)*Math.cos(a),(ry+5)*Math.sin(a),1.4+strength*1.6,0,TAU);ctx.fill();
+   }
+  }
   // Solid-colored, body-harmonized eyes, set inside the oval rather than on the rim.
   // No sclera or mouth: these slimes eat by enveloping food.
   const eyes=slimeEyeAngles(g),eyeRadius=Math.max(1.2,Math.min(3.6,ry*.19));
