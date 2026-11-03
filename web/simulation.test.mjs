@@ -1335,3 +1335,29 @@ test('without eggs the same herbivore does not attack harmlessly',()=>{
  assert.equal(parent.defendFlash,0);
  assert.equal(predator.hp,before);
 });
+
+test('active guardians show a cyan counterattack distinct from orange hunting',()=>{
+ const w=new Ecosystem(3006);w.units=[];w.eggs=[];w.corpses=[];
+ const u=w.spawn(220,180,{...w.gene(),guard:1,jaw:2.5,diet:0});
+ u.attackFlash=16;u.defendFlash=16;
+ const styles=[];
+ const ctx=new Proxy({canvas:{width:800,height:460},createRadialGradient:()=>({addColorStop(){}})},{
+  get(o,k){return k in o?o[k]:()=>{};},
+  set(o,k,v){if(k==='strokeStyle')styles.push(v);o[k]=v;return true;}
+ });
+ drawWorld(ctx,w,false);
+ assert.ok(styles.includes('rgba(75,240,231,.93)'));
+ u.defendFlash=0;styles.length=0;drawWorld(ctx,w,false);
+ assert.ok(styles.includes('rgba(255,148,42,.92)'));
+});
+test('defensive hits interrupt an egg eater without providing meat rewards',()=>{
+ const w=new Ecosystem(3007);
+ const guardian=w.spawn(200,150,{...w.gene(),diet:0,guard:1,jaw:2.5});
+ const hunter=w.spawn(206,150,{...w.gene(),diet:1,guard:0});
+ guardian.energy=100;hunter.hp=hunter.maxHp=500;
+ assert.equal(w.attack(guardian,hunter,true),true);
+ assert.equal(guardian.defendFlash,16);
+ assert.ok(hunter.bite>=14);
+ assert.ok(guardian.energy<100);
+ assert.ok(w.logs.some(x=>x.type==='defend'));
+});
