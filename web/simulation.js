@@ -1,7 +1,7 @@
 // Edenomaly simulation: browser-only; no DOM or Canvas dependencies.
 const W=800,H=460,CELL=20,NX=40,NY=23;
 export const TERRAIN_NAMES=['草地','水辺','乾燥地','岩場'];
-export const TERRAIN_COLORS=['#386e4c','#276484','#927a4b','#505562'];
+export const TERRAIN_COLORS=['#54c74c','#279cfa','#edb85c','#8980bf'];
 // Relative nutrient input: grass > wetland > dryland > rock.
 export const TERRAIN_FERTILITY=[1,.58,.14,.055];
 const GROWTH=TERRAIN_FERTILITY,DECAY=[.026,.038,.006,.003];
@@ -362,13 +362,14 @@ export class Ecosystem{
   this.waterbed=new Uint8Array(this.tiles.length);
   this.soil=new Float32Array(this.tiles.length);
   this.soilWater=new Float32Array(this.tiles.length);
+  this.waterweed=new Float32Array(this.tiles.length);
   for(let i=0;i<this.tiles.length;i++){
    if(this.tiles[i]===0)this.grass[i]=65+this.rand()*35;
-   if(this.tiles[i]===1){this.water[i]=80+this.rand()*20;this.waterbed[i]=1;}
+   if(this.tiles[i]===1){this.water[i]=80+this.rand()*20;this.waterbed[i]=1;this.waterweed[i]=48+this.rand()*30;}
   }
   this.log('info','生命は未移入。種類数を選んでフィールドへ生命を移入してください');this.snapshot();
  }
- snapshot(){this.history.push({population:this.units.length,eggs:this.eggs.length,food:this.grass.reduce((a,b)=>a+b,0),corpses:this.corpses.length});if(this.history.length>180)this.history.shift();}
+ snapshot(){this.history.push({population:this.units.length,eggs:this.eggs.length,food:this.grass.reduce((a,b)=>a+b,0)+this.waterweed.reduce((a,b)=>a+b,0),corpses:this.corpses.length});if(this.history.length>180)this.history.shift();}
  step(){
   this.tick++;
   // Map resources are finite. Grass regrows only from living adjacent patches,
@@ -377,19 +378,34 @@ export class Ecosystem{
    const next=this.grass.slice();
    for(let i=0;i<this.tiles.length;i++){
     if(this.tiles[i]===0&&this.grass[i]>0){
-     next[i]=Math.min(100,this.grass[i]+(1.35+this.soil[i]*.027)*this.growth/70);
+     next[i]=Math.min(100,this.grass[i]+(1.15+this.soil[i]*.095)*this.growth/70);
     }
     if(this.grass[i]<=0&&this.tiles[i]!==1&&this.tiles[i]!==3){
      const x=i%NX,y=Math.floor(i/NX);
      const neighbors=[x>0?i-1:-1,x<NX-1?i+1:-1,y>0?i-NX:-1,y<NY-1?i+NX:-1];
      // A completely bare world contains no propagules.
-     if(neighbors.some(j=>j>=0&&this.grass[j]>18)&&this.rand()<.15*this.growth/70){
+     // Fertilized patches spread faster, but never create plants without seeds.
+     const fertile=clamp(this.soil[i]/55,0,1.5);
+     if(neighbors.some(j=>j>=0&&this.grass[j]>18)&&this.rand()<(.08+.20*fertile)*this.growth/70){
       next[i]=4;this.tiles[i]=0;
      }
     }
-    this.soil[i]*=.998;
+    // Waterweed is a separate, edible plant resource: water itself is not food.
+    if(this.tiles[i]===1&&this.water[i]>0&&this.waterweed[i]>0)
+     this.waterweed[i]=Math.min(100,this.waterweed[i]+(.7+this.soil[i]*.025)*this.growth/70);
+    this.soil[i]*=.997;
    }
    this.grass=next;
+  }
+  // Aquatic plants spread from surviving waterweed into nearby water cells.
+  if(this.tick%12===0){
+   const next=this.waterweed.slice();
+   for(let i=0;i<this.tiles.length;i++)if(this.tiles[i]===1&&this.water[i]>0&&this.waterweed[i]===0){
+    const x=i%NX,y=Math.floor(i/NX);
+    const adjacent=[x>0?i-1:-1,x<NX-1?i+1:-1,y>0?i-NX:-1,y<NY-1?i+NX:-1];
+    if(adjacent.some(j=>j>=0&&this.tiles[j]===1&&this.waterweed[j]>15)&&this.rand()<.08*this.growth/70)next[i]=3;
+   }
+   this.waterweed=next;
   }
   // Standing water evaporates naturally. Rain replenishes depleted waterbeds.
   // Climate slider: 0 = no natural precipitation, 100 = heavy rain.
@@ -399,7 +415,7 @@ export class Ecosystem{
   if(this.tick%8===0){
    for(let i=0;i<this.tiles.length;i++)if(this.water[i]>0){
     this.water[i]=Math.max(0,this.water[i]-(.16+this.stress*.003));
-    if(this.water[i]===0&&this.tiles[i]===1)this.tiles[i]=2;
+    if(this.water[i]===0&&this.tiles[i]===1){this.tiles[i]=2;this.waterweed[i]=0;}
    }
   }
   for(let i=this.corpses.length-1;i>=0;i--){
@@ -407,15 +423,19 @@ export class Ecosystem{
    const loss=Math.min(c.mass,Math.max(.03,c.mass*DECAY[this.terrain(c.x,c.y)]));c.mass-=loss;c.reserve+=loss;
    const id=this.cell(c.x,c.y);
    // Decomposition nourishes soil; tissues also return moisture to the world.
-   this.soil[id]=Math.min(100,this.soil[id]+loss*.33);
+   this.soil[id]=Math.min(100,this.soil[id]+loss*.65);
    // Corpse moisture stays in the soil. It never creates permanent ponds;
    // rainfall and explicitly painted waterbeds control surface-water area.
    this.soilWater[id]=Math.min(100,this.soilWater[id]+loss*.12);
    // Existing nearby water may receive a small fraction, without flooding land.
-   if(this.tiles[id]===1)this.water[id]=Math.min(100,this.water[id]+loss*.025);
+   if(this.tiles[id]===1){
+    this.water[id]=Math.min(100,this.water[id]+loss*.025);
+    if(this.waterweed[id]>0)this.waterweed[id]=Math.min(100,this.waterweed[id]+loss*.3);
+   }
    if(this.tiles[id]!==1&&this.tiles[id]!==3){
     if(this.grass[id]>0)this.grass[id]=Math.min(100,this.grass[id]+loss*.12);
-    else if(this.soil[id]>12&&this.rand()<.12){this.tiles[id]=0;this.grass[id]=4;}
+    // Fertilizer alone cannot germinate a grassland with no surviving seeds.
+    // Neighboring grass spreads into the fertilized cell in the growth phase.
    }
    if(c.mass<.6){this.corpses.splice(i,1);this.recycled++;this.recycledByTerrain[this.terrain(c.x,c.y)]++;this.log('decay','死体の有機物と水分が地形に還元された',c);}
   }
@@ -450,7 +470,7 @@ export class Ecosystem{
    }
    if(u.hydration<18)u.hp-=.06;
    let nearest=null,df=sight*sight;
-   if(diet.plant>0){nearest=this.nearestGrass(u.x,u.y,sight,g);if(nearest)df=distance(u,nearest);}
+   if(diet.plant>0){nearest=aquatic?this.nearestWaterweed(u.x,u.y,sight):this.nearestGrass(u.x,u.y,sight,g);if(nearest)df=distance(u,nearest);}
    // Eggs are stationary and cannot fight or flee. Guardians only deter some hunters.
    let targetEgg=null,ed=sight*sight;
    if(u.bite===0&&diet.meat>.12&&g.mouths>0)for(const egg of this.eggs){
@@ -561,11 +581,12 @@ export class Ecosystem{
    // Terrain-fit offspring retain energy and can reproduce more successfully.
    const adaptationCost=clamp(1.65-home.fitness*.75,.70,1.5);
    u.energy-=m.upkeep*youth*adaptationCost*(1+body.old*.18)+(flight?.10:0)+(ownEgg?g.guard*.16:0)+this.stress*.0035+home.upkeep+(g.wet+g.dry+g.rock)*.055;
-   if(!flight&&aquatic&&underwater&&diet.plant>0){
-    const eaten=this.consumeWater(u.x,u.y,.16);
-    u.energy+=eaten*29*diet.plant*home.fitness;
+   if(!flight&&aquatic&&underwater&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+14)**2){
+    const eaten=this.consumeWaterweed(nearest.x,nearest.y,Math.min(2.3,1.3*m.foodGain));
+    if(eaten>0){u.energy+=eaten*6.2*diet.plant*home.fitness;
+     u.hp=Math.min(u.maxHp,u.hp+eaten*.2);this.log('meal','#'+u.id+' が水草を食べた',u);}
    }
-   if(!flight&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+13)**2){
+   if(!flight&&!aquatic&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+13)**2){
     const eaten=this.consumeGrass(nearest.x,nearest.y,Math.min(2.5,1.25*m.foodGain));
     if(eaten>0){u.energy+=eaten*5.8*diet.plant*home.fitness;
      u.hp=Math.min(u.maxHp,u.hp+eaten*.22*(1-body.old*.6));this.log('meal','#'+u.id+' が草を食べた',u);}
@@ -596,6 +617,7 @@ export class Ecosystem{
    this.tiles[i]=type;
    this.grass[i]=type===0?100:0;
    this.water[i]=type===1?100:0;
+   this.waterweed[i]=type===1?70:0;
    this.waterbed[i]=type===1?1:0;
   }
  }
@@ -603,12 +625,14 @@ export class Ecosystem{
  adaptFounderToTerrain(g,t){
   const adapted={...g};
   adapted.aquatic=t===1?1:0;
+  // On plant-free arid and rocky terrain, carnivorous/scavenging founders are favored.
+  if(t===2||t===3){adapted.diet=Math.max(.82,adapted.diet);adapted.jaw=Math.max(1.2,adapted.jaw);}
   if(t===1)adapted.wet=Math.max(.83,adapted.wet);
   if(t===2)adapted.dry=Math.max(.86,adapted.dry);
   if(t===3)adapted.rock=Math.max(.86,adapted.rock);
   // Grassland founders are terrestrial, and require nearby access to water.
   adapted.alleles=Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]));
-  for(const key of ['aquatic','wet','dry','rock'])if(adapted[key]!==g[key])adapted.alleles[key]=[adapted[key],adapted[key]];
+  for(const key of ['aquatic','wet','dry','rock','diet','jaw'])if(adapted[key]!==g[key])adapted.alleles[key]=[adapted[key],adapted[key]];
   return adapted;
  }
  founderSite(x,y,terrain){
@@ -630,7 +654,8 @@ export class Ecosystem{
     g=this.gene();key=this.category(g);
     // A single founder type must be able to use ambient nutrients;
     // later types remain fully random (including predators).
-    if(k===0&&(g.diet>.28||morphology(g).bodyMass>100||g.eyes<2))continue;
+    const dryFounder=this.terrain(x,y)===2||this.terrain(x,y)===3;
+    if(k===0&&(!dryFounder&&g.diet>.28||morphology(g).bodyMass>100||g.eyes<2))continue;
     if(!used.has(key))break;
    }
    if(used.has(key))continue;
