@@ -168,11 +168,11 @@ export const juvenileGrowthIncrement=(u,food,habitatLoad=0,crowdStress=0)=>{
  return Math.min(.032,food*.013)*surplus/crowd/massCost;
 };
 export const bodyCollisionAxes=u=>{
- if(stepCache){const c=stepCache.axes.get(u);if(c&&c.stage===u.stage&&c.age===u.age&&c.scale===(u.growthScale??1))return c.value;}
+ if(stepCache){const c=stepCache.axes.get(u);if(c&&c.stage===u.stage&&c.age===u.age&&c.scale===(u.growthScale??1)&&c.juvenileGrowth===(u.juvenileGrowth??0))return c.value;}
  const scale=lifeStageScale(u)*(u.growthScale??1)*(1-clamp(((u.age??0)-420)/900,0,1)*.12);
  const ry=Math.max(2,u.g.r*scale*1.06);
  const value={rx:ry*Math.max(1,Math.min(3,u.g.elongation??1)),ry};
- if(stepCache)stepCache.axes.set(u,{stage:u.stage,age:u.age,scale:u.growthScale??1,value});
+ if(stepCache)stepCache.axes.set(u,{stage:u.stage,age:u.age,scale:u.growthScale??1,juvenileGrowth:u.juvenileGrowth??0,value});
  return value;
 };
 const ellipseExtent=(u,axes,nx,ny)=>{
