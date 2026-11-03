@@ -1,4 +1,4 @@
-import {WORLD,TERRAIN_COLORS,dietProfile,vitality} from './simulation.js';
+import {WORLD,TERRAIN_COLORS,dietProfile,vitality,adaptationColor} from './simulation.js';
 const TAU=Math.PI*2;
 // Angles are measured around the rim of a top-down oval; +X is forward.
 // Predators look forward, herbivores to either side, and many-eyed slimes all around.
@@ -20,9 +20,9 @@ export function slimeEyeAngles(g){
  return Array.from({length:count},(_,i)=>count===1?0:(i/(count-1)-.5)*Math.PI*1.6);
 }
 export function slimeEyeColor(g){
- // Stable genotype-derived hue: colorful, but dark enough to contrast with the body.
- const hue=(g.hue+115+(Math.round(g.eyes*17)+Math.round(g.jaw*29))%110)%360;
- return `hsl(${hue},${Math.min(85,Math.max(45,g.saturation))}%,${Math.max(21,Math.min(35,g.lightness*.52))}%)`;
+ const c=adaptationColor(g);
+ // Eye pigment is a dark complementary shade of the adaptation-derived body.
+ return `hsl(${(c.hue+125+(g.eyes??0)*8)%360},${Math.max(45,c.saturation-12)}%,${Math.max(18,c.lightness*.45)}%)`;
 }
 export function slimeEyeLocation(angle,rx,ry){
  return {x:rx*.70*Math.cos(angle),y:ry*.70*Math.sin(angle)};
@@ -106,7 +106,8 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   const y=(egg.birthY??egg.y)*(1-emergence)+egg.y*emergence;
   ctx.save();ctx.translate(x,y);ctx.scale(.65+.35*emergence,.65+.35*emergence);
   ctx.fillStyle='#513e52';ctx.beginPath();ctx.ellipse(0,1,4.2+shell*2.3,5.3+shell*2.3,0,0,TAU);ctx.fill();
-  ctx.fillStyle=`hsl(${egg.g.hue},${Math.max(35,egg.g.saturation*.65)}%,${Math.min(88,egg.g.lightness+14-shell*5)}%)`;ctx.beginPath();ctx.ellipse(0,0,3.5+shell*2.1,4.5+shell*2.1,0,0,TAU);ctx.fill();
+  const eggColor=adaptationColor(egg.g);
+  ctx.fillStyle=`hsl(${eggColor.hue},${Math.max(35,eggColor.saturation*.65)}%,${Math.min(88,eggColor.lightness+14-shell*5)}%)`;ctx.beginPath();ctx.ellipse(0,0,3.5+shell*2.1,4.5+shell*2.1,0,0,TAU);ctx.fill();
   ctx.strokeStyle='#f0e4d0';ctx.lineWidth=.7+shell*1.2;ctx.stroke();
   ctx.fillStyle='#4d384d';ctx.beginPath();ctx.arc(1,0,Math.max(.6,1+prog*1.5),0,TAU);ctx.fill();
   if(prog>.75){ctx.strokeStyle='#754765';ctx.beginPath();ctx.moveTo(-2,-3);ctx.lineTo(0,-1);ctx.lineTo(-1,2);ctx.stroke();}
@@ -142,10 +143,11 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   const aspect=Math.max(1,Math.min(3,g.elongation??1));
   const rx=halfW*1.06*aspect*(1+squash);
   const ry=halfW*1.06*(1-squash);
-  const sat=Math.min(100,Math.max(28,g.saturation*(1-life.old*.42)+12));
-  const light=Math.min(85,Math.max(38,g.lightness+8));
-  const base=u.woundFlash?'#fff0e2':`hsl(${g.hue},${sat}%,${light}%)`;
-  const outline=`hsl(${g.hue},${Math.max(30,sat-8)}%,${Math.max(19,light-29)}%)`;
+  const pigment=adaptationColor(g);
+  const sat=Math.min(100,Math.max(28,pigment.saturation*(1-life.old*.42)+8));
+  const light=Math.min(85,Math.max(38,pigment.lightness+6));
+  const base=u.woundFlash?'#fff0e2':`hsl(${pigment.hue},${sat}%,${light}%)`;
+  const outline=`hsl(${pigment.hue},${Math.max(30,sat-8)}%,${Math.max(19,light-29)}%)`;
   const shine=ctx.createRadialGradient(-rx*.38,-ry*.42,0,0,0,Math.max(rx,ry)*1.45);
   shine.addColorStop(0,'rgba(255,255,255,.68)');
   shine.addColorStop(.36,base);
