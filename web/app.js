@@ -1,4 +1,4 @@
-import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness} from './simulation.js?v=temperature-1';
+import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness} from './simulation.js?v=navigation-fix-1';
 import {drawWorld,drawChart} from './renderer.js?v=eco-fertility-1';
 const $=id=>document.getElementById(id);
 const game=new Ecosystem();
