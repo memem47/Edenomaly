@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Ecosystem,morphology,organismMorphology,bodyCollisionAxes,localDensity,crowdStress,acquiredSizeMaintenance,feedingCapacity,energyStorageLimit,MAX_NUTRITION_GROWTH,adaptationColor,eggPredationDrive,protectiveDrive,habitatCrowding} from './simulation.js';
 import {slimeEyeAngles,slimeEyeColor,slimeEyeLocation,organismVisualState,drawWorld} from './renderer.js';
-const populated=seed=>{const s=new Ecosystem(seed);s.introduce(160,135,3);return s;};
+const populated=seed=>{const s=new Ecosystem(seed);s.introduce(160,135,3);if(s.units.length>1){s.units[0].sex='F';s.units[1].sex='M';}return s;};
 test('same seed creates same initial ecosystem',()=>{const a=populated(42),b=populated(42);assert.deepEqual(a.tiles,b.tiles);assert.deepEqual(a.units,b.units);});
 test('species counts reconcile',()=>{const s=populated();for(let i=0;i<25;i++)s.step();assert.equal([...s.species.values()].reduce((v,x)=>v+x.current,0),s.units.length);assert.ok([...s.species.values()].every(x=>x.total>=x.current));});
 test('death creates a decomposable corpse',()=>{const s=populated();let u=s.units[0];s.die(u,'test');assert.equal(s.corpses.length,1);assert.equal(s.species.get(u.category).current>=0,true);});
@@ -1427,4 +1427,51 @@ test('a crowded giant colony disperses in a food-rich open plain',()=>{
  const before=closePairs();
  for(let i=0;i<120;i++)w.step();
  assert.ok(closePairs()<before*.55,'colony did not disperse despite free space');
+});
+
+
+import {reproductiveMode,sexualCompatibility,reproductiveUpkeep} from './simulation.js';
+test('sex is assigned and reproductive modes inherit within bounds',()=>{
+ const s=new Ecosystem(31415);
+ for(let i=0;i<100;i++){
+  const g=s.gene(),c=s.recombine(g,g);
+  assert.ok([0,1,2].includes(reproductiveMode(c)));
+  assert.ok([0,1,2].includes(reproductiveMode(s.mutate(g))));
+ }
+ const female=s.spawn(100,100,{...s.gene(),repro:0});
+ const herm=s.spawn(120,100,{...s.gene(),repro:1});
+ const solo=s.spawn(140,100,{...s.gene(),repro:2});
+ assert.ok(['F','M'].includes(female.sex));
+ assert.equal(herm.sex,'H');
+ assert.equal(solo.sex,'F');
+ assert.ok(reproductiveUpkeep(herm.g)>reproductiveUpkeep(female.g));
+});
+test('same-sex mating is rejected and hermaphrodites can cross',()=>{
+ const s=populated(781),a=s.units[0],b=s.units[1];
+ a.sex='F';b.sex='F';a.age=b.age=100;a.energy=b.energy=175;
+ assert.equal(sexualCompatibility(a,b),false);
+ assert.equal(s.conceive(a,b),null);
+ b.sex='H';assert.equal(sexualCompatibility(a,b),true);
+ assert.ok(s.conceive(a,b));
+});
+test('parthenogenesis works alone but ordinary females cannot clone',()=>{
+ const s=populated(782),a=s.units[0];
+ s.units=[a];a.age=100;a.energy=200;a.sex='F';
+ a.g.repro=0;assert.equal(s.conceiveSolo(a),null);
+ a.g.repro=2;
+ const p=s.conceiveSolo(a);assert.ok(p);
+ assert.equal(p.otherParent,null);
+ assert.ok(p.genomes.length<=2);
+ assert.ok(a.energy<160);
+ const egg=s.layEgg(a);assert.ok(egg);
+ assert.equal(egg.otherParent,null);
+ assert.equal(s.conceiveSolo(a),null);
+});
+test('resource rivalry damages same-sex competitors regardless of diet',()=>{
+ const s=populated(783),a=s.units[0],b=s.units[1];
+ a.sex=b.sex='M';a.g.diet=0;a.g.guard=0;a.bite=0;
+ const before=b.hp;
+ assert.equal(s.attack(a,b,'rival'),true);
+ assert.ok(b.hp<before);
+ assert.ok(s.effects.some(x=>x.type==='rivalStrike'));
 });
