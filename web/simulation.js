@@ -130,7 +130,7 @@ export const crowdMetrics=(u,neighbors)=>{
   }
   occupied+=otherArea*(1-d/65);
  }
- return {density,habitatLoad:Math.max(0,occupied/900-.35)};
+ return {density,habitatLoad:Math.max(0,occupied/450-.30)};
 };
 export const crowdStress=density=>Math.min(9,Math.max(0,density-2.5));
 // Carrying capacity is based on ABSOLUTE occupied area, not body size relative
@@ -146,7 +146,7 @@ export const habitatCrowding=(u,neighbors)=>{
   const b=bodyCollisionAxes(v);
   occupied+=b.rx*b.ry*(1-d/radius);
  }
- return Math.max(0,(occupied/900-.35));
+ return Math.max(0,(occupied/450-.30));
 };
 
 
