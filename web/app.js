@@ -1,4 +1,4 @@
-import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep} from './simulation.js?v=compact-eggs-1';
+import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep} from './simulation.js?v=quiet-events-1';
 import {drawWorld,drawChart} from './renderer.js?v=compact-eggs-1';
 const $=id=>document.getElementById(id);
 const game=new Ecosystem();
