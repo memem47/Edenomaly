@@ -1931,3 +1931,20 @@ test('a crowded clutch cannot all mature without enough resources',()=>{
  assert.equal(barren.adults,0);
  assert.ok(barren.alive<crowded.alive);
 });
+
+test('large colonies retain cheap glossy sheen without allocating gradients per small body',()=>{
+ const w=new Ecosystem(8911);w.units=[];w.corpses=[];w.eggs=[];w.effects=[];
+ const g={...w.gene(),r:4,elongation:1,albino:0};
+ for(let i=0;i<260;i++){
+  const u=w.spawn(30+(i%20)*36,30+Math.floor(i/20)*29,g);
+  u.maxHp=u.hp=100;u.age=50;
+ }
+ let gradients=0,softSheen=0;
+ const ctx=new Proxy({canvas:{width:800,height:460},
+  createRadialGradient(){gradients++;return {addColorStop(){}};}},
+  {get(o,k){return k in o?o[k]:()=>{};},
+   set(o,k,v){if(k==='fillStyle'&&v==='rgba(255,255,255,0.160)')softSheen++;o[k]=v;return true;}});
+ drawWorld(ctx,w,false);
+ assert.equal(gradients,0);
+ assert.ok(softSheen>=250);
+});
