@@ -830,11 +830,13 @@ test('old corpse remains recyclable but is not drawn as a dark stain',()=>{
  w.die(u,'test');w.units=[];
  const corpse=w.corpses[0];corpse.age=200;
  const saved=corpse.mass;
- const ctx=new Proxy({canvas:{width:800,height:460},createRadialGradient:()=>({addColorStop(){}})},{
+ let ovalCount=0;
+ const ctx=new Proxy({canvas:{width:800,height:460},createRadialGradient:()=>({addColorStop(){}}),ellipse:()=>{ovalCount++;}},{
   get(obj,key){return key in obj?obj[key]:()=>{};},
   set(obj,key,val){obj[key]=val;return true;}
  });
  drawWorld(ctx,w,false);
+ assert.equal(ovalCount,0); // Old corpses are no longer rendered.
  assert.equal(corpse.mass,saved);
  assert.equal(w.corpses.length,1);
 });
