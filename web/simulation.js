@@ -152,12 +152,20 @@ export const habitatCrowding=(u,neighbors)=>{
 
 // Collision geometry follows the actual drawn ellipse, including adult growth.
 // Treats infants as smaller bodies; collisions are soft, not rigid-body physics.
-// Smooth hatchling-to-adult size curve. At age 65 the visual scale is
-// already 1, so changing the life-stage flag cannot cause a size jump.
+// Hatchlings grow with accumulated nutrition, not merely with age.
 export const lifeStageScale=u=>{
  if(u.stage!=='juvenile')return 1;
- const t=clamp((u.age??0)/65,0,1);
+ const t=clamp(u.juvenileGrowth??0,0,1);
  return .55+.45*t*t*(3-2*t);
+};
+// Growth competes directly with maintenance for calories actually eaten.
+// Density and large body mass make growth slower without a population cap.
+export const juvenileGrowthIncrement=(u,food,habitatLoad=0,crowdStress=0)=>{
+ if(u.stage!=='juvenile'||food<=0||u.energy<=42)return 0;
+ const surplus=clamp((u.energy-42)/58,0,1);
+ const crowd=1+Math.max(0,habitatLoad)*.85+Math.max(0,crowdStress)*.13;
+ const massCost=Math.max(1,Math.sqrt(organismMorphology(u).bodyMass)/9);
+ return Math.min(.032,food*.013)*surplus/crowd/massCost;
 };
 export const bodyCollisionAxes=u=>{
  if(stepCache){const c=stepCache.axes.get(u);if(c&&c.stage===u.stage&&c.age===u.age&&c.scale===(u.growthScale??1))return c.value;}
@@ -400,7 +408,7 @@ export class Ecosystem{
   if(this.units.length>=2000)return null;
   const mode=reproductiveMode(g);
    const sex=mode===1?'H':mode===2?'F':(this.rand()<.5?'F':'M');
-   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,recentFood:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null};
+   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null};
   u.category=this.category(g);u.lineage??=u.id;this.units.push(u);
   if(!this.species.has(u.category)){
    const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(n),current:0,total:0,diet:dietProfile(g).label,first:this.tick,genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(n),u);
@@ -561,7 +569,9 @@ export class Ecosystem{
  eatEgg(egg,hunter){
   if(egg.dead||dietProfile(hunter.g).meat===0)return false;
   egg.dead=true;
-  hunter.energy+=egg.energy*(.8+eggTraits(egg.g).shell*.12)*dietProfile(hunter.g).meat;
+  const nutrients=egg.energy*(.8+eggTraits(egg.g).shell*.12)*dietProfile(hunter.g).meat;
+  hunter.energy+=nutrients;
+  if(hunter.stage==='juvenile')hunter.juvenileFood=(hunter.juvenileFood??0)+nutrients;
   hunter.bite=Math.round(12+egg.g.shell*27);
   this.log('eggeaten','#'+hunter.id+' が卵 #'+egg.id+' を食べた',egg);
   this.addVisualEffect('consume',egg);
@@ -586,6 +596,7 @@ export class Ecosystem{
    const tissue=Math.max(4,organismMorphology(prey).bodyMass*.23);
    const gained=(Math.max(5,prey.energy*.35)+tissue)*meat;
    hunter.energy+=gained;
+   if(hunter.stage==='juvenile')hunter.juvenileFood=(hunter.juvenileFood??0)+gained;
    hunter.recentFood=(hunter.recentFood??0)+tissue*meat*1.3;
    this.die(prey,defensive==='rival'?'同性間の争い':defensive?'防衛':'捕食',tissue*meat);
    this.addVisualEffect('consume',prey);
@@ -920,7 +931,7 @@ export class Ecosystem{
   const firstEggByParent=new Map();
   for(const egg of this.eggs)if(!egg.dead&&!firstEggByParent.has(egg.parent))firstEggByParent.set(egg.parent,egg);
   for(const u of batch){
-   if(u.dead)continue;u.age++;if(u.bite>0)u.bite--;if(u.woundFlash>0)u.woundFlash--;if(u.attackFlash>0)u.attackFlash--;if(u.defendFlash>0)u.defendFlash--;if(u.mateCooldown>0)u.mateCooldown--;
+   if(u.dead)continue;u.age++;u.juvenileFood=0;if(u.bite>0)u.bite--;if(u.woundFlash>0)u.woundFlash--;if(u.attackFlash>0)u.attackFlash--;if(u.defendFlash>0)u.defendFlash--;if(u.mateCooldown>0)u.mateCooldown--;
    if(u.pregnancy){u.pregnancy.remaining--;if(u.pregnancy.remaining<=0)this.layEgg(u);}
    const g=u.g,t=this.terrain(u.x,u.y),m=organismMorphology(u),diet=dietProfile(g),home=terrainFitness(g,t);
    const youth=u.stage==='juvenile'?.50:1,body=vitality(u),sight=m.eyeRange*home.sight;
@@ -1122,6 +1133,7 @@ export class Ecosystem{
     const eaten=this.consumeWaterweed(nearest.x,nearest.y,Math.min(5.5,1.3*m.foodGain*feedingCapacity(u)));
     if(eaten>0){u.energy+=eaten*7.5*diet.plant*home.fitness;
      u.recentFood=(u.recentFood??0)+eaten*4;
+     if(u.stage==='juvenile')u.juvenileFood+=eaten*7.5*diet.plant*home.fitness;
      // Eating sustains energy but cannot replenish spent lifespan.
      if((this.tick+u.id)%9===0)this.addVisualEffect('waterweed',u,{fromX:nearest.x,fromY:nearest.y});
      this.log('meal','#'+u.id+' が水草を食べた',u);}
@@ -1131,6 +1143,7 @@ export class Ecosystem{
     if(eaten>0){u.energy+=eaten*10.5*diet.plant*home.fitness;
      u.recentFood=(u.recentFood??0)+eaten*4;
      u.seedBank=Math.min(100,(u.seedBank??0)+eaten*.35);
+     if(u.stage==='juvenile')u.juvenileFood+=eaten*10.5*diet.plant*home.fitness;
      // Grass restores energy reserves, not irreversible life HP.
      if((this.tick+u.id)%9===0)this.addVisualEffect('graze',u,{fromX:nearest.x,fromY:nearest.y});
      this.log('meal','#'+u.id+' が草を食べた',u);}
@@ -1141,6 +1154,7 @@ export class Ecosystem{
     nearestCorpse.mass-=eaten;
     u.energy+=eaten*5.5*diet.meat;
     u.recentFood=(u.recentFood??0)+eaten*4;
+    if(u.stage==='juvenile')u.juvenileFood+=eaten*5.5*diet.meat;
     if(eaten>0){if((this.tick+u.id)%9===0)this.addVisualEffect('scavenge',u,{fromX:nearestCorpse.x,fromY:nearestCorpse.y});this.log('meal','#'+u.id+' が死体を食べた',u);}
    }
    if(!flight&&!defenderTarget&&targetEgg&&!targetEgg.dead&&u.bite===0&&distance(u,targetEgg)<(m.biteReach+4)**2)this.eatEgg(targetEgg,u);
@@ -1154,7 +1168,21 @@ export class Ecosystem{
     }
    const newTerrain=this.terrain(u.x,u.y);
    if(newTerrain!==u.lastTerrain){u.lastTerrain=newTerrain;this.terrainCrossings++;}
-   if(u.stage==='juvenile'&&u.age>=65&&u.energy>=32){u.stage='adult';this.log('mature','#'+u.id+' が成体になった',u);}
+   if(u.stage==='juvenile'){
+    const increment=juvenileGrowthIncrement(u,u.juvenileFood,u.habitatLoad,u.crowdStress);
+    u.juvenileGrowth=Math.min(1,(u.juvenileGrowth??0)+increment);
+    // Tissue growth uses nutrients that cannot also pay for maintenance.
+    u.energy-=increment*46;
+    if(u.energy<38){
+     // Unfed hatchlings remain small and eventually die rather than
+     // growing automatically to adult size.
+     u.hp-=(38-u.energy)*.012*(1+Math.min(2,(u.habitatLoad??0)*.28));
+    }
+    if(u.juvenileGrowth>=.999&&u.age>=65&&u.energy>=38){
+     u.juvenileGrowth=1;u.stage='adult';
+     this.log('mature','#'+u.id+' が成体になった',u);
+    }
+   }
 
    // Sustained feeding causes visible individual growth; high body mass raises
    // metabolic demand and slows movement, so giantism has a real ecological cost.
