@@ -253,6 +253,16 @@ An observable, evolving artificial ecosystem. The player edits terrain and resou
 - [x] 3 seed×400 stepの簡易描画／シミュレーション検証を実施（JavaScriptのモックCanvas。実ブラウザによる目視確認は別途必要）
 - [ ] 実ブラウザでエフェクトの密度・見栄えとFPSを目視確認
 
+## 地形適応に連動する体色（2026-11-03）
+- [x] 色相・彩度・明度の3遺伝子をゲノム、対立遺伝子、突然変異、交配から削除
+- [x] 水・乾燥・岩場への適応度を合成してHSL色相・彩度・明度を計算する純粋関数を追加
+- [x] 適応なし=緑、水適応=シアン、乾燥適応=黄橙、岩場適応=紫を基本色とし混合形質では連続変化
+- [x] スライム本体・単色の目・卵・図鑑の色アイコンを同じ計算モデルに統一
+- [x] 図鑑の色遺伝子表示を削除し、観察欄には能力から算出した体色であることを明記
+- [x] 旧色遺伝子参照を使うテストを更新し、色のマッピングと非遺伝性の回帰テストを追加（107件成功）
+- [x] 200ステップの動作と簡易描画確認、ブラウザのモジュールキャッシュ更新
+- [ ] 実ブラウザで配色のバランス・判別性を目視評価
+
 ## コミット前の確認
 1. Run in browser and test terrain painting and restart.
 2. Observe births, deaths, meals and predation on canvas and in log.
