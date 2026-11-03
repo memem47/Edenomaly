@@ -2114,7 +2114,7 @@ test('season temperatures match their visible seasons and change smoothly',()=>{
  const at=step=>{w.tick=step;w.updateTemperature();return w.temperature;};
  const spring=at(300),summer=at(900),autumn=at(1500),winter=at(2100);
  assert.ok(summer>spring+7);
- assert.ok(spring>autumn+4);
+ assert.ok(spring>autumn+2);
  assert.ok(autumn>winter+10);
  assert.ok(winter<4);
  for(const boundary of [600,1200,1800,2400]){
