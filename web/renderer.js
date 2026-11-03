@@ -21,6 +21,7 @@ export function slimeEyeAngles(g){
 }
 export function slimeEyeColor(g){
  const c=adaptationColor(g);
+ if(g.albino===1)return 'hsl(335,52%,38%)';
  // Eye pigment is a dark complementary shade of the adaptation-derived body.
  return `hsl(${(c.hue+125+(g.eyes??0)*8)%360},${Math.max(45,c.saturation-12)}%,${Math.max(18,c.lightness*.45)}%)`;
 }
@@ -144,16 +145,17 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   const rx=halfW*1.06*aspect*(1+squash);
   const ry=halfW*1.06*(1-squash);
   const pigment=adaptationColor(g);
-  const sat=Math.min(100,Math.max(28,pigment.saturation*(1-life.old*.42)+8));
-  const light=Math.min(85,Math.max(38,pigment.lightness+6));
-  const base=u.woundFlash?'#fff0e2':`hsl(${pigment.hue},${sat}%,${light}%)`;
-  const outline=`hsl(${pigment.hue},${Math.max(30,sat-8)}%,${Math.max(19,light-29)}%)`;
+  const sat=g.albino===1?4:Math.min(100,Math.max(28,pigment.saturation*(1-life.old*.42)+8));
+  const light=g.albino===1?91:Math.min(85,Math.max(38,pigment.lightness+6));
+  const base=`hsl(${pigment.hue},${sat}%,${light}%)`;
+  const outline=g.albino===1?'hsl(335,15%,64%)':`hsl(${pigment.hue},${Math.max(30,sat-8)}%,${Math.max(19,light-29)}%)`;
   const shine=ctx.createRadialGradient(-rx*.38,-ry*.42,0,0,0,Math.max(rx,ry)*1.45);
-  shine.addColorStop(0,'rgba(255,255,255,.68)');
+  shine.addColorStop(0,'rgba(255,255,255,.38)');
   shine.addColorStop(.36,base);
   shine.addColorStop(1,outline);
   ctx.fillStyle=shine;ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.fill();
   ctx.strokeStyle=outline;ctx.lineWidth=1.6;ctx.stroke();
+  if(u.woundFlash&&!dead){ctx.fillStyle='rgba(255,150,98,.16)';ctx.fill();}
   ctx.fillStyle='rgba(255,255,255,.36)';ctx.beginPath();
   ctx.ellipse(-rx*.30,-ry*.36,rx*.21,ry*.10,-.35,0,TAU);ctx.fill();
   // Solid-colored, body-harmonized eyes, set inside the oval rather than on the rim.
@@ -163,6 +165,8 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   for(const angle of eyes){
    const {x:ex,y:ey}=slimeEyeLocation(angle,rx,ry);
    ctx.beginPath();ctx.arc(ex,ey,eyeRadius,0,TAU);ctx.fill();
+   // A tiny glossy reflection gives readable eyes without white sclera.
+   if(!dead){ctx.fillStyle='rgba(255,255,255,.82)';ctx.beginPath();ctx.arc(ex-eyeRadius*.30,ey-eyeRadius*.30,Math.max(.55,eyeRadius*.23),0,TAU);ctx.fill();ctx.fillStyle=slimeEyeColor(g);}
   }
   if(!dead&&u===selected){ctx.strokeStyle='white';ctx.beginPath();ctx.ellipse(0,0,rx+7,ry+7,0,0,TAU);ctx.stroke();}
   ctx.restore();
