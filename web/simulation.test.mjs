@@ -459,10 +459,11 @@ test('player planting directly restores the grass biome',()=>{
  assert.equal(w.grass[w.cell(220,140)],100);
  assert.equal(w.food.length,0);
 });
-test('grass is not spontaneously generated from a wholly barren map',()=>{
+test('wind can restore grass on completely barren land without neighbors',()=>{
  const w=new Ecosystem(903);w.tiles.fill(2);w.grass.fill(0);
- w.growth=100;for(let i=0;i<120;i++)w.step();
- assert.ok(w.grass.every(x=>x===0));
+ w.growth=100;for(let i=0;i<1200;i++)w.step();
+ assert.ok(w.seedRainCount>0);
+ assert.ok(w.grass.some(x=>x>0));
 });
 test('painting water preserves land creature safety on its occupied cell',()=>{
  const world=new Ecosystem(904);world.tiles.fill(0);
@@ -711,4 +712,44 @@ test('weather changes reproducibly for identical simulation seeds',()=>{
   assert.equal(a.weather,b.weather);
  }
  assert.ok(new Set(history).size>=2);
+});
+
+test('grazing animals carry seeds which germinate when their corpse decomposes',()=>{
+ const w=new Ecosystem(1701);w.tiles.fill(2);w.grass.fill(0);
+ const x=220,y=140,id=w.cell(x,y),g={...w.gene(),diet:0,aquatic:0};
+ w.tiles[id]=0;w.grass[id]=30;
+ const u=w.spawn(x,y,g);u.seedBank=12;
+ w.die(u,'test');w.units=[];w.tiles[id]=2;w.grass[id]=0;
+ w.growth=0;w.rand=()=>0;
+ for(let i=0;i<12;i++)w.step();
+ assert.equal(w.tiles[id],0);
+ assert.ok(w.grass[id]>0);assert.equal(w.corpseSproutCount,1);
+});
+test('purely carnivorous remains do not carry grass seeds',()=>{
+ const w=new Ecosystem(1702);w.tiles.fill(2);w.grass.fill(0);
+ const u=w.spawn(220,140,{...w.gene(),diet:1});w.die(u,'test');w.units=[];
+ w.growth=0;w.rand=()=>0;
+ for(let i=0;i<20;i++)w.step();
+ assert.equal(w.corpseSproutCount,0);
+ assert.equal(w.tiles[w.cell(220,140)],2);
+});
+test('five and six-eyed founders are rare under the new gene distribution',()=>{
+ const w=new Ecosystem(1703);let many=0;
+ for(let i=0;i<5000;i++)if(w.gene().eyes>=5)many++;
+ assert.ok(many<150,'multi-eyed frequency exceeded 3%');
+ assert.ok(many>10,'rare many-eyed genes must remain possible');
+});
+test('extra eyes have diminishing sight benefits and higher upkeep and movement cost',()=>{
+ const w=new Ecosystem(1704),g=w.gene();
+ const two=morphology({...g,eyes:2}),four=morphology({...g,eyes:4}),six=morphology({...g,eyes:6});
+ assert.ok(four.eyeRange>two.eyeRange&&six.eyeRange>four.eyeRange);
+ assert.ok(six.eyeRange-four.eyeRange<four.eyeRange-two.eyeRange);
+ assert.ok(six.upkeep>four.upkeep&&four.upkeep>two.upkeep);
+ assert.ok(six.speed<four.speed);
+});
+test('wind germination is absent when natural plant regeneration is disabled',()=>{
+ const w=new Ecosystem(1705);w.tiles.fill(2);w.grass.fill(0);w.growth=0;
+ for(let i=0;i<450;i++)w.step();
+ assert.equal(w.seedRainCount,0);
+ assert.ok(w.grass.every(v=>v===0));
 });
