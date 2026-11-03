@@ -326,6 +326,16 @@ An observable, evolving artificial ecosystem. The player edits terrain and resou
 - [ ] 実ブラウザで長時間観察し、黒い染みが完全に解消されたか目視検証
 - 注：卵の実際の孵化タイミング・死体の栄養量・分解時間・腐肉食の仕組みは変更していない
 
+## 水草の種子流入による絶滅池の再生（2026-11-03）
+- [x] 隣接する水草が全滅すると永久に再生しない制限を解消
+- [x] 12ステップごとに、十分な水量（12以上）がある裸の水域へ低確率で外部種子が定着
+- [x] 降雨中・水深が高い池では発芽しやすくし、乾燥地・枯れた水場・植物成長ゼロでは発芽させない
+- [x] 生き残った水草の通常成長と隣接セルへの拡散は維持
+- [x] 種子流入回数を waterweedSeedCount に記録し、正常再生を検証しやすくした
+- [x] 新規4件＋既存更新の回帰テスト131件が成功
+- [x] 完全に水草を失った25マス池を3シードで1000ステップ実験し、すべて復活を確認
+- [ ] 実ブラウザで水生個体による再捕食と水草の長期安定性を確認
+
 ## コミット前の確認
 1. Run in browser and test terrain painting and restart.
 2. Observe births, deaths, meals and predation on canvas and in log.
