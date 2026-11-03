@@ -1563,26 +1563,49 @@ test('seasonal rendering is visual only and keeps simulation RNG untouched',()=>
  assert.ok(count>0);
 });
 
-import {lifeStageScale} from './simulation.js';
-test('juveniles grow continuously and reach adult size before maturity transition',()=>{
- const values=[0,1,10,20,40,60,64,65].map(age=>lifeStageScale({stage:'juvenile',age}));
+import {lifeStageScale,juvenileGrowthIncrement} from './simulation.js';
+test('juvenile body growth follows nutrients, not elapsed age',()=>{
+ const empty={stage:'juvenile',age:150,juvenileGrowth:0};
+ assert.equal(lifeStageScale(empty),.55);
+ const values=[0,.01,.2,.5,.8,.98,1].map(juvenileGrowth=>
+  lifeStageScale({stage:'juvenile',juvenileGrowth}));
  assert.equal(values[0],.55);
  for(let i=1;i<values.length;i++)assert.ok(values[i]>values[i-1]);
  assert.equal(values.at(-1),1);
  assert.ok(values.at(-1)-values.at(-2)<.002);
- assert.equal(lifeStageScale({stage:'adult',age:65}),1);
- assert.equal(lifeStageScale({stage:'juvenile',age:110}),1);
+ assert.equal(lifeStageScale({stage:'adult',juvenileGrowth:1}),1);
 });
-test('collision size is continuous across the juvenile-adult stage change',()=>{
+test('collision size is continuous across nutrient-driven maturity transition',()=>{
  const world=new Ecosystem(4112);
  const u=world.spawn(200,170,world.gene(),{id:1,generation:0,lineage:1});
- u.age=65;u.stage='juvenile';
+ u.age=85;u.juvenileGrowth=1;u.stage='juvenile';
  const before=bodyCollisionAxes(u);
  u.stage='adult';
  const after=bodyCollisionAxes(u);
  assert.deepEqual(after,before);
 });
-
+test('a starving juvenile does not enlarge just by surviving for many steps',()=>{
+ const w=new Ecosystem(4113);
+ w.tiles.fill(2);w.grass.fill(0);w.waterweed.fill(0);w.growth=0;
+ const u=w.spawn(230,170,{...w.gene(),aquatic:0,diet:0,r:4},
+  {id:1,generation:0,lineage:1});
+ u.energy=75;u.age=0;
+ for(let i=0;i<85&&!u.dead;i++)w.step();
+ assert.equal(u.juvenileGrowth,0);
+ assert.equal(u.stage,'juvenile');
+ assert.equal(lifeStageScale(u),.55);
+});
+test('juveniles develop faster with more food and without crowding',()=>{
+ const w=new Ecosystem(4114),g={...w.gene(),aquatic:0,diet:0,r:4};
+ const u=w.spawn(230,170,g,{id:1,generation:0,lineage:1});
+ u.energy=110;
+ const healthy=juvenileGrowthIncrement(u,4,0,0);
+ assert.ok(healthy>0);
+ assert.equal(juvenileGrowthIncrement(u,0,0,0),0);
+ assert.equal(juvenileGrowthIncrement({...u,energy:20},4,0,0),0);
+ assert.ok(juvenileGrowthIncrement(u,4,4,7)<healthy);
+ assert.ok(juvenileGrowthIncrement({...u,growthScale:2},4,0,0)<healthy);
+});
 import {SpatialLookup,crowdMetrics} from './simulation.js';
 test('ecological population targets are below the emergency safety cap',()=>{
  const w=new Ecosystem(8621),g=w.gene();
