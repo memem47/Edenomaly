@@ -737,7 +737,7 @@ export class Ecosystem{
      // Founder individuals of one species need not be genetic clones.
      // Keep their functional species, but allow different hidden alleles.
      for(let attempt=0;attempt<8;attempt++){
-      const trial=this.mutate(g);
+      const trial=this.adaptFounderToTerrain(this.mutate(g),placedTerrain);
       if(this.category(trial)===key){variant=trial;break;}
      }
     }
