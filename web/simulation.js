@@ -115,7 +115,9 @@ export class Ecosystem{
  terrain(x,y){return this.tiles[this.cell(x,y)];}
  gene(){
   const g={r:this.rand()<.15?this.range(8.5,12):this.range(3.1,7.5),
-   elongation:this.range(.65,2.85),eyes:(()=>{const roll=this.rand();return roll<.08?0:roll<.36?1:roll<.71?2:roll<.90?3:roll<.975?4:roll<.995?5:6;})(),
+   elongation:(()=>{const roll=this.rand();
+    return roll<.82?this.range(.94,1.16):roll<.98?this.range(1.43,2.04):this.range(2.35,2.83);
+   })(),eyes:(()=>{const roll=this.rand();return roll<.08?0:roll<.36?1:roll<.71?2:roll<.90?3:roll<.975?4:roll<.995?5:6;})(),
    mouths:1+Math.floor(this.rand()*4),jaw:this.range(.2,2.5),
    wet:this.rand(),dry:this.rand(),rock:this.rand(),
    shell:this.rand(),guard:this.rand(),nesting:this.rand(),
@@ -127,7 +129,8 @@ export class Ecosystem{
   g.alleles={};
   for(const key of HERITABLE){
    let second=g[key];
-   if(key==='albino')second=0;
+   if(key==='elongation')second=clamp(g.elongation+this.range(-.11,.11),...LIMITS.elongation);
+   else if(key==='albino')second=0;
    else if(key==='aquatic'&&this.rand()<.14)second=1-g.aquatic;
    else if(key==='eyes'&&this.rand()<.82)second=Math.max(0,g.eyes-1-Math.floor(this.rand()*3));
    else if(key!=='aquatic'&&key!=='eyes'&&this.rand()<.75){
@@ -155,6 +158,7 @@ export class Ecosystem{
    let value=next.alleles[key][index];
    if(key==='aquatic')value=1-value;
    else if(key==='albino')value=1-value;
+   else if(key==='elongation')value+=this.rand()<.85?this.range(-.13,.08):this.range(-.20,.24);
    else if(INTEGER_GENES.has(key))value+=this.rand()<.5?-1:1;
    else value+=this.range(-.24,.24)*width;
    next.alleles[key][index]=clamp(value,lo,hi);
