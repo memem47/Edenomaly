@@ -233,7 +233,11 @@ test('egg cluster is deposited behind the laying parent',()=>{
  const world=populated(301),a=world.units[0],b=world.units[1];
  a.age=b.age=100;a.energy=b.energy=160;
  a.x=300;a.y=200;a.angle=0;
- world.conceive(a,b);world.layEgg(a);
+ world.conceive(a,b);
+ // Only offspring of the same habitat remain immediately behind the parent;
+ // habitat-switch offspring can drift toward a nearby coast.
+ for(const g of a.pregnancy.genomes)g.aquatic=a.g.aquatic;
+ world.layEgg(a);
  assert.ok(world.eggs.length>=1);
  assert.ok(world.eggs.every(e=>e.x<a.x));
  assert.ok(rearPosition(a).x<a.x);
