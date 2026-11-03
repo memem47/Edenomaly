@@ -1083,3 +1083,43 @@ test('an already giant creature cannot indefinitely hoard energy',()=>{
  w.step();
  assert.ok(u.energy<=energyStorageLimit(u));
 });
+
+test('each egg draws a bright shell without an extra dark shadow oval',()=>{
+ const w=new Ecosystem(2601);
+ w.units=[];w.corpses=[];w.courtships=[];w.eggTrails=[];
+ const g=w.gene();
+ w.eggs=Array.from({length:18},(_,i)=>({
+  id:i,x:240+(i%6)*3,y:180+Math.floor(i/6)*3,
+  birthX:240,birthY:180,bornTick:0,g:{...g},age:10,hatchAt:45
+ }));
+ w.tick=20;
+ const setColors=[],ellipses=[];
+ const ctx=new Proxy({canvas:{width:800,height:460},
+  ellipse(...args){ellipses.push(args);},
+  createRadialGradient:()=>({addColorStop(){}})},
+  {get(o,k){return k in o?o[k]:()=>{};},
+   set(o,k,v){if(k==='fillStyle')setColors.push(v);o[k]=v;return true;}});
+ drawWorld(ctx,w,false);
+ // Egg body and glint: exactly two ellipses per egg. There is no dark
+ // underlay that accumulates into a large stain under overlapping clutches.
+ assert.equal(ellipses.length,w.eggs.length*2);
+ assert.ok(!setColors.includes('#513e52'));
+ assert.ok(!setColors.includes('#4d384d'));
+});
+test('young corpses fade as light translucent overlays, while old remains still recycle',()=>{
+ const w=new Ecosystem(2602),u=w.spawn(260,170,w.gene());
+ w.die(u,'test');w.units=[];
+ w.corpses[0].age=25;
+ const alpha=[];
+ const ctx=new Proxy({canvas:{width:800,height:460},
+  createRadialGradient:()=>({addColorStop(){}})},
+  {get(o,k){return k in o?o[k]:()=>{};},
+   set(o,k,v){if(k==='globalAlpha')alpha.push(v);o[k]=v;return true;}});
+ drawWorld(ctx,w,false);
+ assert.ok(alpha.some(n=>n>0&&n<.22));
+ w.corpses[0].age=66;
+ alpha.length=0;
+ drawWorld(ctx,w,false);
+ assert.equal(w.corpses.length,1);
+ assert.ok(!alpha.some(n=>n>0&&n<=.22));
+});
