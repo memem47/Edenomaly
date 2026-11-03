@@ -1,4 +1,4 @@
-import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology,adaptationColor} from './simulation.js?v=supergiant-food-10';
+import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive} from './simulation.js?v=supergiant-food-10';
 import {drawWorld,drawChart} from './renderer.js?v=condition-visuals-11';
 const $=id=>document.getElementById(id);
 const game=new Ecosystem();
@@ -21,7 +21,8 @@ function speciesAbilityText(g){
  const m=morphology(g),diet=dietProfile(g),hp=Math.max(25,Math.round(m.bodyMass*.48+25));
  const fmt=v=>v.toFixed(2);
  const habitat=g.aquatic===1?'水生':'陸生';
- return `<div class="species-abilities" aria-label="計算済みの能力"><span title="草地での基準移動速度">速 ${fmt(m.speed*.58)}</span><span title="草地での視界距離">視 ${Math.round(m.eyeRange)}</span><span title="最大HP（健康な成体）">HP ${hp}</span><span title="1ステップあたりの基礎代謝">代謝 ${fmt(m.upkeep)}</span><span title="食性">${escapeHTML(diet.label)}</span><span title="生息型">${habitat}</span><span title="乾燥地／岩場／水辺の適応度">適応 乾${fmt(terrainFitness(g,2).fitness)} 岩${fmt(terrainFitness(g,3).fitness)} 水${fmt(terrainFitness(g,1).fitness)}</span></div>`;
+ const strategy=protectiveDrive(g)>.52?'卵の守護種':eggPredationDrive(g)>.62?'卵を狙う危険種':'一般型';
+ return `<div class="species-abilities" aria-label="計算済みの能力"><span title="草地での基準移動速度">速 ${fmt(m.speed*.58)}</span><span title="草地での視界距離">視 ${Math.round(m.eyeRange)}</span><span title="最大HP（健康な成体）">HP ${hp}</span><span title="1ステップあたりの基礎代謝">代謝 ${fmt(m.upkeep)}</span><span title="食性">${escapeHTML(diet.label)}</span><span title="遺伝した食性・顎・保護能力による生態的戦略">${strategy}</span><span title="生息型">${habitat}</span><span title="乾燥地／岩場／水辺の適応度">適応 乾${fmt(terrainFitness(g,2).fitness)} 岩${fmt(terrainFitness(g,3).fitness)} 水${fmt(terrainFitness(g,1).fitness)}</span></div>`;
 }
 function catalogSpecies(liveBySpecies){
  const phenotype=e=>speciesRepresentative(e[0],e[1],liveBySpecies);
@@ -66,7 +67,7 @@ function update(){
  $('catalogCount').textContent=($('showExtinct').checked?'表示':'現存')+' '+catalogRows.length+'種';
  const nextCatalog=catalogRows.map(([key,sp])=>`<button type="button" class="species species-entry${selectedSpecies===key?' selected':''}" data-category="${escapeHTML(key)}" aria-expanded="${selectedSpecies===key}"><span class="dot" style="background:${speciesColor(sp)}"></span><div class="species-info"><b>${escapeHTML(sp.name)}</b><small>#${sp.n} · Step ${sp.first} · ${sp.current?'現存':'絶滅'}</small>${speciesAbilityText(speciesRepresentative(key,sp,liveBySpecies))}</div><span>${sp.current}</span><span>${sp.total}</span></button>${selectedSpecies===key?`<div class="genome-panel species-expanded">${speciesGenomeHTML(key)}</div>`:''}`).join('');
  if(nextCatalog!==catalogMarkup){$('catalog').innerHTML=nextCatalog;catalogMarkup=nextCatalog;}
- const eventColors={birth:'#91f7ac',death:'#ff8290',meal:'#f9d36b',pred:'#be82ec',new:'#ffe486',decay:'#e2b96e',egg:'#eddfbd',hatch:'#a0e8bd',eggeaten:'#f5949c',mature:'#a0d9ff',attack:'#ffb7a1',ill:'#ed8bab',migration:'#b4e0ff',settle:'#88debc',mate:'#f5a5ed',court:'#ff91e8',laid:'#ffe3a1'};
+ const eventColors={birth:'#91f7ac',death:'#ff8290',meal:'#f9d36b',pred:'#be82ec',new:'#ffe486',decay:'#e2b96e',egg:'#eddfbd',hatch:'#a0e8bd',eggeaten:'#f5949c',mature:'#a0d9ff',attack:'#ffb7a1',defend:'#75f0e7',ill:'#ed8bab',migration:'#b4e0ff',settle:'#88debc',mate:'#f5a5ed',court:'#ff91e8',laid:'#ffe3a1'};
  $('events').innerHTML=game.logs.filter(e=>filter==='all'||e.type===filter).slice(0,60).map(e=>`<div class="log-entry"><span style="color:${eventColors[e.type]||'#9eb0b8'}">●</span> [${e.step}] ${escapeHTML(e.message)}</div>`).join('');
  const people=[0,0,0,0],food=[0,0,0,0],corpses=[0,0,0,0],fitness=[0,0,0,0];for(const u of game.units){const t=game.terrain(u.x,u.y);people[t]++;fitness[t]+=terrainFitness(u.g,t).fitness;}for(let i=0;i<game.tiles.length;i++){food[game.tiles[i]]+=(game.grass[i]||0)+(game.waterweed[i]||0);}for(const c of game.corpses)corpses[game.terrain(c.x,c.y)]++;
  $('habitats').innerHTML=TERRAIN_NAMES.map((name,i)=>`<div><span><span style="display:inline-block;width:11px;height:11px;background:${TERRAIN_COLORS[i]};margin-right:5px"></span>${name}</span><span>植物生産性 ${Math.round(TERRAIN_FERTILITY[i]*100)}% / 生命 ${people[i]} / 適応度平均 ${people[i]?(fitness[i]/people[i]).toFixed(2):'—'} / 資源 ${Math.round(food[i])} / 死体 ${corpses[i]}</span></div>`).join('');
