@@ -249,6 +249,12 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
    if(fade<=0)continue;
    ctx.save();ctx.globalAlpha=fade;ctx.lineCap='round';
    if(fx.type==='strike'){
+    // Orange strike trajectory connects attacker to the impact briefly.
+    if(Number.isFinite(fx.fromX)&&Number.isFinite(fx.fromY)){
+     ctx.strokeStyle='rgba(255,185,75,.65)';
+     ctx.lineWidth=2.5*fade+.6;
+     ctx.beginPath();ctx.moveTo(fx.fromX,fx.fromY);ctx.lineTo(fx.x,fx.y);ctx.stroke();
+    }
     // Sharp, warm impact burst plus outward shock ring.
     ctx.strokeStyle='#ff633d';ctx.lineWidth=3.6*(1-t)+1;
     ctx.beginPath();ctx.arc(fx.x,fx.y,4+t*17,0,TAU);ctx.stroke();
