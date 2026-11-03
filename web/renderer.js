@@ -86,6 +86,15 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
     ctx.fillRect(px+5+(seed%5),py+13,2.5,2.5);
     if(fertility>.58)ctx.fillRect(px+13,py+5+(seed%5),2,2);
    }
+   if(season==='autumn'&&cover>.02){
+    // Red, amber and rust leaves occupy actual vegetated pixels only.
+    // Deterministic hashes avoid consuming ecosystem RNG.
+    for(let k=0;k<Math.ceil(cover*4);k++){
+     const lx=px+3+(seed*3+k*7)%14,ly=py+4+(seed+k*5)%13;
+     ctx.fillStyle=['#ecbc50','#b8582d','#d76d31','#a63e38'][(seed+k)%4];
+     ctx.beginPath();ctx.ellipse(lx,ly,2.7,1.7,(seed+k)*.6,0,TAU);ctx.fill();
+    }
+   }
   }else if(t===1){
    const depth=Math.max(0,Math.min(1,(s.water[i]||0)/100));
    ctx.fillStyle=palette.water;ctx.fillRect(px+2,py+2,cell-4,(cell-4)*depth);
@@ -99,15 +108,6 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
     for(let k=0;k<Math.max(1,Math.floor(weed*4));k++){
      const wx=px+4+(k*5+seed)%13,wy=py+17;
      ctx.beginPath();ctx.moveTo(wx,wy);ctx.quadraticCurveTo(wx-3,wy-4,wx+Math.sin(s.tick*.08+k)*2,wy-8-weed*4);ctx.stroke();
-    }
-   }
-   if(season==='autumn'&&cover>.02){
-    // Red, amber and rust leaves occupy actual vegetated pixels only.
-    // Deterministic hashes avoid consuming ecosystem RNG.
-    for(let k=0;k<Math.ceil(cover*4);k++){
-     const lx=px+3+(seed*3+k*7)%14,ly=py+4+(seed+k*5)%13;
-     ctx.fillStyle=['#ecbc50','#b8582d','#d76d31','#a63e38'][(seed+k)%4];
-     ctx.beginPath();ctx.ellipse(lx,ly,2.7,1.7,(seed+k)*.6,0,TAU);ctx.fill();
     }
    }
   }else if(t===2){
