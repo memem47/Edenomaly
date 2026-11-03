@@ -172,7 +172,23 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   shine.addColorStop(1,outline);
   ctx.fillStyle=dead?'#c2cf9e':shine;ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.fill();
   ctx.strokeStyle=dead?'#718e76':outline;ctx.lineWidth=dead?1.5:1.6;ctx.stroke();
-  if(u.woundFlash&&!dead){ctx.fillStyle='rgba(255,150,98,.16)';ctx.fill();}
+  if(condition.hit){
+   ctx.fillStyle='rgba(255,92,75,.27)';ctx.fill();
+   ctx.strokeStyle='rgba(255,89,65,.85)';ctx.lineWidth=2.4;ctx.stroke();
+  }
+  // Damaged bodies carry distinct scratches until their HP recovers.
+  if(condition.injured){
+   const severity=condition.injurySeverity;
+   ctx.fillStyle='rgba(132,53,110,.24)';
+   ctx.beginPath();ctx.ellipse(-rx*.22,ry*.22,rx*.24,ry*.17,.4,0,TAU);ctx.fill();
+   ctx.strokeStyle='rgba(185,44,84,.85)';
+   ctx.lineWidth=Math.max(1.4,Math.min(3,ry*.10));
+   const cuts=severity>.55?3:severity>.22?2:1;
+   for(let i=0;i<cuts;i++){
+    const px=-rx*.37+i*rx*.23,py=ry*(.06+i*.10);
+    ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px+rx*.12,py+ry*.14);ctx.stroke();
+   }
+  }
   if(!dead){ctx.fillStyle='rgba(255,255,255,.36)';ctx.beginPath();
   ctx.ellipse(-rx*.30,-ry*.36,rx*.21,ry*.10,-.35,0,TAU);ctx.fill();}
   // Solid-colored, body-harmonized eyes, set inside the oval rather than on the rim.
