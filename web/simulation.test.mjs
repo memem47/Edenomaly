@@ -833,18 +833,19 @@ test('direct attack and kill produce different visible effects',()=>{
  assert.ok(w.attack(hunter,prey));
  assert.ok(w.effects.some(f=>f.type==='consume'));
 });
-test('old corpse remains recyclable but is not drawn as a dark stain',()=>{
+test('old corpses visibly retain nutrients without becoming dark stains',()=>{
  const w=new Ecosystem(1906);const u=w.spawn(210,150,w.gene());
  w.die(u,'test');w.units=[];
  const corpse=w.corpses[0];corpse.age=200;
  const saved=corpse.mass;
- let ovalCount=0;
+ let ovalCount=0;const colors=[];
  const ctx=new Proxy({canvas:{width:800,height:460},createRadialGradient:()=>({addColorStop(){}}),ellipse:()=>{ovalCount++;}},{
   get(obj,key){return key in obj?obj[key]:()=>{};},
-  set(obj,key,val){obj[key]=val;return true;}
+  set(obj,key,v){if(key==='fillStyle')colors.push(v);obj[key]=v;return true;}
  });
  drawWorld(ctx,w,false);
- assert.equal(ovalCount,0); // Old corpses are no longer rendered.
+ assert.ok(ovalCount>=1); // The remaining nutrients remain visibly represented.
+ assert.ok(colors.includes('#c2cf9e'));
  assert.equal(corpse.mass,saved);
  assert.equal(w.corpses.length,1);
 });
@@ -1109,22 +1110,21 @@ test('each egg draws a bright shell without an extra dark shadow oval',()=>{
  assert.ok(!setColors.includes('#513e52'));
  assert.ok(!setColors.includes('#4d384d'));
 });
-test('young corpses fade as light translucent overlays, while old remains still recycle',()=>{
+test('corpse opacity stays tied to remaining mass, not an arbitrary 65-step timeout',()=>{
  const w=new Ecosystem(2602),u=w.spawn(260,170,w.gene());
  w.die(u,'test');w.units=[];
- w.corpses[0].age=25;
+ const corpse=w.corpses[0];
  const alpha=[];
  const ctx=new Proxy({canvas:{width:800,height:460},
   createRadialGradient:()=>({addColorStop(){}})},
   {get(o,k){return k in o?o[k]:()=>{};},
    set(o,k,v){if(k==='globalAlpha')alpha.push(v);o[k]=v;return true;}});
+ corpse.age=200;drawWorld(ctx,w,false);
+ assert.ok(alpha.some(n=>n>=.6));
+ corpse.mass=corpse.initialMass*.01;alpha.length=0;
  drawWorld(ctx,w,false);
- assert.ok(alpha.some(n=>n>0&&n<.22));
- w.corpses[0].age=66;
- alpha.length=0;
- drawWorld(ctx,w,false);
+ assert.ok(alpha.some(n=>n>0&&n<=.16));
  assert.equal(w.corpses.length,1);
- assert.ok(!alpha.some(n=>n>0&&n<=.22));
 });
 
 test('isolated wet pond can regrow waterweed without a neighboring source',()=>{
@@ -1165,4 +1165,46 @@ test('rain and greater water depth improve external aquatic seed germination cha
  assert.ok(sample('rain',100)>0);
  assert.equal(sample('sunny',100),0);
  assert.equal(sample('rain',15),0);
+});
+
+test('super giant growth capacity is rare and normal creatures retain the old cap',()=>{
+ const w=new Ecosystem(2801),g=w.gene();
+ let rare=0;
+ for(let i=0;i<15000;i++){
+  const u=w.spawn(220,180,{...g});
+  if(!u) {w.units.length=0;i--;continue;}
+  if(u.growthLimit===MAX_NUTRITION_GROWTH)rare++;
+  else assert.equal(u.growthLimit,2.35);
+  w.units.length=0;
+ }
+ assert.ok(rare>=15&&rare<=100,'super giants should be around three in a thousand');
+ assert.ok(MAX_NUTRITION_GROWTH>=3.5);
+});
+test('exceptional body can grow past ordinary size when food is continually abundant',()=>{
+ const w=new Ecosystem(2802);w.tiles.fill(0);w.grass.fill(100);
+ const u=w.spawn(220,180,{...w.gene(),aquatic:0,diet:0,r:4});
+ u.growthLimit=MAX_NUTRITION_GROWTH;
+ u.stage='adult';u.age=100;u.hp=u.maxHp=100000;
+ for(let i=0;i<450;i++){
+  u.energy=300;u.recentFood=50;
+  w.step();
+  if(u.dead)break;
+ }
+ assert.ok(u.growthScale>2.35,'adequately nourished exceptional slime should exceed normal max');
+ assert.ok(u.growthScale<=MAX_NUTRITION_GROWTH);
+});
+test('large dead slimes yield larger visible remains and more nutrients',()=>{
+ const w=new Ecosystem(2803),g={...w.gene(),r:5,elongation:1};
+ const small=w.spawn(150,160,g),large=w.spawn(400,160,{...g});
+ large.growthScale=2.7;
+ w.die(small,'test');w.die(large,'test');w.units=[];
+ assert.ok(w.corpses[1].mass>w.corpses[0].mass*3);
+ const ellipses=[];
+ const ctx=new Proxy({canvas:{width:800,height:460},
+  ellipse(...args){ellipses.push({x:ctx._x||0,rx:args[2]});},
+  translate(x,y){this._x=x;},
+  createRadialGradient:()=>({addColorStop(){}})},
+  {get(o,k){return k in o?o[k]:()=>{};},set(o,k,v){o[k]=v;return true;}});
+ drawWorld(ctx,w,false);
+ assert.ok(ellipses.some(e=>e.x===400&&e.rx>ellipses.find(e=>e.x===150).rx*2));
 });
