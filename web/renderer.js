@@ -122,16 +122,16 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   if(prog>.75){ctx.strokeStyle='#754765';ctx.beginPath();ctx.moveTo(-2,-3);ctx.lineTo(0,-1);ctx.lineTo(-1,2);ctx.stroke();}
   ctx.restore();
  }
- for(const u of [...s.corpses.filter(c=>c.age<65&&c.mass>0).map(c=>({
-   id:-1,x:c.x,y:c.y,angle:c.angle,g:c.g,age:c.deathAge,
+ for(const u of [...s.corpses.filter(c=>c.mass>0).map(c=>({
+   id:-1,x:c.x,y:c.y,angle:c.angle,g:c.g,age:c.deathAge,corpseMass:c.mass,corpseInitialMass:c.initialMass,
    stage:c.stage,dead:true,corpse:true,corpseAge:c.age,growthScale:c.growthScale??1,bite:0,woundFlash:0,fleeing:false,
-   decayScale:Math.max(.20,Math.min(.65,Math.sqrt(Math.max(0,c.mass/c.initialMass))))
+   decayScale:Math.max(.18,Math.sqrt(Math.max(0,c.mass/c.initialMass)))
   })),...s.units]){
   const dead=!!u.corpse;
   const g=u.g,signal=dietProfile(g).signal,life=vitality(u),
    scale=(u.stage==='juvenile'?.55:1)*(u.growthScale??1)*(1-life.old*.12)*(dead?u.decayScale:1),
    halfL=g.r*g.elongation*scale,halfW=g.r*scale,phase=s.tick*.18+u.id;
-  if(dead){ctx.save();ctx.filter='grayscale(.75) brightness(1.65)';ctx.globalAlpha=.22*Math.max(0,1-(u.corpseAge??0)/65);}
+  if(dead){ctx.save();ctx.globalAlpha=.70*Math.max(.2,Math.sqrt(Math.max(0,u.corpseMass/u.corpseInitialMass)));}
 
   if(u.courtPartner||u.pregnancy){
    ctx.save();ctx.strokeStyle=u.pregnancy?'#ffe59b':'#ff93e9';ctx.lineWidth=2.5;
@@ -161,20 +161,32 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   shine.addColorStop(0,'rgba(255,255,255,.38)');
   shine.addColorStop(.36,base);
   shine.addColorStop(1,outline);
-  ctx.fillStyle=shine;ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.fill();
-  ctx.strokeStyle=outline;ctx.lineWidth=1.6;ctx.stroke();
+  ctx.fillStyle=dead?'#c2cf9e':shine;ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.fill();
+  ctx.strokeStyle=dead?'#718e76':outline;ctx.lineWidth=dead?1.5:1.6;ctx.stroke();
   if(u.woundFlash&&!dead){ctx.fillStyle='rgba(255,150,98,.16)';ctx.fill();}
-  ctx.fillStyle='rgba(255,255,255,.36)';ctx.beginPath();
-  ctx.ellipse(-rx*.30,-ry*.36,rx*.21,ry*.10,-.35,0,TAU);ctx.fill();
+  if(!dead){ctx.fillStyle='rgba(255,255,255,.36)';ctx.beginPath();
+  ctx.ellipse(-rx*.30,-ry*.36,rx*.21,ry*.10,-.35,0,TAU);ctx.fill();}
   // Solid-colored, body-harmonized eyes, set inside the oval rather than on the rim.
   // No sclera or mouth: these slimes eat by enveloping food.
   const eyes=slimeEyeAngles(g),eyeRadius=Math.max(1.2,Math.min(3.6,ry*.19));
   ctx.fillStyle=dead?'#77707e':slimeEyeColor(g);
-  for(const angle of eyes){
+  for(const angle of (dead?[]:eyes)){
    const {x:ex,y:ey}=slimeEyeLocation(angle,rx,ry);
    ctx.beginPath();ctx.arc(ex,ey,eyeRadius,0,TAU);ctx.fill();
    // A tiny glossy reflection gives readable eyes without white sclera.
    if(!dead){ctx.fillStyle='rgba(255,255,255,.82)';ctx.beginPath();ctx.arc(ex-eyeRadius*.30,ey-eyeRadius*.30,Math.max(.55,eyeRadius*.23),0,TAU);ctx.fill();ctx.fillStyle=slimeEyeColor(g);}
+  }
+  if(dead){
+   // Remaining food mass is visible as a few warm nutrient granules.
+   // Large bodies start with a larger nutrient stock and retain more granules.
+   const relative=Math.max(0,u.corpseMass/u.corpseInitialMass);
+   const particles=Math.min(12,Math.max(1,Math.floor(Math.sqrt(u.corpseMass)/2.7)));
+   for(let i=0;i<particles;i++){
+    const a=i*2.39996+(u.corpseAge??0)*.015;
+    const rad=Math.sqrt((i+.5)/particles)*.78;
+    ctx.fillStyle=i%3===0?'#f8e79c':'#81d97c';
+    ctx.beginPath();ctx.arc(Math.cos(a)*rx*rad,Math.sin(a)*ry*rad,Math.max(.9,Math.min(2.4,1.3+relative)),0,TAU);ctx.fill();
+   }
   }
   if(!dead&&u===selected){ctx.strokeStyle='white';ctx.beginPath();ctx.ellipse(0,0,rx+7,ry+7,0,0,TAU);ctx.stroke();}
   ctx.restore();
