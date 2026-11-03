@@ -157,7 +157,12 @@ export const crowdMetrics=(u,neighbors)=>{
  }
  return {density,habitatLoad:Math.max(0,occupied/450-.30)};
 };
-export const crowdStress=density=>Math.min(9,Math.max(0,density-2.5));
+// Smoothly increasing overcrowding penalties, without a fixed ceiling.
+export const crowdStress=density=>9*Math.asinh(Math.max(0,density-2.5)/9);
+export const crowdEnergyCost=(load,growthScale=1)=>{
+ const demand=Math.max(0,load)*(2.2+Math.max(0,growthScale-1)*3.5);
+ return 20*Math.asinh(demand/20);
+};
 // Carrying capacity is based on ABSOLUTE occupied area, not body size relative
 // to the focal slime. Large individuals exhaust the space and resources of a
 // small patch even when every neighbor is similarly large.
@@ -644,6 +649,8 @@ export class Ecosystem{
   if(this.tiles[i]!==1||this.water[i]<=0)return 0;
   const taken=Math.min(this.waterweed[i],amount);
   this.waterweed[i]-=taken;
+  // Record harvesting on the plant's tile rather than the eater's tile.
+  if(taken>0)this.grazingPressure[i]+=taken/6;
    if(taken>0)this.soil[i]=Math.max(0,this.soil[i]-taken*.05);
   if(this.waterweed[i]<.001)this.waterweed[i]=0;
   return taken;
@@ -665,6 +672,7 @@ export class Ecosystem{
   if(this.tiles[i]!==0)return 0;
   const taken=Math.min(this.grass[i],amount);
   this.grass[i]-=taken;
+  if(taken>0)this.grazingPressure[i]+=taken/6;
    if(taken>0)this.soil[i]=Math.max(0,this.soil[i]-taken*.12);
   // An exhausted pasture becomes bare ground until grass spreads in again.
   if(this.grass[i]<=.001){this.grass[i]=0;this.tiles[i]=2;}
@@ -827,14 +835,7 @@ export class Ecosystem{
   this.updateTemperature();
   // Regrowth is suppressed by local biomass demand instead of a population threshold.
   if(this.tick%6===0){
-   this.grazingPressure.fill(0);
-   for(const u of this.units){
-    if(u.dead)continue;
-    const diet=dietProfile(u.g);
-    if(diet.plant<.12)continue;
-    const i=this.cell(u.x,u.y);
-    this.grazingPressure[i]+=diet.plant*Math.min(3.5,Math.sqrt(organismMorphology(u).bodyMass)/6);
-   }
+   // Track actual plant harvests in consumeGrass/consumeWaterweed.
   }
   // Map resources are finite. Grass regrows only from living adjacent patches,
   // so complete overgrazing cannot recover without intervention.
@@ -868,6 +869,8 @@ export class Ecosystem{
     this.soil[i]*=.997;
    }
    this.grass=next;
+   // Decaying 6-step grazing history lets abandoned pastures regenerate.
+   for(let i=0;i<this.grazingPressure.length;i++)this.grazingPressure[i]*=.5;
   }
   // Windborne seeds occasionally arrive on bare soil even without nearby grass.
   // Rain makes germination more likely, while dry/rocky soil is less welcoming.
@@ -1072,7 +1075,7 @@ export class Ecosystem{
    // Crowded colonies consume more energy and stop producing offspring as easily.
    u.energy-=Math.min(.85,Math.max(0,rivals-3)*.075)+congestion*.11;
    // The area burden is especially expensive for large, near-stationary bodies.
-   u.energy-=Math.min(20,habitatLoad*(2.2+Math.max(0,(u.growthScale??1)-1)*3.5));
+   u.energy-=crowdEnergyCost(habitatLoad,u.growthScale??1);
    u.localCrowd=relatives;
    const seekRefuge=!u.courtPartner&&!u.pregnancy&&!flight&&(pressure>1.35||relatives>7||congestion>2||habitatLoad>1.2);
    if(seekRefuge&&(this.tick+u.id)%14===0){
