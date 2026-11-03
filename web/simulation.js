@@ -112,16 +112,19 @@ export class Ecosystem{
  mutate(g){
   const next={...g,alleles:{}};
   for(const key of HERITABLE)next.alleles[key]=[...allelePair(g,key)];
-  // Most offspring inherit their grandparents' alleles without change.
-  // A mutation alters a single genetic copy, not the entire visible phenotype.
-  const key=HERITABLE[Math.floor(this.rand()*HERITABLE.length)];
-  const index=this.rand()<.5?0:1;
-  const [lo,hi]=LIMITS[key],width=hi-lo;
-  let value=next.alleles[key][index];
-  if(key==='aquatic')value=1-value;
-  else if(INTEGER_GENES.has(key))value+=this.rand()<.5?-1:1;
-  else value+=this.range(-.12,.12)*width;
-  next.alleles[key][index]=clamp(value,lo,hi);
+  // Occasionally change 2-3 independent genetic loci in one descendant.
+  // Different siblings can develop a genuinely distinct body or feeding style.
+  const changes=1+(this.rand()<.28?1:0)+(this.rand()<.08?1:0);
+  for(let n=0;n<changes;n++){
+   const key=HERITABLE[Math.floor(this.rand()*HERITABLE.length)];
+   const index=this.rand()<.5?0:1;
+   const [lo,hi]=LIMITS[key],width=hi-lo;
+   let value=next.alleles[key][index];
+   if(key==='aquatic')value=this.rand()<.12?1-value:value;
+   else if(INTEGER_GENES.has(key))value+=this.rand()<.5?-1:1;
+   else value+=this.range(-.24,.24)*width;
+   next.alleles[key][index]=clamp(value,lo,hi);
+  }
   for(const trait of HERITABLE)next[trait]=alleleExpression(trait,next.alleles[trait]);
   return next;
  }
@@ -133,7 +136,7 @@ export class Ecosystem{
    child.alleles[key]=pair;
    child[key]=alleleExpression(key,pair);
   }
-  return this.rand()<.23?this.mutate(child):child;
+  return this.rand()<.32?this.mutate(child):child;
  }
  category(g){
   // A species represents a recognizable ecological/morphological strategy.
@@ -729,12 +732,14 @@ export class Ecosystem{
    let spawned=0;
    for(let i=0;i<8;i++){
     // Small variation, but no change to the adaptation category of the founder.
-    let variant={...g};
+    let variant=g;
     if(i>0){
-     const trial={...g,wet:clamp(g.wet+this.range(-.018,.018),0,1),
-       dry:clamp(g.dry+this.range(-.018,.018),0,1),
-       rock:clamp(g.rock+this.range(-.018,.018),0,1)};
-     if(this.category(trial)===key)variant=trial;
+     // Founder individuals of one species need not be genetic clones.
+     // Keep their functional species, but allow different hidden alleles.
+     for(let attempt=0;attempt<8;attempt++){
+      const trial=this.mutate(g);
+      if(this.category(trial)===key){variant=trial;break;}
+     }
     }
     // The clicked terrain is authoritative; never drift into another biome.
     const site=this.founderSite(x,y,placedTerrain);
