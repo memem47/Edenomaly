@@ -1238,15 +1238,14 @@ test('large prey yields a more substantial meal and a nutrient-bearing carcass',
 test('visual status flags follow real infection, HP and attack state',()=>{
  const w=new Ecosystem(2901),u=w.spawn(210,150,w.gene());
  assert.deepEqual(organismVisualState(u),{
-  infected:false,attacking:false,injured:false,injurySeverity:0,hit:false
+  infected:false,attacking:false,lifeFade:0,hit:false
  });
  u.infection=40;u.hp=u.maxHp*.25;u.woundFlash=9;u.attackFlash=12;
  const state=organismVisualState(u);
  assert.equal(state.infected,true);assert.equal(state.attacking,true);
- assert.equal(state.hit,true);assert.equal(state.injured,true);
- assert.ok(state.injurySeverity>.6);
+ assert.equal(state.hit,true);assert.equal(state.lifeFade,.5);
  u.hp=u.maxHp;u.infection=0;u.woundFlash=0;u.attackFlash=0;
- assert.equal(organismVisualState(u).injured,false);
+ assert.equal(organismVisualState(u).lifeFade,0);
  assert.equal(organismVisualState(u).infected,false);
  assert.equal(organismVisualState(u).attacking,false);
 });
@@ -1263,7 +1262,7 @@ test('an attack illuminates attacker and the flash expires independently of cool
  for(let i=0;i<18;i++){w.step();if(hunter.dead)break;}
  assert.equal(hunter.attackFlash,0);
 });
-test('infection, persistent wounds and attacking have distinct draw colors',()=>{
+test('infection, immediate hit flash, and attack have separate draw colors',()=>{
  const w=new Ecosystem(2903);
  w.units=[];w.eggs=[];w.corpses=[];
  const u=w.spawn(300,210,w.gene());u.infection=44;
@@ -1277,7 +1276,7 @@ test('infection, persistent wounds and attacking have distinct draw colors',()=>
  drawWorld(ctx,w,true);
  assert.ok(styles.stroke.includes('rgba(59,212,99,.86)'));
  assert.ok(styles.stroke.includes('rgba(255,148,42,.92)'));
- assert.ok(styles.fill.includes('rgba(105,34,36,.66)'));
+ assert.ok(!styles.fill.includes('rgba(105,34,36,.66)'));
  assert.ok(styles.fill.includes('rgba(255,92,75,.27)'));
 });
 
@@ -1604,32 +1603,38 @@ test('fused crowding calculations match independent calculations',()=>{
  }
 });
 
-import {injuryMarks} from './renderer.js';
-test('injury patches grow in count and occupied area with HP damage',()=>{
- const u={id:1204,hp:100,maxHp:100};
- assert.deepEqual(injuryMarks(u,18,12),[]);
- u.hp=78;
- const mild=injuryMarks(u,18,12);
- u.hp=48;
- const medium=injuryMarks(u,18,12);
- u.hp=12;
- const severe=injuryMarks(u,18,12);
- const area=marks=>marks.reduce((sum,m)=>sum+Math.PI*m.rx*m.ry,0);
- assert.ok(mild.length>=1);
- assert.ok(medium.length>=mild.length);
- assert.ok(severe.length>medium.length);
- assert.ok(area(mild)<area(medium)&&area(medium)<area(severe));
- u.hp=100;assert.deepEqual(injuryMarks(u,18,12),[]);
+import {lifeFade,livingBodyColor} from './renderer.js';
+test('body keeps natural pigment until half life, then fades into corpse color',()=>{
+ const g=new Ecosystem(7161).gene(),u={hp:100,maxHp:100};
+ for(const hp of [100,75,50]){u.hp=hp;assert.equal(lifeFade(u),0);}
+ u.hp=25;assert.equal(lifeFade(u),.5);
+ const halfway=livingBodyColor(g,lifeFade(u));
+ assert.ok(halfway.startsWith('hsl('));
+ assert.notEqual(halfway,livingBodyColor(g,0));
+ u.hp=0;assert.equal(lifeFade(u),1);
+ assert.equal(livingBodyColor(g,lifeFade(u)),'#9e9788');
+ assert.equal(livingBodyColor(g,lifeFade(u),true),'#655f56');
 });
-test('damage mark positions vary per individual but are stable across renders',()=>{
- const a={id:104,hp:30,maxHp:100};
- const b={id:105,hp:30,maxHp:100};
- const first=injuryMarks(a,16,10);
- assert.deepEqual(first,injuryMarks(a,16,10));
- assert.notDeepEqual(first,injuryMarks(b,16,10));
- assert.ok(first.every(m=>Number.isFinite(m.x)&&Number.isFinite(m.y)&&m.rx>0&&m.ry>0));
+test('age and attack consume permanent HP, food cannot restore it',()=>{
+ const w=new Ecosystem(7162);
+ w.tiles.fill(0);w.grass.fill(100);w.water.fill(100);
+ const g={...w.gene(),diet:0,aquatic:0,idealTemp:24,tempTolerance:14};
+ const u=w.spawn(240,180,g);u.energy=100;u.age=100;u.mateCooldown=10000;
+ w.temperatureAt=()=>24;
+ const hp=u.hp;
+ for(let i=0;i<20;i++)w.step();
+ assert.ok(u.hp<hp);
+ const after=u.hp;
+ w.grass.fill(100);
+ for(let i=0;i<20;i++)w.step();
+ assert.ok(u.hp<after);
+ const hunter=w.spawn(u.x+2,u.y+2,{...g,diet:1,jaw:2.5});
+ hunter.age=100;hunter.hp=hunter.maxHp=10000;
+ u.hp=u.maxHp;
+ const before=u.hp;
+ assert.ok(w.attack(hunter,u));
+ assert.ok(u.hp<before);
 });
-
 test('soil intervention increases local fertility and can revive depleted dry land',()=>{
  const w=new Ecosystem(8661);
  w.tiles.fill(2);w.grass.fill(0);w.soil.fill(0);w.water.fill(0);
