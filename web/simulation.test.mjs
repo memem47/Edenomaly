@@ -1276,7 +1276,7 @@ test('infection, persistent wounds and attacking have distinct draw colors',()=>
  drawWorld(ctx,w,true);
  assert.ok(styles.stroke.includes('rgba(59,212,99,.86)'));
  assert.ok(styles.stroke.includes('rgba(255,148,42,.92)'));
- assert.ok(styles.stroke.includes('rgba(185,44,84,.85)'));
+ assert.ok(styles.fill.includes('rgba(105,34,36,.66)'));
  assert.ok(styles.fill.includes('rgba(255,92,75,.27)'));
 });
 
@@ -1600,4 +1600,30 @@ test('fused crowding calculations match independent calculations',()=>{
   assert.ok(Math.abs(metrics.density-localDensity(u,near))<1e-9);
   assert.ok(Math.abs(metrics.habitatLoad-habitatCrowding(u,near))<1e-9);
  }
+});
+
+import {injuryMarks} from './renderer.js';
+test('injury patches grow in count and occupied area with HP damage',()=>{
+ const u={id:1204,hp:100,maxHp:100};
+ assert.deepEqual(injuryMarks(u,18,12),[]);
+ u.hp=78;
+ const mild=injuryMarks(u,18,12);
+ u.hp=48;
+ const medium=injuryMarks(u,18,12);
+ u.hp=12;
+ const severe=injuryMarks(u,18,12);
+ const area=marks=>marks.reduce((sum,m)=>sum+Math.PI*m.rx*m.ry,0);
+ assert.ok(mild.length>=1);
+ assert.ok(medium.length>=mild.length);
+ assert.ok(severe.length>medium.length);
+ assert.ok(area(mild)<area(medium)&&area(medium)<area(severe));
+ u.hp=100;assert.deepEqual(injuryMarks(u,18,12),[]);
+});
+test('damage mark positions vary per individual but are stable across renders',()=>{
+ const a={id:104,hp:30,maxHp:100};
+ const b={id:105,hp:30,maxHp:100};
+ const first=injuryMarks(a,16,10);
+ assert.deepEqual(first,injuryMarks(a,16,10));
+ assert.notDeepEqual(first,injuryMarks(b,16,10));
+ assert.ok(first.every(m=>Number.isFinite(m.x)&&Number.isFinite(m.y)&&m.rx>0&&m.ry>0));
 });
