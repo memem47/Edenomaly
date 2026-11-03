@@ -74,6 +74,14 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
     const gx=px+3+(seed+k*7)%14,gy=py+8+(k*7+seed)%10;
     ctx.beginPath();ctx.moveTo(gx,gy+3);ctx.lineTo(gx-2,gy-2);ctx.moveTo(gx,gy+3);ctx.lineTo(gx+2,gy-1);ctx.stroke();
    }
+   // Golden soil speckles make fertility intervention visible without
+   // turning the whole map into a numerical resource display.
+   const fertility=Math.max(0,Math.min(1,(s.soil?.[i]??0)/100));
+   if(fertility>.22){
+    ctx.fillStyle=`rgba(242,200,94,${(.25+fertility*.55).toFixed(2)})`;
+    ctx.fillRect(px+5+(seed%5),py+13,2.5,2.5);
+    if(fertility>.58)ctx.fillRect(px+13,py+5+(seed%5),2,2);
+   }
   }else if(t===1){
    const depth=Math.max(0,Math.min(1,(s.water[i]||0)/100));
    ctx.fillStyle='#48c7ff';ctx.fillRect(px+2,py+2,cell-4,(cell-4)*depth);
