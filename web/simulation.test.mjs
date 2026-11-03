@@ -1,7 +1,7 @@
 // Run with: node --test web/simulation.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Ecosystem,morphology,organismMorphology,bodyCollisionAxes,localDensity,crowdStress,acquiredSizeMaintenance,feedingCapacity,energyStorageLimit,MAX_NUTRITION_GROWTH,adaptationColor,eggPredationDrive,protectiveDrive} from './simulation.js';
+import {Ecosystem,morphology,organismMorphology,bodyCollisionAxes,localDensity,crowdStress,acquiredSizeMaintenance,feedingCapacity,energyStorageLimit,MAX_NUTRITION_GROWTH,adaptationColor,eggPredationDrive,protectiveDrive,habitatCrowding} from './simulation.js';
 import {slimeEyeAngles,slimeEyeColor,slimeEyeLocation,organismVisualState,drawWorld} from './renderer.js';
 const populated=seed=>{const s=new Ecosystem(seed);s.introduce(160,135,3);return s;};
 test('same seed creates same initial ecosystem',()=>{const a=populated(42),b=populated(42);assert.deepEqual(a.tiles,b.tiles);assert.deepEqual(a.units,b.units);});
@@ -1360,4 +1360,71 @@ test('defensive hits interrupt an egg eater without providing meat rewards',()=>
  assert.ok(hunter.bite>=14);
  assert.ok(guardian.energy<100);
  assert.ok(w.logs.some(x=>x.type==='defend'));
+});
+
+test('absolute habitat crowding penalizes large bodies more than equally positioned small ones',()=>{
+ const make=size=>{
+  const w=new Ecosystem(3101);
+  const g={...w.gene(),r:5,elongation:1,aquatic:0};
+  for(let i=0;i<10;i++){
+   const u=w.spawn(260+(i%5)*10,170+Math.floor(i/5)*10,{...g});
+   u.growthScale=size;u.age=100;
+  }
+  return {w,load:habitatCrowding(w.units[0],w.units)};
+ };
+ const small=make(1),large=make(2.3);
+ assert.ok(large.load>small.load*4);
+ assert.ok(large.load>1.8);
+ assert.ok(small.load<1.8);
+ large.w.units[0].habitatLoad=large.load;
+ assert.equal(large.w.isReadyToMate(large.w.units[0]),false);
+});
+test('crowded giants lose more energy than the same isolated giants without food',()=>{
+ const setup=dense=>{
+  const w=new Ecosystem(3102);w.tiles.fill(0);w.grass.fill(0);w.water.fill(0);w.growth=0;
+  const g={...w.gene(),r:5,elongation:1,aquatic:0,diet:0};
+  const focal=w.spawn(280,190,{...g});
+  focal.growthScale=1.7;focal.age=100;focal.maxHp=focal.hp=10000;
+  focal.energy=200;focal.mateCooldown=500;
+  if(dense)for(let i=0;i<8;i++){
+   const u=w.spawn(280+(i%4)*6,190+Math.floor(i/4)*6,{...g});
+   u.growthScale=1.7;u.age=100;u.energy=200;u.mateCooldown=500;
+  }
+  return {w,focal};
+ };
+ const alone=setup(false),packed=setup(true);
+ alone.w.step();packed.w.step();
+ assert.ok(packed.focal.habitatLoad>1);
+ assert.ok(packed.focal.energy<alone.focal.energy-4);
+});
+test('sufficiently crowded adult cannot continue growing merely because its reserves are high',()=>{
+ const w=new Ecosystem(3103);w.tiles.fill(0);w.grass.fill(100);
+ const g={...w.gene(),r:5,elongation:1,aquatic:0,diet:0};
+ const u=w.spawn(280,190,{...g});
+ u.growthScale=1.6;u.age=100;u.energy=300;u.recentFood=60;
+ for(let i=0;i<12;i++){
+  const other=w.spawn(280+(i%4)*6,190+Math.floor(i/4)*6,{...g});
+  other.growthScale=1.6;other.age=100;other.energy=300;
+ }
+ const before=u.growthScale;
+ w.step();
+ assert.ok(u.habitatLoad>=.8);
+ assert.equal(u.growthScale,before);
+});
+test('a crowded giant colony disperses in a food-rich open plain',()=>{
+ const w=new Ecosystem(3104);w.tiles.fill(0);w.grass.fill(100);w.water.fill(0);
+ const g={...w.gene(),r:5,elongation:1,aquatic:0,diet:0};
+ for(let i=0;i<12;i++){
+  const u=w.spawn(275+(i%4)*9,185+Math.floor(i/4)*9,{...g});
+  u.growthScale=2;u.age=100;u.hp=u.maxHp=10000;u.energy=230;u.mateCooldown=900;
+ }
+ const closePairs=()=>{
+  let pairs=0;
+  for(let i=0;i<w.units.length;i++)for(let j=i+1;j<w.units.length;j++)
+   if((w.units[i].x-w.units[j].x)**2+(w.units[i].y-w.units[j].y)**2<55**2)pairs++;
+  return pairs;
+ };
+ const before=closePairs();
+ for(let i=0;i<120;i++)w.step();
+ assert.ok(closePairs()<before*.55,'colony did not disperse despite free space');
 });
