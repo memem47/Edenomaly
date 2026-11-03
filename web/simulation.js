@@ -142,6 +142,26 @@ const ellipseExtent=(u,axes,nx,ny)=>{
  return 1/Math.sqrt((lx/axes.rx)**2+(ly/axes.ry)**2);
 };
 const distance=(a,b)=>(a.x-b.x)**2+(a.y-b.y)**2;
+export class SpatialLookup{
+ constructor(items,cellSize=64){
+  this.cellSize=cellSize;this.grid=new Map();this.order=new Map();
+  for(let i=0;i<items.length;i++){
+   const item=items[i],key=Math.floor(item.x/cellSize)+','+Math.floor(item.y/cellSize);
+   this.order.set(item,i);
+   let bucket=this.grid.get(key);if(!bucket){bucket=[];this.grid.set(key,bucket);}bucket.push(item);
+  }
+ }
+ query(x,y,radius){
+  const size=this.cellSize,r2=radius*radius,found=[];
+  for(let cy=Math.floor((y-radius)/size);cy<=Math.floor((y+radius)/size);cy++)
+   for(let cx=Math.floor((x-radius)/size);cx<=Math.floor((x+radius)/size);cx++){
+    const bucket=this.grid.get(cx+','+cy);if(!bucket)continue;
+    for(const item of bucket)if((item.x-x)**2+(item.y-y)**2<r2)found.push(item);
+   }
+  found.sort((a,b)=>this.order.get(a)-this.order.get(b));
+  return found;
+ }
+}
 // Health and senescence directly affect movement, fighting and mating.
 export const vitality=u=>{
  const max=u.maxHp??Math.max(25,Math.round(organismMorphology(u).bodyMass*.48+25));
@@ -317,7 +337,7 @@ export class Ecosystem{
  }
 
  spawn(x,y,g,parent=null){
-  if(this.units.length>=155)return null;
+  if(this.units.length>=600)return null;
   const mode=reproductiveMode(g);
    const sex=mode===1?'H':mode===2?'F':(this.rand()<.5?'F':'M');
    const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,recentFood:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null};
@@ -388,14 +408,14 @@ export class Ecosystem{
  }
  // Fertilization combines both parents' genomes. The egg does not appear yet.
  conceive(parent,partner){
-  if(!partner||!this.canMate(parent,partner)||this.eggs.length>=360)return null;
+  if(!partner||!this.canMate(parent,partner)||this.eggs.length>=900)return null;
   // Whichever organism can lay eggs becomes the gestating parent.
   if(parent.sex==='M'&&partner.sex!=='M')return this.conceive(partner,parent);
   // An inherited brood-size trait trades clutch size against parental energy.
   const desired=clamp(Math.round((parent.g.brood+partner.g.brood)/2)*2+2,4,18);
   const largeParentCost=Math.max(0,organismMorphology(parent).bodyMass-100)*.18;
   const affordable=clamp(Math.floor((Math.min(parent.energy,220)-22-largeParentCost)/3),1,18);
-  const count=Math.min(desired,affordable,360-this.eggs.length);
+  const count=Math.min(desired,affordable,900-this.eggs.length);
   if(count<1)return null;
   const genomes=Array.from({length:count},()=>this.recombine(parent.g,partner.g));
   const pregnancy={genomes,parent:parent.id,otherParent:partner.id,lineage:this.rand()<.5?parent.lineage:partner.lineage,generation:Math.max(parent.generation,partner.generation)+1,remaining:25,total:25};
@@ -409,9 +429,9 @@ export class Ecosystem{
   return pregnancy;
  }
  conceiveSolo(parent){
-  if(reproductiveMode(parent.g)!==2||parent.sex!=='F'||!this.isReadyToMate(parent)||parent.energy<115||this.eggs.length>=360)return null;
+  if(reproductiveMode(parent.g)!==2||parent.sex!=='F'||!this.isReadyToMate(parent)||parent.energy<115||this.eggs.length>=900)return null;
   // Few expensive eggs, with reduced recombination and no unrelated genome.
-  const count=Math.min(1+Math.floor(parent.g.brood/4),360-this.eggs.length);
+  const count=Math.min(1+Math.floor(parent.g.brood/4),900-this.eggs.length);
   const genomes=Array.from({length:count},()=>this.rand()<.025?this.mutate(this.recombine(parent.g,parent.g)):this.recombine(parent.g,parent.g));
   const pregnancy={genomes,parent:parent.id,otherParent:null,lineage:parent.lineage,generation:parent.generation+1,remaining:32,total:32};
   parent.pregnancy=pregnancy;
@@ -444,11 +464,11 @@ export class Ecosystem{
  layEgg(parent,partner=null){
   // Explicit test helper: two parents can conceive; actual egg laying is delayed.
   if(partner)return this.conceive(parent,partner);
-  if(!parent.pregnancy||this.eggs.length>=360)return null;
+  if(!parent.pregnancy||this.eggs.length>=900)return null;
   const p=parent.pregnancy;
   // Oviposition is anchored behind the parent's actual facing direction.
   const site=rearPosition(parent,7);
-  const count=Math.min(p.genomes.length,360-this.eggs.length);
+  const count=Math.min(p.genomes.length,900-this.eggs.length);
   if(count===0)return null;
   const laid=[];
   for(let i=0;i<count;i++){
@@ -757,7 +777,7 @@ export class Ecosystem{
    egg.heatExposure=(egg.heatExposure??0)+eggClimate.excess*.016;
    if(egg.heatExposure>22){egg.dead=true;this.log('death','卵 #'+egg.id+' が極端な気温で死亡',egg);continue;}
 
-   if(!egg.dead&&egg.age>=egg.hatchAt&&this.units.length<155){
+   if(!egg.dead&&egg.age>=egg.hatchAt&&this.units.length<600){
     egg.dead=true;
     const child=this.spawn(egg.x,egg.y,egg.g,{id:egg.parent,otherParent:egg.otherParent,generation:egg.generation-1,lineage:egg.lineage});
     if(child){child.energy=egg.energy+35;child.stage='juvenile';this.log('hatch','卵 #'+egg.id+' から #'+child.id+' が孵化',egg);}
@@ -765,6 +785,10 @@ export class Ecosystem{
   }
   this.eggs=this.eggs.filter(e=>!e.dead);
   const batch=this.units.slice();
+  const unitGrid=new SpatialLookup(batch),eggGrid=new SpatialLookup(this.eggs),corpseGrid=new SpatialLookup(this.corpses);
+  const byId=new Map(batch.map(u=>[u.id,u]));
+  const firstEggByParent=new Map();
+  for(const egg of this.eggs)if(!egg.dead&&!firstEggByParent.has(egg.parent))firstEggByParent.set(egg.parent,egg);
   for(const u of batch){
    if(u.dead)continue;u.age++;if(u.bite>0)u.bite--;if(u.woundFlash>0)u.woundFlash--;if(u.attackFlash>0)u.attackFlash--;if(u.defendFlash>0)u.defendFlash--;if(u.mateCooldown>0)u.mateCooldown--;
    if(u.pregnancy){u.pregnancy.remaining--;if(u.pregnancy.remaining<=0)this.layEgg(u);}
@@ -773,6 +797,7 @@ export class Ecosystem{
    const thermal=thermalFitness(g,this.temperatureAt(u.x,u.y));
    u.thermalComfort=thermal.comfort;u.temperature=this.temperatureAt(u.x,u.y);
    u.hp-=thermal.damage;u.energy-=thermal.upkeep;
+   const near=unitGrid.query(u.x,u.y,Math.max(145,sight*1.6));
    const aquatic=g.aquatic===1,underwater=t===1&&this.water[this.cell(u.x,u.y)]>0;
    if(aquatic){
     u.stranded=underwater?0:u.stranded+1;
@@ -791,28 +816,29 @@ export class Ecosystem{
    let nearest=null,df=sight*sight;
    if(diet.plant>0){nearest=aquatic?this.nearestWaterweed(u.x,u.y,sight):this.nearestGrass(u.x,u.y,sight,g);if(nearest)df=distance(u,nearest);}
    let nearestCorpse=null,corpseDist=sight*sight;
-   if(diet.meat>.3)for(const corpse of this.corpses){
+   if(diet.meat>.3)for(const corpse of corpseGrid.query(u.x,u.y,sight)){
     if(corpse.mass<1)continue;
     const d=distance(u,corpse);
     if(d<corpseDist){corpseDist=d;nearestCorpse=corpse;}
    }
    // Eggs are stationary and cannot fight or flee. Guardians only deter some hunters.
    let targetEgg=null,ed=sight*sight*(.65+eggPredationDrive(g)*1.5);
-   if(u.bite===0&&eggPredationDrive(g)>.24&&g.mouths>0)for(const egg of this.eggs){
+   if(u.bite===0&&eggPredationDrive(g)>.24&&g.mouths>0)for(const egg of eggGrid.query(u.x,u.y,Math.sqrt(ed))){
     if(egg.dead||egg.parent===u.id||egg.otherParent===u.id)continue;
     let d=distance(u,egg);if(d>=ed)continue;
-    const guardian=batch.find(v=>v.id===egg.parent&&!v.dead&&v.g.guard>.25&&distance(v,egg)<(14+v.g.guard*43)**2);
-    const risk=guardian&&guardian!==u&&organismMorphology(guardian).bodyMass>=m.bodyMass*.65?1+guardian.g.guard*3:1;
+    const guardian=byId.get(egg.parent);
+    const guarded=guardian&&!guardian.dead&&guardian.g.guard>.25&&distance(guardian,egg)<(14+guardian.g.guard*43)**2;
+    const risk=guarded&&guardian!==u&&organismMorphology(guardian).bodyMass>=m.bodyMass*.65?1+guardian.g.guard*3:1;
     d*=risk; if(d<ed){ed=d;targetEgg=egg;}
    }
   let prey=null,pd=sight*sight;
-   if(m.predatory&&u.bite===0)for(const v of batch){
+   if(m.predatory&&u.bite===0)for(const v of near){
     if(v===u||v.dead||v.id===u.courtPartner||organismMorphology(v).bodyMass>m.bodyMass*m.edibleRatio)continue;
     const d=distance(u,v);if(d<pd){pd=d;prey=v;}
    }
    // Prey respond to the perceived, visible feeding signal, not hidden genome.
    let danger=null,dangerD=sight*sight*1.6;
-   for(const v of batch){
+   for(const v of near){
     if(v===u||v.dead)continue;
     const visible=dietProfile(v.g).signal;
     if(visible<.48||organismMorphology(v).bodyMass<m.bodyMass*.55)continue;
@@ -822,8 +848,8 @@ export class Ecosystem{
    // Guardians attack only nearby threats to their own or related eggs.
    let defenderTarget=null,defendDist=65*65;
    if(protectiveDrive(g)>.34&&u.bite===0&&u.energy>18){
-    const guardedEggs=this.eggs.filter(e=>!e.dead&&(e.parent===u.id||e.lineage===u.lineage)&&distance(u,e)<78*78);
-    if(guardedEggs.length)for(const v of batch){
+    const guardedEggs=eggGrid.query(u.x,u.y,78).filter(e=>!e.dead&&(e.parent===u.id||e.lineage===u.lineage));
+    if(guardedEggs.length)for(const v of near){
      if(v===u||v.dead||v.lineage===u.lineage||eggPredationDrive(v.g)<.30)continue;
      if(!guardedEggs.some(e=>distance(v,e)<54*54))continue;
      const d=distance(u,v);
@@ -835,20 +861,20 @@ export class Ecosystem{
    // Competition is local crowding for the same food, not an arbitrary caste.
    // When nearby rivals monopolize a rich tile, search for a less crowded refuge.
    let rivals=0,stronger=0;
-   if(diet.plant>.25)for(const v of batch){
+   if(diet.plant>.25)for(const v of near){
     if(v===u||v.dead||dietProfile(v.g).plant<.25)continue;
     if(distance(u,v)<48**2){rivals++;if(organismMorphology(v).bodyMass>m.bodyMass*.95)stronger++;}
    }
-   const density=localDensity(u,batch);
+   const density=localDensity(u,near);
    const congestion=crowdStress(density);
    u.crowdStress=congestion;
-   const habitatLoad=habitatCrowding(u,batch);
+   const habitatLoad=habitatCrowding(u,near);
    u.habitatLoad=habitatLoad;
    const pressure=(rivals+stronger*.7)/(1+GROWTH[t]*5)+congestion*.6+habitatLoad*.55;
    // Kin-specific contact disease is more likely in dense founder lineages.
    // A new mutation is not instantly immune: lineage persists across offspring.
    let relatives=0,infectious=0;
-   for(const v of batch)if(v!==u&&!v.dead&&v.lineage===u.lineage&&distance(u,v)<38**2){
+   for(const v of near)if(v!==u&&!v.dead&&v.lineage===u.lineage&&distance(u,v)<38**2){
     relatives++;if(v.infection>0)infectious++;
    }
    const crowd=Math.max(0,relatives-2)+congestion*.65;
@@ -871,7 +897,7 @@ export class Ecosystem{
      const x=clamp(u.x+this.range(-65,65),8,W-8),y=clamp(u.y+this.range(-65,65),8,H-8);
      const terrain=this.terrain(x,y);
      let competitors=0;
-     for(const v of batch)if(v!==u&&!v.dead&&dietProfile(v.g).plant>.25&&distance({x,y},v)<48**2)competitors++;
+     for(const v of unitGrid.query(x,y,48))if(v!==u&&!v.dead&&dietProfile(v.g).plant>.25)competitors++;
      const habitat=terrainFitness(g,terrain);
      if(!habitat.passable)continue;
      const fit=habitat.fitness;
@@ -892,7 +918,7 @@ export class Ecosystem{
      u.refugeTarget=null;
     }else if(this.tick>=u.refugeTarget.until)u.refugeTarget=null;
    }
-   const mate=u.courtPartner?batch.find(v=>v.id===u.courtPartner&&!v.dead):this.findMate(u,batch);
+   const mate=u.courtPartner?(byId.get(u.courtPartner)??null):this.findMate(u,near);
     // Without an eligible partner, a well-fed parthenogen can repopulate alone.
     if(!mate&&!u.courtPartner&&reproductiveMode(g)===2&&u.sex==='F'&&
        u.energy>120&&(this.tick+u.id)%135===0)this.conceiveSolo(u);
@@ -901,7 +927,7 @@ export class Ecosystem{
     let rival=null;
     if(!u.courtPartner&&!u.pregnancy&&u.stage==='adult'&&u.bite===0&&u.energy>35&&
        (pressure>1.1||u.energy<83)&&((this.tick+u.id)%23===0)){
-     const candidates=batch.filter(v=>v!==u&&!v.dead&&v.stage==='adult'&&
+     const candidates=near.filter(v=>v!==u&&!v.dead&&v.stage==='adult'&&
         v.sex===u.sex&&v.sex!=='H'&&v.lineage!==u.lineage&&
         distance(u,v)<Math.min(38,sight)**2);
      if(candidates.length&&this.rand()<Math.min(.55,.12+pressure*.12))
@@ -920,7 +946,7 @@ export class Ecosystem{
     const water=this.nearestWater(u.x,u.y);if(water)target=water;
    }
    // Guarding trades feeding opportunities for staying near the offspring.
-   const ownEgg=this.eggs.find(e=>e.parent===u.id&&!e.dead);
+   const ownEgg=firstEggByParent.get(u.id);
    if(ownEgg&&g.guard>.15&&!flight&&!defenderTarget&&!criticalWater&&u.energy>45){
     const guardRadius=12+g.guard*40;
     if(distance(u,ownEgg)>guardRadius**2||!target)target=ownEgg;
@@ -931,7 +957,7 @@ export class Ecosystem{
       :target?Math.atan2(target.y-u.y,target.x-u.x):u.angle+this.range(-.5,.5);
    const turn=Math.atan2(Math.sin(desired-u.angle),Math.cos(desired-u.angle));u.angle+=clamp(turn,-m.turnRate,m.turnRate)+this.range(-.09,.09);
    const terrainMove=home.move;
-   const courtingMate=u.courtPartner?batch.find(v=>v.id===u.courtPartner):null;
+   const courtingMate=u.courtPartner?byId.get(u.courtPartner):null;
    const speed=m.speed*body.vigor*thermal.activity*(u.stage==='juvenile'?.8:1)*terrainMove
      *(flight?1.24:courtingMate&&distance(u,courtingMate)<22**2?.20:1)
      *(flight?1:Math.max(.55,1-congestion*.06));
