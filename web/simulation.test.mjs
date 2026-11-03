@@ -1,7 +1,7 @@
 // Run with: node --test web/simulation.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Ecosystem,morphology} from './simulation.js';
+import {Ecosystem,morphology,organismMorphology,MAX_NUTRITION_GROWTH} from './simulation.js';
 import {slimeEyeAngles} from './renderer.js';
 const populated=seed=>{const s=new Ecosystem(seed);s.introduce(160,135,3);return s;};
 test('same seed creates same initial ecosystem',()=>{const a=populated(42),b=populated(42);assert.deepEqual(a.tiles,b.tiles);assert.deepEqual(a.units,b.units);});
@@ -752,4 +752,35 @@ test('wind germination is absent when natural plant regeneration is disabled',()
  for(let i=0;i<450;i++)w.step();
  assert.equal(w.seedRainCount,0);
  assert.ok(w.grass.every(v=>v===0));
+});
+
+test('sustained feeding converts nutritional surplus into visible adult growth',()=>{
+ const w=new Ecosystem(1801);w.tiles.fill(0);w.grass.fill(100);
+ const g={...w.gene(),aquatic:0,diet:0,r:4};
+ const u=w.spawn(200,140,g);u.age=90;u.stage='adult';
+ u.energy=175;u.recentFood=12;
+ const startHp=u.maxHp;
+ for(let i=0;i<70;i++){u.energy=175;u.recentFood=12;w.step();}
+ assert.ok(u.growthScale>1.15);
+ assert.ok(u.maxHp>startHp);
+ assert.equal(u.g.r,4); // Feeding does not mutate the inherited size gene.
+});
+test('giantism increases reach and metabolism but lowers movement speed',()=>{
+ const w=new Ecosystem(1802),u=w.spawn(200,140,w.gene());
+ const normal=organismMorphology(u);
+ u.growthScale=2.1;
+ const giant=organismMorphology(u);
+ assert.ok(giant.width>normal.width*2);
+ assert.ok(giant.biteReach>normal.biteReach);
+ assert.ok(giant.upkeep>normal.upkeep);
+ assert.ok(giant.speed<normal.speed);
+});
+test('starvation cannot generate growth, and acquired growth is bounded',()=>{
+ const w=new Ecosystem(1803);w.tiles.fill(2);w.grass.fill(0);
+ const u=w.spawn(200,140,{...w.gene(),aquatic:0});
+ u.age=90;u.stage='adult';u.energy=40;u.recentFood=0;
+ w.step();assert.equal(u.growthScale,1);
+ u.energy=300;u.recentFood=100;u.growthScale=MAX_NUTRITION_GROWTH-.0001;
+ w.step();
+ assert.ok(u.growthScale<=MAX_NUTRITION_GROWTH);
 });
