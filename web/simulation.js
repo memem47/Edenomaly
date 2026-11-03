@@ -299,6 +299,26 @@ export class Ecosystem{
   this.log('mate','#'+parent.id+' × #'+partner.id+' が交配（卵 '+count+' 個を準備）',parent);
   return pregnancy;
  }
+ shoreEggSite(x,y,g){
+  // Small-scale egg drift along coastlines makes a habitat-switch mutation
+  // viable without teleporting offspring across the map.
+  const suitable=(xx,yy)=>{
+   const id=this.cell(xx,yy),t=this.tiles[id];
+   return g.aquatic===1?t===1&&this.water[id]>8:t!==1&&this.nearWater(xx,yy,2);
+  };
+  if(suitable(x,y))return {x,y};
+  const cx=Math.floor(x/CELL),cy=Math.floor(y/CELL),reach=4;
+  let nearest=null,dist=Infinity;
+  for(let dy=-reach;dy<=reach;dy++)for(let dx=-reach;dx<=reach;dx++){
+   const xx=cx+dx,yy=cy+dy;
+   if(xx<0||xx>=NX||yy<0||yy>=NY)continue;
+   const px=(xx+.5)*CELL,py=(yy+.5)*CELL;
+   if(!suitable(px,py))continue;
+   const d=(x-px)**2+(y-py)**2;
+   if(d<dist){dist=d;nearest={x:px,y:py};}
+  }
+  return nearest??{x,y};
+ }
  layEgg(parent,partner=null){
   // Explicit test helper: two parents can conceive; actual egg laying is delayed.
   if(partner)return this.conceive(parent,partner);
@@ -313,6 +333,10 @@ export class Ecosystem{
    const g=p.genomes[i],traits=eggTraits(g);
    const rear=rearPosition(parent,5+i*2.5);
    const egg={id:this.nextId++,x:clamp(rear.x+Math.cos(parent.angle+Math.PI/2)*this.range(-6,6),6,W-6),y:clamp(rear.y+Math.sin(parent.angle+Math.PI/2)*this.range(-6,6),6,H-6),g,parent:p.parent,otherParent:p.otherParent,generation:p.generation,lineage:p.lineage,age:0,hatchAt:traits.incubation,energy:traits.eggEnergy,dead:false,bornTick:this.tick,birthX:parent.x-Math.cos(parent.angle)*(parent.g.r*parent.g.elongation+1),birthY:parent.y-Math.sin(parent.angle)*(parent.g.r*parent.g.elongation+1)};
+   if(g.aquatic!==parent.g.aquatic){
+    const site=this.shoreEggSite(egg.x,egg.y,g);
+    egg.x=site.x;egg.y=site.y;
+   }
    laid.push(egg);this.eggs.push(egg);
   }
   parent.pregnancy=null;
