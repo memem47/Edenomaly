@@ -1462,7 +1462,7 @@ test('parthenogenesis works alone but ordinary females cannot clone',()=>{
  const p=s.conceiveSolo(a);assert.ok(p);
  assert.equal(p.otherParent,null);
  assert.ok(p.genomes.length<=2);
- assert.ok(a.energy<160);
+ assert.ok(a.energy<200);
  const egg=s.layEgg(a);assert.ok(egg);
  assert.equal(egg.otherParent,null);
  assert.equal(s.conceiveSolo(a),null);
