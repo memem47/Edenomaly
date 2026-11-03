@@ -182,14 +182,14 @@ export class SpatialLookup{
    let bucket=this.grid.get(key);if(!bucket){bucket=[];this.grid.set(key,bucket);}bucket.push(item);
   }
  }
- query(x,y,radius){
+ query(x,y,radius,stable=true){
   const size=this.cellSize,r2=radius*radius,found=[];
   for(let cy=Math.floor((y-radius)/size);cy<=Math.floor((y+radius)/size);cy++)
    for(let cx=Math.floor((x-radius)/size);cx<=Math.floor((x+radius)/size);cx++){
     const bucket=this.grid.get(cx+','+cy);if(!bucket)continue;
     for(const item of bucket)if((item.x-x)**2+(item.y-y)**2<r2)found.push(item);
    }
-  found.sort((a,b)=>this.order.get(a)-this.order.get(b));
+  if(stable)found.sort((a,b)=>this.order.get(a)-this.order.get(b));
   return found;
  }
 }
@@ -829,7 +829,7 @@ export class Ecosystem{
    const thermal=thermalFitness(g,this.temperatureAt(u.x,u.y));
    u.thermalComfort=thermal.comfort;u.temperature=this.temperatureAt(u.x,u.y);
    u.hp-=thermal.damage;u.energy-=thermal.upkeep;
-   const near=unitGrid.query(u.x,u.y,Math.max(145,sight*1.6));
+   const near=unitGrid.query(u.x,u.y,Math.max(145,sight*1.6),false);
    const aquatic=g.aquatic===1,underwater=t===1&&this.water[this.cell(u.x,u.y)]>0;
    if(aquatic){
     u.stranded=underwater?0:u.stranded+1;
@@ -928,7 +928,7 @@ export class Ecosystem{
      const x=clamp(u.x+this.range(-65,65),8,W-8),y=clamp(u.y+this.range(-65,65),8,H-8);
      const terrain=this.terrain(x,y);
      let competitors=0;
-     for(const v of unitGrid.query(x,y,48))if(v!==u&&!v.dead&&dietProfile(v.g).plant>.25)competitors++;
+     for(const v of unitGrid.query(x,y,48,false))if(v!==u&&!v.dead&&dietProfile(v.g).plant>.25)competitors++;
      const habitat=terrainFitness(g,terrain);
      if(!habitat.passable)continue;
      const fit=habitat.fitness;
