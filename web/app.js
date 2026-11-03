@@ -1,5 +1,5 @@
 import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness} from './simulation.js?v=temperature-1';
-import {drawWorld,drawChart} from './renderer.js?v=juvenile-growth-1';
+import {drawWorld,drawChart} from './renderer.js?v=population-600-1';
 const $=id=>document.getElementById(id);
 const game=new Ecosystem();
 const canvas=$('world'),ctx=canvas.getContext('2d'),graph=$('chart').getContext('2d');
