@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Ecosystem,morphology,organismMorphology,bodyCollisionAxes,localDensity,crowdStress,acquiredSizeMaintenance,feedingCapacity,energyStorageLimit,MAX_NUTRITION_GROWTH,adaptationColor} from './simulation.js';
-import {slimeEyeAngles,slimeEyeColor,slimeEyeLocation,drawWorld} from './renderer.js';
+import {slimeEyeAngles,slimeEyeColor,slimeEyeLocation,organismVisualState,drawWorld} from './renderer.js';
 const populated=seed=>{const s=new Ecosystem(seed);s.introduce(160,135,3);return s;};
 test('same seed creates same initial ecosystem',()=>{const a=populated(42),b=populated(42);assert.deepEqual(a.tiles,b.tiles);assert.deepEqual(a.units,b.units);});
 test('species counts reconcile',()=>{const s=populated();for(let i=0;i<25;i++)s.step();assert.equal([...s.species.values()].reduce((v,x)=>v+x.current,0),s.units.length);assert.ok([...s.species.values()].every(x=>x.total>=x.current));});
@@ -1229,4 +1229,50 @@ test('large prey yields a more substantial meal and a nutrient-bearing carcass',
  assert.ok(large.gain>small.gain);
  assert.ok(large.food>small.food);
  assert.ok(large.mass>small.mass);
+});
+
+test('visual status flags follow real infection, HP and attack state',()=>{
+ const w=new Ecosystem(2901),u=w.spawn(210,150,w.gene());
+ assert.deepEqual(organismVisualState(u),{
+  infected:false,attacking:false,injured:false,injurySeverity:0,hit:false
+ });
+ u.infection=40;u.hp=u.maxHp*.25;u.woundFlash=9;u.attackFlash=12;
+ const state=organismVisualState(u);
+ assert.equal(state.infected,true);assert.equal(state.attacking,true);
+ assert.equal(state.hit,true);assert.equal(state.injured,true);
+ assert.ok(state.injurySeverity>.6);
+ u.hp=u.maxHp;u.infection=0;u.woundFlash=0;u.attackFlash=0;
+ assert.equal(organismVisualState(u).injured,false);
+ assert.equal(organismVisualState(u).infected,false);
+ assert.equal(organismVisualState(u).attacking,false);
+});
+test('an attack illuminates attacker and the flash expires independently of cooldown',()=>{
+ const w=new Ecosystem(2902);
+ const hunter=w.spawn(210,150,{...w.gene(),diet:1,jaw:2.5});
+ const prey=w.spawn(219,150,{...w.gene(),diet:0});
+ prey.hp=prey.maxHp=10000;
+ hunter.bite=0;
+ assert.equal(w.attack(hunter,prey),true);
+ assert.ok(hunter.attackFlash>0);
+ assert.ok(prey.woundFlash>0);
+ assert.ok(w.effects.some(f=>f.type==='strike'&&f.fromX===hunter.x));
+ for(let i=0;i<18;i++){w.step();if(hunter.dead)break;}
+ assert.equal(hunter.attackFlash,0);
+});
+test('infection, persistent wounds and attacking have distinct draw colors',()=>{
+ const w=new Ecosystem(2903);
+ w.units=[];w.eggs=[];w.corpses=[];
+ const u=w.spawn(300,210,w.gene());u.infection=44;
+ u.hp=u.maxHp*.38;u.attackFlash=14;u.woundFlash=10;
+ const styles={stroke:[],fill:[]};
+ const ctx=new Proxy({canvas:{width:800,height:460},
+  createRadialGradient:()=>({addColorStop(){}})},
+  {get(o,k){return k in o?o[k]:()=>{};},
+   set(o,k,v){if(k==='strokeStyle')styles.stroke.push(v);
+    if(k==='fillStyle')styles.fill.push(v);o[k]=v;return true;}});
+ drawWorld(ctx,w,true);
+ assert.ok(styles.stroke.includes('rgba(59,212,99,.86)'));
+ assert.ok(styles.stroke.includes('rgba(255,148,42,.92)'));
+ assert.ok(styles.stroke.includes('rgba(185,44,84,.85)'));
+ assert.ok(styles.fill.includes('rgba(255,92,75,.27)'));
 });
