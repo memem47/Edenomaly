@@ -1,4 +1,4 @@
-import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive} from './simulation.js?v=egg-guards-12';
+import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive} from './simulation.js?v=habitat-density-13';
 import {drawWorld,drawChart} from './renderer.js?v=egg-guards-12';
 const $=id=>document.getElementById(id);
 const game=new Ecosystem();
