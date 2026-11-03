@@ -5,7 +5,7 @@ export const ECOLOGY_LOG_INTERVAL=50;
 export const ECOLOGY_LOG_FIELDS=[
  'run','version','step','population','adults','juveniles','eggs',
  'livingSpecies','discoveredSpecies','maxGeneration','herbivores','omnivores','carnivores',
- 'grass','waterweed','water','soilMean','meanEnergy','meanHpPercent',
+ 'grass','waterweed','food','corpses','water','soilMean','meanEnergy','meanHpPercent',
  'meanHabitatLoad','infected','births','deaths','deathStarvation',
  'deathPredation','deathInfection','deathOther','matings','temperature','season',
  'growthSetting','rainfallSetting','stressSetting'
@@ -36,7 +36,7 @@ export function observeEcology(game){
   step:game.tick,population:n,adults:n-juveniles,juveniles,eggs:game.eggs.length,
   livingSpecies:game.livingSpecies,discoveredSpecies:game.species.size,
   maxGeneration,herbivores,omnivores,carnivores,
-  grass:finite(grass),waterweed:finite(waterweed),water:finite(water),
+  grass:finite(grass),waterweed:finite(waterweed),food:finite(grass+waterweed),corpses:game.corpses.length,water:finite(water),
   soilMean:finite(soil/game.soil.length),
   meanEnergy:finite(n?energy/n:0),meanHpPercent:finite(n?hp/n*100:0),
   meanHabitatLoad:finite(n?habitatLoad/n:0),infected,
@@ -61,8 +61,8 @@ export class EcologyLogbook{
   }catch{this.data={version,runs:[],nextId:1};this.save();}
  }
  save(){
-  try{this.storage?.setItem(ECOLOGY_LOG_KEY,JSON.stringify(this.data));return true;}
-  catch{return false;} // Private mode / storage quota may disable persistence.
+  try{if(!this.storage){this.lastSaveOk=false;return false;}this.storage.setItem(ECOLOGY_LOG_KEY,JSON.stringify(this.data));this.lastSaveOk=true;return true;}
+  catch{this.lastSaveOk=false;return false;} // Private mode / storage quota may disable persistence.
  }
  start(seed){
   const id=this.data.nextId++;
