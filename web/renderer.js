@@ -2,21 +2,49 @@ import {WORLD,TERRAIN_COLORS,dietProfile,vitality} from './simulation.js';
 const TAU=Math.PI*2;
 export function drawWorld(ctx,s,showEffects=true,selected=null){
  const {cell,columns,rows,width,height}=WORLD;
+ // Bright, layered handheld-console-style terrain, drawn procedurally.
  for(let y=0;y<rows;y++)for(let x=0;x<columns;x++){
-  const i=y*columns+x,t=s.tiles[i];
-  ctx.fillStyle=TERRAIN_COLORS[t];ctx.fillRect(x*cell,y*cell,cell,cell);
+  const i=y*columns+x,t=s.tiles[i],px=x*cell,py=y*cell;
+  const seed=((x*73+y*137)*23)%17;
+  ctx.fillStyle=TERRAIN_COLORS[t];ctx.fillRect(px,py,cell,cell);
+  ctx.fillStyle='rgba(255,255,255,.13)';ctx.fillRect(px,py,cell,3);
+  ctx.fillStyle='rgba(13,37,61,.10)';ctx.fillRect(px,py+cell-3,cell,3);
   if(t===0){
-   ctx.fillStyle='rgba(114,224,112,.5)';
-   const coverage=(s.grass?.[i]??0)/100;
-   ctx.fillRect(x*cell,y*cell+cell*(1-coverage),cell,cell*coverage);
-  }
-  if(t===1){
-   ctx.fillStyle='rgba(90,188,248,.55)';
-   const level=(s.water?.[i]??0)/100;
-   ctx.fillRect(x*cell,y*cell+cell*(1-level),cell,cell*level);
+   const cover=Math.max(0,Math.min(1,(s.grass[i]||0)/100));
+   ctx.fillStyle='#89ec5e';ctx.fillRect(px+2,py+2,(cell-4)*cover,cell-4);
+   // Sparkling blades, proportional to the actual grass biomass.
+   ctx.strokeStyle='#2aa943';ctx.lineWidth=1.6;ctx.lineCap='round';
+   for(let k=0;k<Math.floor(cover*5);k++){
+    const gx=px+3+(seed+k*7)%14,gy=py+8+(k*7+seed)%10;
+    ctx.beginPath();ctx.moveTo(gx,gy+3);ctx.lineTo(gx-2,gy-2);ctx.moveTo(gx,gy+3);ctx.lineTo(gx+2,gy-1);ctx.stroke();
+   }
+  }else if(t===1){
+   const depth=Math.max(0,Math.min(1,(s.water[i]||0)/100));
+   ctx.fillStyle='#48c7ff';ctx.fillRect(px+2,py+2,cell-4,(cell-4)*depth);
+   ctx.strokeStyle='rgba(224,255,255,.82)';ctx.lineWidth=1.4;
+   const wave=(s.tick*.08+seed)%8;
+   ctx.beginPath();ctx.moveTo(px+3+wave*.4,py+5);ctx.lineTo(px+9+wave*.4,py+5);ctx.stroke();
+   // Submerged vegetation is visible independently of the water quantity.
+   const weed=Math.max(0,Math.min(1,(s.waterweed?.[i]||0)/100));
+   if(weed>.02){
+    ctx.strokeStyle='#24a86b';ctx.lineWidth=2;ctx.lineCap='round';
+    for(let k=0;k<Math.max(1,Math.floor(weed*4));k++){
+     const wx=px+4+(k*5+seed)%13,wy=py+17;
+     ctx.beginPath();ctx.moveTo(wx,wy);ctx.quadraticCurveTo(wx-3,wy-4,wx+Math.sin(s.tick*.08+k)*2,wy-8-weed*4);ctx.stroke();
+    }
+   }
+  }else if(t===2){
+   ctx.fillStyle='#ffe099';ctx.fillRect(px+3+(seed%5),py+5,3,2);
+   ctx.fillStyle='#cb8c45';ctx.fillRect(px+10,py+13+(seed%4),5,2);
+  }else{
+   ctx.fillStyle='#b9b7df';ctx.beginPath();ctx.moveTo(px+3,py+11);ctx.lineTo(px+9,py+3);ctx.lineTo(px+16,py+8);ctx.lineTo(px+14,py+17);ctx.lineTo(px+4,py+16);ctx.closePath();ctx.fill();
+   ctx.strokeStyle='#65638e';ctx.lineWidth=1;ctx.stroke();
   }
  }
- ctx.strokeStyle='rgba(0,0,0,.11)';ctx.lineWidth=.5;ctx.beginPath();for(let x=0;x<width;x+=cell){ctx.moveTo(x,0);ctx.lineTo(x,height);}for(let y=0;y<height;y+=cell){ctx.moveTo(0,y);ctx.lineTo(width,y);}ctx.stroke();
+ ctx.strokeStyle='rgba(33,58,88,.08)';ctx.lineWidth=.5;ctx.beginPath();
+ for(let x=0;x<width;x+=cell){ctx.moveTo(x,0);ctx.lineTo(x,height);}
+ for(let y=0;y<height;y+=cell){ctx.moveTo(0,y);ctx.lineTo(width,y);}
+ ctx.stroke();
 
  // Corpses share the creature renderer, preserving the inherited oval proportions and eyes.
  // Courtship: a living couple is joined by a conspicuous animated magenta bond.
@@ -67,14 +95,26 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
    ctx.fillStyle=u.pregnancy?'#ffe59b':'#ffd5f5';ctx.font='bold 12px system-ui';ctx.textAlign='center';
    if(u.pregnancy){const v=1-u.pregnancy.remaining/u.pregnancy.total;ctx.beginPath();ctx.arc(u.x,u.y,Math.max(13,g.r*g.elongation+8)+4,-Math.PI/2,-Math.PI/2+TAU*v);ctx.stroke();}else{ctx.beginPath();ctx.arc(u.x,u.y,Math.max(13,g.r*g.elongation+8)+3,0,TAU);ctx.stroke();}ctx.restore();
   }
+  // Ground shadow gives every slime some separation from the bright terrain.
+  ctx.save();ctx.fillStyle='rgba(29,42,75,.22)';ctx.beginPath();
+  ctx.ellipse(u.x+2,u.y+halfW*.62,Math.max(3,halfL*.8),Math.max(2,halfW*.35),u.angle,0,TAU);ctx.fill();ctx.restore();
   ctx.save();ctx.translate(u.x,u.y);ctx.rotate(u.angle);
   const blobPhase=s.tick*.11+(u.id||0);
   const wobble=dead?0:Math.sin(blobPhase*1.35)*.10;
   const rx=halfL*.82*(1+wobble*.55),ry=halfW*1.2*(1-wobble*.40);
-  ctx.fillStyle=u.woundFlash?'#fff2ea':`hsl(${g.hue},${Math.max(12,g.saturation*(1-life.old*.6))}%,${g.lightness}%)`;
-  // Keep a perfectly smooth oval: only its two axes squash and stretch.
-  ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.fill();ctx.strokeStyle='rgba(255,255,255,.55)';ctx.lineWidth=1.4;ctx.stroke();
-  ctx.fillStyle='rgba(255,255,255,.25)';ctx.beginPath();ctx.ellipse(-rx*.3+Math.sin(blobPhase*.85)*(dead?0:ry*.12),-ry*.35+Math.cos(blobPhase*.7)*(dead?0:ry*.09),rx*.3,ry*.15,-.4,0,TAU);ctx.fill();
+  const sat=Math.min(100,Math.max(28,g.saturation*(1-life.old*.42)+12));
+  const light=Math.min(85,Math.max(38,g.lightness+8));
+  const base=u.woundFlash?'#fff0e2':`hsl(${g.hue},${sat}%,${light}%)`;
+  const outline=`hsl(${g.hue},${Math.max(30,sat-8)}%,${Math.max(19,light-29)}%)`;
+  // Strict oval with brighter upper glow and deeper bottom shadow.
+  const shine=ctx.createRadialGradient(-rx*.38,-ry*.46,0,0,ry*.2,Math.max(rx,ry)*1.5);
+  shine.addColorStop(0,'rgba(255,255,255,.82)');
+  shine.addColorStop(.38,base);
+  shine.addColorStop(1,outline);
+  ctx.fillStyle=shine;ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.fill();
+  ctx.strokeStyle=outline;ctx.lineWidth=1.6;ctx.stroke();
+  ctx.fillStyle='rgba(255,255,255,.65)';ctx.beginPath();ctx.ellipse(-rx*.35+Math.sin(blobPhase*.85)*(dead?0:ry*.09),-ry*.38,rx*.26,ry*.13,-.4,0,TAU);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.28)';ctx.beginPath();ctx.ellipse(-rx*.39,-ry*.15,rx*.10,ry*.055,-.5,0,TAU);ctx.fill();
   for(let i=0;i<Math.min(g.eyes,6);i++){
    const ex=rx*(.12+(i%3)*.22)+(dead?0:Math.sin(blobPhase*.73+i*.4)*ry*.045),ey=ry*(-.36+Math.floor(i/3)*.4)+(dead?0:Math.cos(blobPhase*.83+i*.4)*ry*.045),er=Math.max(1.6,ry*.22);
    ctx.fillStyle='white';ctx.beginPath();ctx.arc(ex,ey,er,0,TAU);ctx.fill();
