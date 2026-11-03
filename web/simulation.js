@@ -696,10 +696,10 @@ export class Ecosystem{
    // Sustained feeding causes visible individual growth; high body mass raises
    // metabolic demand and slows movement, so giantism has a real ecological cost.
    u.recentFood=Math.max(0,(u.recentFood??0)*.975);
-   if(u.stage==='adult'&&u.energy>93&&u.recentFood>1.5&&u.growthScale<MAX_NUTRITION_GROWTH){
-    const increment=Math.min(MAX_NUTRITION_GROWTH-u.growthScale,.0045+Math.min(.004,u.recentFood*.00026));
-    const cost=increment*(95+85*u.growthScale);
-    if(u.energy>93+cost){
+   if(u.stage==='adult'&&u.energy>115&&u.recentFood>2.5&&u.growthScale<MAX_NUTRITION_GROWTH){
+    const increment=Math.min(MAX_NUTRITION_GROWTH-u.growthScale,.0018+Math.min(.003,u.recentFood*.00014));
+    const cost=increment*(135+115*u.growthScale);
+    if(u.energy>115+cost){
      u.energy-=cost;
      u.growthScale+=increment;
      const enlarged=organismMorphology(u);
