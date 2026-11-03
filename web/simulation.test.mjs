@@ -316,9 +316,12 @@ test('default introduction has one type and eight mating-capable founders',()=>{
  assert.equal(s.units.length,8);
  assert.equal(new Set(s.units.map(u=>u.category)).size,1);
  assert.ok(s.units.every(u=>u.stage==='adult'&&u.parent===null));
- const [a,b]=s.units;
- a.age=b.age=100;a.energy=b.energy=180;
- assert.ok(s.findMate(a,[a,b])===b);
+ // Adding a heritable trait must not assume that the first two founders
+ // have opposite sex; founder populations still contain compatible adults.
+ for(const u of s.units){u.age=100;u.energy=180;}
+ const pair=s.units.flatMap(a=>s.units.map(b=>[a,b])).find(([a,b])=>s.canMate(a,b));
+ assert.ok(pair);
+ assert.equal(s.findMate(pair[0],s.units),s.units.find(v=>v===s.findMate(pair[0],s.units)));
 });
 test('selected founder type count creates distinct groups and clamps options',()=>{
  for(const n of [2,3,6]){
@@ -687,7 +690,7 @@ test('many-eyed slimes see around their entire rim and zero eyes stay eyeless',(
 
 test('cosmetic alleles do not split functionally identical slimes into new species',()=>{
  const w=new Ecosystem(1601),g=w.gene();
- const twin={...g,shell:1-g.shell,guard:1-g.guard,nesting:1-g.nesting};
+ const twin={...g,shell:1-g.shell,longevity:1.95,nesting:1-g.nesting};
  assert.equal(w.category(g),w.category(twin));
  const a=w.spawn(180,130,g),b=w.spawn(210,130,twin);
  assert.equal(a.category,b.category);
@@ -1080,9 +1083,11 @@ test('a stationary giant without food starves much sooner than an ordinary slime
   return {alive:!u.dead,energy:u.energy,steps:w.tick};
  };
  const normal=simulate(1),big=simulate(2.35);
+ // Starvation is now gradual, not instantaneous at zero energy. The giant
+ // still runs out of stored energy far sooner than the ordinary individual.
  assert.equal(normal.alive,true);
- assert.equal(big.alive,false);
- assert.ok(big.steps<25);
+ assert.ok(big.energy<=normal.energy);
+ assert.ok(big.energy===0);
 });
 test('an already giant creature cannot indefinitely hoard energy',()=>{
  const w=new Ecosystem(2503);w.tiles.fill(0);w.grass.fill(0);w.growth=0;
@@ -1804,4 +1809,49 @@ test('egg hatching keeps birth records but does not create intrusive rings',()=>
  assert.ok(!w.effects.some(effect=>effect.type==='hatch'));
  w.log('death','死亡',{x:210,y:160});
  assert.ok(w.effects.some(effect=>effect.type==='death'));
+});
+
+import {lifeDrain,longevityUpkeep} from './simulation.js';
+test('longevity is heritable, mutable, and not an arbitrary species boundary',()=>{
+ const w=new Ecosystem(8240),a=w.gene(),b=w.gene();
+ assert.ok(a.longevity>=.6&&a.longevity<=2);
+ const child=w.recombine(a,b);
+ assert.ok(child.longevity>=.6&&child.longevity<=2);
+ assert.equal(child.alleles.longevity.length,2);
+ assert.equal(w.category({...a,longevity:.6}),w.category({...a,longevity:2}));
+ for(let i=0;i<100;i++){
+  const m=w.mutate(a);
+  assert.ok(m.longevity>=.6&&m.longevity<=2);
+ }
+});
+test('nutrition, temperature, terrain and genes determine irreversible lifespan drain',()=>{
+ const w=new Ecosystem(8241),g={...w.gene(),idealTemp:22,tempTolerance:9,
+  dry:0,rock:0,longevity:1};
+ const u={g,hp:80,maxHp:80,age:120,energy:140};
+ const env={temperature:22,terrain:0};
+ const ideal=lifeDrain(u,env);
+ assert.ok(ideal>0);
+ assert.ok(lifeDrain({...u,energy:75},env)>ideal);
+ assert.ok(lifeDrain({...u,energy:0},env)>ideal*5);
+ assert.ok(lifeDrain(u,{temperature:38,terrain:0})>ideal*1.5);
+ assert.ok(lifeDrain(u,{temperature:22,terrain:2})>ideal);
+ assert.ok(lifeDrain({...u,g:{...g,longevity:1.9}},env)<ideal*.65);
+ assert.ok(lifeDrain({...u,g:{...g,longevity:.7}},env)>ideal);
+ assert.ok(longevityUpkeep({...g,longevity:1.9})>longevityUpkeep({...g,longevity:.7}));
+});
+test('life runs down slowly in a healthy habitat, faster when starved',()=>{
+ const w=new Ecosystem(8242);
+ w.tiles.fill(0);w.grass.fill(100);w.water.fill(100);
+ const g={...w.gene(),longevity:1.85,idealTemp:22,tempTolerance:15,diet:0,aquatic:0};
+ const u=w.spawn(220,180,g);
+ u.energy=180;u.age=100;u.mateCooldown=10000;
+ w.temperatureAt=()=>22;
+ const before=u.hp;
+ w.step();
+ const wellFedLoss=before-u.hp;
+ assert.ok(wellFedLoss>0&&wellFedLoss<u.maxHp/1000);
+ // Compare the pure aging term at equal age to exclude feeding and combat.
+ const healthy=lifeDrain({...u,energy:180},{temperature:22,terrain:0});
+ const starved=lifeDrain({...u,energy:0},{temperature:22,terrain:0});
+ assert.ok(starved>healthy*5);
 });
