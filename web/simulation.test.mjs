@@ -672,3 +672,43 @@ test('many-eyed slimes see around their entire rim and zero eyes stay eyeless',(
  assert.ok(angles.some(a=>a>Math.PI)&&angles.some(a=>a<Math.PI/2));
  assert.deepEqual(slimeEyeAngles({eyes:0,diet:.5}),[]);
 });
+
+test('cosmetic alleles do not split functionally identical slimes into new species',()=>{
+ const w=new Ecosystem(1601),g=w.gene();
+ const twin={...g,hue:(g.hue+130)%360,saturation:40,lightness:81,
+  shell:1-g.shell,guard:1-g.guard,nesting:1-g.nesting};
+ assert.equal(w.category(g),w.category(twin));
+ const a=w.spawn(180,130,g),b=w.spawn(210,130,twin);
+ assert.equal(a.category,b.category);
+ assert.equal(w.species.size,1);
+});
+test('different feeding niches and fundamentally different forms are distinguishable',()=>{
+ const w=new Ecosystem(1602),g=w.gene();
+ assert.notEqual(w.category({...g,diet:.03}),w.category({...g,diet:.96}));
+ assert.notEqual(w.category({...g,eyes:0}),w.category({...g,eyes:6}));
+ assert.notEqual(w.category({...g,aquatic:0}),w.category({...g,aquatic:1}));
+});
+test('manual rain immediately shows rain for many steps, and climate can change',()=>{
+ const w=new Ecosystem(1603);
+ w.rainfall=70;w.rain();
+ assert.equal(w.weather,'rain');
+ assert.ok(w.weatherUntil-w.tick>=100);
+ for(let i=0;i<40;i++)w.step();
+ assert.equal(w.weather,'rain');
+ assert.ok(w.weatherStrength>0);
+});
+test('zero-rain climate does not naturally precipitate',()=>{
+ const w=new Ecosystem(1604);w.rainfall=0;
+ for(let i=0;i<1000;i++){w.step();assert.ok(w.weather!=='rain');}
+});
+test('weather changes reproducibly for identical simulation seeds',()=>{
+ const a=new Ecosystem(1605),b=new Ecosystem(1605);
+ a.rainfall=b.rainfall=95;
+ const history=[];
+ for(let i=0;i<1250;i++){
+  a.step();b.step();
+  if(i%50===0)history.push(a.weather);
+  assert.equal(a.weather,b.weather);
+ }
+ assert.ok(new Set(history).size>=2);
+});
