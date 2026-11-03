@@ -1334,7 +1334,9 @@ test('without eggs the same herbivore does not attack harmlessly',()=>{
  const before=predator.hp;
  w.step();
  assert.equal(parent.defendFlash,0);
- assert.equal(predator.hp,before);
+ // Ordinary time passing still spends life HP, but no defense strike occurred.
+ assert.ok(predator.hp<before);
+ assert.ok(!w.logs.some(l=>l.type==='defend'));
 });
 
 test('active guardians show a cyan counterattack distinct from orange hunting',()=>{
