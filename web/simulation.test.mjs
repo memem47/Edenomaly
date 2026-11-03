@@ -1572,3 +1572,32 @@ test('collision size is continuous across the juvenile-adult stage change',()=>{
  const after=bodyCollisionAxes(u);
  assert.deepEqual(after,before);
 });
+
+import {SpatialLookup,crowdMetrics} from './simulation.js';
+test('population cap allows 600 living organisms but not the 601st',()=>{
+ const w=new Ecosystem(8621),g=w.gene();
+ for(let i=0;i<600;i++)assert.ok(w.spawn(20+(i*17)%760,20+(i*29)%420,g));
+ assert.equal(w.units.length,600);
+ assert.equal(w.spawn(100,100,g),null);
+});
+test('spatial index queries exactly match brute-force neighbors in original order',()=>{
+ const w=new Ecosystem(8622),g=w.gene();
+ for(let i=0;i<240;i++)w.spawn(15+(i*43)%770,15+(i*59)%430,g);
+ const grid=new SpatialLookup(w.units);
+ for(const [x,y,r] of [[10,10,55],[320,220,140],[650,430,90],[400,200,12],[400,200,1000]]){
+  const actual=grid.query(x,y,r).map(u=>u.id);
+  const expected=w.units.filter(u=>(u.x-x)**2+(u.y-y)**2<r*r).map(u=>u.id);
+  assert.deepEqual(actual,expected);
+ }
+});
+test('fused crowding calculations match independent calculations',()=>{
+ const w=new Ecosystem(8623),g=w.gene();
+ for(let i=0;i<80;i++)w.spawn(100+(i*13)%240,100+(i*29)%200,g);
+ const spatial=new SpatialLookup(w.units);
+ for(const u of w.units.slice(0,12)){
+  const near=spatial.query(u.x,u.y,145);
+  const metrics=crowdMetrics(u,near);
+  assert.ok(Math.abs(metrics.density-localDensity(u,near))<1e-9);
+  assert.ok(Math.abs(metrics.habitatLoad-habitatCrowding(u,near))<1e-9);
+ }
+});
