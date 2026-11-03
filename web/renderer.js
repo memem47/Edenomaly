@@ -30,9 +30,31 @@ export function organismVisualState(u){
  const hp=Math.max(0,Math.min(1,(u.hp??1)/Math.max(1,u.maxHp??1)));
  return {infected:!u.dead&&(u.infection??0)>0,
   attacking:!u.dead&&(u.attackFlash??0)>0,
-  injured:!u.dead&&hp<.75,
-  injurySeverity:Math.max(0,Math.min(1,(.75-hp)/.75)),
+  injured:!u.dead&&hp<.92,
+  injurySeverity:Math.max(0,Math.min(1,(.92-hp)/.92)),
   hit:!u.dead&&(u.woundFlash??0)>0};
+}
+// Deterministic variation avoids flicker and does not affect ecosystem randomness.
+const woundHash=(id,index)=>{
+ let h=Math.imul((id||1)^Math.imul(index+1,0x9e3779b9),0x85ebca6b);
+ h=Math.imul(h^(h>>>13),0xc2b2ae35);
+ return ((h^(h>>>16))>>>0)/4294967296;
+};
+export function injuryMarks(u,rx,ry){
+ const severity=organismVisualState(u).injurySeverity;
+ if(severity<=0)return [];
+ const count=1+Math.floor(severity*3.99),marks=[];
+ for(let i=0;i<count;i++){
+  const a=woundHash(u.id,i*5)*Math.PI*2;
+  const radial=.13+.42*Math.sqrt(woundHash(u.id,i*5+1));
+  const width=(.12+.12*Math.sqrt(severity))*(.60+.75*woundHash(u.id,i*5+2));
+  const length=(.18+.26*Math.sqrt(severity))*(.72+.55*woundHash(u.id,i*5+3));
+  const size=.47+.53*severity;
+  marks.push({x:Math.cos(a)*rx*radial,y:Math.sin(a)*ry*radial,
+   rx:Math.max(1.1,rx*length*size),ry:Math.max(.9,ry*width*size),
+   angle:(woundHash(u.id,i*5+4)-.5)*1.7});
+ }
+ return marks;
 }
 export function drawWorld(ctx,s,showEffects=true,selected=null){
  const {cell,columns,rows,width,height}=WORLD;
@@ -180,18 +202,20 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
    ctx.fillStyle='rgba(255,92,75,.27)';ctx.fill();
    ctx.strokeStyle='rgba(255,89,65,.85)';ctx.lineWidth=2.4;ctx.stroke();
   }
-  // Damaged bodies carry distinct scratches until their HP recovers.
+  // Bruised body area grows with lost HP. Patches vary by individual and
+  // remain stable between frames; no tiny fixed purple parasite dots.
   if(condition.injured){
+   ctx.save();
+   ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.clip();
    const severity=condition.injurySeverity;
-   ctx.fillStyle='rgba(132,53,110,.24)';
-   ctx.beginPath();ctx.ellipse(-rx*.22,ry*.22,rx*.24,ry*.17,.4,0,TAU);ctx.fill();
-   ctx.strokeStyle='rgba(185,44,84,.85)';
-   ctx.lineWidth=Math.max(1.4,Math.min(3,ry*.10));
-   const cuts=severity>.55?3:severity>.22?2:1;
-   for(let i=0;i<cuts;i++){
-    const px=-rx*.37+i*rx*.23,py=ry*(.06+i*.10);
-    ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px+rx*.12,py+ry*.14);ctx.stroke();
+   for(const mark of injuryMarks(u,rx,ry)){
+    ctx.fillStyle=severity>.58?'rgba(105,34,36,.66)':'rgba(143,57,45,.52)';
+    ctx.beginPath();ctx.ellipse(mark.x,mark.y,mark.rx*1.20,mark.ry*1.26,mark.angle,0,TAU);ctx.fill();
+    ctx.fillStyle='rgba(79,34,39,.57)';
+    ctx.beginPath();ctx.ellipse(mark.x+mark.rx*.12,mark.y-mark.ry*.09,
+     mark.rx*.76,mark.ry*.70,mark.angle+.2,0,TAU);ctx.fill();
    }
+   ctx.restore();
   }
   if(!dead){ctx.fillStyle='rgba(255,255,255,.36)';ctx.beginPath();
   ctx.ellipse(-rx*.30,-ry*.36,rx*.21,ry*.10,-.35,0,TAU);ctx.fill();}
