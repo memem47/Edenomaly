@@ -106,24 +106,32 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   const x=(egg.birthX??egg.x)*(1-emergence)+egg.x*emergence;
   const y=(egg.birthY??egg.y)*(1-emergence)+egg.y*emergence;
   ctx.save();ctx.translate(x,y);ctx.scale(.65+.35*emergence,.65+.35*emergence);
-  ctx.fillStyle='#513e52';ctx.beginPath();ctx.ellipse(0,1,4.2+shell*2.3,5.3+shell*2.3,0,0,TAU);ctx.fill();
+  // Egg clusters can contain dozens of overlapping shells. A dark solid
+  // shadow beneath EACH egg merges into an apparent black ground stain.
+  // Give each egg a light shell rim instead; do not paint dark backplates.
   const eggColor=adaptationColor(egg.g);
-  ctx.fillStyle=`hsl(${eggColor.hue},${Math.max(35,eggColor.saturation*.65)}%,${Math.min(88,eggColor.lightness+14-shell*5)}%)`;ctx.beginPath();ctx.ellipse(0,0,3.5+shell*2.1,4.5+shell*2.1,0,0,TAU);ctx.fill();
-  ctx.strokeStyle='#f0e4d0';ctx.lineWidth=.7+shell*1.2;ctx.stroke();
-  ctx.fillStyle='#4d384d';ctx.beginPath();ctx.arc(1,0,Math.max(.6,1+prog*1.5),0,TAU);ctx.fill();
+  const eggRx=3.5+shell*2.1,eggRy=4.5+shell*2.1;
+  ctx.fillStyle=`hsl(${eggColor.hue},${Math.max(35,eggColor.saturation*.62)}%,${Math.min(90,eggColor.lightness+17-shell*4)}%)`;
+  ctx.beginPath();ctx.ellipse(0,0,eggRx,eggRy,0,0,TAU);ctx.fill();
+  ctx.strokeStyle='rgba(252,255,232,.92)';ctx.lineWidth=.85+shell*.8;ctx.stroke();
+  ctx.fillStyle='rgba(255,255,255,.68)';ctx.beginPath();
+  ctx.ellipse(-eggRx*.28,-eggRy*.30,Math.max(1,eggRx*.28),Math.max(.8,eggRy*.17),-.35,0,TAU);ctx.fill();
+  // The developing embryo is a small colored dot, not a black opaque disk.
+  ctx.fillStyle=`hsla(${eggColor.hue},${Math.max(45,eggColor.saturation*.75)}%,${Math.max(28,eggColor.lightness-22)}%,.72)`;
+  ctx.beginPath();ctx.arc(.8,.3,Math.min(1.65,.65+prog*.75),0,TAU);ctx.fill();
   if(prog>.75){ctx.strokeStyle='#754765';ctx.beginPath();ctx.moveTo(-2,-3);ctx.lineTo(0,-1);ctx.lineTo(-1,2);ctx.stroke();}
   ctx.restore();
  }
- for(const u of [...s.corpses.filter(c=>c.age<135&&c.mass>0).map(c=>({
+ for(const u of [...s.corpses.filter(c=>c.age<65&&c.mass>0).map(c=>({
    id:-1,x:c.x,y:c.y,angle:c.angle,g:c.g,age:c.deathAge,
    stage:c.stage,dead:true,corpse:true,corpseAge:c.age,growthScale:c.growthScale??1,bite:0,woundFlash:0,fleeing:false,
-   decayScale:Math.max(.24,Math.sqrt(Math.max(0,c.mass/c.initialMass)))
+   decayScale:Math.max(.20,Math.min(.65,Math.sqrt(Math.max(0,c.mass/c.initialMass))))
   })),...s.units]){
   const dead=!!u.corpse;
   const g=u.g,signal=dietProfile(g).signal,life=vitality(u),
    scale=(u.stage==='juvenile'?.55:1)*(u.growthScale??1)*(1-life.old*.12)*(dead?u.decayScale:1),
    halfL=g.r*g.elongation*scale,halfW=g.r*scale,phase=s.tick*.18+u.id;
-  if(dead){ctx.save();ctx.filter='grayscale(0.65) brightness(1.12)';ctx.globalAlpha=.50*Math.max(0,1-(u.corpseAge??0)/135);}
+  if(dead){ctx.save();ctx.filter='grayscale(.75) brightness(1.65)';ctx.globalAlpha=.22*Math.max(0,1-(u.corpseAge??0)/65);}
 
   if(u.courtPartner||u.pregnancy){
    ctx.save();ctx.strokeStyle=u.pregnancy?'#ffe59b':'#ff93e9';ctx.lineWidth=2.5;
