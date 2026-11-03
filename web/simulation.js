@@ -60,7 +60,13 @@ export const morphology=g=>{
 };
 // Nutrition-derived growth changes physical performance without changing inherited genes.
 export const organismMorphology=u=>morphology({...u.g,r:u.g.r*(u.growthScale??1)});
-export const MAX_NUTRITION_GROWTH=2.35;
+// Most slimes cap at 2.35x. Only a rare individual (about 1 in 300)
+// has the biological potential for extreme acquired growth. It still must
+// eat continuously and pay the strongly cubic maintenance cost.
+export const NORMAL_NUTRITION_GROWTH=2.35;
+export const MAX_NUTRITION_GROWTH=3.8;
+export const SUPER_GIANT_CHANCE=.003;
+export const individualGrowthLimit=u=>u.growthLimit??NORMAL_NUTRITION_GROWTH;
 // The extra cost of acquired size follows approximate tissue volume.
 // Heritable body size is already reflected in morphology.upkeep.
 export const acquiredSizeMaintenance=u=>{
@@ -260,7 +266,7 @@ export class Ecosystem{
 
  spawn(x,y,g,parent=null){
   if(this.units.length>=155)return null;
-  const u={id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,recentFood:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null};
+  const u={id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,growthLimit:this.rand()<SUPER_GIANT_CHANCE?MAX_NUTRITION_GROWTH:NORMAL_NUTRITION_GROWTH,recentFood:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null};
   u.category=this.category(g);u.lineage??=u.id;this.units.push(u);
   if(!this.species.has(u.category)){
    const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(n),current:0,total:0,diet:dietProfile(g).label,first:this.tick,genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(n),u);
@@ -273,7 +279,7 @@ export class Ecosystem{
   if(u.dead)return;
   u.dead=true;u.courtPartner=null;this.species.get(u.category).current--;
   const mass=Math.max(8,organismMorphology(u).bodyMass*1.2+Math.max(0,u.energy)*.4-consumed);
-  this.corpses.push({x:u.x,y:u.y,angle:u.angle,g:{...u.g},growthScale:u.growthScale??1,stage:u.stage,deathAge:u.age,mass,initialMass:mass,reserve:0,age:0,cause,seedBank:u.seedBank??0,seedPlanted:false});
+  this.corpses.push({x:u.x,y:u.y,angle:u.angle,g:{...u.g},growthScale:u.growthScale??1,growthLimit:individualGrowthLimit(u),stage:u.stage,deathAge:u.age,mass,initialMass:mass,reserve:0,age:0,cause,seedBank:u.seedBank??0,seedPlanted:false});
   this.log('death','#'+u.id+' 死亡：'+cause,u);
   if(this.species.get(u.category).current===0)this.log('info',this.species.get(u.category).name+' が絶滅');
  }
@@ -834,8 +840,8 @@ export class Ecosystem{
    // Sustained feeding causes visible individual growth; high body mass raises
    // metabolic demand and slows movement, so giantism has a real ecological cost.
    u.recentFood=Math.max(0,(u.recentFood??0)*.975);
-   if(u.stage==='adult'&&u.energy>115&&u.recentFood>2.5&&u.growthScale<MAX_NUTRITION_GROWTH){
-    const increment=Math.min(MAX_NUTRITION_GROWTH-u.growthScale,.0018+Math.min(.003,u.recentFood*.00014));
+   if(u.stage==='adult'&&u.energy>115&&u.recentFood>2.5&&u.growthScale<individualGrowthLimit(u)){
+    const increment=Math.min(individualGrowthLimit(u)-u.growthScale,.0018+Math.min(.003,u.recentFood*.00014));
     const cost=increment*(135+115*u.growthScale);
     if(u.energy>115+cost){
      u.energy-=cost;
