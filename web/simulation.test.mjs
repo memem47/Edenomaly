@@ -1024,7 +1024,7 @@ test('mixed lineages and mixed diets still exert physical crowd pressure',()=>{
  }
  const pressure=crowdStress(localDensity(anchor,w.units));
  assert.ok(pressure>3);
- assert.ok(pressure<=9);
+ assert.ok(pressure>0);
  anchor.stage='adult';anchor.age=100;anchor.energy=300;
  anchor.mateCooldown=0;anchor.infection=0;anchor.crowdStress=pressure;
  // High crowding raises metabolic and reproductive energy costs without a categorical veto.
@@ -1055,7 +1055,7 @@ test('high-density groups pay an actual extra energy cost during a simulation ti
  sparse.w.step();packed.w.step();
  assert.ok(packed.a.crowdStress>0);
  assert.ok(packed.a.energy<sparse.a.energy-.15);
- assert.ok(packed.a.crowdStress<=9);
+ assert.ok(packed.a.crowdStress>0);
 });
 
 test('acquired giantism incurs strongly rising tissue-volume upkeep',()=>{
@@ -1992,4 +1992,47 @@ test('genome code is stable, quantized, and changes when a trait crosses a bin',
  const variant={...g,longevity:2};
  assert.notEqual(genomeCode(variant),code);
  assert.equal(genomeCode({...g,wet:.401}),genomeCode({...g,wet:.402}));
+});
+
+import {crowdEnergyCost} from './simulation.js';
+test('grazing pressure follows the harvested tile rather than animal positions',()=>{
+ const w=new Ecosystem(9281);
+ w.tiles.fill(2);w.grass.fill(0);w.water.fill(0);
+ const feed=w.cell(210,150),standing=w.cell(170,150);
+ w.tiles[feed]=0;w.grass[feed]=65;w.soil[feed]=90;
+ w.tiles[standing]=0;w.grass[standing]=65;w.soil[standing]=90;
+ const g={...w.gene(),aquatic:0,diet:0,r:4};
+ const u=w.spawn(170,150,g);
+ u.energy=120;u.age=95;
+ assert.ok(w.consumeGrass(210,150,24)>0);
+ assert.ok(w.grazingPressure[feed]>0);
+ assert.equal(w.grazingPressure[standing],0);
+ // The grass tile actually grazed has reduced regeneration next cycle.
+ const beforeFeed=w.grass[feed],beforeStanding=w.grass[standing];
+ w.units=[];for(let i=0;i<6;i++)w.step();
+ assert.ok(w.grass[feed]-beforeFeed<w.grass[standing]-beforeStanding);
+ assert.ok(w.grazingPressure[feed]>0);
+ const pressure=w.grazingPressure[feed];
+ for(let i=0;i<6;i++)w.step();
+ assert.ok(w.grazingPressure[feed]<pressure);
+});
+test('actual aquatic grazing is tracked independently of the organism location',()=>{
+ const w=new Ecosystem(9282);
+ w.tiles.fill(2);w.grass.fill(0);
+ const plant=w.cell(210,150),other=w.cell(170,150);
+ w.tiles[plant]=1;w.water[plant]=80;w.waterweed[plant]=50;
+ w.tiles[other]=1;w.water[other]=80;w.waterweed[other]=50;
+ const taken=w.consumeWaterweed(210,150,12);
+ assert.equal(taken,12);
+ assert.ok(w.grazingPressure[plant]>0);
+ assert.equal(w.grazingPressure[other],0);
+});
+test('crowding costs keep rising smoothly beyond former fixed upper limits',()=>{
+ assert.equal(crowdEnergyCost(0),0);
+ assert.ok(crowdEnergyCost(3)>crowdEnergyCost(1));
+ assert.ok(crowdEnergyCost(20)>20);
+ assert.ok(crowdEnergyCost(30)>crowdEnergyCost(20));
+ assert.ok(crowdEnergyCost(30,2)>crowdEnergyCost(30,1));
+ assert.ok(crowdStress(50)>9);
+ assert.ok(crowdStress(100)>crowdStress(50));
 });
