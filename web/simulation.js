@@ -783,7 +783,7 @@ export class Ecosystem{
    // Crowded colonies consume more energy and stop producing offspring as easily.
    u.energy-=Math.min(.85,Math.max(0,rivals-3)*.075)+congestion*.11;
    // The area burden is especially expensive for large, near-stationary bodies.
-   u.energy-=Math.min(32,habitatLoad*(.85+Math.max(0,(u.growthScale??1)-1)*.85));
+   u.energy-=Math.min(55,habitatLoad*(1.7+Math.max(0,(u.growthScale??1)-1)*2.9));
    u.localCrowd=relatives;
    const seekRefuge=!u.courtPartner&&!u.pregnancy&&!flight&&(pressure>1.35||relatives>7||congestion>2||habitatLoad>1.2);
    if(seekRefuge&&(this.tick+u.id)%14===0){
