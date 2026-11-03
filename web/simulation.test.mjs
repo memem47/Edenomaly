@@ -1791,3 +1791,17 @@ test('hungry meat-eaters can attack similarly sized members of their own species
  assert.ok(other.hp<1000);
  assert.ok(hunter.attackFlash>0);
 });
+
+test('egg hatching keeps birth records but does not create intrusive rings',()=>{
+ const w=new Ecosystem(7391);
+ const g=w.gene(),parent=w.spawn(200,160,g);
+ w.effects=[];w.logs=[];
+ const child=w.spawn(210,160,g,parent);
+ assert.ok(w.logs.some(entry=>entry.type==='birth'&&entry.message.includes('孵化')));
+ assert.ok(!w.effects.some(effect=>effect.type==='birth'));
+ w.log('hatch','卵から孵化',{x:210,y:160});
+ assert.ok(w.logs.some(entry=>entry.type==='hatch'));
+ assert.ok(!w.effects.some(effect=>effect.type==='hatch'));
+ w.log('death','死亡',{x:210,y:160});
+ assert.ok(w.effects.some(effect=>effect.type==='death'));
+});
