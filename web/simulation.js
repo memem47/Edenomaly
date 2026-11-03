@@ -43,10 +43,13 @@ export const morphology=g=>{
  const foodGain=1+Math.min(.42,(mouths-1)*.13);
  return {width,length,bodyMass,eyeRange,speed,turnRate,biteReach,edibleRatio,predatory,upkeep,foodGain};
 };
+// Nutrition-derived growth changes physical performance without changing inherited genes.
+export const organismMorphology=u=>morphology({...u.g,r:u.g.r*(u.growthScale??1)});
+export const MAX_NUTRITION_GROWTH=2.35;
 const distance=(a,b)=>(a.x-b.x)**2+(a.y-b.y)**2;
 // Health and senescence directly affect movement, fighting and mating.
 export const vitality=u=>{
- const max=u.maxHp??Math.max(25,Math.round(morphology(u.g).bodyMass*.48+25));
+ const max=u.maxHp??Math.max(25,Math.round(organismMorphology(u).bodyMass*.48+25));
  const health=clamp((u.hp??max)/max,0,1);
  const old=clamp((u.age-420)/900,0,1);
  const vigor=clamp((.40+.60*health)*(1-.60*old),.12,1);
@@ -163,7 +166,7 @@ export class Ecosystem{
 
  spawn(x,y,g,parent=null){
   if(this.units.length>=155)return null;
-  const u={id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null};
+  const u={id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,recentFood:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null};
   u.category=this.category(g);u.lineage??=u.id;this.units.push(u);
   if(!this.species.has(u.category)){
    const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(n),current:0,total:0,hue:g.hue,saturation:g.saturation,lightness:g.lightness,diet:dietProfile(g).label,first:this.tick,genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(n),u);
@@ -175,7 +178,7 @@ export class Ecosystem{
  die(u,cause,consumed=0){
   if(u.dead)return;
   u.dead=true;u.courtPartner=null;this.species.get(u.category).current--;
-  const mass=Math.max(8,morphology(u.g).bodyMass*1.2+Math.max(0,u.energy)*.4-consumed);
+  const mass=Math.max(8,organismMorphology(u).bodyMass*1.2+Math.max(0,u.energy)*.4-consumed);
   this.corpses.push({x:u.x,y:u.y,angle:u.angle,g:{...u.g},stage:u.stage,deathAge:u.age,mass,initialMass:mass,reserve:0,age:0,cause,seedBank:u.seedBank??0,seedPlanted:false});
   this.log('death','#'+u.id+' 死亡：'+cause,u);
   if(this.species.get(u.category).current===0)this.log('info',this.species.get(u.category).name+' が絶滅');
@@ -185,7 +188,7 @@ export class Ecosystem{
   const trait=u.g.nesting;
   for(let k=0;k<8;k++){
    const x=clamp(u.x+this.range(-34,34),10,W-10),y=clamp(u.y+this.range(-34,34),10,H-10);
-   let threat=0;for(const v of this.units){if(v!==u&&!v.dead&&morphology(v.g).predatory&&distance({x,y},v)<45**2)threat++;}
+   let threat=0;for(const v of this.units){if(v!==u&&!v.dead&&organismMorphology(v).predatory&&distance({x,y},v)<45**2)threat++;}
    const landscape=this.terrain(x,y);
    const safe=terrainFitness(u.g,landscape).fitness*.9+GROWTH[landscape]*.6-threat*2;
    const s=trait*safe+this.range(-.6,.6)-(1-trait)*Math.hypot(x-u.x,y-u.y)/50;
@@ -194,11 +197,11 @@ export class Ecosystem{
   return best;
  }
  isReadyToMate(u){
-  return !u.dead&&u.infection===0&&(u.localCrowd??0)<13&&u.stage==='adult'&&u.age>42&&u.energy>=58+Math.max(0,morphology(u.g).bodyMass-100)*.22&&u.mateCooldown===0&&!u.pregnancy&&vitality(u).vigor>.35;
+  return !u.dead&&u.infection===0&&(u.localCrowd??0)<13&&u.stage==='adult'&&u.age>42&&u.energy>=58+Math.max(0,organismMorphology(u).bodyMass-100)*.22&&u.mateCooldown===0&&!u.pregnancy&&vitality(u).vigor>.35;
  }
  findMate(u,batch){
   if(!this.isReadyToMate(u))return null;
-  const sight=Math.max(52,morphology(u.g).eyeRange*1.3);
+  const sight=Math.max(52,organismMorphology(u).eyeRange*1.3);
   let match=null,best=sight*sight;
   for(const v of batch){
    if(v===u||!this.isReadyToMate(v)||v.courtPartner&&v.courtPartner!==u.id)continue;
@@ -227,14 +230,14 @@ export class Ecosystem{
   if(!partner||parent===partner||!this.isReadyToMate(parent)||!this.isReadyToMate(partner)||this.eggs.length>=360)return null;
   // An inherited brood-size trait trades clutch size against parental energy.
   const desired=clamp(Math.round((parent.g.brood+partner.g.brood)/2)*2+2,4,18);
-  const largeParentCost=Math.max(0,morphology(parent.g).bodyMass-100)*.18;
+  const largeParentCost=Math.max(0,organismMorphology(parent).bodyMass-100)*.18;
   const affordable=clamp(Math.floor((Math.min(parent.energy,220)-22-largeParentCost)/3),1,18);
   const count=Math.min(desired,affordable,360-this.eggs.length);
   if(count<1)return null;
   const genomes=Array.from({length:count},()=>this.recombine(parent.g,partner.g));
   const pregnancy={genomes,parent:parent.id,otherParent:partner.id,lineage:this.rand()<.5?parent.lineage:partner.lineage,generation:Math.max(parent.generation,partner.generation)+1,remaining:25,total:25};
   parent.pregnancy=pregnancy;
-  parent.energy-=11+count*3+parent.g.nesting*3+largeParentCost;partner.energy-=8+count*1.5+Math.max(0,morphology(partner.g).bodyMass-100)*.08;
+  parent.energy-=11+count*3+parent.g.nesting*3+largeParentCost;partner.energy-=8+count*1.5+Math.max(0,organismMorphology(partner).bodyMass-100)*.08;
   parent.mateCooldown=90;partner.mateCooldown=90;
   this.matings++;
   this.log('mate','#'+parent.id+' × #'+partner.id+' が交配（卵 '+count+' 個を準備）',parent);
@@ -287,7 +290,7 @@ export class Ecosystem{
  }
  attack(hunter,prey){
   if(hunter===prey||hunter.dead||prey.dead||hunter.bite>0||dietProfile(hunter.g).meat<=0)return false;
-  const mm=morphology(hunter.g),v=vitality(hunter),def=vitality(prey);
+  const mm=organismMorphology(hunter),v=vitality(hunter),def=vitality(prey);
   const damage=Math.max(2,(4+hunter.g.jaw*7+mm.bodyMass*.065)*dietProfile(hunter.g).meat*v.vigor);
   prey.hp=Math.max(0,prey.hp-damage);
   prey.woundFlash=14;
@@ -526,7 +529,7 @@ export class Ecosystem{
   for(const u of batch){
    if(u.dead)continue;u.age++;if(u.bite>0)u.bite--;if(u.woundFlash>0)u.woundFlash--;if(u.mateCooldown>0)u.mateCooldown--;
    if(u.pregnancy){u.pregnancy.remaining--;if(u.pregnancy.remaining<=0)this.layEgg(u);}
-   const g=u.g,t=this.terrain(u.x,u.y),m=morphology(g),diet=dietProfile(g),home=terrainFitness(g,t);
+   const g=u.g,t=this.terrain(u.x,u.y),m=organismMorphology(u),diet=dietProfile(g),home=terrainFitness(g,t);
    const youth=u.stage==='juvenile'?.50:1,body=vitality(u),sight=m.eyeRange*home.sight;
    const aquatic=g.aquatic===1,underwater=t===1&&this.water[this.cell(u.x,u.y)]>0;
    if(aquatic){
@@ -557,12 +560,12 @@ export class Ecosystem{
     if(egg.dead||egg.parent===u.id||egg.otherParent===u.id)continue;
     let d=distance(u,egg);if(d>=ed)continue;
     const guardian=batch.find(v=>v.id===egg.parent&&!v.dead&&v.g.guard>.25&&distance(v,egg)<(14+v.g.guard*43)**2);
-    const risk=guardian&&guardian!==u&&morphology(guardian.g).bodyMass>=m.bodyMass*.65?1+guardian.g.guard*3:1;
+    const risk=guardian&&guardian!==u&&organismMorphology(guardian).bodyMass>=m.bodyMass*.65?1+guardian.g.guard*3:1;
     d*=risk; if(d<ed){ed=d;targetEgg=egg;}
    }
   let prey=null,pd=sight*sight;
    if(m.predatory&&u.bite===0)for(const v of batch){
-    if(v===u||v.dead||v.id===u.courtPartner||morphology(v.g).bodyMass>m.bodyMass*m.edibleRatio)continue;
+    if(v===u||v.dead||v.id===u.courtPartner||organismMorphology(v).bodyMass>m.bodyMass*m.edibleRatio)continue;
     const d=distance(u,v);if(d<pd){pd=d;prey=v;}
    }
    // Prey respond to the perceived, visible feeding signal, not hidden genome.
@@ -570,18 +573,18 @@ export class Ecosystem{
    for(const v of batch){
     if(v===u||v.dead)continue;
     const visible=dietProfile(v.g).signal;
-    if(visible<.48||morphology(v.g).bodyMass<m.bodyMass*.55)continue;
+    if(visible<.48||organismMorphology(v).bodyMass<m.bodyMass*.55)continue;
     const d=distance(u,v);
     if(d<dangerD){danger=v;dangerD=d;}
    }
-   const flight=!!danger&&(diet.diet<.7||morphology(danger.g).bodyMass>m.bodyMass*1.5);
+   const flight=!!danger&&(diet.diet<.7||organismMorphology(danger).bodyMass>m.bodyMass*1.5);
    u.fleeing=flight;
    // Competition is local crowding for the same food, not an arbitrary caste.
    // When nearby rivals monopolize a rich tile, search for a less crowded refuge.
    let rivals=0,stronger=0;
    if(diet.plant>.25)for(const v of batch){
     if(v===u||v.dead||dietProfile(v.g).plant<.25)continue;
-    if(distance(u,v)<48**2){rivals++;if(morphology(v.g).bodyMass>m.bodyMass*.95)stronger++;}
+    if(distance(u,v)<48**2){rivals++;if(organismMorphology(v).bodyMass>m.bodyMass*.95)stronger++;}
    }
    const pressure=(rivals+stronger*.7)/(1+GROWTH[t]*5);
    // Kin-specific contact disease is more likely in dense founder lineages.
@@ -665,11 +668,13 @@ export class Ecosystem{
    if(!flight&&aquatic&&underwater&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+14)**2){
     const eaten=this.consumeWaterweed(nearest.x,nearest.y,Math.min(2.3,1.3*m.foodGain));
     if(eaten>0){u.energy+=eaten*6.2*diet.plant*home.fitness;
+     u.recentFood=(u.recentFood??0)+eaten*4;
      u.hp=Math.min(u.maxHp,u.hp+eaten*.2);this.log('meal','#'+u.id+' が水草を食べた',u);}
    }
    if(!flight&&!aquatic&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+13)**2){
     const eaten=this.consumeGrass(nearest.x,nearest.y,Math.min(1.55,1.05*m.foodGain));
     if(eaten>0){u.energy+=eaten*8.8*diet.plant*home.fitness;
+     u.recentFood=(u.recentFood??0)+eaten*4;
      u.seedBank=Math.min(100,(u.seedBank??0)+eaten*.35);
      u.hp=Math.min(u.maxHp,u.hp+eaten*.22*(1-body.old*.6));this.log('meal','#'+u.id+' が草を食べた',u);}
    }
@@ -678,6 +683,7 @@ export class Ecosystem{
     const eaten=Math.min(nearestCorpse.mass,2.4*m.foodGain);
     nearestCorpse.mass-=eaten;
     u.energy+=eaten*5.5*diet.meat;
+    u.recentFood=(u.recentFood??0)+eaten*4;
     if(eaten>0)this.log('meal','#'+u.id+' が死体を食べた',u);
    }
    if(!flight&&targetEgg&&!targetEgg.dead&&u.bite===0&&distance(u,targetEgg)<(m.biteReach+4)**2)this.eatEgg(targetEgg,u);
@@ -687,6 +693,20 @@ export class Ecosystem{
    if(newTerrain!==u.lastTerrain){u.lastTerrain=newTerrain;this.terrainCrossings++;}
    if(u.stage==='juvenile'&&u.age>=65&&u.energy>=32){u.stage='adult';this.log('mature','#'+u.id+' が成体になった',u);}
 
+   // Sustained feeding causes visible individual growth; high body mass raises
+   // metabolic demand and slows movement, so giantism has a real ecological cost.
+   u.recentFood=Math.max(0,(u.recentFood??0)*.975);
+   if(u.stage==='adult'&&u.energy>93&&u.recentFood>1.5&&u.growthScale<MAX_NUTRITION_GROWTH){
+    const increment=Math.min(MAX_NUTRITION_GROWTH-u.growthScale,.0045+Math.min(.004,u.recentFood*.00026));
+    const cost=increment*(95+85*u.growthScale);
+    if(u.energy>93+cost){
+     u.energy-=cost;
+     u.growthScale+=increment;
+     const enlarged=organismMorphology(u);
+     const maxHp=Math.max(25,Math.round(enlarged.bodyMass*.48+25));
+     if(maxHp>u.maxHp){u.hp+=maxHp-u.maxHp;u.maxHp=maxHp;}
+    }
+   }
    if(u.hp<=0)this.die(u,u.infection>0?'感染症':'環境衰弱');else if(u.energy<=0)this.die(u,'飢餓');else if(u.age>1500)this.die(u,'寿命');
   }
   this.updateCourtships();
