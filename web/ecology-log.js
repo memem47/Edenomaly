@@ -1,0 +1,106 @@
+// Persistent, version-scoped ecology time-series log.
+// Only observations are saved; the full running ecosystem is not saved.
+export const ECOLOGY_LOG_KEY='edenomaly:ecology-observations';
+export const ECOLOGY_LOG_INTERVAL=50;
+export const ECOLOGY_LOG_FIELDS=[
+ 'run','version','step','population','adults','juveniles','eggs',
+ 'livingSpecies','discoveredSpecies','maxGeneration','herbivores','omnivores','carnivores',
+ 'grass','waterweed','water','soilMean','meanEnergy','meanHpPercent',
+ 'meanHabitatLoad','infected','births','deaths','deathStarvation',
+ 'deathPredation','deathInfection','deathOther','matings','temperature','season',
+ 'growthSetting','rainfallSetting','stressSetting'
+];
+const finite=v=>Number.isFinite(v)?Math.round(v*100)/100:0;
+export function observeEcology(game){
+ let grass=0,waterweed=0,water=0,soil=0,juveniles=0,herbivores=0,omnivores=0,
+  carnivores=0,energy=0,hp=0,habitatLoad=0,infected=0,maxGeneration=0;
+ for(let i=0;i<game.grass.length;i++){
+  grass+=game.grass[i];waterweed+=game.waterweed[i];water+=game.water[i];soil+=game.soil[i];
+ }
+ for(const u of game.units){
+  if(u.stage==='juvenile')juveniles++;
+  if(u.g.diet<.3)herbivores++;else if(u.g.diet>.7)carnivores++;else omnivores++;
+  energy+=u.energy;hp+=u.hp/Math.max(1,u.maxHp);
+  habitatLoad+=u.habitatLoad??0;
+  infected+=u.infection>0?1:0;
+  maxGeneration=Math.max(maxGeneration,u.generation);
+ }
+ const n=game.units.length,totalBirths=[...game.species.values()].reduce((sum,s)=>sum+s.total,0);
+ const causes=game.deathCauses??{};
+ const starvation=causes['飢餓']??0;
+ const predation=(causes['捕食']??0)+(causes['卵の捕食']??0);
+ const infection=causes['感染症']??0;
+ const deaths=Object.values(causes).reduce((a,b)=>a+b,0);
+ return {
+  step:game.tick,population:n,adults:n-juveniles,juveniles,eggs:game.eggs.length,
+  livingSpecies:game.livingSpecies,discoveredSpecies:game.species.size,
+  maxGeneration,herbivores,omnivores,carnivores,
+  grass:finite(grass),waterweed:finite(waterweed),water:finite(water),
+  soilMean:finite(soil/game.soil.length),
+  meanEnergy:finite(n?energy/n:0),meanHpPercent:finite(n?hp/n*100:0),
+  meanHabitatLoad:finite(n?habitatLoad/n:0),infected,
+  births:totalBirths,deaths,deathStarvation:starvation,
+  deathPredation:predation,deathInfection:infection,
+  deathOther:deaths-starvation-predation-infection,
+  matings:game.matings,temperature:finite(game.temperature),
+  season:game.climateEnabled?game.seasonName():'off',
+  growthSetting:game.growth,rainfallSetting:game.rainfall,stressSetting:game.stress
+ };
+}
+export class EcologyLogbook{
+ constructor(storage,version){
+  if(!version||typeof version!=='string')throw new Error('Log version required');
+  this.storage=storage;this.version=version;this.activeId=null;
+  this.data={version,runs:[],nextId:1};
+  try{
+   const previous=JSON.parse(storage?.getItem(ECOLOGY_LOG_KEY)??'null');
+   if(previous?.version===version&&Array.isArray(previous.runs)){
+    this.data={version,runs:previous.runs,nextId:previous.nextId??1};
+   }else this.save(); // Version change overwrites obsolete logs.
+  }catch{this.data={version,runs:[],nextId:1};this.save();}
+ }
+ save(){
+  try{this.storage?.setItem(ECOLOGY_LOG_KEY,JSON.stringify(this.data));return true;}
+  catch{return false;} // Private mode / storage quota may disable persistence.
+ }
+ start(seed){
+  const id=this.data.nextId++;
+  this.activeId=id;
+  this.data.runs.push({id,seed,startedAt:new Date().toISOString(),samples:[]});
+  this.save();
+  return id;
+ }
+ record(observation,force=false){
+  const run=this.data.runs.find(r=>r.id===this.activeId);
+  if(!run||!observation)return false;
+  if(!force&&observation.step%ECOLOGY_LOG_INTERVAL!==0)return false;
+  const row={run:run.id,version:this.version,...observation};
+  const previous=run.samples.at(-1);
+  if(previous?.step===row.step)run.samples[run.samples.length-1]=row;
+  else if(!previous||row.step>previous.step)run.samples.push(row);
+  else return false;
+  this.save();return true;
+ }
+ end(observation){
+  if(this.activeId===null)return;
+  this.record(observation,true);
+  const run=this.data.runs.find(r=>r.id===this.activeId);
+  if(run)run.endedAt=new Date().toISOString();
+  this.activeId=null;this.save();
+ }
+ clear(){
+  this.activeId=null;this.data={version:this.version,runs:[],nextId:1};
+  return this.save();
+ }
+ get sampleCount(){return this.data.runs.reduce((n,r)=>n+r.samples.length,0);}
+ toCSV(){
+  const quoted=value=>{
+   const text=String(value??'');
+   return /[",\n\r]/.test(text)?'"'+text.replace(/"/g,'""')+'"':text;
+  };
+  const lines=[ECOLOGY_LOG_FIELDS.join(',')];
+  for(const run of this.data.runs)for(const sample of run.samples)
+   lines.push(ECOLOGY_LOG_FIELDS.map(field=>quoted(sample[field])).join(','));
+  return '\ufeff'+lines.join('\r\n')+'\r\n';
+ }
+}
