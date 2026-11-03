@@ -764,7 +764,7 @@ export class Ecosystem{
  // Spring is the user's baseline, summer is warmer, autumn cools and
  // winter reaches freezing temperatures. Late winter thaws into spring.
  seasonalTemperature(){
-  const offsets=[0,10,-6,-21,0];
+  const offsets=[0,13,-3,-22,0];
   const index=this.seasonIndex(),progress=this.seasonProgress();
   // Keep each season characteristic for most of its span, then transition
   // smoothly during the final quarter (including late-winter thaw).
