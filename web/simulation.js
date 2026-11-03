@@ -124,8 +124,15 @@ export const habitatCrowding=(u,neighbors)=>{
 
 // Collision geometry follows the actual drawn ellipse, including adult growth.
 // Treats infants as smaller bodies; collisions are soft, not rigid-body physics.
+// Smooth hatchling-to-adult size curve. At age 65 the visual scale is
+// already 1, so changing the life-stage flag cannot cause a size jump.
+export const lifeStageScale=u=>{
+ if(u.stage!=='juvenile')return 1;
+ const t=clamp((u.age??0)/65,0,1);
+ return .55+.45*t*t*(3-2*t);
+};
 export const bodyCollisionAxes=u=>{
- const scale=(u.stage==='juvenile'?.55:1)*(u.growthScale??1)*(1-clamp(((u.age??0)-420)/900,0,1)*.12);
+ const scale=lifeStageScale(u)*(u.growthScale??1)*(1-clamp(((u.age??0)-420)/900,0,1)*.12);
  const ry=Math.max(2,u.g.r*scale*1.06);
  return {rx:ry*Math.max(1,Math.min(3,u.g.elongation??1)),ry};
 };
