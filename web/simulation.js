@@ -408,7 +408,7 @@ export class Ecosystem{
  updateWeather(){
   // Deterministic climate phases; rain frequency follows the rain slider.
   if(this.tick>=this.weatherUntil){
-   const roll=this.rand(),rainChance=clamp(this.rainfall/100*.65,0,.65);
+   const roll=this.rand(),rainChance=this.rainfall===0?0:clamp(.12+this.rainfall/100*.60,0,.70);
    this.weather=roll<rainChance?'rain':roll<rainChance+.40?'cloudy':'sunny';
    this.weatherStrength=this.weather==='rain'?clamp(this.rainfall/100,.1,1):0;
    this.weatherUntil=this.tick+160+Math.floor(this.rand()*180);
