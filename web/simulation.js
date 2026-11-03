@@ -155,7 +155,14 @@ export class Ecosystem{
   return [habitat,diet,body,shape,eyes].join('-');
  }
  name(n){return PREFIX[(n*7+2)%PREFIX.length]+SUFFIX[(n*3+1)%SUFFIX.length]+'-'+String(n).padStart(3,'0');}
- log(type,message,point){this.logs.unshift({type,message,step:this.tick});if(this.logs.length>500)this.logs.pop();if(point&&this.effects.length<140)this.effects.push({type,x:point.x,y:point.y,age:0});}
+ addVisualEffect(type,point,extra={}){
+  // Visual effects must never change simulation RNG or ecology. Avoid flooding
+  // the renderer with dozens of repeated feeding and drinking events per step.
+  if(!point||this.effects.length>=140)return false;
+  this.effects.push({type,x:point.x,y:point.y,age:0,...extra});
+  return true;
+ }
+ log(type,message,point){this.logs.unshift({type,message,step:this.tick});if(this.logs.length>500)this.logs.pop();if(point&&type!=='meal'&&type!=='attack'&&type!=='pred'&&type!=='eggeaten')this.addVisualEffect(type,point);}
  addFood(x,y,n,spread=8,source='natural'){
   // Compatibility with older controls/tests: fertilizer replenishes the map,
   // never creates floating food objects.
@@ -179,7 +186,7 @@ export class Ecosystem{
   if(u.dead)return;
   u.dead=true;u.courtPartner=null;this.species.get(u.category).current--;
   const mass=Math.max(8,organismMorphology(u).bodyMass*1.2+Math.max(0,u.energy)*.4-consumed);
-  this.corpses.push({x:u.x,y:u.y,angle:u.angle,g:{...u.g},stage:u.stage,deathAge:u.age,mass,initialMass:mass,reserve:0,age:0,cause,seedBank:u.seedBank??0,seedPlanted:false});
+  this.corpses.push({x:u.x,y:u.y,angle:u.angle,g:{...u.g},growthScale:u.growthScale??1,stage:u.stage,deathAge:u.age,mass,initialMass:mass,reserve:0,age:0,cause,seedBank:u.seedBank??0,seedPlanted:false});
   this.log('death','#'+u.id+' 死亡：'+cause,u);
   if(this.species.get(u.category).current===0)this.log('info',this.species.get(u.category).name+' が絶滅');
  }
@@ -285,7 +292,7 @@ export class Ecosystem{
   hunter.energy+=egg.energy*(.8+eggTraits(egg.g).shell*.12)*dietProfile(hunter.g).meat;
   hunter.bite=Math.round(12+egg.g.shell*27);
   this.log('eggeaten','#'+hunter.id+' が卵 #'+egg.id+' を食べた',egg);
-  if(this.effects.length<140)this.effects.push({type:'consume',x:egg.x,y:egg.y,age:0});
+  this.addVisualEffect('consume',egg);
   return true;
  }
  attack(hunter,prey){
@@ -295,12 +302,12 @@ export class Ecosystem{
   prey.hp=Math.max(0,prey.hp-damage);
   prey.woundFlash=14;
   hunter.bite=22;
-  if(this.effects.length<140)this.effects.push({type:'strike',x:prey.x,y:prey.y,fromX:hunter.x,fromY:hunter.y,age:0});
+  this.addVisualEffect('strike',prey,{fromX:hunter.x,fromY:hunter.y});
   this.log('attack','#'+hunter.id+' が #'+prey.id+' に '+Math.round(damage)+' ダメージ',prey);
   if(prey.hp<=0){
    const gained=Math.max(5,prey.energy*.35)*dietProfile(hunter.g).meat;
    hunter.energy+=gained;this.die(prey,'捕食',gained);
-   if(this.effects.length<140)this.effects.push({type:'consume',x:prey.x,y:prey.y,age:0});
+   this.addVisualEffect('consume',prey);
    this.log('pred','#'+hunter.id+' が #'+prey.id+' を捕食',prey);
   }
   return true;
@@ -360,7 +367,8 @@ export class Ecosystem{
    const id=b*NX+a;if(this.tiles[id]!==1||this.water[id]<=0)continue;
    const d=dx*dx+dy*dy;if(d<bestD){bestD=d;best=id;}
   }
-  if(best>=0)this.consumeWater((best%NX+.5)*CELL,(Math.floor(best/NX)+.5)*CELL,amount);
+  if(best>=0)return this.consumeWater((best%NX+.5)*CELL,(Math.floor(best/NX)+.5)*CELL,amount);
+  return 0;
  }
  nearestWater(x,y,maxRange=145){
   let best=null,dist=maxRange*maxRange;
@@ -535,12 +543,12 @@ export class Ecosystem{
    if(aquatic){
     u.stranded=underwater?0:u.stranded+1;
     u.hydration=underwater?Math.min(100,u.hydration+1.6):u.hydration-.85;
-    if(underwater)this.consumeWater(u.x,u.y,.095);
+    if(underwater){const consumed=this.consumeWater(u.x,u.y,.095);if(consumed>0&&(this.tick+u.id)%24===0)this.addVisualEffect('drink',u);}
    }else{
     u.submerged=underwater?u.submerged+1:0;
     const drinking=this.nearWater(u.x,u.y,1);
     u.hydration=drinking?Math.min(100,u.hydration+.9):u.hydration-.24;
-    if(drinking)this.drinkNearby(u.x,u.y,.12);
+    if(drinking){const consumed=this.drinkNearby(u.x,u.y,.12);if(consumed>0&&(this.tick+u.id)%24===0)this.addVisualEffect('drink',u);}
    }
    if((aquatic&&u.stranded>95)||(!aquatic&&u.submerged>24)||u.hydration<=0){
     this.die(u,aquatic?'離水':u.submerged>24?'溺水':'脱水');continue;
@@ -669,14 +677,18 @@ export class Ecosystem{
     const eaten=this.consumeWaterweed(nearest.x,nearest.y,Math.min(2.3,1.3*m.foodGain));
     if(eaten>0){u.energy+=eaten*6.2*diet.plant*home.fitness;
      u.recentFood=(u.recentFood??0)+eaten*4;
-     u.hp=Math.min(u.maxHp,u.hp+eaten*.2);this.log('meal','#'+u.id+' が水草を食べた',u);}
+     u.hp=Math.min(u.maxHp,u.hp+eaten*.2);
+     if((this.tick+u.id)%9===0)this.addVisualEffect('waterweed',u,{fromX:nearest.x,fromY:nearest.y});
+     this.log('meal','#'+u.id+' が水草を食べた',u);}
    }
    if(!flight&&!aquatic&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+13)**2){
     const eaten=this.consumeGrass(nearest.x,nearest.y,Math.min(1.55,1.05*m.foodGain));
     if(eaten>0){u.energy+=eaten*8.8*diet.plant*home.fitness;
      u.recentFood=(u.recentFood??0)+eaten*4;
      u.seedBank=Math.min(100,(u.seedBank??0)+eaten*.35);
-     u.hp=Math.min(u.maxHp,u.hp+eaten*.22*(1-body.old*.6));this.log('meal','#'+u.id+' が草を食べた',u);}
+     u.hp=Math.min(u.maxHp,u.hp+eaten*.22*(1-body.old*.6));
+     if((this.tick+u.id)%9===0)this.addVisualEffect('graze',u,{fromX:nearest.x,fromY:nearest.y});
+     this.log('meal','#'+u.id+' が草を食べた',u);}
    }
    // A carnivore can also scavenge a corpse: deserts cannot support herbivores.
    if(!flight&&diet.meat>.3&&nearestCorpse&&distance(u,nearestCorpse)<(m.biteReach+14)**2&&u.energy<175){
@@ -684,7 +696,7 @@ export class Ecosystem{
     nearestCorpse.mass-=eaten;
     u.energy+=eaten*5.5*diet.meat;
     u.recentFood=(u.recentFood??0)+eaten*4;
-    if(eaten>0)this.log('meal','#'+u.id+' が死体を食べた',u);
+    if(eaten>0){if((this.tick+u.id)%9===0)this.addVisualEffect('scavenge',u,{fromX:nearestCorpse.x,fromY:nearestCorpse.y});this.log('meal','#'+u.id+' が死体を食べた',u);}
    }
    if(!flight&&targetEgg&&!targetEgg.dead&&u.bite===0&&distance(u,targetEgg)<(m.biteReach+4)**2)this.eatEgg(targetEgg,u);
    if(!flight&&mate&&!u.courtPartner&&!mate.courtPartner&&distance(u,mate)<38**2)this.startCourtship(u,mate);
