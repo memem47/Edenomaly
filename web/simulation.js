@@ -699,6 +699,20 @@ export class Ecosystem{
  // Steering helper: a goal inside impassable terrain must not trap an
  // organism in a turn-into-obstacle / reverse-heading loop.
  navigate(u,target,desired,speed,turnRate,arrivalRadius=0){
+  if(target){
+   const d=Math.sqrt(distance(u,target)),previous=u.pathCheckpoint;
+   if(!previous||(target.x-previous.x)**2+(target.y-previous.y)**2>20*20){
+    u.pathCheckpoint={x:target.x,y:target.y,startDistance:d,tick:this.tick};
+    u.detourUntil=0;
+   }else if(this.tick-previous.tick>=48){
+    if(d>previous.startDistance-3&&d>arrivalRadius+7){
+     u.avoidTarget={x:target.x,y:target.y,until:this.tick+150};
+     u.pathCheckpoint=null;u.detourUntil=0;
+     return 'abandoned';
+    }
+    u.pathCheckpoint={x:target.x,y:target.y,startDistance:d,tick:this.tick};
+   }
+  }else u.pathCheckpoint=null;
   if(target&&distance(u,target)<=arrivalRadius*arrivalRadius){
    u.detourUntil=0;u.blockedSteps=0;
    return 'arrived';
@@ -1019,6 +1033,10 @@ export class Ecosystem{
     const guardRadius=12+g.guard*40;
     if(distance(u,ownEgg)>guardRadius**2||!target)target=ownEgg;
    }
+   // A blocked pursuit is temporarily ignored so animals can search for
+   // another accessible resource or partner instead of tracing the same shore.
+   if(target&&u.avoidTarget&&u.avoidTarget.until>this.tick&&
+      distance(target,u.avoidTarget)<20*20&&!flight)target=null;
    // Immediate escape overrides food, reproduction and egg guarding.
    if(flight)target=null;
    const desired=flight?Math.atan2(u.y-danger.y,u.x-danger.x)
