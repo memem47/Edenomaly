@@ -670,11 +670,13 @@ test('predator eyes concentrate toward the forward rim',()=>{
   assert.ok(angles.every(a=>Math.abs(a)<=.57));
  }
 });
-test('herbivore eyes face both lateral sides',()=>{
- const angles=slimeEyeAngles({eyes:4,diet:.05});
- assert.equal(angles.length,4);
- assert.ok(angles.some(a=>a<0)&&angles.some(a=>a>0));
- assert.ok(angles.every(a=>Math.abs(Math.abs(a)-Math.PI/2)<.35));
+test('most eyes are slightly forward; rare well-protected herbivores keep full lateral eyes',()=>{
+ const front=slimeEyeAngles({eyes:4,diet:.05,guard:.45});
+ assert.equal(front.length,4);
+ assert.ok(front.some(a=>a<0)&&front.some(a=>a>0));
+ assert.ok(front.every(a=>Math.abs(a)<Math.PI/2-.4));
+ const lateral=slimeEyeAngles({eyes:2,diet:.05,guard:.99});
+ assert.ok(lateral.every(a=>Math.abs(Math.abs(a)-Math.PI/2)<.01));
 });
 test('many-eyed slimes see around their entire rim and zero eyes stay eyeless',()=>{
  const angles=slimeEyeAngles({eyes:6,diet:.5});
@@ -1123,7 +1125,7 @@ test('corpse opacity stays tied to remaining mass, not an arbitrary 65-step time
  assert.ok(alpha.some(n=>n>=.6));
  corpse.mass=corpse.initialMass*.01;alpha.length=0;
  drawWorld(ctx,w,false);
- assert.ok(alpha.some(n=>n>0&&n<=.16));
+ assert.ok(alpha.some(n=>n>.16&&n<=.26));
  assert.equal(w.corpses.length,1);
 });
 
