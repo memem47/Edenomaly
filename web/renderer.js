@@ -26,36 +26,31 @@ export function slimeEyeColor(g){
 export function slimeEyeLocation(angle,rx,ry){
  return {x:rx*.70*Math.cos(angle),y:ry*.70*Math.sin(angle)};
 }
+// HP is remaining life. Colors start fading below half-life; at zero
+// they match the corpse palette exactly. There are no persistent wound marks.
+export const lifeFade=u=>{
+ const fraction=Math.max(0,Math.min(1,(u.hp??u.maxHp??1)/Math.max(1,u.maxHp??1)));
+ return Math.max(0,Math.min(1,(.5-fraction)*2));
+};
 export function organismVisualState(u){
- const hp=Math.max(0,Math.min(1,(u.hp??1)/Math.max(1,u.maxHp??1)));
  return {infected:!u.dead&&(u.infection??0)>0,
   attacking:!u.dead&&(u.attackFlash??0)>0,
-  injured:!u.dead&&hp<.92,
-  injurySeverity:Math.max(0,Math.min(1,(.92-hp)/.92)),
+  lifeFade:u.dead?1:lifeFade(u),
   hit:!u.dead&&(u.woundFlash??0)>0};
 }
-// Deterministic variation avoids flicker and does not affect ecosystem randomness.
-const woundHash=(id,index)=>{
- let h=Math.imul((id||1)^Math.imul(index+1,0x9e3779b9),0x85ebca6b);
- h=Math.imul(h^(h>>>13),0xc2b2ae35);
- return ((h^(h>>>16))>>>0)/4294967296;
+// Interpolate along the shortest hue arc toward the muted corpse brown.
+export const livingBodyColor=(g,fade,edge=false)=>{
+ const pigment=adaptationColor(g);
+ const sat=g.albino===1?4:Math.min(100,Math.max(28,pigment.saturation+8));
+ const light=g.albino===1?91:Math.min(85,Math.max(38,pigment.lightness+6));
+ const t=Math.max(0,Math.min(1,fade));
+ if(t>=1)return edge?'#655f56':'#9e9788';
+ const hue=g.albino===1?0:pigment.hue;
+ const sourceSat=edge?(g.albino===1?15:Math.max(30,sat-8)):sat;
+ const sourceLight=edge?(g.albino===1?64:Math.max(19,light-29)):light;
+ const delta=((40-hue+540)%360)-180;
+ return `hsl(${(hue+delta*t+360)%360},${sourceSat*(1-t)+11*t}%,${sourceLight*(1-t)+(edge?36:58)*t}%)`;
 };
-export function injuryMarks(u,rx,ry){
- const severity=organismVisualState(u).injurySeverity;
- if(severity<=0)return [];
- const count=1+Math.floor(severity*3.99),marks=[];
- for(let i=0;i<count;i++){
-  const a=woundHash(u.id,i*5)*Math.PI*2;
-  const radial=.13+.42*Math.sqrt(woundHash(u.id,i*5+1));
-  const width=(.12+.12*Math.sqrt(severity))*(.60+.75*woundHash(u.id,i*5+2));
-  const length=(.18+.26*Math.sqrt(severity))*(.72+.55*woundHash(u.id,i*5+3));
-  const size=.47+.53*severity;
-  marks.push({x:Math.cos(a)*rx*radial,y:Math.sin(a)*ry*radial,
-   rx:Math.max(1.1,rx*length*size),ry:Math.max(.9,ry*width*size),
-   angle:(woundHash(u.id,i*5+4)-.5)*1.7});
- }
- return marks;
-}
 export function drawWorld(ctx,s,showEffects=true,selected=null){
  const {cell,columns,rows,width,height}=WORLD;
  // Bright, layered handheld-console-style terrain, drawn procedurally.
@@ -194,38 +189,22 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   const aspect=Math.max(1,Math.min(3,g.elongation??1));
   const rx=halfW*1.06*aspect*(1+squash);
   const ry=halfW*1.06*(1-squash);
-  const pigment=adaptationColor(g);
-  const sat=g.albino===1?4:Math.min(100,Math.max(28,pigment.saturation*(1-life.old*.42)+8));
-  const light=g.albino===1?91:Math.min(85,Math.max(38,pigment.lightness+6));
-  const base=`hsl(${pigment.hue},${sat}%,${light}%)`;
-  const outline=g.albino===1?'hsl(335,15%,64%)':`hsl(${pigment.hue},${Math.max(30,sat-8)}%,${Math.max(19,light-29)}%)`;
-  // Simplify tiny bodies once the screen is crowded; preserve rich shading
-  // for large organisms and the selected creature.
-  const simpleBody=s.units.length>250&&Math.max(rx,ry)<18&&!dead&&u!==selected;
+  const fade=condition.lifeFade;
+  const base=livingBodyColor(g,fade);
+  const outline=livingBodyColor(g,fade,true);
+  const simpleBody=dead||fade>=.995||s.units.length>250&&Math.max(rx,ry)<18&&u!==selected;
   const shine=simpleBody?base:ctx.createRadialGradient(-rx*.38,-ry*.42,0,0,0,Math.max(rx,ry)*1.45);
-  if(!simpleBody){shine.addColorStop(0,'rgba(255,255,255,.38)');shine.addColorStop(.36,base);shine.addColorStop(1,outline);}
+  if(!simpleBody){
+   shine.addColorStop(0,`rgba(255,255,255,${.38*(1-fade)})`);
+   shine.addColorStop(.36,base);shine.addColorStop(1,outline);
+  }
   ctx.fillStyle=dead?'#9e9788':shine;ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.fill();
   ctx.strokeStyle=dead?'#655f56':outline;ctx.lineWidth=dead?1.5:1.6;ctx.stroke();
   if(condition.hit){
    ctx.fillStyle='rgba(255,92,75,.27)';ctx.fill();
    ctx.strokeStyle='rgba(255,89,65,.85)';ctx.lineWidth=2.4;ctx.stroke();
   }
-  // Bruised body area grows with lost HP. Patches vary by individual and
-  // remain stable between frames; no tiny fixed purple parasite dots.
-  if(condition.injured){
-   ctx.save();
-   ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.clip();
-   const severity=condition.injurySeverity;
-   for(const mark of injuryMarks(u,rx,ry)){
-    ctx.fillStyle=severity>.58?'rgba(105,34,36,.66)':'rgba(143,57,45,.52)';
-    ctx.beginPath();ctx.ellipse(mark.x,mark.y,mark.rx*1.20,mark.ry*1.26,mark.angle,0,TAU);ctx.fill();
-    ctx.fillStyle='rgba(79,34,39,.57)';
-    ctx.beginPath();ctx.ellipse(mark.x+mark.rx*.12,mark.y-mark.ry*.09,
-     mark.rx*.76,mark.ry*.70,mark.angle+.2,0,TAU);ctx.fill();
-   }
-   ctx.restore();
-  }
-  if(!dead){ctx.fillStyle='rgba(255,255,255,.36)';ctx.beginPath();
+  if(!dead&&fade<1){ctx.fillStyle=`rgba(255,255,255,${.36*(1-fade)})`;ctx.beginPath();
   ctx.ellipse(-rx*.30,-ry*.36,rx*.21,ry*.10,-.35,0,TAU);ctx.fill();}
   // Infection persists on the body as a green dashed rim with orbiting spores.
   if(condition.infected){
