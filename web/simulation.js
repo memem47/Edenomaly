@@ -355,7 +355,7 @@ export class Ecosystem{
   }
  }
  reset(){
-  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.stress=15;
+  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.stress=15;this.rainfall=25;
   this.setupTerrain();
   this.grass=new Float32Array(this.tiles.length);
   this.water=new Float32Array(this.tiles.length);
@@ -392,13 +392,10 @@ export class Ecosystem{
    this.grass=next;
   }
   // Standing water evaporates naturally. Rain replenishes depleted waterbeds.
-  // Weak natural showers also restore depleted waterbeds periodically.
-  if(this.tick%180===0){
-   for(let i=0;i<this.tiles.length;i++)if(this.waterbed[i]&&this.tiles[i]!==0&&this.tiles[i]!==3){
-    if(this.tiles[i]!==1&&this.units.some(u=>!u.dead&&u.g.aquatic!==1&&this.cell(u.x,u.y)===i))continue;
-    this.tiles[i]=1;this.water[i]=Math.min(100,this.water[i]+20);
-   }
-  }
+  // Climate slider: 0 = no natural precipitation, 100 = heavy rain.
+  // Default 25 restores about 3 units per 180 steps, below typical evaporation.
+  if(this.tick%180===0&&this.rainfall>0)
+   this.replenishWater(12*this.rainfall/100);
   if(this.tick%8===0){
    for(let i=0;i<this.tiles.length;i++)if(this.water[i]>0){
     this.water[i]=Math.max(0,this.water[i]-(.16+this.stress*.003));
@@ -411,19 +408,11 @@ export class Ecosystem{
    const id=this.cell(c.x,c.y);
    // Decomposition nourishes soil; tissues also return moisture to the world.
    this.soil[id]=Math.min(100,this.soil[id]+loss*.33);
-   // Moisture from multiple corpses accumulates in adjacent bare ground.
-   // A pool appears only after enough organic water has been returned.
-   const cx=id%NX,cy=Math.floor(id/NX);
-   const candidates=[id,cx>0?id-1:-1,cx<NX-1?id+1:-1,cy>0?id-NX:-1,cy<NY-1?id+NX:-1];
-   const deposit=candidates.find(j=>j>=0&&this.tiles[j]===2);
-   if(deposit!==undefined){
-    this.soilWater[deposit]+=loss*.38;
-    if(this.soilWater[deposit]>=10&&!this.units.some(u=>!u.dead&&u.g.aquatic!==1&&this.cell(u.x,u.y)===deposit)){
-     this.tiles[deposit]=1;this.waterbed[deposit]=1;
-     this.water[deposit]=Math.min(100,18+this.soilWater[deposit]);
-     this.grass[deposit]=0;this.soilWater[deposit]=0;
-    }
-   }
+   // Corpse moisture stays in the soil. It never creates permanent ponds;
+   // rainfall and explicitly painted waterbeds control surface-water area.
+   this.soilWater[id]=Math.min(100,this.soilWater[id]+loss*.12);
+   // Existing nearby water may receive a small fraction, without flooding land.
+   if(this.tiles[id]===1)this.water[id]=Math.min(100,this.water[id]+loss*.025);
    if(this.tiles[id]!==1&&this.tiles[id]!==3){
     if(this.grass[id]>0)this.grass[id]=Math.min(100,this.grass[id]+loss*.12);
     else if(this.soil[id]>12&&this.rand()<.12){this.tiles[id]=0;this.grass[id]=4;}
@@ -690,18 +679,22 @@ export class Ecosystem{
   }
   this.log('info','干ばつ：水と草が減少した');
  }
+ replenishWater(amount){
+  let restored=0;
+  for(let i=0;i<this.tiles.length;i++){
+   if(!this.waterbed[i]||(this.tiles[i]!==1&&this.tiles[i]!==2))continue;
+   if(this.tiles[i]!==1&&this.units.some(u=>!u.dead&&u.g.aquatic!==1&&this.cell(u.x,u.y)===i))continue;
+   const previous=this.water[i];
+   this.water[i]=Math.min(100,previous+amount);
+   if(this.water[i]>0){this.tiles[i]=1;this.grass[i]=0;}
+   if(previous===0&&this.water[i]>0)restored++;
+  }
+  return restored;
+ }
  rain(){
   this.growth=90;this.stress=8;
-  let restored=0;
-  for(let i=0;i<this.tiles.length;i++)if(this.waterbed[i]){
-   if(this.tiles[i]===2||this.tiles[i]===1){
-    if(this.tiles[i]!==1&&this.units.some(u=>!u.dead&&u.g.aquatic!==1&&this.cell(u.x,u.y)===i))continue;
-    this.tiles[i]=1;this.grass[i]=0;
-    this.water[i]=Math.min(100,this.water[i]+55);
-    restored++;
-   }
-  }
-  this.log('info','降雨：'+restored+' マスの水場を回復した');
+  const restored=this.replenishWater(55);
+  this.log('info','降雨：'+restored+' マスの既存水場が復活した');
  }
  get livingSpecies(){return [...this.species.values()].filter(s=>s.current>0).length;}
  get recentSpecies(){return this.discoveries.filter(t=>this.tick-t<300).length;}
