@@ -1666,3 +1666,57 @@ test('more bodies mean more habitat occupation and higher maintenance',()=>{
  assert.ok(dense>sparse);
  assert.ok(dense>0);
 });
+
+test('organisms stop at reachable food, mate, or shore contact distance',()=>{
+ const w=new Ecosystem(4301);w.tiles.fill(0);w.water.fill(0);
+ const u=w.spawn(180,220,w.gene());u.g.aquatic=0;u.angle=.4;
+ const before={x:u.x,y:u.y,angle:u.angle,rng:w.rng};
+ const status=w.navigate(u,{x:187,y:220},0,1,.29,12);
+ assert.equal(status,'arrived');
+ assert.equal(u.x,before.x);assert.equal(u.y,before.y);
+ assert.equal(u.angle,before.angle);assert.equal(w.rng,before.rng);
+});
+test('blocked shoreline pursuit makes a detour, then abandons unreachable destination',()=>{
+ const w=new Ecosystem(4302);w.tiles.fill(0);w.water.fill(0);
+ // A water barrier divides the map, so a terrestrial creature cannot
+ // cross to its target. No repeated instantaneous 130-degree spin.
+ for(let y=0;y<23;y++)w.tiles[y*40+10]=1;
+ const u=w.spawn(189,221,w.gene());u.g.aquatic=0;u.angle=0;
+ const target={x:280,y:221};
+ let detours=0,abandoned=false;
+ for(let step=1;step<=160;step++){
+  w.tick=step;
+  const desired=Math.atan2(target.y-u.y,target.x-u.x);
+  const result=w.navigate(u,target,desired,1,.29,8);
+  if(result==='detour')detours++;
+  if(result==='abandoned'){abandoned=true;break;}
+  assert.notEqual(w.terrain(u.x,u.y),1);
+ }
+ assert.ok(detours>0);
+ assert.equal(abandoned,true);
+ assert.ok(u.avoidTarget.until>w.tick);
+});
+test('open terrain progress does not trigger unreachable-goal cooldown',()=>{
+ const w=new Ecosystem(4303);w.tiles.fill(0);
+ const u=w.spawn(100,220,w.gene());u.angle=0;
+ const target={x:300,y:220};
+ for(let step=1;step<=75;step++){
+  w.tick=step;
+  w.navigate(u,target,Math.atan2(target.y-u.y,target.x-u.x),1,.29,8);
+ }
+ assert.ok(u.x>160);
+ assert.equal(u.avoidTarget,undefined);
+});
+test('a world-edge goal does not keep the creature rotating without movement',()=>{
+ const w=new Ecosystem(4304);w.tiles.fill(0);
+ const u=w.spawn(793,220,w.gene());u.angle=0;
+ const initialY=u.y,goal={x:900,y:220};
+ let shifted=false;
+ for(let step=1;step<=60;step++){
+  w.tick=step;
+  w.navigate(u,goal,Math.atan2(goal.y-u.y,goal.x-u.x),1,.29,8);
+  if(Math.abs(u.y-initialY)>5)shifted=true;
+  assert.ok(u.x<=793&&u.x>=7);
+ }
+ assert.ok(shifted);
+});
