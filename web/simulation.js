@@ -46,12 +46,17 @@ export const terrainFitness=(g,t)=>{
  return {fitness,passable,sight,hazard,move:(t===1?(aquatic?.50+g.wet*.26:.035):t===2?.17+g.dry*.42:t===3?.13+(g.rock??.2)*.36:.58),
    upkeep:t===0?0:(1-tolerance)*[0,.38,.51,.61][t]+tolerance*.045};
 };
+// Ephemeral per-step caches avoid recalculating traits for the same agents.
+let stepCache=null;
 export const dietProfile=g=>{
+ if(stepCache){const cached=stepCache.diet.get(g);if(cached)return cached;}
  const diet=clamp(g.diet,0,1);
  // The visual signal is heritable separately from feeding ability.
  const signal=clamp(diet+(g.deception-.5)*1.35,0,1);
- return {diet,plant:1-diet,meat:diet,signal,
+ const value={diet,plant:1-diet,meat:diet,signal,
   label:diet<.3?'栄養食':diet>.7?'肉食':'雑食'};
+  if(stepCache)stepCache.diet.set(g,value);
+  return value;
 };
 // Morphology is the source of functional abilities; no separate speed/vision/attack genes.
 export const morphology=g=>{
@@ -69,7 +74,12 @@ export const morphology=g=>{
  return {width,length,bodyMass,eyeRange,speed,turnRate,biteReach,edibleRatio,predatory,upkeep,foodGain};
 };
 // Nutrition-derived growth changes physical performance without changing inherited genes.
-export const organismMorphology=u=>morphology({...u.g,r:u.g.r*(u.growthScale??1)});
+export const organismMorphology=u=>{
+ if(stepCache){const cached=stepCache.morph.get(u);if(cached&&cached.scale===(u.growthScale??1))return cached.value;}
+ const value=morphology({...u.g,r:u.g.r*(u.growthScale??1)});
+ if(stepCache)stepCache.morph.set(u,{scale:u.growthScale??1,value});
+ return value;
+};
 // Every slime can grow exceptionally large, but only when sustained food
 // intake exceeds the steep maintenance cost and the local food supply lasts.
 export const NORMAL_NUTRITION_GROWTH=2.35;
@@ -132,9 +142,12 @@ export const lifeStageScale=u=>{
  return .55+.45*t*t*(3-2*t);
 };
 export const bodyCollisionAxes=u=>{
+ if(stepCache){const c=stepCache.axes.get(u);if(c&&c.stage===u.stage&&c.age===u.age&&c.scale===(u.growthScale??1))return c.value;}
  const scale=lifeStageScale(u)*(u.growthScale??1)*(1-clamp(((u.age??0)-420)/900,0,1)*.12);
  const ry=Math.max(2,u.g.r*scale*1.06);
- return {rx:ry*Math.max(1,Math.min(3,u.g.elongation??1)),ry};
+ const value={rx:ry*Math.max(1,Math.min(3,u.g.elongation??1)),ry};
+ if(stepCache)stepCache.axes.set(u,{stage:u.stage,age:u.age,scale:u.growthScale??1,value});
+ return value;
 };
 const ellipseExtent=(u,axes,nx,ny)=>{
  const a=u.angle??0,cos=Math.cos(a),sin=Math.sin(a);
@@ -665,6 +678,7 @@ export class Ecosystem{
    this.replenishWater(1.8*this.weatherStrength);
  }
  step(){
+  stepCache={diet:new WeakMap(),morph:new WeakMap(),axes:new WeakMap()};
   this.tick++;
   this.updateWeather();
   this.updateTemperature();
@@ -1037,6 +1051,7 @@ export class Ecosystem{
   this.eggTrails=this.eggTrails.filter(t=>t.age<t.life);
   if(this.tick%20===0)this.snapshot();
   if(this.tick%160===0&&this.units.length===0)this.log('info','全個体が絶滅。生命を移入できます');
+  stepCache=null;
  }
  resolveUnitOverlap(){
   const units=this.units.filter(u=>!u.dead);
