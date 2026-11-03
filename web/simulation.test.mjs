@@ -918,3 +918,51 @@ test('separation respects impassable water tiles for terrestrial slimes',()=>{
  assert.ok([a,b].every(u=>w.terrain(u.x,u.y)!==1));
  assert.ok([a,b].every(u=>u.x>=7&&u.x<=793&&u.y>=7&&u.y<=453));
 });
+
+test('aquatic and terrestrial adaptations can evolve in both directions',()=>{
+ for(const habitat of [0,1]){
+  const w=new Ecosystem(2201+habitat);
+  const ancestor=w.gene();
+  ancestor.aquatic=habitat;ancestor.alleles.aquatic=[habitat,habitat];
+  let conversions=0,dry=0,rock=0;
+  for(let i=0;i<5000;i++){
+   const child=w.recombine(ancestor,ancestor);
+   if(child.aquatic!==habitat)conversions++;
+   if(child.dry>ancestor.dry+.15)dry++;
+   if(child.rock>ancestor.rock+.15)rock++;
+   assert.equal(child.aquatic,child.alleles.aquatic[0]);
+  }
+  assert.ok(conversions>50&&conversions<450,'Habitat changes should occur but stay uncommon');
+  assert.ok(dry>25||rock>25,'Environmental specialists should appear across many offspring');
+ }
+});
+test('locally dispersed habitat-switch eggs land on a viable shore without remote teleporting',()=>{
+ const w=new Ecosystem(2203);
+ w.tiles.fill(0);w.water.fill(0);
+ const cx=w.cell(300,200),row=Math.floor(cx/40);
+ for(let y=row-1;y<=row+1;y++)for(let x=16;x<=20;x++){
+  const id=y*40+x;w.tiles[id]=1;w.water[id]=100;
+ }
+ const land=w.shoreEggSite(330,210,{aquatic:0});
+ const water=w.shoreEggSite(310,210,{aquatic:1});
+ assert.ok(w.terrain(land.x,land.y)!==1);
+ assert.equal(w.terrain(water.x,water.y),1);
+ const fromWater=w.shoreEggSite(340,210,{aquatic:1});
+ assert.equal(w.terrain(fromWater.x,fromWater.y),1);
+ assert.ok(Math.hypot(340-fromWater.x,210-fromWater.y)<90);
+});
+test('albinism is rare, inherited and visually separate from a wound flash',()=>{
+ const w=new Ecosystem(2204);
+ const ancestor=w.gene();ancestor.albino=0;ancestor.alleles.albino=[0,0];
+ const n=5000;let whites=0;
+ for(let i=0;i<n;i++){
+  const child=w.recombine(ancestor,ancestor);
+  whites+=child.albino===1?1:0;
+ }
+ assert.ok(whites>0&&whites<100,'white mutation should occur but stay below 2%');
+ const white={...ancestor,albino:1,alleles:{...ancestor.alleles,albino:[1,1]}};
+ assert.equal(w.recombine(white,white).albino,1);
+ const color=adaptationColor(white);
+ assert.ok(color.saturation<=8&&color.lightness>=88);
+ assert.notEqual(slimeEyeColor(white),slimeEyeColor({...white,albino:0}));
+});
