@@ -23,6 +23,16 @@ export const adaptationColor=g=>{
  return {hue,saturation:clamp(64+strength*19+contrast*8,58,92),
   lightness:clamp(57+wet*5+dry*3+rock*2-contrast*3,48,70)};
 };
+export const TERRAIN_TEMPERATURE_OFFSETS=[0,-4,7,-3];
+export const localTemperature=(ambient,terrain)=>ambient+TERRAIN_TEMPERATURE_OFFSETS[terrain];
+export const thermalFitness=(g,temp)=>{
+ const ideal=clamp(g.idealTemp??22,-5,40),tolerance=clamp(g.tempTolerance??9,3,18);
+ const delta=Math.abs(temp-ideal),comfort=clamp(1-delta/tolerance,0,1),excess=Math.max(0,delta-tolerance);
+ return {ideal,tolerance,comfort,excess,activity:clamp(1.09-.033*delta,.33,1.09),
+  upkeep:.035*delta+.095*excess+Math.max(0,tolerance-7)*.045,
+  damage:excess>0?Math.min(2.5,excess*.045):0,
+  reproduction:excess===0&&delta<tolerance*.8};
+};
 export const terrainFitness=(g,t)=>{
  // Traits are inherited; acquired acclimatization is deliberately not simulated.
  const tolerance=[1, g.wet, g.dry, g.rock??.2][t];
@@ -137,9 +147,9 @@ export const rearPosition=(u,offset=0)=>({
  x:clamp(u.x-Math.cos(u.angle)*(u.g.r*u.g.elongation+5+offset),6,W-6),
  y:clamp(u.y-Math.sin(u.angle)*(u.g.r*u.g.elongation+5+offset),6,H-6)
 });
-const HERITABLE=['repro','r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic','albino'];
+const HERITABLE=['repro','idealTemp','tempTolerance','r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic','albino'];
 const INTEGER_GENES=new Set(['eyes','mouths','brood','aquatic','albino','repro']);
-const LIMITS={repro:[0,2],r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1],albino:[0,1]};
+const LIMITS={repro:[0,2],idealTemp:[-5,40],tempTolerance:[3,18],r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1],albino:[0,1]};
 const alleleExpression=(key,pair)=>{
  // Eyes: more-eye allele is dominant; hidden low-eye alleles can reappear in grandchildren.
  // Other continuous traits use incomplete dominance (mean of the two inherited copies).
@@ -177,7 +187,7 @@ export class Ecosystem{
  cell(x,y){return clamp(Math.floor(y/CELL),0,NY-1)*NX+clamp(Math.floor(x/CELL),0,NX-1);}
  terrain(x,y){return this.tiles[this.cell(x,y)];}
  gene(){
-  const g={repro:(()=>{const roll=this.rand();return roll<.004?1:roll<.006?2:0;})(),r:this.rand()<.15?this.range(8.5,12):this.range(3.1,7.5),
+  const g={idealTemp:this.range(15,29),tempTolerance:this.range(6,11),repro:(()=>{const roll=this.rand();return roll<.004?1:roll<.006?2:0;})(),r:this.rand()<.15?this.range(8.5,12):this.range(3.1,7.5),
    elongation:(()=>{const roll=this.rand();
     return roll<.82?this.range(.94,1.16):roll<.98?this.range(1.43,2.04):this.range(2.35,2.83);
    })(),eyes:(()=>{const roll=this.rand();return roll<.08?0:roll<.36?1:roll<.71?2:roll<.90?3:roll<.975?4:roll<.995?5:6;})(),
@@ -193,6 +203,8 @@ export class Ecosystem{
   for(const key of HERITABLE){
    let second=g[key];
    if(key==='repro')second=0;
+    else if(key==='idealTemp')second=clamp(g.idealTemp+this.range(-3,3),...LIMITS.idealTemp);
+    else if(key==='tempTolerance')second=clamp(g.tempTolerance+this.range(-2,2),...LIMITS.tempTolerance);
     else if(key==='elongation')second=clamp(g.elongation+this.range(-.11,.11),...LIMITS.elongation);
    else if(key==='albino')second=0;
    else if(key==='aquatic'&&this.rand()<.14)second=1-g.aquatic;
@@ -222,6 +234,8 @@ export class Ecosystem{
    const [lo,hi]=LIMITS[key],width=hi-lo;
    let value=next.alleles[key][index];
    if(key==='repro')value=this.rand()<.5?1:2;
+    else if(key==='idealTemp')value+=this.range(-7,7);
+    else if(key==='tempTolerance')value+=this.range(-3.5,3.5);
     else if(key==='aquatic')value=1-value;
    else if(key==='albino')value=1-value;
    else if(key==='elongation')value+=this.rand()<.85?this.range(-.13,.08):this.range(-.20,.24);
@@ -275,7 +289,8 @@ export class Ecosystem{
   const strategy=protectiveDrive(g)>.52?'guardian':eggPredationDrive(g)>.62?'egg-hunter':'general';
   // Habitat is a functional trait, not just a difference in appearance.
   const habitat=g.aquatic===1?'aquatic':g.dry>=.70&&g.dry>g.rock+.10?'dry':g.rock>=.70&&g.rock>g.dry+.10?'rock':'land';
-  return [habitat,diet,body,shape,eyes,strategy,'repro'+reproductiveMode(g)].join('-');
+  const thermal=g.idealTemp<12?'cold':g.idealTemp>31?'hot':'temperate';
+   return [habitat,diet,body,shape,eyes,strategy,'repro'+reproductiveMode(g),thermal].join('-');
  }
  name(n){return PREFIX[(n*7+2)%PREFIX.length]+SUFFIX[(n*3+1)%SUFFIX.length]+'-'+String(n).padStart(3,'0');}
  addVisualEffect(type,point,extra={}){
@@ -334,6 +349,8 @@ export class Ecosystem{
   return true;
  }
  isReadyToMate(u){
+  const thermal=thermalFitness(u.g,this.temperatureAt(u.x,u.y));
+  if(!thermal.reproduction)return false;
   return !u.dead&&u.infection===0&&(u.habitatLoad??0)<1.8&&(u.crowdStress??0)<3&&(u.localCrowd??0)<13&&u.stage==='adult'&&u.age>42&&u.energy>=58+Math.max(0,organismMorphology(u).bodyMass-100)*.22&&u.mateCooldown===0&&!u.pregnancy&&vitality(u).vigor>.35;
  }
  findMate(u,batch){
@@ -581,7 +598,7 @@ export class Ecosystem{
   }
  }
  reset(){
-  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;
+  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];
   this.setupTerrain();
   this.grass=new Float32Array(this.tiles.length);
   this.water=new Float32Array(this.tiles.length);
@@ -596,7 +613,15 @@ export class Ecosystem{
   }
   this.log('info','生命は未移入。種類数を選んでフィールドへ生命を移入してください');this.snapshot();
  }
- snapshot(){this.history.push({population:this.units.length,eggs:this.eggs.length,food:this.grass.reduce((a,b)=>a+b,0)+this.waterweed.reduce((a,b)=>a+b,0),corpses:this.corpses.length});if(this.history.length>180)this.history.shift();}
+ snapshot(){this.history.push({population:this.units.length,eggs:this.eggs.length,food:this.grass.reduce((a,b)=>a+b,0)+this.waterweed.reduce((a,b)=>a+b,0),corpses:this.corpses.length,temperature:this.temperature});if(this.history.length>180)this.history.shift();}
+ updateTemperature(){
+  const season=8*Math.sin(this.tick*Math.PI*2/2400);
+  const shorter=2*Math.sin(this.tick*Math.PI*2/370+1.2);
+  const weather=this.weather==='sunny'?2:this.weather==='rain'?-3:-1;
+  this.temperature=clamp(this.baseTemperature+season+shorter+weather,-25,55);
+  if(this.tick%80===0){this.temperatureHistory.push(this.temperature);if(this.temperatureHistory.length>120)this.temperatureHistory.shift();}
+ }
+ temperatureAt(x,y){return localTemperature(this.temperature,this.terrain(x,y));}
  updateWeather(){
   // Deterministic climate phases; rain frequency follows the rain slider.
   if(this.tick>=this.weatherUntil){
@@ -612,6 +637,7 @@ export class Ecosystem{
  step(){
   this.tick++;
   this.updateWeather();
+  this.updateTemperature();
   // Map resources are finite. Grass regrows only from living adjacent patches,
   // so complete overgrazing cannot recover without intervention.
   if(this.tick%6===0){
@@ -716,8 +742,12 @@ export class Ecosystem{
    if(c.mass<.6){this.corpses.splice(i,1);this.recycled++;this.recycledByTerrain[this.terrain(c.x,c.y)]++;this.log('decay','死体の有機物と水分が地形に還元された',c);}
   }
   for(const egg of this.eggs){
-   egg.age++;
-   if(egg.age>=egg.hatchAt&&this.units.length<155){
+   const eggClimate=thermalFitness(egg.g,this.temperatureAt(egg.x,egg.y));
+   egg.age+=eggClimate.excess>0?.32:clamp(.72+eggClimate.comfort*.28,.72,1);
+   egg.heatExposure=(egg.heatExposure??0)+eggClimate.excess*.016;
+   if(egg.heatExposure>22){egg.dead=true;this.log('death','卵 #'+egg.id+' が極端な気温で死亡',egg);continue;}
+
+   if(!egg.dead&&egg.age>=egg.hatchAt&&this.units.length<155){
     egg.dead=true;
     const child=this.spawn(egg.x,egg.y,egg.g,{id:egg.parent,otherParent:egg.otherParent,generation:egg.generation-1,lineage:egg.lineage});
     if(child){child.energy=egg.energy+35;child.stage='juvenile';this.log('hatch','卵 #'+egg.id+' から #'+child.id+' が孵化',egg);}
@@ -730,6 +760,9 @@ export class Ecosystem{
    if(u.pregnancy){u.pregnancy.remaining--;if(u.pregnancy.remaining<=0)this.layEgg(u);}
    const g=u.g,t=this.terrain(u.x,u.y),m=organismMorphology(u),diet=dietProfile(g),home=terrainFitness(g,t);
    const youth=u.stage==='juvenile'?.50:1,body=vitality(u),sight=m.eyeRange*home.sight;
+   const thermal=thermalFitness(g,this.temperatureAt(u.x,u.y));
+   u.thermalComfort=thermal.comfort;u.temperature=this.temperatureAt(u.x,u.y);
+   u.hp-=thermal.damage;u.energy-=thermal.upkeep;
    const aquatic=g.aquatic===1,underwater=t===1&&this.water[this.cell(u.x,u.y)]>0;
    if(aquatic){
     u.stranded=underwater?0:u.stranded+1;
@@ -832,10 +865,11 @@ export class Ecosystem{
      const habitat=terrainFitness(g,terrain);
      if(!habitat.passable)continue;
      const fit=habitat.fitness;
-     const score=fit*.85+GROWTH[terrain]*.6-competitors*.37+this.range(-.12,.12);
+     const thermalBenefit=thermalFitness(g,localTemperature(this.temperature,terrain));
+      const score=fit*.85+GROWTH[terrain]*.6+thermalBenefit.comfort*.30-thermalBenefit.excess*.06-competitors*.37+this.range(-.12,.12);
      if(score>bestScore){bestScore=score;best={x,y,terrain};}
     }
-    if(best&&bestScore>home.fitness*.85+GROWTH[t]*.6-pressure*.26){
+    if(best&&bestScore>home.fitness*.85+GROWTH[t]*.6+thermal.comfort*.30-thermal.excess*.06-pressure*.26){
      u.refugeTarget={x:best.x,y:best.y,until:this.tick+85};
      this.log('migration','#'+u.id+' が競争を避けて'+TERRAIN_NAMES[best.terrain]+'へ移動を開始',u);
     }
@@ -888,7 +922,7 @@ export class Ecosystem{
    const turn=Math.atan2(Math.sin(desired-u.angle),Math.cos(desired-u.angle));u.angle+=clamp(turn,-m.turnRate,m.turnRate)+this.range(-.09,.09);
    const terrainMove=home.move;
    const courtingMate=u.courtPartner?batch.find(v=>v.id===u.courtPartner):null;
-   const speed=m.speed*body.vigor*(u.stage==='juvenile'?.8:1)*terrainMove
+   const speed=m.speed*body.vigor*thermal.activity*(u.stage==='juvenile'?.8:1)*terrainMove
      *(flight?1.24:courtingMate&&distance(u,courtingMate)<22**2?.20:1)
      *(flight?1:Math.max(.55,1-congestion*.06));
    const nextX=clamp(u.x+Math.cos(u.angle)*speed,7,W-7);
@@ -897,7 +931,7 @@ export class Ecosystem{
    else u.angle+=Math.PI*.72;
    u.hp-=home.hazard;
    // Terrain-fit offspring retain energy and can reproduce more successfully.
-   const adaptationCost=clamp(1.65-home.fitness*.75,.70,1.5);
+   const adaptationCost=clamp(1.65-home.fitness*.75,.70,1.5)*(1.08-.08*thermal.comfort);
    u.energy-=reproductiveUpkeep(g)*youth;
     u.energy-=m.upkeep*youth*adaptationCost*(1+body.old*.18)+acquiredSizeMaintenance(u)*youth*adaptationCost+(flight?.10:0)+(ownEgg?g.guard*.16:0)+this.stress*.0035+home.upkeep+(g.wet+g.dry+g.rock)*.055;
    if(!flight&&aquatic&&underwater&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+14)**2){
@@ -958,7 +992,7 @@ export class Ecosystem{
    }
    // Limit stored reserves so immobile giants cannot live on old stockpiles.
    if((u.growthScale??1)>1.05)u.energy=Math.min(u.energy,energyStorageLimit(u));
-   if(u.hp<=0)this.die(u,u.infection>0?'感染症':'環境衰弱');else if(u.energy<=0)this.die(u,'飢餓');else if(u.age>1500)this.die(u,'寿命');
+   if(u.hp<=0)this.die(u,thermal.excess>0?'気温による衰弱':u.infection>0?'感染症':'環境衰弱');else if(u.energy<=0)this.die(u,'飢餓');else if(u.age>1500)this.die(u,'寿命');
   }
   this.resolveUnitOverlap();
   this.updateCourtships();
