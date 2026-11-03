@@ -61,6 +61,25 @@ export const morphology=g=>{
 // Nutrition-derived growth changes physical performance without changing inherited genes.
 export const organismMorphology=u=>morphology({...u.g,r:u.g.r*(u.growthScale??1)});
 export const MAX_NUTRITION_GROWTH=2.35;
+// Crowding is measured by physical proximity, regardless of kinship or diet.
+// A large nearby body occupies more shared space than a small one.
+export const localDensity=(u,neighbors)=>{
+ const self=bodyCollisionAxes(u);
+ const selfArea=Math.max(1,self.rx*self.ry);
+ const reach=48+Math.min(14,self.rx*.45);
+ let load=0;
+ for(const v of neighbors){
+  if(v===u||v.dead)continue;
+  const d=Math.hypot(v.x-u.x,v.y-u.y);
+  if(d>=reach)continue;
+  const body=bodyCollisionAxes(v);
+  const relativeArea=Math.sqrt(Math.max(1,body.rx*body.ry)/selfArea);
+  load+=Math.min(2.3,Math.max(.55,relativeArea))*Math.max(0,1-d/reach);
+ }
+ return load;
+};
+export const crowdStress=density=>Math.min(9,Math.max(0,density-2.5));
+
 // Collision geometry follows the actual drawn ellipse, including adult growth.
 // Treats infants as smaller bodies; collisions are soft, not rigid-body physics.
 export const bodyCollisionAxes=u=>{
@@ -260,7 +279,7 @@ export class Ecosystem{
   return best;
  }
  isReadyToMate(u){
-  return !u.dead&&u.infection===0&&(u.localCrowd??0)<13&&u.stage==='adult'&&u.age>42&&u.energy>=58+Math.max(0,organismMorphology(u).bodyMass-100)*.22&&u.mateCooldown===0&&!u.pregnancy&&vitality(u).vigor>.35;
+  return !u.dead&&u.infection===0&&(u.crowdStress??0)<3&&(u.localCrowd??0)<13&&u.stage==='adult'&&u.age>42&&u.energy>=58+Math.max(0,organismMorphology(u).bodyMass-100)*.22&&u.mateCooldown===0&&!u.pregnancy&&vitality(u).vigor>.35;
  }
  findMate(u,batch){
   if(!this.isReadyToMate(u))return null;
@@ -674,14 +693,17 @@ export class Ecosystem{
     if(v===u||v.dead||dietProfile(v.g).plant<.25)continue;
     if(distance(u,v)<48**2){rivals++;if(organismMorphology(v).bodyMass>m.bodyMass*.95)stronger++;}
    }
-   const pressure=(rivals+stronger*.7)/(1+GROWTH[t]*5);
+   const density=localDensity(u,batch);
+   const congestion=crowdStress(density);
+   u.crowdStress=congestion;
+   const pressure=(rivals+stronger*.7)/(1+GROWTH[t]*5)+congestion*.6;
    // Kin-specific contact disease is more likely in dense founder lineages.
    // A new mutation is not instantly immune: lineage persists across offspring.
    let relatives=0,infectious=0;
    for(const v of batch)if(v!==u&&!v.dead&&v.lineage===u.lineage&&distance(u,v)<38**2){
     relatives++;if(v.infection>0)infectious++;
    }
-   const crowd=Math.max(0,relatives-2);
+   const crowd=Math.max(0,relatives-2)+congestion*.65;
    if(u.infection>0){
     u.infection--;
     u.hp-=(.19+crowd*.055)*(1-(g.resist??.4)*.7);
@@ -690,9 +712,9 @@ export class Ecosystem{
     this.log('ill','#'+u.id+' が密集地で感染',u);
    }
    // Crowded colonies consume more energy and stop producing offspring as easily.
-   u.energy-=Math.min(.85,Math.max(0,rivals-3)*.075);
+   u.energy-=Math.min(.85,Math.max(0,rivals-3)*.075)+congestion*.11;
    u.localCrowd=relatives;
-   const seekRefuge=!u.courtPartner&&!u.pregnancy&&!flight&&(pressure>1.35||relatives>7)&&u.energy<130;
+   const seekRefuge=!u.courtPartner&&!u.pregnancy&&!flight&&(pressure>1.35||relatives>7||congestion>2)&&u.energy<170;
    if(seekRefuge&&(this.tick+u.id)%14===0){
     let best=null,bestScore=-Infinity;
     for(let i=0;i<12;i++){
@@ -706,7 +728,7 @@ export class Ecosystem{
      const score=fit*.85+GROWTH[terrain]*.6-competitors*.37+this.range(-.12,.12);
      if(score>bestScore){bestScore=score;best={x,y,terrain};}
     }
-    if(best&&best.terrain!==t&&bestScore>home.fitness*.85+GROWTH[t]*.6-pressure*.26){
+    if(best&&bestScore>home.fitness*.85+GROWTH[t]*.6-pressure*.26){
      u.refugeTarget={x:best.x,y:best.y,until:this.tick+85};
      this.log('migration','#'+u.id+' が競争を避けて'+TERRAIN_NAMES[best.terrain]+'へ移動を開始',u);
     }
@@ -744,7 +766,8 @@ export class Ecosystem{
    const terrainMove=home.move;
    const courtingMate=u.courtPartner?batch.find(v=>v.id===u.courtPartner):null;
    const speed=m.speed*body.vigor*(u.stage==='juvenile'?.8:1)*terrainMove
-     *(flight?1.24:courtingMate&&distance(u,courtingMate)<22**2?.20:1);
+     *(flight?1.24:courtingMate&&distance(u,courtingMate)<22**2?.20:1)
+     *(flight?1:Math.max(.55,1-congestion*.06));
    const nextX=clamp(u.x+Math.cos(u.angle)*speed,7,W-7);
    const nextY=clamp(u.y+Math.sin(u.angle)*speed,7,H-7);
    if(terrainFitness(g,this.terrain(nextX,nextY)).passable){u.x=nextX;u.y=nextY;}
