@@ -8,6 +8,20 @@ const GROWTH=TERRAIN_FERTILITY,DECAY=[.026,.038,.006,.003];
 const PREFIX=['モコ','ミュ','ルミ','ネム','ゾル','リュ','シル','ノク','ヴェル','テラ'];
 const SUFFIX=['リア','リス','ルン','ミア','ゾア','ティス','ノク','ピア'];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+// Visual color is a derived phenotype, never a separate inherited trait.
+// Low adaptation values produce green; wet->cyan/blue, dry->amber,
+// rock->violet. Circular hue mixing avoids a discontinuity around 360 degrees.
+export const adaptationColor=g=>{
+ const wet=clamp(g.wet??0,0,1),dry=clamp(g.dry??0,0,1),rock=clamp(g.rock??0,0,1);
+ const anchors=[[118,.42],[199,2.5*wet*wet],[32,2.4*dry*dry],[280,2.4*rock*rock]];
+ let x=0,y=0;
+ for(const [h,w] of anchors){const a=h*Math.PI/180;x+=Math.cos(a)*w;y+=Math.sin(a)*w;}
+ const hue=(Math.atan2(y,x)*180/Math.PI+360)%360;
+ const strength=Math.max(wet,dry,rock);
+ const contrast=Math.max(wet,dry,rock)-Math.min(wet,dry,rock);
+ return {hue,saturation:clamp(64+strength*19+contrast*8,58,92),
+  lightness:clamp(57+wet*5+dry*3+rock*2-contrast*3,48,70)};
+};
 export const terrainFitness=(g,t)=>{
  // Traits are inherited; acquired acclimatization is deliberately not simulated.
  const tolerance=[1, g.wet, g.dry, g.rock??.2][t];
@@ -59,16 +73,16 @@ export const rearPosition=(u,offset=0)=>({
  x:clamp(u.x-Math.cos(u.angle)*(u.g.r*u.g.elongation+5+offset),6,W-6),
  y:clamp(u.y-Math.sin(u.angle)*(u.g.r*u.g.elongation+5+offset),6,H-6)
 });
-const HERITABLE=['r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','hue','saturation','lightness','brood','diet','deception','rock','resist','aquatic'];
+const HERITABLE=['r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic'];
 const INTEGER_GENES=new Set(['eyes','mouths','brood','aquatic']);
-const LIMITS={r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],hue:[0,360],saturation:[35,100],lightness:[35,85],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1]};
+const LIMITS={r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1]};
 const alleleExpression=(key,pair)=>{
  // Eyes: more-eye allele is dominant; hidden low-eye alleles can reappear in grandchildren.
  // Other continuous traits use incomplete dominance (mean of the two inherited copies).
  const raw=key==='eyes'||key==='aquatic'?Math.max(...pair):(pair[0]+pair[1])/2;
  const [lo,hi]=LIMITS[key];
  const val=clamp(INTEGER_GENES.has(key)?Math.round(raw):raw,lo,hi);
- return key==='hue'?val%360:val;
+ return val;
 };
 const allelePair=(g,key)=>{
  const pair=g.alleles?.[key];
@@ -92,7 +106,6 @@ export class Ecosystem{
    mouths:1+Math.floor(this.rand()*4),jaw:this.range(.2,2.5),
    wet:this.rand(),dry:this.rand(),rock:this.rand(),
    shell:this.rand(),guard:this.rand(),nesting:this.rand(),
-   hue:this.range(0,360),saturation:this.range(48,100),lightness:this.range(42,81),
    brood:1+Math.floor(this.rand()*8),diet:this.rand(),
    deception:clamp(.5+this.range(-.42,.42),0,1),resist:this.rand(),
    aquatic:this.rand()<.25?1:0};
@@ -176,7 +189,7 @@ export class Ecosystem{
   const u={id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,recentFood:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null};
   u.category=this.category(g);u.lineage??=u.id;this.units.push(u);
   if(!this.species.has(u.category)){
-   const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(n),current:0,total:0,hue:g.hue,saturation:g.saturation,lightness:g.lightness,diet:dietProfile(g).label,first:this.tick,genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(n),u);
+   const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(n),current:0,total:0,diet:dietProfile(g).label,first:this.tick,genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(n),u);
   }
   const s=this.species.get(u.category);s.current++;s.total++;
   this.log('birth','#'+u.id+' '+(u.stage==='juvenile'?'孵化':'移入')+'（'+s.name+' / 第'+u.generation+'世代）',u);
