@@ -639,3 +639,15 @@ test('dry and rocky founders inherit carnivorous traits',()=>{
   assert.ok(w.units.every(u=>u.g.aquatic===0&&u.g.diet>=.82&&u.g.jaw>=1.2));
  }
 });
+
+test('carnivorous slime scavenges on rocky or arid land',()=>{
+ const w=new Ecosystem(1507);w.tiles.fill(2);w.grass.fill(0);
+ const g={...w.gene(),aquatic:0,diet:1,jaw:1.8};
+ const prior=w.spawn(210,150,g);w.die(prior,'test');w.units=[];
+ const hunter=w.spawn(210,150,g);hunter.energy=15;hunter.age=100;
+ w.units=[hunter];w.growth=0;
+ const mass=w.corpses[0].mass;
+ w.step();
+ assert.ok(hunter.energy>15);
+ assert.ok(w.corpses[0].mass<mass);
+});
