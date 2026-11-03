@@ -51,20 +51,29 @@ export const livingBodyColor=(g,fade,edge=false)=>{
  const delta=((40-hue+540)%360)-180;
  return `hsl(${(hue+delta*t+360)%360},${sourceSat*(1-t)+11*t}%,${sourceLight*(1-t)+(edge?36:58)*t}%)`;
 };
+// The palette modifies the terrain only, not creature pigments or simulation.
+export const seasonPalette=season=>({
+ spring:{terrain:TERRAIN_COLORS,grass:'#89ec5e',blade:'#2aa943',water:'#48c7ff',weed:'#24a86b'},
+ summer:{terrain:['#71d95c','#34b6fa','#f5c76b','#9c95c8'],grass:'#b6f777',blade:'#30b34d',water:'#7bd7ff',weed:'#2abe78'},
+ autumn:{terrain:['#b17c39','#379fc9','#dd9b4e','#9688a9'],grass:'#d99d43',blade:'#ad552b',water:'#5cb8db',weed:'#8c923e'},
+ winter:{terrain:['#d9e7e7','#8ec6e2','#e7edf0','#b7c9d6'],grass:'#e1ece5',blade:'#9db9ab',water:'#b3e6f3',weed:'#6baf9c'}
+})[season]||{terrain:TERRAIN_COLORS,grass:'#89ec5e',blade:'#2aa943',water:'#48c7ff',weed:'#24a86b'};
 export function drawWorld(ctx,s,showEffects=true,selected=null){
  const {cell,columns,rows,width,height}=WORLD;
+ const season=s.climateEnabled===false?'spring':s.seasonName?.()??'spring';
+ const palette=seasonPalette(season);
  // Bright, layered handheld-console-style terrain, drawn procedurally.
  for(let y=0;y<rows;y++)for(let x=0;x<columns;x++){
   const i=y*columns+x,t=s.tiles[i],px=x*cell,py=y*cell;
   const seed=((x*73+y*137)*23)%17;
-  ctx.fillStyle=TERRAIN_COLORS[t];ctx.fillRect(px,py,cell,cell);
+  ctx.fillStyle=palette.terrain[t];ctx.fillRect(px,py,cell,cell);
   ctx.fillStyle='rgba(255,255,255,.13)';ctx.fillRect(px,py,cell,3);
   ctx.fillStyle='rgba(13,37,61,.10)';ctx.fillRect(px,py+cell-3,cell,3);
   if(t===0){
    const cover=Math.max(0,Math.min(1,(s.grass[i]||0)/100));
-   ctx.fillStyle='#89ec5e';ctx.fillRect(px+2,py+2,(cell-4)*cover,cell-4);
+   ctx.fillStyle=palette.grass;ctx.fillRect(px+2,py+2,(cell-4)*cover,cell-4);
    // Sparkling blades, proportional to the actual grass biomass.
-   ctx.strokeStyle='#2aa943';ctx.lineWidth=1.6;ctx.lineCap='round';
+   ctx.strokeStyle=palette.blade;ctx.lineWidth=1.6;ctx.lineCap='round';
    for(let k=0;k<Math.floor(cover*5);k++){
     const gx=px+3+(seed+k*7)%14,gy=py+8+(k*7+seed)%10;
     ctx.beginPath();ctx.moveTo(gx,gy+3);ctx.lineTo(gx-2,gy-2);ctx.moveTo(gx,gy+3);ctx.lineTo(gx+2,gy-1);ctx.stroke();
@@ -79,17 +88,26 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
    }
   }else if(t===1){
    const depth=Math.max(0,Math.min(1,(s.water[i]||0)/100));
-   ctx.fillStyle='#48c7ff';ctx.fillRect(px+2,py+2,cell-4,(cell-4)*depth);
+   ctx.fillStyle=palette.water;ctx.fillRect(px+2,py+2,cell-4,(cell-4)*depth);
    ctx.strokeStyle='rgba(224,255,255,.82)';ctx.lineWidth=1.4;
    const wave=(s.tick*.08+seed)%8;
    ctx.beginPath();ctx.moveTo(px+3+wave*.4,py+5);ctx.lineTo(px+9+wave*.4,py+5);ctx.stroke();
    // Submerged vegetation is visible independently of the water quantity.
    const weed=Math.max(0,Math.min(1,(s.waterweed?.[i]||0)/100));
    if(weed>.02){
-    ctx.strokeStyle='#24a86b';ctx.lineWidth=2;ctx.lineCap='round';
+    ctx.strokeStyle=palette.weed;ctx.lineWidth=2;ctx.lineCap='round';
     for(let k=0;k<Math.max(1,Math.floor(weed*4));k++){
      const wx=px+4+(k*5+seed)%13,wy=py+17;
      ctx.beginPath();ctx.moveTo(wx,wy);ctx.quadraticCurveTo(wx-3,wy-4,wx+Math.sin(s.tick*.08+k)*2,wy-8-weed*4);ctx.stroke();
+    }
+   }
+   if(season==='autumn'&&cover>.02){
+    // Red, amber and rust leaves occupy actual vegetated pixels only.
+    // Deterministic hashes avoid consuming ecosystem RNG.
+    for(let k=0;k<Math.ceil(cover*4);k++){
+     const lx=px+3+(seed*3+k*7)%14,ly=py+4+(seed+k*5)%13;
+     ctx.fillStyle=['#ecbc50','#b8582d','#d76d31','#a63e38'][(seed+k)%4];
+     ctx.beginPath();ctx.ellipse(lx,ly,2.7,1.7,(seed+k)*.6,0,TAU);ctx.fill();
     }
    }
   }else if(t===2){
@@ -99,11 +117,27 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
    ctx.fillStyle='#b9b7df';ctx.beginPath();ctx.moveTo(px+3,py+11);ctx.lineTo(px+9,py+3);ctx.lineTo(px+16,py+8);ctx.lineTo(px+14,py+17);ctx.lineTo(px+4,py+16);ctx.closePath();ctx.fill();
    ctx.strokeStyle='#65638e';ctx.lineWidth=1;ctx.stroke();
   }
+  // Winter snow cover and the crystalline surface of shallow water are
+  // purely visual: water resources, terrain passability and RNG are unchanged.
+  if(season==='winter'){
+   if(t===0||t===2){
+    ctx.fillStyle=t===0?'rgba(247,251,255,.46)':'rgba(250,252,255,.36)';
+    ctx.fillRect(px+1,py+1,cell-2,cell-2);
+    ctx.fillStyle='rgba(255,255,255,.85)';
+    ctx.fillRect(px+3+(seed%5),py+3,5,2);
+    ctx.fillRect(px+10,py+12+(seed%3),6,2);
+   }else if(t===1&&s.water[i]>0){
+    ctx.fillStyle='rgba(231,249,255,.66)';
+    ctx.fillRect(px+1,py+2,cell-2,cell-3);
+    ctx.strokeStyle='rgba(255,255,255,.92)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(px+2,py+8);ctx.lineTo(px+9,py+4);
+    ctx.lineTo(px+17,py+9);ctx.moveTo(px+9,py+4);
+    ctx.lineTo(px+12,py+16);ctx.stroke();
+   }
+  }
  }
- // Seasonal palette shifts are visual-only and never change simulation RNG.
- const season=s.climateEnabled===false?null:s.seasonName?.();
- const seasonalTint={spring:'rgba(152,241,160,.045)',summer:'rgba(255,187,104,.065)',
-  autumn:'rgba(190,111,42,.105)',winter:'rgba(191,217,255,.14)'};
+ // Seasonal tint is kept on terrain only; slimes maintain their own color.
+ const seasonalTint={summer:'rgba(255,246,185,.10)',autumn:'rgba(231,136,65,.055)',winter:'rgba(224,240,255,.045)'};
  if(seasonalTint[season]){ctx.fillStyle=seasonalTint[season];ctx.fillRect(0,0,width,height);}
  // Weather darkens the terrain lightly without hiding organisms or map resources.
  if(s.weather==='cloudy'||s.weather==='rain'){
@@ -335,7 +369,7 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
  }
  // Falling rain: deterministic diagonal streaks, never one particle object per drop.
  // This is visual-only and works even when the world is paused.
- if(s.weather==='rain'){
+ if(s.weather==='rain'&&season!=='winter'){
   const strength=Math.max(.3,s.weatherStrength??.6);
   const count=Math.round(45+strength*115);
   ctx.save();ctx.beginPath();ctx.rect(0,0,width,height);ctx.clip();
