@@ -159,21 +159,51 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   ctx.restore();
   if(dead)ctx.restore();
  }
+ // Each gameplay action uses a distinct visual language; effect time is frame-based.
  if(showEffects){
   for(const fx of s.effects){
-   if(fx.type!=='strike'&&fx.type!=='consume')continue;
-   const q=Math.min(1,fx.age/23),alpha=1-q;
-   ctx.save();ctx.globalAlpha=alpha;
+   if(!['strike','consume','graze','waterweed','drink','scavenge'].includes(fx.type))continue;
+   const life=fx.type==='strike'?22:fx.type==='consume'?30:fx.type==='drink'?24:30;
+   const t=Math.min(1,fx.age/life),fade=Math.max(0,1-t);
+   if(fade<=0)continue;
+   ctx.save();ctx.globalAlpha=fade;ctx.lineCap='round';
    if(fx.type==='strike'){
-    const vx=fx.x-(fx.fromX??fx.x-14),vy=fx.y-(fx.fromY??fx.y),ang=Math.atan2(vy,vx);
-    ctx.translate(fx.x,fx.y);ctx.rotate(ang);
-    ctx.strokeStyle='#ffe3a0';ctx.lineWidth=3.5*(1-q)+.5;ctx.lineCap='round';
-    for(const side of [-1,1]){ctx.beginPath();ctx.moveTo(-20*(1-q)-4,side*6);ctx.lineTo(8+q*10,side*3);ctx.stroke();}
-    ctx.strokeStyle='#fff3ce';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,5+q*15,-.9,.9);ctx.stroke();
+    // Sharp, warm impact burst plus outward shock ring.
+    ctx.strokeStyle='#ff633d';ctx.lineWidth=3.6*(1-t)+1;
+    ctx.beginPath();ctx.arc(fx.x,fx.y,4+t*17,0,TAU);ctx.stroke();
+    ctx.strokeStyle='#fff0a8';ctx.lineWidth=2.2*(1-t)+.4;
+    for(let i=0;i<5;i++){const a=TAU*i/5;const inner=6+t*7,outer=inner+7*(1-t);
+     ctx.beginPath();ctx.moveTo(fx.x+Math.cos(a)*inner,fx.y+Math.sin(a)*inner);
+     ctx.lineTo(fx.x+Math.cos(a)*outer,fx.y+Math.sin(a)*outer);ctx.stroke();
+    }
+   }else if(fx.type==='consume'||fx.type==='scavenge'){
+    // Pink-violet absorption ring and particles moving into the consumer.
+    const color=fx.type==='consume'?'#ff5aab':'#bf70ff';
+    ctx.strokeStyle=color;ctx.lineWidth=3*(1-t)+.6;
+    ctx.beginPath();ctx.arc(fx.x,fx.y,17-t*13,0,TAU);ctx.stroke();
+    ctx.fillStyle='#ffe1fa';
+    for(let i=0;i<7;i++){const a=TAU*i/7,rad=18*(1-t)+2;
+     ctx.beginPath();ctx.arc(fx.x+Math.cos(a)*rad,fx.y+Math.sin(a)*rad,2.6*(1-t)+.5,0,TAU);ctx.fill();
+    }
+   }else if(fx.type==='drink'){
+    // Blue ripples, visibly unlike grazing or attacking.
+    ctx.strokeStyle='#b5f3ff';ctx.lineWidth=2.2*(1-t)+.5;
+    ctx.beginPath();ctx.arc(fx.x,fx.y,3+t*13,0,TAU);ctx.stroke();
+    ctx.strokeStyle='#39b9fa';ctx.lineWidth=1.4;
+    ctx.beginPath();ctx.arc(fx.x,fx.y,2+t*7,Math.PI*.08,Math.PI*.92);ctx.stroke();
    }else{
-    ctx.strokeStyle='#e5a9ec';ctx.lineWidth=3*(1-q)+.5;ctx.beginPath();ctx.arc(fx.x,fx.y,5+q*19,0,TAU);ctx.stroke();
-    for(let i=0;i<6;i++){const a=i*TAU/6+q*1.7;const r=8+q*23;
-     ctx.fillStyle=i%2?'#f8cd90':'#ce91df';ctx.beginPath();ctx.arc(fx.x+Math.cos(a)*r,fx.y+Math.sin(a)*r,2.8*(1-q)+.5,0,TAU);ctx.fill();}
+    // Food fragments converge from plant location toward the slime's center.
+    const aquatic=fx.type==='waterweed';
+    const color=aquatic?'#18f1d3':'#a6ff68';
+    ctx.fillStyle=color;ctx.strokeStyle=color;ctx.lineWidth=2;
+    const fromX=fx.fromX??fx.x-8,fromY=fx.fromY??fx.y+7;
+    for(let i=0;i<5;i++){
+     const a=TAU*i/5;
+     const startX=fromX+Math.cos(a)*8,startY=fromY+Math.sin(a)*8;
+     const x=startX+(fx.x-startX)*t,y=startY+(fx.y-startY)*t;
+     if(aquatic){ctx.beginPath();ctx.moveTo(x-2,y+2);ctx.quadraticCurveTo(x+2,y-3,x+4,y-5);ctx.stroke();}
+     else{ctx.beginPath();ctx.ellipse(x,y,2.4,1.4,a,0,TAU);ctx.fill();}
+    }
    }
    ctx.restore();
   }
@@ -195,6 +225,6 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   }
   ctx.stroke();ctx.restore();
  }
- if(showEffects){const colors={birth:'#91f7ac',death:'#ff8290',meal:'#f9d36b',pred:'#be82ec',new:'#ffe486',decay:'#e2b96e',mate:'#f5a5ed',egg:'#efd6a4',hatch:'#95eec2',eggeaten:'#f7818d'};for(const f of s.effects){if(f.type==='strike'||f.type==='consume')continue;ctx.save();ctx.globalAlpha=Math.max(0,1-f.age/35);ctx.strokeStyle=colors[f.type]||'#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(f.x,f.y,5+f.age*.65,0,TAU);ctx.stroke();ctx.restore();}}
+ if(showEffects){const colors={birth:'#91f7ac',death:'#ff8290',meal:'#f9d36b',pred:'#be82ec',new:'#ffe486',decay:'#e2b96e',mate:'#f5a5ed',egg:'#efd6a4',hatch:'#95eec2',eggeaten:'#f7818d'};for(const f of s.effects){if(['strike','consume','graze','waterweed','drink','scavenge'].includes(f.type))continue;ctx.save();ctx.globalAlpha=Math.max(0,1-f.age/35);ctx.strokeStyle=colors[f.type]||'#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(f.x,f.y,5+f.age*.65,0,TAU);ctx.stroke();ctx.restore();}}
 }
 export function drawChart(ctx,history){const w=ctx.canvas.width,h=ctx.canvas.height;ctx.fillStyle='#172731';ctx.fillRect(0,0,w,h);if(history.length<2)return;for(const [k,color] of [['population','#77dc9a'],['food','#e6c56a'],['corpses','#bc8ed6']]){const max=Math.max(1,...history.map(d=>d[k]))*1.12;ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();history.forEach((d,i)=>{const x=i/(history.length-1)*w,y=h-6-d[k]/max*(h-14);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();}}
