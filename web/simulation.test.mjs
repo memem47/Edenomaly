@@ -847,7 +847,8 @@ test('old corpses visibly retain nutrients without becoming dark stains',()=>{
  });
  drawWorld(ctx,w,false);
  assert.ok(ovalCount>=1); // The remaining nutrients remain visibly represented.
- assert.ok(colors.includes('#c2cf9e'));
+ assert.ok(colors.includes('#9e9788'));
+ assert.ok(colors.includes('#d9cf98')||colors.includes('#7fa07a'));
  assert.equal(corpse.mass,saved);
  assert.equal(w.corpses.length,1);
 });
@@ -1125,7 +1126,7 @@ test('corpse opacity stays tied to remaining mass, not an arbitrary 65-step time
  assert.ok(alpha.some(n=>n>=.6));
  corpse.mass=corpse.initialMass*.01;alpha.length=0;
  drawWorld(ctx,w,false);
- assert.ok(alpha.some(n=>n>.16&&n<=.26));
+ assert.ok(alpha.some(n=>n>=.39&&n<=.42));
  assert.equal(w.corpses.length,1);
 });
 
@@ -1524,4 +1525,30 @@ test('ambient temperature is recorded and resets with the world',()=>{
  w.reset();
  assert.equal(w.baseTemperature,22);
  assert.equal(w.temperature,22);
+});
+
+test('four seasons cycle in 600-step intervals and climate defaults on',()=>{
+ const w=new Ecosystem(3451);
+ assert.equal(w.climateEnabled,true);
+ assert.equal(w.seasonName(),'spring');
+ for(const [step,name] of [[599,'spring'],[600,'summer'],[1200,'autumn'],[1800,'winter'],[2400,'spring']]){
+  w.tick=step;assert.equal(w.seasonName(),name);
+ }
+ w.baseTemperature=12;w.climateEnabled=false;w.tick=900;w.updateTemperature();
+ assert.equal(w.temperature,12);
+ w.climateEnabled=true;w.updateTemperature();assert.notEqual(w.temperature,12);
+ w.reset();assert.equal(w.climateEnabled,true);
+});
+test('seasonal rendering is visual only and keeps simulation RNG untouched',()=>{
+ const w=new Ecosystem(3452);
+ w.units=[];w.eggs=[];w.corpses=[];
+ let count=0;
+ const ctx=new Proxy({canvas:{width:800,height:460},createRadialGradient:()=>({addColorStop(){}})},{
+  get(o,k){return k in o?o[k]:()=>{};},
+  set(o,k,v){if(k==='fillStyle'&&String(v).includes('rgba('))count++;o[k]=v;return true;}
+ });
+ const before=w.rng;
+ w.tick=1800;drawWorld(ctx,w,false);
+ assert.equal(w.rng,before);
+ assert.ok(count>0);
 });
