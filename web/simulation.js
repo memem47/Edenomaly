@@ -287,6 +287,26 @@ export class Ecosystem{
   }
   return true;
  }
+ consumeWaterweed(x,y,amount){
+  const i=this.cell(x,y);
+  if(this.tiles[i]!==1||this.water[i]<=0)return 0;
+  const taken=Math.min(this.waterweed[i],amount);
+  this.waterweed[i]-=taken;
+  if(this.waterweed[i]<.001)this.waterweed[i]=0;
+  return taken;
+ }
+ nearestWaterweed(x,y,radius){
+  let best=null,score=radius*radius;
+  const cx=Math.floor(x/CELL),cy=Math.floor(y/CELL),reach=Math.ceil(radius/CELL)+1;
+  for(let yy=Math.max(0,cy-reach);yy<=Math.min(NY-1,cy+reach);yy++)
+   for(let xx=Math.max(0,cx-reach);xx<=Math.min(NX-1,cx+reach);xx++){
+    const i=yy*NX+xx;
+    if(this.tiles[i]!==1||this.water[i]<=0||this.waterweed[i]<=.2)continue;
+    const px=(xx+.5)*CELL,py=(yy+.5)*CELL,d=(px-x)**2+(py-y)**2;
+    if(d<score){best={x:px,y:py};score=d;}
+   }
+  return best;
+ }
  consumeGrass(x,y,amount){
   const i=this.cell(x,y);
   if(this.tiles[i]!==0)return 0;
@@ -471,6 +491,12 @@ export class Ecosystem{
    if(u.hydration<18)u.hp-=.06;
    let nearest=null,df=sight*sight;
    if(diet.plant>0){nearest=aquatic?this.nearestWaterweed(u.x,u.y,sight):this.nearestGrass(u.x,u.y,sight,g);if(nearest)df=distance(u,nearest);}
+   let nearestCorpse=null,corpseDist=sight*sight;
+   if(diet.meat>.3)for(const corpse of this.corpses){
+    if(corpse.mass<1)continue;
+    const d=distance(u,corpse);
+    if(d<corpseDist){corpseDist=d;nearestCorpse=corpse;}
+   }
    // Eggs are stationary and cannot fight or flee. Guardians only deter some hunters.
    let targetEgg=null,ed=sight*sight;
    if(u.bite===0&&diet.meat>.12&&g.mouths>0)for(const egg of this.eggs){
@@ -550,6 +576,7 @@ export class Ecosystem{
    }
    const mate=u.courtPartner?batch.find(v=>v.id===u.courtPartner&&!v.dead):this.findMate(u,batch);
    let target=prey&&pd<df*1.4?prey:nearest;
+   if(nearestCorpse&&corpseDist<Math.min(df,pd)*1.35)target=nearestCorpse;
    if(mate&&(u.courtPartner||!target||u.energy>=86))target=mate;
    if(targetEgg&&ed<Math.min(df,pd)*1.15)target=targetEgg;
    if(u.refugeTarget&&!flight&&!u.courtPartner)target=u.refugeTarget;
@@ -590,6 +617,13 @@ export class Ecosystem{
     const eaten=this.consumeGrass(nearest.x,nearest.y,Math.min(2.5,1.25*m.foodGain));
     if(eaten>0){u.energy+=eaten*5.8*diet.plant*home.fitness;
      u.hp=Math.min(u.maxHp,u.hp+eaten*.22*(1-body.old*.6));this.log('meal','#'+u.id+' が草を食べた',u);}
+   }
+   // A carnivore can also scavenge a corpse: deserts cannot support herbivores.
+   if(!flight&&diet.meat>.3&&nearestCorpse&&distance(u,nearestCorpse)<(m.biteReach+14)**2&&u.energy<175){
+    const eaten=Math.min(nearestCorpse.mass,2.4*m.foodGain);
+    nearestCorpse.mass-=eaten;
+    u.energy+=eaten*5.5*diet.meat;
+    if(eaten>0)this.log('meal','#'+u.id+' が死体を食べた',u);
    }
    if(!flight&&targetEgg&&!targetEgg.dead&&u.bite===0&&distance(u,targetEgg)<(m.biteReach+4)**2)this.eatEgg(targetEgg,u);
    if(!flight&&mate&&!u.courtPartner&&!mate.courtPartner&&distance(u,mate)<38**2)this.startCourtship(u,mate);
