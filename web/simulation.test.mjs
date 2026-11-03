@@ -1167,26 +1167,22 @@ test('rain and greater water depth improve external aquatic seed germination cha
  assert.equal(sample('rain',15),0);
 });
 
-test('super giant growth capacity is rare and normal creatures retain the old cap',()=>{
+test('every slime has the same exceptional growth potential regardless of birth',()=>{
  const w=new Ecosystem(2801),g=w.gene();
- let rare=0;
- for(let i=0;i<15000;i++){
+ for(let i=0;i<100;i++){
   const u=w.spawn(220,180,{...g});
-  if(!u) {w.units.length=0;i--;continue;}
-  if(u.growthLimit===MAX_NUTRITION_GROWTH)rare++;
-  else assert.equal(u.growthLimit,2.35);
+  assert.ok(u);
+  assert.equal(u.growthLimit,undefined);
   w.units.length=0;
  }
- assert.ok(rare>=15&&rare<=100,'super giants should be around three in a thousand');
  assert.ok(MAX_NUTRITION_GROWTH>=3.5);
 });
 test('exceptional body can grow past ordinary size when food is continually abundant',()=>{
  const w=new Ecosystem(2802);w.tiles.fill(0);w.grass.fill(100);
  const u=w.spawn(220,180,{...w.gene(),aquatic:0,diet:0,r:4});
- u.growthLimit=MAX_NUTRITION_GROWTH;
  u.stage='adult';u.age=100;u.hp=u.maxHp=100000;
  for(let i=0;i<450;i++){
-  u.energy=300;u.recentFood=50;
+  u.energy=550;u.recentFood=170;
   w.step();
   if(u.dead)break;
  }
@@ -1207,4 +1203,30 @@ test('large dead slimes yield larger visible remains and more nutrients',()=>{
   {get(o,k){return k in o?o[k]:()=>{};},set(o,k,v){o[k]=v;return true;}});
  drawWorld(ctx,w,false);
  assert.ok(ellipses.some(e=>e.x===400&&e.rx>ellipses.find(e=>e.x===150).rx*2));
+});
+
+test('ordinary nutrient surplus does not push a slime beyond normal giant size',()=>{
+ const w=new Ecosystem(2804);w.tiles.fill(0);w.grass.fill(0);w.growth=0;
+ const u=w.spawn(220,180,{...w.gene(),aquatic:0,diet:0,r:4});
+ u.stage='adult';u.age=100;u.hp=u.maxHp=100000;u.growthScale=2.35;
+ for(let i=0;i<150;i++){
+  u.energy=300;u.recentFood=8;
+  w.step();
+ }
+ assert.equal(u.growthScale,2.35);
+});
+test('large prey yields a more substantial meal and a nutrient-bearing carcass',()=>{
+ const experiment=scale=>{
+  const w=new Ecosystem(2805);
+  const g={...w.gene(),aquatic:0,diet:1,jaw:2};
+  const hunter=w.spawn(200,180,g),prey=w.spawn(205,180,{...g});
+  prey.growthScale=scale;prey.hp=1;prey.energy=60;
+  hunter.energy=40;hunter.bite=0;
+  w.attack(hunter,prey);
+  return {gain:hunter.energy-40,food:hunter.recentFood,mass:w.corpses[0].mass};
+ };
+ const small=experiment(1),large=experiment(2.7);
+ assert.ok(large.gain>small.gain);
+ assert.ok(large.food>small.food);
+ assert.ok(large.mass>small.mass);
 });
