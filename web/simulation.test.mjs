@@ -1552,3 +1552,23 @@ test('seasonal rendering is visual only and keeps simulation RNG untouched',()=>
  assert.equal(w.rng,before);
  assert.ok(count>0);
 });
+
+import {lifeStageScale} from './simulation.js';
+test('juveniles grow continuously and reach adult size before maturity transition',()=>{
+ const values=[0,1,10,20,40,60,64,65].map(age=>lifeStageScale({stage:'juvenile',age}));
+ assert.equal(values[0],.55);
+ for(let i=1;i<values.length;i++)assert.ok(values[i]>values[i-1]);
+ assert.equal(values.at(-1),1);
+ assert.ok(values.at(-1)-values.at(-2)<.002);
+ assert.equal(lifeStageScale({stage:'adult',age:65}),1);
+ assert.equal(lifeStageScale({stage:'juvenile',age:110}),1);
+});
+test('collision size is continuous across the juvenile-adult stage change',()=>{
+ const world=new Ecosystem(4112);
+ const u=world.spawn(200,170,world.gene(),{id:1,generation:0,lineage:1});
+ u.age=65;u.stage='juvenile';
+ const before=bodyCollisionAxes(u);
+ u.stage='adult';
+ const after=bodyCollisionAxes(u);
+ assert.deepEqual(after,before);
+});
