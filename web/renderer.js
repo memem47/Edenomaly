@@ -19,6 +19,14 @@ export function slimeEyeAngles(g){
  }
  return Array.from({length:count},(_,i)=>count===1?0:(i/(count-1)-.5)*Math.PI*1.6);
 }
+export function slimeEyeColor(g){
+ // Stable genotype-derived hue: colorful, but dark enough to contrast with the body.
+ const hue=(g.hue+115+(Math.round(g.eyes*17)+Math.round(g.jaw*29))%110)%360;
+ return `hsl(${hue},${Math.min(85,Math.max(45,g.saturation))}%,${Math.max(21,Math.min(35,g.lightness*.52))}%)`;
+}
+export function slimeEyeLocation(angle,rx,ry){
+ return {x:rx*.70*Math.cos(angle),y:ry*.70*Math.sin(angle)};
+}
 export function drawWorld(ctx,s,showEffects=true,selected=null){
  const {cell,columns,rows,width,height}=WORLD;
  // Bright, layered handheld-console-style terrain, drawn procedurally.
@@ -149,10 +157,9 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   // Solid-colored, body-harmonized eyes, set inside the oval rather than on the rim.
   // No sclera or mouth: these slimes eat by enveloping food.
   const eyes=slimeEyeAngles(g),eyeRadius=Math.max(1.2,Math.min(3.6,ry*.19));
-  const eyeHue=(g.hue+115+(Math.round(g.eyes*17)+Math.round(g.jaw*29))%110)%360;
-  ctx.fillStyle=dead?'#77707e':`hsl(${eyeHue},${Math.min(85,Math.max(45,g.saturation))}%,${Math.max(21,Math.min(35,g.lightness*.52))}%)`;
+  ctx.fillStyle=dead?'#77707e':slimeEyeColor(g);
   for(const angle of eyes){
-   const ex=rx*.70*Math.cos(angle),ey=ry*.70*Math.sin(angle);
+   const {x:ex,y:ey}=slimeEyeLocation(angle,rx,ry);
    ctx.beginPath();ctx.arc(ex,ey,eyeRadius,0,TAU);ctx.fill();
   }
   if(!dead&&u===selected){ctx.strokeStyle='white';ctx.beginPath();ctx.ellipse(0,0,rx+7,ry+7,0,0,TAU);ctx.stroke();}
