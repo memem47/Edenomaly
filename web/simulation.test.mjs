@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Ecosystem,morphology} from './simulation.js';
+import {slimeEyeAngles} from './renderer.js';
 const populated=seed=>{const s=new Ecosystem(seed);s.introduce(160,135,3);return s;};
 test('same seed creates same initial ecosystem',()=>{const a=populated(42),b=populated(42);assert.deepEqual(a.tiles,b.tiles);assert.deepEqual(a.units,b.units);});
 test('species counts reconcile',()=>{const s=populated();for(let i=0;i<25;i++)s.step();assert.equal([...s.species.values()].reduce((v,x)=>v+x.current,0),s.units.length);assert.ok([...s.species.values()].every(x=>x.total>=x.current));});
@@ -650,4 +651,24 @@ test('carnivorous slime scavenges on rocky or arid land',()=>{
  w.step();
  assert.ok(hunter.energy>15);
  assert.ok(w.corpses[0].mass<mass);
+});
+
+test('predator eyes concentrate toward the forward rim',()=>{
+ for(const count of [1,2,3,4]){
+  const angles=slimeEyeAngles({eyes:count,diet:.95});
+  assert.equal(angles.length,count);
+  assert.ok(angles.every(a=>Math.abs(a)<=.57));
+ }
+});
+test('herbivore eyes face both lateral sides',()=>{
+ const angles=slimeEyeAngles({eyes:4,diet:.05});
+ assert.equal(angles.length,4);
+ assert.ok(angles.some(a=>a<0)&&angles.some(a=>a>0));
+ assert.ok(angles.every(a=>Math.abs(Math.abs(a)-Math.PI/2)<.35));
+});
+test('many-eyed slimes see around their entire rim and zero eyes stay eyeless',()=>{
+ const angles=slimeEyeAngles({eyes:6,diet:.5});
+ assert.equal(angles.length,6);
+ assert.ok(angles.some(a=>a>Math.PI)&&angles.some(a=>a<Math.PI/2));
+ assert.deepEqual(slimeEyeAngles({eyes:0,diet:.5}),[]);
 });
