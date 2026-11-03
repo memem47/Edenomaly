@@ -32,14 +32,14 @@ export const dietProfile=g=>{
 export const morphology=g=>{
  const width=g.r, length=g.r*g.elongation;
  const bodyMass=width*width*g.elongation;
- const eyeRange=20+g.eyes*14;
- const speed=3.45/(.65+bodyMass*.017);
+ const eyeRange=20+Math.min(g.eyes,3)*14+Math.max(0,g.eyes-3)*7;
+ const speed=3.45/(.65+bodyMass*.017)*(1-Math.max(0,g.eyes-3)*.055);
  const turnRate=clamp(.29/(.75+g.elongation*.21),.12,.29);
  const mouths=g.mouths;
  const biteReach=width*(.7+.15*mouths)+g.jaw*1.6;
  const edibleRatio=clamp(.60+.055*mouths+.06*g.jaw,.62,.88);
  const predatory=dietProfile(g).meat>.14&&g.jaw>=.55&&mouths>=1;
- const upkeep=.09+bodyMass*.008+Math.max(0,bodyMass-110)**1.2*.002+g.eyes*.018+mouths*.03+g.jaw*.02+Math.abs(g.deception-.5)*.035+(g.resist??.4)*.04;
+ const upkeep=.09+bodyMass*.008+Math.max(0,bodyMass-110)**1.2*.002+g.eyes*.045+Math.max(0,g.eyes-3)**2*.06+mouths*.03+g.jaw*.02+Math.abs(g.deception-.5)*.035+(g.resist??.4)*.04;
  const foodGain=1+Math.min(.42,(mouths-1)*.13);
  return {width,length,bodyMass,eyeRange,speed,turnRate,biteReach,edibleRatio,predatory,upkeep,foodGain};
 };
@@ -85,7 +85,7 @@ export class Ecosystem{
  terrain(x,y){return this.tiles[this.cell(x,y)];}
  gene(){
   const g={r:this.rand()<.15?this.range(8.5,12):this.range(3.1,7.5),
-   elongation:this.range(.65,2.85),eyes:Math.floor(this.rand()*7),
+   elongation:this.range(.65,2.85),eyes:(()=>{const roll=this.rand();return roll<.08?0:roll<.36?1:roll<.71?2:roll<.90?3:roll<.975?4:roll<.995?5:6;})(),
    mouths:1+Math.floor(this.rand()*4),jaw:this.range(.2,2.5),
    wet:this.rand(),dry:this.rand(),rock:this.rand(),
    shell:this.rand(),guard:this.rand(),nesting:this.rand(),
@@ -163,7 +163,7 @@ export class Ecosystem{
 
  spawn(x,y,g,parent=null){
   if(this.units.length>=155)return null;
-  const u={id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null};
+  const u={id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null};
   u.category=this.category(g);u.lineage??=u.id;this.units.push(u);
   if(!this.species.has(u.category)){
    const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(n),current:0,total:0,hue:g.hue,saturation:g.saturation,lightness:g.lightness,diet:dietProfile(g).label,first:this.tick,genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(n),u);
@@ -176,7 +176,7 @@ export class Ecosystem{
   if(u.dead)return;
   u.dead=true;u.courtPartner=null;this.species.get(u.category).current--;
   const mass=Math.max(8,morphology(u.g).bodyMass*1.2+Math.max(0,u.energy)*.4-consumed);
-  this.corpses.push({x:u.x,y:u.y,angle:u.angle,g:{...u.g},stage:u.stage,deathAge:u.age,mass,initialMass:mass,reserve:0,age:0,cause});
+  this.corpses.push({x:u.x,y:u.y,angle:u.angle,g:{...u.g},stage:u.stage,deathAge:u.age,mass,initialMass:mass,reserve:0,age:0,cause,seedBank:u.seedBank??0,seedPlanted:false});
   this.log('death','#'+u.id+' 死亡：'+cause,u);
   if(this.species.get(u.category).current===0)this.log('info',this.species.get(u.category).name+' が絶滅');
  }
@@ -398,6 +398,7 @@ export class Ecosystem{
   this.soil=new Float32Array(this.tiles.length);
   this.soilWater=new Float32Array(this.tiles.length);
   this.waterweed=new Float32Array(this.tiles.length);
+  this.seedRainCount=0;this.corpseSproutCount=0;
   for(let i=0;i<this.tiles.length;i++){
    if(this.tiles[i]===0)this.grass[i]=65+this.rand()*35;
    if(this.tiles[i]===1){this.water[i]=80+this.rand()*20;this.waterbed[i]=1;this.waterweed[i]=48+this.rand()*30;}
@@ -426,7 +427,7 @@ export class Ecosystem{
    const next=this.grass.slice();
    for(let i=0;i<this.tiles.length;i++){
     if(this.tiles[i]===0&&this.grass[i]>0){
-     next[i]=Math.min(100,this.grass[i]+(1.15+this.soil[i]*.095)*this.growth/70);
+     next[i]=Math.min(100,this.grass[i]+(2.5+this.soil[i]*.11)*this.growth/70);
     }
     if(this.grass[i]<=0&&this.tiles[i]!==1&&this.tiles[i]!==3){
      const x=i%NX,y=Math.floor(i/NX);
@@ -444,6 +445,20 @@ export class Ecosystem{
     this.soil[i]*=.997;
    }
    this.grass=next;
+  }
+  // Windborne seeds occasionally arrive on bare soil even without nearby grass.
+  // Rain makes germination more likely, while dry/rocky soil is less welcoming.
+  if(this.tick%12===0&&this.growth>0){
+   const attempts=6;
+   for(let n=0;n<attempts;n++){
+    const id=Math.floor(this.rand()*this.tiles.length);
+    if(this.tiles[id]!==2||this.grass[id]>0)continue;
+    const humidity=this.weather==='rain'?1.8:1;
+    if(this.rand()<(.10+this.soil[id]*.005)*humidity*this.growth/70){
+     this.tiles[id]=0;this.grass[id]=5+this.rand()*5;
+     this.seedRainCount++;
+    }
+   }
   }
   // Aquatic plants spread from surviving waterweed into nearby water cells.
   if(this.tick%12===0){
@@ -484,6 +499,17 @@ export class Ecosystem{
     if(this.grass[id]>0)this.grass[id]=Math.min(100,this.grass[id]+loss*.12);
     // Fertilizer alone cannot germinate a grassland with no surviving seeds.
     // Neighboring grass spreads into the fertilized cell in the growth phase.
+   }
+   // Plants can sprout from undigested seeds in herbivorous remains.
+   // The corpse acts as fertilizer as well as a seed carrier; bare rock and
+   // open water are not converted into pasture.
+   if(!c.seedPlanted&&(c.seedBank??0)>=.5&&c.age>=10&&this.tiles[id]===2){
+    const chance=clamp(.12+c.seedBank*.04,0,.8);
+    if(this.rand()<chance){
+     this.tiles[id]=0;this.grass[id]=Math.min(20,4+c.seedBank);
+     c.seedPlanted=true;this.corpseSproutCount++;
+     this.log('info','草食スライムの死骸から草が芽吹いた',c);
+    }
    }
    if(c.mass<.6){this.corpses.splice(i,1);this.recycled++;this.recycledByTerrain[this.terrain(c.x,c.y)]++;this.log('decay','死体の有機物と水分が地形に還元された',c);}
   }
@@ -642,8 +668,9 @@ export class Ecosystem{
      u.hp=Math.min(u.maxHp,u.hp+eaten*.2);this.log('meal','#'+u.id+' が水草を食べた',u);}
    }
    if(!flight&&!aquatic&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+13)**2){
-    const eaten=this.consumeGrass(nearest.x,nearest.y,Math.min(2.5,1.25*m.foodGain));
-    if(eaten>0){u.energy+=eaten*5.8*diet.plant*home.fitness;
+    const eaten=this.consumeGrass(nearest.x,nearest.y,Math.min(1.55,1.05*m.foodGain));
+    if(eaten>0){u.energy+=eaten*8.8*diet.plant*home.fitness;
+     u.seedBank=Math.min(100,(u.seedBank??0)+eaten*.35);
      u.hp=Math.min(u.maxHp,u.hp+eaten*.22*(1-body.old*.6));this.log('meal','#'+u.id+' が草を食べた',u);}
    }
    // A carnivore can also scavenge a corpse: deserts cannot support herbivores.
