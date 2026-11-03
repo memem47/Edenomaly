@@ -2090,3 +2090,53 @@ test('version upgrades discard obsolete ecology logs and never retain stale rows
  upgrade.clear();
  assert.equal(new EcologyLogbook(storage,'new-code').sampleCount,0);
 });
+
+import {seasonPalette} from './renderer.js';
+test('season temperatures match their visible seasons and change smoothly',()=>{
+ const w=new Ecosystem(9401);
+ w.weather='cloudy';w.baseTemperature=22;
+ const at=step=>{w.tick=step;w.updateTemperature();return w.temperature;};
+ const spring=at(300),summer=at(900),autumn=at(1500),winter=at(2100);
+ assert.ok(summer>spring+7);
+ assert.ok(spring>autumn+4);
+ assert.ok(autumn>winter+10);
+ assert.ok(winter<4);
+ for(const boundary of [600,1200,1800,2400]){
+  const before=at(boundary-1),after=at(boundary);
+  assert.ok(Math.abs(after-before)<1,'season boundary discontinuity at '+boundary);
+ }
+ w.climateEnabled=false;w.tick=2100;w.updateTemperature();
+ assert.equal(w.temperature,22);
+});
+test('all four terrain palettes are distinct and spring keeps original greens',()=>{
+ const spring=seasonPalette('spring'),summer=seasonPalette('summer'),
+  autumn=seasonPalette('autumn'),winter=seasonPalette('winter');
+ assert.equal(spring.terrain[0],TERRAIN_COLORS[0]);
+ assert.equal(spring.grass,'#89ec5e');
+ assert.notEqual(summer.terrain[0],spring.terrain[0]);
+ assert.notEqual(autumn.blade,spring.blade);
+ assert.notEqual(winter.water,summer.water);
+ assert.notEqual(winter.terrain[0],spring.terrain[0]);
+});
+test('autumn foliage and winter ice render without changing terrain and ecology',()=>{
+ const w=new Ecosystem(9402);
+ w.units=[];w.eggs=[];w.corpses=[];w.tiles.fill(0);
+ w.tiles[0]=1;w.water[0]=90;w.grass[1]=100;
+ const firstTiles=[...w.tiles],firstWater=w.water[0],rng=w.rng;
+ const colors=[];
+ const ctx=new Proxy({canvas:{width:800,height:460},createRadialGradient:()=>({addColorStop(){}})},{
+  get(o,k){return k in o?o[k]:()=>{};},
+  set(o,k,v){if(k==='fillStyle'||k==='strokeStyle')colors.push(v);o[k]=v;return true;}
+ });
+ w.tick=1500;w.updateTemperature();
+ drawWorld(ctx,w,false);
+ assert.ok(colors.includes('#ecbc50')||colors.includes('#b8582d')||colors.includes('#d76d31')||colors.includes('#a63e38'));
+ colors.length=0;
+ w.tick=2100;w.updateTemperature();
+ drawWorld(ctx,w,false);
+ assert.ok(colors.includes('rgba(231,249,255,.66)'));
+ assert.ok(colors.includes('rgba(255,255,255,.85)'));
+ assert.deepEqual([...w.tiles],firstTiles);
+ assert.equal(w.water[0],firstWater);
+ assert.equal(w.rng,rng);
+});
