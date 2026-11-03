@@ -758,12 +758,25 @@ export class Ecosystem{
  snapshot(){this.history.push({population:this.units.length,eggs:this.eggs.length,food:this.grass.reduce((a,b)=>a+b,0)+this.waterweed.reduce((a,b)=>a+b,0),corpses:this.corpses.length,temperature:this.temperature});if(this.history.length>180)this.history.shift();}
  seasonIndex(){return Math.floor((this.tick%(this.seasonLength*4))/this.seasonLength);}
  seasonName(){return ['spring','summer','autumn','winter'][this.seasonIndex()];}
+ seasonProgress(){return (this.tick%this.seasonLength)/this.seasonLength;}
+ // Seasons and ambient temperature share the exact same 600-step clock.
+ // Each boundary has a defined temperature, so there is no abrupt jump.
+ // Spring is the user's baseline, summer is warmer, autumn cools and
+ // winter reaches freezing temperatures. Late winter thaws into spring.
+ seasonalTemperature(){
+  const offsets=[0,10,-6,-21,0];
+  const index=this.seasonIndex(),progress=this.seasonProgress();
+  const eased=progress*progress*(3-2*progress);
+  return this.baseTemperature+offsets[index]+
+   (offsets[index+1]-offsets[index])*eased;
+ }
  updateTemperature(){
   if(!this.climateEnabled){this.temperature=this.baseTemperature;return;}
-  const season=8*Math.sin(this.tick*Math.PI*2/(this.seasonLength*4));
-  const shorter=2*Math.sin(this.tick*Math.PI*2/370+1.2);
-  const weather=this.weather==='sunny'?2:this.weather==='rain'?-3:-1;
-  this.temperature=clamp(this.baseTemperature+season+shorter+weather,-25,55);
+  const seasonal=this.seasonalTemperature();
+  // Weather and short variations are small relative to seasonal changes.
+  const weather=this.weather==='sunny'?1:this.weather==='rain'?-2:-.5;
+  const shorter=.8*Math.sin(this.tick*Math.PI*2/370+1.2);
+  this.temperature=clamp(seasonal+weather+shorter,-25,55);
   if(this.tick%80===0){this.temperatureHistory.push(this.temperature);if(this.temperatureHistory.length>120)this.temperatureHistory.shift();}
  }
  temperatureAt(x,y){return localTemperature(this.temperature,this.terrain(x,y));}
