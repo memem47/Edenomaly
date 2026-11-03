@@ -335,7 +335,7 @@ test('reset clears previously introduced life',()=>{
 test('water is impassable for poorly adapted creatures',()=>{
  const world=new Ecosystem(501);
  world.paint(220,220,1,2);
- const g={...world.gene(),wet:0};
+ const g={...world.gene(),wet:0,aquatic:0};
  assert.equal(terrainFitness(g,1).passable,false);
  assert.equal(terrainFitness({...g,wet:1,aquatic:1},1).passable,true);
 });
