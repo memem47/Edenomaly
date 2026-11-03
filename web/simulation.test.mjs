@@ -1,7 +1,7 @@
 // Run with: node --test web/simulation.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Ecosystem,morphology,organismMorphology,bodyCollisionAxes,localDensity,crowdStress,MAX_NUTRITION_GROWTH,adaptationColor} from './simulation.js';
+import {Ecosystem,morphology,organismMorphology,bodyCollisionAxes,localDensity,crowdStress,acquiredSizeMaintenance,feedingCapacity,energyStorageLimit,MAX_NUTRITION_GROWTH,adaptationColor} from './simulation.js';
 import {slimeEyeAngles,slimeEyeColor,slimeEyeLocation,drawWorld} from './renderer.js';
 const populated=seed=>{const s=new Ecosystem(seed);s.introduce(160,135,3);return s;};
 test('same seed creates same initial ecosystem',()=>{const a=populated(42),b=populated(42);assert.deepEqual(a.tiles,b.tiles);assert.deepEqual(a.units,b.units);});
@@ -1042,4 +1042,44 @@ test('high-density groups pay an actual extra energy cost during a simulation ti
  assert.ok(packed.a.crowdStress>0);
  assert.ok(packed.a.energy<sparse.a.energy-.15);
  assert.ok(packed.a.crowdStress<=9);
+});
+
+test('acquired giantism incurs strongly rising tissue-volume upkeep',()=>{
+ const make=scale=>({growthScale:scale});
+ assert.equal(acquiredSizeMaintenance(make(1)),0);
+ assert.ok(acquiredSizeMaintenance(make(1.6))>5);
+ assert.ok(acquiredSizeMaintenance(make(2.35))>20);
+ assert.ok(acquiredSizeMaintenance(make(2.35))>3*acquiredSizeMaintenance(make(1.6)));
+});
+test('giants can harvest more biomass but have a finite one-step feeding capacity',()=>{
+ const small={growthScale:1},giant={growthScale:2.35};
+ assert.ok(feedingCapacity(giant)>feedingCapacity(small)*2);
+ assert.ok(feedingCapacity(giant)<3);
+ const w=new Ecosystem(2501);w.tiles.fill(0);w.grass.fill(100);
+ const x=210,y=150;const original=w.grass[w.cell(x,y)];
+ const amount=w.consumeGrass(x,y,4);
+ assert.ok(amount>0);
+ assert.ok(w.grass[w.cell(x,y)]<original);
+});
+test('a stationary giant without food starves much sooner than an ordinary slime',()=>{
+ const simulate=scale=>{
+  const w=new Ecosystem(2502);w.tiles.fill(0);w.grass.fill(0);w.growth=0;
+  w.water.fill(0);w.waterbed.fill(0);
+  const g={...w.gene(),r:5,elongation:1,aquatic:0,diet:0};
+  const u=w.spawn(210,150,g);u.growthScale=scale;u.age=100;
+  u.maxHp=u.hp=10000;u.energy=energyStorageLimit(u);
+  for(let i=0;i<70&&!u.dead;i++)w.step();
+  return {alive:!u.dead,energy:u.energy,steps:w.tick};
+ };
+ const normal=simulate(1),big=simulate(2.35);
+ assert.equal(normal.alive,true);
+ assert.equal(big.alive,false);
+ assert.ok(big.steps<25);
+});
+test('an already giant creature cannot indefinitely hoard energy',()=>{
+ const w=new Ecosystem(2503);w.tiles.fill(0);w.grass.fill(0);w.growth=0;
+ const u=w.spawn(210,150,{...w.gene(),aquatic:0,diet:0});
+ u.growthScale=2.2;u.energy=100000;u.age=100;u.hp=u.maxHp=10000;
+ w.step();
+ assert.ok(u.energy<=energyStorageLimit(u));
 });
