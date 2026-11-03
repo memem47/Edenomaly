@@ -96,7 +96,10 @@ test('courtship links both living parents before conception',()=>{
  for(let i=0;i<45;i++)a.pregnancy.remaining--;
  const egg=s.layEgg(a);
  assert.ok(egg);assert.equal(egg.parent,a.id);assert.equal(egg.otherParent,b.id);
- assert.equal(s.eggTrails.length,1);
+ assert.equal(s.eggTrails.length,0);
+ // A clutch stays clustered behind its parent instead of scattering far away.
+ const origin=rearPosition(a,0);
+ assert.ok(s.eggs.every(e=>Math.hypot(e.x-origin.x,e.y-origin.y)<25));
 });
 test('courtship breaks when the couple separates',()=>{
  const s=populated(89),a=s.units[0],b=s.units[1];
