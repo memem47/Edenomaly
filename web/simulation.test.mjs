@@ -574,3 +574,27 @@ test('corpse moisture can establish a new pond on bare land',()=>{
  for(let i=0;i<200;i++)w.step();
  assert.ok([...w.tiles].some(t=>t===1));
 });
+
+test('corpse decomposition cannot create new permanent waterbeds',()=>{
+ const w=new Ecosystem(1401);
+ w.tiles.fill(2);w.waterbed.fill(0);w.water.fill(0);
+ for(let i=0;i<20;i++){
+  const u=w.spawn(160+(i%5)*35,150+Math.floor(i/5)*35,{...w.gene(),aquatic:0});
+  w.die(u,'test');
+ }
+ w.units=[];for(let i=0;i<160;i++)w.step();
+ assert.ok(w.soilWater.some(v=>v>0));
+ assert.ok(w.waterbed.every(v=>v===0));
+ assert.ok(w.tiles.every(v=>v!==1));
+});
+test('natural rainfall setting changes water reserves without increasing waterbed area',()=>{
+ const runs=[];
+ for(const rainfall of [0,25,100]){
+  const w=new Ecosystem(1402);w.rainfall=rainfall;
+  const beds=w.waterbed.reduce((a,b)=>a+b,0);
+  for(let i=0;i<540;i++)w.step();
+  assert.equal(w.waterbed.reduce((a,b)=>a+b,0),beds);
+  runs.push(w.water.reduce((a,b)=>a+b,0));
+ }
+ assert.ok(runs[0]<runs[1]&&runs[1]<runs[2]);
+});
