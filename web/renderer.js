@@ -5,19 +5,17 @@ const TAU=Math.PI*2;
 export function slimeEyeAngles(g){
  const count=Math.max(0,Math.min(6,Math.trunc(g.eyes??0)));
  if(count===0)return [];
+ if(count===1)return [0];
  if(count>=5)return Array.from({length:count},(_,i)=>TAU*i/count);
- const diet=g.diet??.5;
- if(diet>.7){
-  return Array.from({length:count},(_,i)=>count===1?0:(i/(count-1)-.5)*1.12);
- }
- if(diet<.3){
-  return Array.from({length:count},(_,i)=>{
-   const side=i%2===0?-1:1;
-   const row=Math.floor(i/2);
-   return side*(Math.PI/2)+(row?side*.28:0);
-  });
- }
- return Array.from({length:count},(_,i)=>count===1?0:(i/(count-1)-.5)*Math.PI*1.6);
+ // Most eyes face somewhat forward. Existing inherited diet and protection
+ // alter peripheral vision, without introducing a redundant appearance gene.
+ // Fully lateral eyes require an uncommon combination of protective and
+ // herbivorous traits; they remain possible and heritable.
+ const diet=Math.max(0,Math.min(1,g.diet??.5));
+ const guard=Math.max(0,Math.min(1,g.guard??.5));
+ const lateral=guard>.93&&diet<.19;
+ const spread=lateral?Math.PI/2:.27+.43*(1-diet)+.16*guard;
+ return Array.from({length:count},(_,i)=>(i/(count-1)*2-1)*spread);
 }
 export function slimeEyeColor(g){
  const c=adaptationColor(g);
@@ -140,7 +138,7 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   const g=u.g,signal=dietProfile(g).signal,life=vitality(u),
    scale=(u.stage==='juvenile'?.55:1)*(u.growthScale??1)*(1-life.old*.12)*(dead?u.decayScale:1),
    halfL=g.r*g.elongation*scale,halfW=g.r*scale,phase=s.tick*.18+u.id;
-  if(dead){ctx.save();ctx.globalAlpha=.70*Math.max(.2,Math.sqrt(Math.max(0,u.corpseMass/u.corpseInitialMass)));}
+  if(dead){ctx.save();ctx.globalAlpha=.88*Math.max(.28,Math.sqrt(Math.max(0,u.corpseMass/u.corpseInitialMass)));}
 
   if(u.courtPartner||u.pregnancy){
    ctx.save();ctx.strokeStyle=u.pregnancy?'#ffe59b':'#ff93e9';ctx.lineWidth=2.5;
