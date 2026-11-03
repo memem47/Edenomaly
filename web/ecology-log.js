@@ -18,6 +18,7 @@ export function observeEcology(game){
   grass+=game.grass[i];waterweed+=game.waterweed[i];water+=game.water[i];soil+=game.soil[i];
  }
  for(const u of game.units){
+  if(u.dead)continue;
   if(u.stage==='juvenile')juveniles++;
   if(u.g.diet<.3)herbivores++;else if(u.g.diet>.7)carnivores++;else omnivores++;
   energy+=u.energy;hp+=u.hp/Math.max(1,u.maxHp);
@@ -25,7 +26,7 @@ export function observeEcology(game){
   infected+=u.infection>0?1:0;
   maxGeneration=Math.max(maxGeneration,u.generation);
  }
- const n=game.units.length,totalBirths=[...game.species.values()].reduce((sum,s)=>sum+s.total,0);
+ const n=game.units.filter(u=>!u.dead).length,totalBirths=[...game.species.values()].reduce((sum,s)=>sum+s.total,0);
  const causes=game.deathCauses??{};
  const starvation=causes['飢餓']??0;
  const predation=(causes['捕食']??0)+(causes['卵の捕食']??0);
