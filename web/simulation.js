@@ -114,6 +114,24 @@ export const localDensity=(u,neighbors)=>{
  }
  return load;
 };
+// Single neighboring scan for both relative density and absolute habitat load.
+export const crowdMetrics=(u,neighbors)=>{
+ const axes=bodyCollisionAxes(u),area=Math.max(1,axes.rx*axes.ry);
+ const reach=48+Math.min(14,axes.rx*.45);
+ let density=0,occupied=axes.rx*axes.ry;
+ for(const v of neighbors){
+  if(v===u||v.dead)continue;
+  const dx=v.x-u.x,dy=v.y-u.y,d2=dx*dx+dy*dy;
+  if(d2>=65*65)continue;
+  const d=Math.sqrt(d2),body=bodyCollisionAxes(v),otherArea=body.rx*body.ry;
+  if(d<reach){
+   const relativeArea=Math.sqrt(Math.max(1,otherArea)/area);
+   density+=Math.min(2.3,Math.max(.55,relativeArea))*(1-d/reach);
+  }
+  occupied+=otherArea*(1-d/65);
+ }
+ return {density,habitatLoad:Math.max(0,occupied/170-1.5)};
+};
 export const crowdStress=density=>Math.min(9,Math.max(0,density-2.5));
 // Carrying capacity is based on ABSOLUTE occupied area, not body size relative
 // to the focal slime. Large individuals exhaust the space and resources of a
@@ -879,10 +897,9 @@ export class Ecosystem{
     if(v===u||v.dead||dietProfile(v.g).plant<.25)continue;
     if(distance(u,v)<48**2){rivals++;if(organismMorphology(v).bodyMass>m.bodyMass*.95)stronger++;}
    }
-   const density=localDensity(u,near);
+   const {density,habitatLoad}=crowdMetrics(u,near);
    const congestion=crowdStress(density);
    u.crowdStress=congestion;
-   const habitatLoad=habitatCrowding(u,near);
    u.habitatLoad=habitatLoad;
    const pressure=(rivals+stronger*.7)/(1+GROWTH[t]*5)+congestion*.6+habitatLoad*.55;
    // Kin-specific contact disease is more likely in dense founder lineages.
