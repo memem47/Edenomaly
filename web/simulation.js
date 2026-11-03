@@ -901,6 +901,9 @@ export class Ecosystem{
    const youth=u.stage==='juvenile'?.50:1,body=vitality(u),sight=m.eyeRange*home.sight;
    const thermal=thermalFitness(g,this.temperatureAt(u.x,u.y));
    u.thermalComfort=thermal.comfort;u.temperature=this.temperatureAt(u.x,u.y);
+   // Life declines naturally each step; damage, infection, and harsh environments
+   // consume the same finite reserve. Feeding provides energy, not extra years.
+   u.hp-=u.maxHp/1350*(1+Math.max(0,u.age-500)/1200);
    u.hp-=thermal.damage;u.energy-=thermal.upkeep;
    const near=unitGrid.query(u.x,u.y,Math.max(145,sight*1.6),false);
    const aquatic=g.aquatic===1,underwater=t===1&&this.water[this.cell(u.x,u.y)]>0;
@@ -1094,7 +1097,7 @@ export class Ecosystem{
     const eaten=this.consumeWaterweed(nearest.x,nearest.y,Math.min(5.5,1.3*m.foodGain*feedingCapacity(u)));
     if(eaten>0){u.energy+=eaten*7.5*diet.plant*home.fitness;
      u.recentFood=(u.recentFood??0)+eaten*4;
-     u.hp=Math.min(u.maxHp,u.hp+eaten*.2);
+     // Eating sustains energy but cannot replenish spent lifespan.
      if((this.tick+u.id)%9===0)this.addVisualEffect('waterweed',u,{fromX:nearest.x,fromY:nearest.y});
      this.log('meal','#'+u.id+' が水草を食べた',u);}
    }
@@ -1103,7 +1106,7 @@ export class Ecosystem{
     if(eaten>0){u.energy+=eaten*10.5*diet.plant*home.fitness;
      u.recentFood=(u.recentFood??0)+eaten*4;
      u.seedBank=Math.min(100,(u.seedBank??0)+eaten*.35);
-     u.hp=Math.min(u.maxHp,u.hp+eaten*.22*(1-body.old*.6));
+     // Grass restores energy reserves, not irreversible life HP.
      if((this.tick+u.id)%9===0)this.addVisualEffect('graze',u,{fromX:nearest.x,fromY:nearest.y});
      this.log('meal','#'+u.id+' が草を食べた',u);}
    }
@@ -1145,7 +1148,7 @@ export class Ecosystem{
      u.growthScale+=increment;
      const enlarged=organismMorphology(u);
      const maxHp=Math.max(25,Math.round(enlarged.bodyMass*.48+25));
-     if(maxHp>u.maxHp){u.hp+=maxHp-u.maxHp;u.maxHp=maxHp;}
+     if(maxHp>u.maxHp)u.maxHp=maxHp; // Larger body is not a free HP refill.
     }
    }
    // Starved organisms gradually lose their acquired oversized body mass.
@@ -1153,7 +1156,7 @@ export class Ecosystem{
     u.growthScale=Math.max(1,u.growthScale-(85-u.energy)*.000045);
    // Limit stored reserves so immobile giants cannot live on old stockpiles.
    if((u.growthScale??1)>1.05)u.energy=Math.min(u.energy,energyStorageLimit(u));
-   if(u.hp<=0)this.die(u,thermal.excess>0?'気温による衰弱':u.infection>0?'感染症':'環境衰弱');else if(u.energy<=0)this.die(u,'飢餓');else if(u.age>1500)this.die(u,'寿命');
+   if(u.hp<=0)this.die(u,thermal.excess>0?'気温による衰弱':u.infection>0?'感染症':'寿命・衰弱');else if(u.energy<=0)this.die(u,'飢餓');else if(u.age>2500)this.die(u,'寿命');
   }
   this.resolveUnitOverlap();
   this.updateCourtships();
