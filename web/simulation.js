@@ -85,13 +85,13 @@ export const rearPosition=(u,offset=0)=>({
  x:clamp(u.x-Math.cos(u.angle)*(u.g.r*u.g.elongation+5+offset),6,W-6),
  y:clamp(u.y-Math.sin(u.angle)*(u.g.r*u.g.elongation+5+offset),6,H-6)
 });
-const HERITABLE=['r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic'];
-const INTEGER_GENES=new Set(['eyes','mouths','brood','aquatic']);
-const LIMITS={r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1]};
+const HERITABLE=['r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic','albino'];
+const INTEGER_GENES=new Set(['eyes','mouths','brood','aquatic','albino']);
+const LIMITS={r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1],albino:[0,1]};
 const alleleExpression=(key,pair)=>{
  // Eyes: more-eye allele is dominant; hidden low-eye alleles can reappear in grandchildren.
  // Other continuous traits use incomplete dominance (mean of the two inherited copies).
- const raw=key==='eyes'||key==='aquatic'?Math.max(...pair):(pair[0]+pair[1])/2;
+ const raw=key==='eyes'?Math.max(...pair):key==='aquatic'?pair[0]:key==='albino'?Math.max(...pair):(pair[0]+pair[1])/2;
  const [lo,hi]=LIMITS[key];
  const val=clamp(INTEGER_GENES.has(key)?Math.round(raw):raw,lo,hi);
  return val;
@@ -120,13 +120,15 @@ export class Ecosystem{
    shell:this.rand(),guard:this.rand(),nesting:this.rand(),
    brood:1+Math.floor(this.rand()*8),diet:this.rand(),
    deception:clamp(.5+this.range(-.42,.42),0,1),resist:this.rand(),
-   aquatic:this.rand()<.25?1:0};
+   aquatic:this.rand()<.25?1:0,albino:this.rand()<.0015?1:0};
   // Each founding individual carries two genetic copies per locus, including
   // recessive alleles that are not necessarily visible in its phenotype.
   g.alleles={};
   for(const key of HERITABLE){
    let second=g[key];
-   if(key==='eyes'&&this.rand()<.82)second=Math.max(0,g.eyes-1-Math.floor(this.rand()*3));
+   if(key==='albino')second=0;
+   else if(key==='aquatic'&&this.rand()<.14)second=1-g.aquatic;
+   else if(key==='eyes'&&this.rand()<.82)second=Math.max(0,g.eyes-1-Math.floor(this.rand()*3));
    else if(key!=='aquatic'&&key!=='eyes'&&this.rand()<.75){
     const range=LIMITS[key][1]-LIMITS[key][0];
     second=clamp(g[key]+this.range(-.36,.36)*range,...LIMITS[key]);
@@ -148,7 +150,8 @@ export class Ecosystem{
    const index=this.rand()<.5?0:1;
    const [lo,hi]=LIMITS[key],width=hi-lo;
    let value=next.alleles[key][index];
-   if(key==='aquatic')value=this.rand()<.12?1-value:value;
+   if(key==='aquatic')value=1-value;
+   else if(key==='albino')value=1-value;
    else if(INTEGER_GENES.has(key))value+=this.rand()<.5?-1:1;
    else value+=this.range(-.24,.24)*width;
    next.alleles[key][index]=clamp(value,lo,hi);
@@ -164,6 +167,27 @@ export class Ecosystem{
    child.alleles[key]=pair;
    child[key]=alleleExpression(key,pair);
   }
+  // Rare body-plan changes create stable aquatic/terrestrial lineages.
+  // Selection still decides whether an innovator survives its habitat.
+  if(this.rand()<.038){
+   const habitat=1-child.aquatic;
+   child.alleles.aquatic=[habitat,habitat];child.aquatic=habitat;
+   if(habitat===1){
+    child.wet=Math.max(child.wet,.68);
+    child.alleles.wet=[child.wet,child.wet];
+   }else{
+    child.dry=Math.max(child.dry,.52);
+    child.alleles.dry=[child.dry,child.dry];
+   }
+  }
+  // Noticeable but infrequent jumps allow dry or rocky specialization.
+  if(this.rand()<.13){
+   const trait=this.rand()<.5?'dry':'rock';
+   const improved=clamp(child[trait]+this.range(.18,.43),0,1);
+   child.alleles[trait]=[improved,improved];child[trait]=improved;
+  }
+  // Extremely rare stable inherited pigment loss, distinct from damage flash.
+  if(this.rand()<.0025){child.albino=1;child.alleles.albino=[1,1];}
   return this.rand()<.32?this.mutate(child):child;
  }
  category(g){
