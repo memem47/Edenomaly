@@ -696,6 +696,42 @@ export class Ecosystem{
   if(this.weather==='rain'&&this.rainfall>0&&this.tick%30===0)
    this.replenishWater(1.8*this.weatherStrength);
  }
+ // Steering helper: a goal inside impassable terrain must not trap an
+ // organism in a turn-into-obstacle / reverse-heading loop.
+ navigate(u,target,desired,speed,turnRate,arrivalRadius=0){
+  if(target&&distance(u,target)<=arrivalRadius*arrivalRadius){
+   u.detourUntil=0;u.blockedSteps=0;
+   return 'arrived';
+  }
+  if((u.detourUntil??0)>this.tick)desired=u.detourHeading;
+  const turn=Math.atan2(Math.sin(desired-u.angle),Math.cos(desired-u.angle));
+  u.angle+=clamp(turn,-turnRate,turnRate)+this.range(-.04,.04);
+  const canMove=angle=>{
+   const nx=clamp(u.x+Math.cos(angle)*speed,7,W-7);
+   const ny=clamp(u.y+Math.sin(angle)*speed,7,H-7);
+   if((nx-u.x)**2+(ny-u.y)**2<=Math.max(.0001,speed*speed*.04))return null;
+   return terrainFitness(u.g,this.terrain(nx,ny)).passable?{x:nx,y:ny}:null;
+  };
+  let next=canMove(u.angle);
+  if(next){u.x=next.x;u.y=next.y;u.blockedSteps=0;return 'moved';}
+  u.blockedSteps=(u.blockedSteps??0)+1;
+  const sign=u.detourSide??(u.id%2===0?1:-1);
+  for(const sweep of [.45,.90,1.40,1.95,2.55,Math.PI]){
+   for(const direction of [sign,-sign]){
+    const candidate=u.angle+direction*sweep;
+    next=canMove(candidate);
+    if(!next)continue;
+    u.detourSide=direction;u.detourHeading=candidate;
+    u.detourUntil=this.tick+22;
+    u.angle=candidate;u.x=next.x;u.y=next.y;
+    return 'detour';
+   }
+  }
+  // Truly enclosed: avoid a new 130-degree rotation on every frame.
+  u.detourUntil=0;
+  if(u.blockedSteps>12){u.blockedSteps=0;u.refugeTarget=null;}
+  return 'blocked';
+ }
  step(){
   stepCache={diet:new WeakMap(),morph:new WeakMap(),axes:new WeakMap()};
   this.tick++;
@@ -987,16 +1023,22 @@ export class Ecosystem{
    if(flight)target=null;
    const desired=flight?Math.atan2(u.y-danger.y,u.x-danger.x)
       :target?Math.atan2(target.y-u.y,target.x-u.x):u.angle+this.range(-.5,.5);
-   const turn=Math.atan2(Math.sin(desired-u.angle),Math.cos(desired-u.angle));u.angle+=clamp(turn,-m.turnRate,m.turnRate)+this.range(-.09,.09);
    const terrainMove=home.move;
    const courtingMate=u.courtPartner?byId.get(u.courtPartner):null;
    const speed=m.speed*body.vigor*thermal.activity*(u.stage==='juvenile'?.8:1)*terrainMove
      *(flight?1.24:courtingMate&&distance(u,courtingMate)<22**2?.20:1)
      *(flight?1:Math.max(.55,1-congestion*.06));
-   const nextX=clamp(u.x+Math.cos(u.angle)*speed,7,W-7);
-   const nextY=clamp(u.y+Math.sin(u.angle)*speed,7,H-7);
-   if(terrainFitness(g,this.terrain(nextX,nextY)).passable){u.x=nextX;u.y=nextY;}
-   else u.angle+=Math.PI*.72;
+   // Targets are satisfied at contact range. Repeatedly overshooting food
+   // or a partner looks like stationary spinning, and wastes resources.
+   const arrivalRadius=!target||flight?0:
+     target===mate||target===courtingMate?18:
+     target===nearest||target===nearestCorpse?Math.max(7,m.biteReach+5):
+     target===ownEgg?14:
+     target===targetEgg?Math.max(3,m.biteReach*.75):
+     target===prey||target===defenderTarget||target===rival?Math.max(3,m.biteReach*.7):
+     target===u.refugeTarget?11:
+     this.terrain(target.x,target.y)===1&&g.aquatic!==1?25:9;
+   this.navigate(u,target,desired,speed,m.turnRate,arrivalRadius);
    u.hp-=home.hazard;
    // Terrain-fit offspring retain energy and can reproduce more successfully.
    const adaptationCost=clamp(1.65-home.fitness*.75,.70,1.5)*(1.08-.08*thermal.comfort);
