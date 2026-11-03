@@ -135,7 +135,19 @@ export class Ecosystem{
   }
   return this.rand()<.23?this.mutate(child):child;
  }
- category(g){return [Math.floor(g.r/2),Math.floor(g.elongation/.65),g.eyes,g.mouths,Math.floor(g.jaw/.65),Math.floor(g.wet*3),Math.floor(g.dry*3),Math.floor(g.shell*3),Math.floor(g.guard*3),Math.floor(g.nesting*3),Math.floor(g.hue/60),Math.floor(g.saturation/25),Math.floor(g.lightness/25),Math.ceil(g.brood/2),Math.floor(g.diet*4),Math.floor(dietProfile(g).signal*4),Math.floor(g.rock*3),Math.floor((g.resist??.4)*3),g.aquatic??0].join('-');}
+ category(g){
+  // A species represents a recognizable ecological/morphological strategy.
+  // Cosmetic color and small differences in 19 separate genes must NOT generate
+  // hundreds of nominally different species.
+  const m=morphology(g),d=dietProfile(g).diet;
+  const diet=d<.32?'plant':d>.70?'hunter':'mixed';
+  const body=m.bodyMass<45?'tiny':m.bodyMass<105?'medium':m.bodyMass<195?'large':'giant';
+  const eyes=g.eyes===0?'blind':g.eyes<=2?'few':g.eyes<=4?'several':'allround';
+  const shape=g.elongation<1.38?'round':g.elongation<2.25?'oval':'long';
+  // Habitat is a functional trait, not just a difference in appearance.
+  const habitat=g.aquatic===1?'aquatic':g.dry>=.70&&g.dry>g.rock+.10?'dry':g.rock>=.70&&g.rock>g.dry+.10?'rock':'land';
+  return [habitat,diet,body,shape,eyes].join('-');
+ }
  name(n){return PREFIX[(n*7+2)%PREFIX.length]+SUFFIX[(n*3+1)%SUFFIX.length]+'-'+String(n).padStart(3,'0');}
  log(type,message,point){this.logs.unshift({type,message,step:this.tick});if(this.logs.length>500)this.logs.pop();if(point&&this.effects.length<140)this.effects.push({type,x:point.x,y:point.y,age:0});}
  addFood(x,y,n,spread=8,source='natural'){
