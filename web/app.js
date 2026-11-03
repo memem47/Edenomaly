@@ -1,5 +1,5 @@
 import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology} from './simulation.js';
-import {drawWorld,drawChart} from './renderer.js';
+import {drawWorld,drawChart} from './renderer.js?v=visual-effects-6';
 const $=id=>document.getElementById(id);
 const game=new Ecosystem();
 const canvas=$('world'),ctx=canvas.getContext('2d'),graph=$('chart').getContext('2d');
