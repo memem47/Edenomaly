@@ -766,7 +766,10 @@ export class Ecosystem{
  seasonalTemperature(){
   const offsets=[0,10,-6,-21,0];
   const index=this.seasonIndex(),progress=this.seasonProgress();
-  const eased=progress*progress*(3-2*progress);
+  // Keep each season characteristic for most of its span, then transition
+  // smoothly during the final quarter (including late-winter thaw).
+  const transition=Math.max(0,Math.min(1,(progress-.75)/.25));
+  const eased=transition*transition*(3-2*transition);
   return this.baseTemperature+offsets[index]+
    (offsets[index+1]-offsets[index])*eased;
  }
