@@ -599,3 +599,22 @@ test('natural rainfall setting changes water reserves without increasing waterbe
  }
  assert.ok(runs[0]<runs[1]&&runs[1]<runs[2]);
 });
+
+test('aquatic plants supply energy without consuming water as food',()=>{
+ const w=new Ecosystem(1501);w.tiles.fill(1);w.water.fill(80);w.waterweed.fill(0);
+ const x=210,y=150,i=w.cell(x,y);w.waterweed[i]=55;
+ const g={...w.gene(),aquatic:1,diet:0};
+ const u=w.spawn(x,y,g);u.energy=25;u.age=100;
+ w.units=[u];w.growth=0;w.stress=0;
+ const water=w.water[i],weed=w.waterweed[i];w.step();
+ assert.ok(u.energy>25);assert.ok(w.waterweed[i]<weed);
+ assert.ok(w.water[i]>water-.3);
+});
+test('aquatic plants need surviving plants to reproduce',()=>{
+ const w=new Ecosystem(1502);w.tiles.fill(1);w.water.fill(100);w.waterweed.fill(0);
+ w.growth=100;for(let i=0;i<60;i++)w.step();
+ assert.ok(w.waterweed.every(v=>v===0));
+ const i=w.cell(210,150);w.waterweed[i]=20;
+ for(let j=0;j<24;j++)w.step();
+ assert.ok(w.waterweed[i]>20);
+});
