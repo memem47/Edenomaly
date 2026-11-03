@@ -545,6 +545,7 @@ test('offspring remain genetically varied within one large clutch',()=>{
  const a=w.units[0],b=w.units[1];
  a.g.brood=8;b.g.brood=8;a.energy=b.energy=200;
  a.age=b.age=100;
+ for(const u of [a,b]){u.g.r=7;u.g.alleles.r=[4,10];u.g.diet=.5;u.g.alleles.diet=[.1,.9];u.g.eyes=6;u.g.alleles.eyes=[2,6];}
  const p=w.conceive(a,b);
  assert.ok(p);assert.ok(p.genomes.length>=10);
  const expressions=new Set(p.genomes.map(g=>[g.eyes,g.r.toFixed(2),g.diet.toFixed(2)].join(':')));
