@@ -1475,3 +1475,53 @@ test('resource rivalry damages same-sex competitors regardless of diet',()=>{
  assert.ok(b.hp<before);
  assert.ok(s.effects.some(x=>x.type==='rivalStrike'));
 });
+
+import {thermalFitness,localTemperature,TERRAIN_TEMPERATURE_OFFSETS} from './simulation.js';
+test('temperature varies with season and weather, and microclimates differ',()=>{
+ const w=new Ecosystem(932);
+ const initial=w.temperature;
+ w.tick=600;w.updateTemperature();
+ assert.notEqual(w.temperature,initial);
+ assert.ok(localTemperature(22,2)>localTemperature(22,0));
+ assert.ok(localTemperature(22,1)<localTemperature(22,0));
+ assert.equal(TERRAIN_TEMPERATURE_OFFSETS.length,4);
+});
+test('thermal adaptation is inherited, bounded, and has a tolerance tradeoff',()=>{
+ const w=new Ecosystem(933);
+ for(let i=0;i<250;i++){
+  const child=w.recombine(w.gene(),w.gene());
+  assert.ok(child.idealTemp>=-5&&child.idealTemp<=40);
+  assert.ok(child.tempTolerance>=3&&child.tempTolerance<=18);
+  const mutated=w.mutate(child);
+  assert.ok(mutated.idealTemp>=-5&&mutated.idealTemp<=40);
+  assert.ok(mutated.tempTolerance>=3&&mutated.tempTolerance<=18);
+ }
+ const narrow={idealTemp:22,tempTolerance:6};
+ const broad={idealTemp:22,tempTolerance:16};
+ assert.ok(thermalFitness(broad,34).comfort>thermalFitness(narrow,34).comfort);
+ assert.ok(thermalFitness(broad,22).upkeep>thermalFitness(narrow,22).upkeep);
+});
+test('comfort improves activity and reproduction, and extremes cause damage',()=>{
+ const g={idealTemp:24,tempTolerance:8};
+ const ideal=thermalFitness(g,24),hot=thermalFitness(g,44),cold=thermalFitness(g,0);
+ assert.equal(ideal.damage,0);
+ assert.equal(ideal.reproduction,true);
+ assert.ok(ideal.activity>hot.activity);
+ assert.ok(hot.damage>0&&cold.damage>0);
+ assert.equal(hot.reproduction,false);
+ const w=new Ecosystem(934),u=w.spawn(200,200,{...w.gene(),idealTemp:24,tempTolerance:8});
+ u.age=100;u.energy=180;
+ w.temperature=24;w.temperatureAt=()=>24;
+ assert.equal(w.isReadyToMate(u),true);
+ w.temperatureAt=()=>44;
+ assert.equal(w.isReadyToMate(u),false);
+});
+test('ambient temperature is recorded and resets with the world',()=>{
+ const w=new Ecosystem(935);
+ w.baseTemperature=37;w.tick=90;w.updateTemperature();
+ assert.ok(w.temperature>30);
+ w.snapshot();assert.equal(w.history.at(-1).temperature,w.temperature);
+ w.reset();
+ assert.equal(w.baseTemperature,22);
+ assert.equal(w.temperature,22);
+});
