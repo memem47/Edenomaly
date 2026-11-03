@@ -1,4 +1,4 @@
-import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep} from './simulation.js?v=nutrient-juveniles-1';
+import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=species-genecode-1';
 import {drawWorld,drawChart} from './renderer.js?v=crowd-gloss-1';
 const $=id=>document.getElementById(id);
 const game=new Ecosystem();
@@ -48,7 +48,7 @@ function speciesGenomeHTML(key){
  if(!genome)return '<p class="muted">この種の遺伝子記録はありません。</p>';
  const origin=representative?'現存する代表個体 #'+representative.id:'発見時に保存した遺伝子';
  const fields=Object.entries(GENE_LABELS).filter(([gene])=>genome[gene]!==undefined).map(([gene,label])=>{const pair=genome.alleles?.[gene];return `<div class="gene"><span>${escapeHTML(label)} <small>${gene}</small>${pair?`<small class="allele-pair">遺伝子型 ${pair.map(v=>escapeHTML(genomeValue(gene,v))).join(' / ')}</small>`:''}</span><b>${escapeHTML(genomeValue(gene,genome[gene]))}</b></div>`;}).join('');
- return `<div class="genome-heading"><strong>${escapeHTML(species.name)} の遺伝子</strong><button type="button" data-close-genome="true">閉じる</button></div><p class="muted">${escapeHTML(origin)}。同じ形態分類内でも遺伝子は個体ごとに異なる場合があります。</p><div class="genome-grid">${fields}</div>`;
+ return `<div class="genome-heading"><strong>${escapeHTML(species.name)} の遺伝子</strong><button type="button" data-close-genome="true">閉じる</button></div><p class="muted">${escapeHTML(origin)}。種名は8つの分類特徴から固定生成されるため、初期化しても同じ分類なら同名です。詳細遺伝子コードは21項目の数値を16段階に丸めたものです。同じ種でも個体ごとに異なる場合があります。</p><p class="muted"><strong>遺伝子コード：<code>${genomeCode(genome)}</code></strong></p><div class="genome-grid">${fields}</div>`;
 }
 function update(){
  const dietCounts=[0,0,0];for(const u of game.units){const d=dietProfile(u.g).diet;dietCounts[d<.3?0:d>.7?2:1]++;}
