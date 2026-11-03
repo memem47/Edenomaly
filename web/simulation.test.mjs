@@ -1739,6 +1739,10 @@ test('overgrazing slows regrowth and recovers when grazers leave',()=>{
  assert.ok(open.w.soil[open.at]>=packed.w.soil[packed.at]);
  const before=packed.w.grass[packed.at];
  packed.w.units=[];
+ // A surviving neighboring plant can recolonize an overgrazed empty patch.
+ const neighbor=packed.at+1;
+ packed.w.tiles[neighbor]=0;packed.w.grass[neighbor]=80;
+ packed.w.rand=()=>0;
  for(let i=0;i<18;i++)packed.w.step();
  assert.ok(packed.w.grass[packed.at]>before);
 });
