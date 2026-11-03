@@ -598,7 +598,7 @@ export class Ecosystem{
   }
  }
  reset(){
-  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];
+  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];this.climateEnabled=true;this.seasonLength=600;
   this.setupTerrain();
   this.grass=new Float32Array(this.tiles.length);
   this.water=new Float32Array(this.tiles.length);
@@ -614,8 +614,11 @@ export class Ecosystem{
   this.log('info','生命は未移入。種類数を選んでフィールドへ生命を移入してください');this.snapshot();
  }
  snapshot(){this.history.push({population:this.units.length,eggs:this.eggs.length,food:this.grass.reduce((a,b)=>a+b,0)+this.waterweed.reduce((a,b)=>a+b,0),corpses:this.corpses.length,temperature:this.temperature});if(this.history.length>180)this.history.shift();}
+ seasonIndex(){return Math.floor((this.tick%(this.seasonLength*4))/this.seasonLength);}
+ seasonName(){return ['spring','summer','autumn','winter'][this.seasonIndex()];}
  updateTemperature(){
-  const season=8*Math.sin(this.tick*Math.PI*2/2400);
+  if(!this.climateEnabled){this.temperature=this.baseTemperature;return;}
+  const season=8*Math.sin(this.tick*Math.PI*2/(this.seasonLength*4));
   const shorter=2*Math.sin(this.tick*Math.PI*2/370+1.2);
   const weather=this.weather==='sunny'?2:this.weather==='rain'?-3:-1;
   this.temperature=clamp(this.baseTemperature+season+shorter+weather,-25,55);
