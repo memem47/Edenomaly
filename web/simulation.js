@@ -420,8 +420,14 @@ export class Ecosystem{
   this.addVisualEffect('strike',prey,{fromX:hunter.x,fromY:hunter.y});
   this.log('attack','#'+hunter.id+' が #'+prey.id+' に '+Math.round(damage)+' ダメージ',prey);
   if(prey.hp<=0){
-   const gained=Math.max(5,prey.energy*.35)*dietProfile(hunter.g).meat;
-   hunter.energy+=gained;this.die(prey,'捕食',gained);
+   // A large prey supplies an exceptional meal, but the eaten tissue is
+   // removed from the corpse so nutrients are never counted twice.
+   const meat=dietProfile(hunter.g).meat;
+   const tissue=Math.max(4,organismMorphology(prey).bodyMass*.23);
+   const gained=(Math.max(5,prey.energy*.35)+tissue)*meat;
+   hunter.energy+=gained;
+   hunter.recentFood=(hunter.recentFood??0)+tissue*meat*1.3;
+   this.die(prey,'捕食',tissue*meat);
    this.addVisualEffect('consume',prey);
    this.log('pred','#'+hunter.id+' が #'+prey.id+' を捕食',prey);
   }
