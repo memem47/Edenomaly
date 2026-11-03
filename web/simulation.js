@@ -12,6 +12,7 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 // Low adaptation values produce green; wet->cyan/blue, dry->amber,
 // rock->violet. Circular hue mixing avoids a discontinuity around 360 degrees.
 export const adaptationColor=g=>{
+ if(g.albino===1)return {hue:0,saturation:4,lightness:91};
  const wet=clamp(g.wet??0,0,1),dry=clamp(g.dry??0,0,1),rock=clamp(g.rock??0,0,1);
  const anchors=[[118,.42],[199,2.5*wet*wet],[32,2.4*dry*dry],[280,2.4*rock*rock]];
  let x=0,y=0;
