@@ -8,8 +8,8 @@ let localLogStorage=null;
 try{localLogStorage=window.localStorage;}catch{}
 const ecologyLog=new EcologyLogbook(localLogStorage,LOG_VERSION);
 const recordStep=()=>ecologyLog.record(observeEcology(game));
-const canvas=$('world'),ctx=canvas.getContext('2d'),graph=$('chart').getContext('2d');
-let running=false,speed=1,mode='spawn',filter='all',brush=3,selected=null,selectedSpecies=null,catalogMarkup='',painting=false,last=0,acc=0,uiAt=0;
+const canvas=$('world'),ctx=canvas.getContext('2d'),graph=$('chart').getContext('2d'),longGraph=$('ecologyLongChart').getContext('2d');
+let running=false,speed=1,mode='spawn',filter='all',brush=3,selected=null,selectedSpecies=null,catalogMarkup='',painting=false,last=0,acc=0,uiAt=0,logRunOptions='',selectedLogRun=null;
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const GENE_LABELS={r:'体の大きさ',elongation:'体の長さ比',eyes:'目の数',mouths:'口の能力',jaw:'顎の能力',wet:'水への適応',dry:'乾燥への適応',rock:'岩場への適応',aquatic:'水生／陸生',shell:'卵殻',guard:'卵の保護',nesting:'産卵場所',brood:'産卵数',diet:'食性',deception:'擬態',resist:'感染抵抗力',longevity:'長寿特性',albino:'白色変異'};
 function genomeValue(key,value){return key==='aquatic'?(value===1?'水生':'陸生'):typeof value==='number'?(Number.isInteger(value)?String(value):value.toFixed(3)):String(value);}
@@ -82,7 +82,20 @@ function update(){
  $('habitats').innerHTML=TERRAIN_NAMES.map((name,i)=>`<div><span><span style="display:inline-block;width:11px;height:11px;background:${TERRAIN_COLORS[i]};margin-right:5px"></span>${name}</span><span>植物生産性 ${Math.round(TERRAIN_FERTILITY[i]*100)}% / 生命 ${people[i]} / 適応度平均 ${people[i]?(fitness[i]/people[i]).toFixed(2):'—'} / 資源 ${Math.round(food[i])} / 死体 ${corpses[i]}</span></div>`).join('');
  $('inspector').textContent=selected&&!selected.dead?`#${selected.id} ${game.species.get(selected.category)?.name}｜性別 ${selected.sex==='H'?'⚥ 雌雄同体':selected.sex==='F'?'♀ メス':'♂ オス'}｜繁殖方式 ${selected.g.repro===1?'雌雄同体':selected.g.repro===2?'単為生殖可能':'雌雄異体'}｜適温 ${selected.g.idealTemp.toFixed(1)}℃｜耐性 ±${selected.g.tempTolerance.toFixed(1)}℃｜現在気温 ${game.temperatureAt(selected.x,selected.y).toFixed(1)}℃｜温度適合 ${Math.round(thermalFitness(selected.g,game.temperatureAt(selected.x,selected.y)).comfort*100)}%｜体格 ×${(selected.growthScale??1).toFixed(2)}｜幅 ${(selected.g.r*(selected.growthScale??1)).toFixed(1)}｜長さ比 ${selected.g.elongation.toFixed(2)}｜目 ${selected.g.eyes}｜口 ${selected.g.mouths}｜顎 ${selected.g.jaw.toFixed(2)}｜水適応 ${selected.g.wet.toFixed(2)}｜乾燥適応 ${selected.g.dry.toFixed(2)}｜段階 ${selected.stage==='juvenile'?'幼体':'成体'}${selected.stage==='juvenile'?`｜幼体成長 ${Math.round((selected.juvenileGrowth??0)*100)}%`:''}｜現在地 ${TERRAIN_NAMES[game.terrain(selected.x,selected.y)]}（適応度 ${terrainFitness(selected.g,game.terrain(selected.x,selected.y)).fitness.toFixed(2)}）｜水辺 ${selected.g.wet.toFixed(2)}・乾燥地 ${selected.g.dry.toFixed(2)}・岩場 ${selected.g.rock.toFixed(2)}｜移住 ${selected.migrations}｜水中視界 ${Math.round(terrainFitness(selected.g,1).sight*100)}%｜生息型 ${selected.g.aquatic===1?'水生':'陸生'}｜水分 ${Math.round(selected.hydration)}｜離水 ${selected.stranded}｜水没 ${selected.submerged}｜水進入 ${terrainFitness(selected.g,1).passable?'可能':'不可'}｜乾燥危険 ${terrainFitness(selected.g,2).hazard.toFixed(2)}｜感染 ${selected.infection>0?'あり':'なし'}｜同系統の近隣 ${selected.localCrowd??0}｜食性 ${dietProfile(selected.g).label} (${Math.round(dietProfile(selected.g).diet*100)}%肉食寄り)｜外見 ${dietProfile(selected.g).signal>.55?'肉食型':dietProfile(selected.g).signal<.45?'栄養食型':'中間型'}｜擬態 ${Math.abs(dietProfile(selected.g).diet-dietProfile(selected.g).signal)>.38?'あり':'なし'}｜行動 ${selected.fleeing?'逃走中':'通常'}｜一度に産む卵 ${selected.g.brood}｜体色 ${selected.g.albino===1?'白色変異':'地形適応に連動'}｜卵殻 ${selected.g.shell.toFixed(2)}｜保護 ${selected.g.guard.toFixed(2)}｜産卵場所 ${selected.g.nesting.toFixed(2)}｜生命力 ${Math.round(selected.hp)}/${selected.maxHp}｜長寿特性 ×${(selected.g.longevity??1).toFixed(2)}｜自然HP減少 ${lifeDrain(selected,{temperature:game.temperatureAt(selected.x,selected.y),terrain:game.terrain(selected.x,selected.y)}).toFixed(3)}/step｜老化 ${Math.round(vitality(selected).old*100)}%｜活力 ${Math.round(vitality(selected).vigor*100)}%｜エネルギー ${selected.energy.toFixed(1)}｜繁殖 ${selected.pregnancy?'産卵準備中 '+selected.pregnancy.remaining+'ステップ':selected.courtPartner?'求愛中 #'+selected.courtPartner:'通常'}｜両親 ${selected.parent===null?'始祖':'#'+selected.parent+' / #'+selected.otherParent}｜第${selected.generation}世代`:'観察モードで生命をクリック。';
  $('diagnostic').textContent=`生存 ${game.units.length}体・卵 ${game.eggs.length}個。局所的な空間負荷平均 ${averageCrowding.toFixed(2)}。新形態：直近300ステップで ${game.recentSpecies} 種。第1世代以降の割合 ${game.units.length?Math.round(descendants.length/game.units.length*100):0}%。環境適応度平均 ${averageFitness.toFixed(2)}。${game.units.length?'生き残る遺伝子と多様な子孫の変化を観察できます。':game.introducedCount===0?'生命の移入待ちです。':'全個体が絶滅しました。移入で再開できます。'}`;
- $('ecologyLogStatus').textContent=`記録バージョン ${LOG_VERSION} ｜ ${ecologyLog.data.runs.length}試行 ｜ ${ecologyLog.sampleCount.toLocaleString('ja-JP')}行 ｜ 50ステップごとに保存（この端末・ブラウザ内）`;
+ const status=ecologyLog.lastSaveOk===false?'保存できません（ブラウザの保存設定・空き容量を確認）':'このブラウザに自動保存';
+ $('ecologyLogStatus').textContent=`記録バージョン ${LOG_VERSION} ｜ ${ecologyLog.data.runs.length}試行 ｜ ${ecologyLog.sampleCount.toLocaleString('ja-JP')}行 ｜ 50ステップごと ｜ ${status}`;
+ const runOptions=ecologyLog.data.runs.map(run=>`<option value="${run.id}">試行 #${run.id}（Seed ${run.seed}）</option>`).join('');
+ if(runOptions!==logRunOptions){
+  logRunOptions=runOptions;$('ecologyRun').innerHTML=runOptions;
+ }
+ if(selectedLogRun===null||!ecologyLog.data.runs.some(run=>run.id===selectedLogRun))
+  selectedLogRun=ecologyLog.data.runs.at(-1)?.id??null;
+ $('ecologyRun').value=selectedLogRun??'';
+ const displayed=ecologyLog.data.runs.find(run=>run.id===selectedLogRun);
+ drawChart(longGraph,displayed?.samples??[]);
+ $('ecologyLogSummary').textContent=displayed?.samples?.length?
+  `Step ${displayed.samples[0].step}～${displayed.samples.at(-1).step} ｜ 生存個体 最小 ${Math.min(...displayed.samples.map(row=>row.population))}・最大 ${Math.max(...displayed.samples.map(row=>row.population))}・最終 ${displayed.samples.at(-1).population}`:
+  '生命を移入すると記録が始まります。';
  drawChart(graph,game.history);
 }
 function render(){drawWorld(ctx,game,$('effects').checked,selected);}
@@ -115,6 +128,7 @@ $('catalog').addEventListener('click',e=>{
  if(details)details.scrollIntoView({block:'nearest'});
 });
 $('play').onclick=()=>{if(game.introducedCount===0){mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));return;}running=!running;update();};$('stepOnce').onclick=()=>{if(game.introducedCount===0)return;running=false;game.step();if(game.tick%50===0)recordStep();update();render();};$('speed').onclick=()=>{speed=speed===1?3:speed===3?8:1;$('speed').textContent='速度 ×'+speed;};$('reset').onclick=()=>reset();
+$('ecologyRun').onchange=e=>{selectedLogRun=Number(e.target.value);update();};
 $('downloadEcologyLog').onclick=()=>{
  const csv=ecologyLog.toCSV(),blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
  const url=URL.createObjectURL(blob),link=document.createElement('a');
@@ -124,7 +138,7 @@ $('downloadEcologyLog').onclick=()=>{
 };
 $('clearEcologyLog').onclick=()=>{
  if(!window.confirm('このバージョンの生態系推移ログをすべて削除しますか？'))return;
- ecologyLog.clear();
+ ecologyLog.clear();selectedLogRun=null;logRunOptions='';
  if(game.introducedCount>0){ecologyLog.start(game.initialSeed);ecologyLog.record(observeEcology(game),true);}
  update();
 };
