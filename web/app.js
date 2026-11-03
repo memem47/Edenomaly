@@ -1,5 +1,5 @@
 import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=seasons-1';
-import {drawWorld,drawChart} from './renderer.js?v=ecology-logs-1';
+import {drawWorld,drawChart} from './renderer.js?v=seasons-1';
 import {EcologyLogbook,observeEcology} from './ecology-log.js?v=ecology-logs-1';
 const $=id=>document.getElementById(id);
 const game=new Ecosystem();
