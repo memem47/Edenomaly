@@ -95,6 +95,22 @@ export const localDensity=(u,neighbors)=>{
  return load;
 };
 export const crowdStress=density=>Math.min(9,Math.max(0,density-2.5));
+// Carrying capacity is based on ABSOLUTE occupied area, not body size relative
+// to the focal slime. Large individuals exhaust the space and resources of a
+// small patch even when every neighbor is similarly large.
+export const habitatCrowding=(u,neighbors)=>{
+ const a=bodyCollisionAxes(u),radius=65;
+ let occupied=a.rx*a.ry;
+ for(const v of neighbors){
+  if(v===u||v.dead)continue;
+  const d=Math.hypot(v.x-u.x,v.y-u.y);
+  if(d>=radius)continue;
+  const b=bodyCollisionAxes(v);
+  occupied+=b.rx*b.ry*(1-d/radius);
+ }
+ return Math.max(0,(occupied/170-1.5));
+};
+
 
 // Collision geometry follows the actual drawn ellipse, including adult growth.
 // Treats infants as smaller bodies; collisions are soft, not rigid-body physics.
@@ -299,7 +315,7 @@ export class Ecosystem{
   return best;
  }
  isReadyToMate(u){
-  return !u.dead&&u.infection===0&&(u.crowdStress??0)<3&&(u.localCrowd??0)<13&&u.stage==='adult'&&u.age>42&&u.energy>=58+Math.max(0,organismMorphology(u).bodyMass-100)*.22&&u.mateCooldown===0&&!u.pregnancy&&vitality(u).vigor>.35;
+  return !u.dead&&u.infection===0&&(u.habitatLoad??0)<1.8&&(u.crowdStress??0)<3&&(u.localCrowd??0)<13&&u.stage==='adult'&&u.age>42&&u.energy>=58+Math.max(0,organismMorphology(u).bodyMass-100)*.22&&u.mateCooldown===0&&!u.pregnancy&&vitality(u).vigor>.35;
  }
  findMate(u,batch){
   if(!this.isReadyToMate(u))return null;
@@ -747,7 +763,9 @@ export class Ecosystem{
    const density=localDensity(u,batch);
    const congestion=crowdStress(density);
    u.crowdStress=congestion;
-   const pressure=(rivals+stronger*.7)/(1+GROWTH[t]*5)+congestion*.6;
+   const habitatLoad=habitatCrowding(u,batch);
+   u.habitatLoad=habitatLoad;
+   const pressure=(rivals+stronger*.7)/(1+GROWTH[t]*5)+congestion*.6+habitatLoad*.55;
    // Kin-specific contact disease is more likely in dense founder lineages.
    // A new mutation is not instantly immune: lineage persists across offspring.
    let relatives=0,infectious=0;
@@ -764,8 +782,10 @@ export class Ecosystem{
    }
    // Crowded colonies consume more energy and stop producing offspring as easily.
    u.energy-=Math.min(.85,Math.max(0,rivals-3)*.075)+congestion*.11;
+   // The area burden is especially expensive for large, near-stationary bodies.
+   u.energy-=Math.min(32,habitatLoad*(.85+Math.max(0,(u.growthScale??1)-1)*.85));
    u.localCrowd=relatives;
-   const seekRefuge=!u.courtPartner&&!u.pregnancy&&!flight&&(pressure>1.35||relatives>7||congestion>2)&&u.energy<170;
+   const seekRefuge=!u.courtPartner&&!u.pregnancy&&!flight&&(pressure>1.35||relatives>7||congestion>2||habitatLoad>1.2);
    if(seekRefuge&&(this.tick+u.id)%14===0){
     let best=null,bestScore=-Infinity;
     for(let i=0;i<12;i++){
@@ -870,7 +890,7 @@ export class Ecosystem{
    // even high reserves alone cannot cause growth without active feeding.
    const foodNeeded=exceptional?48+Math.max(0,u.growthScale-NORMAL_NUTRITION_GROWTH)*45:2.5;
    const energyNeeded=exceptional?190:115;
-   if(u.stage==='adult'&&u.energy>energyNeeded&&u.recentFood>foodNeeded&&u.growthScale<MAX_NUTRITION_GROWTH){
+   if(u.stage==='adult'&&(u.habitatLoad??0)<.8&&u.energy>energyNeeded&&u.recentFood>foodNeeded&&u.growthScale<MAX_NUTRITION_GROWTH){
     const baseRate=.0018+Math.min(.003,u.recentFood*.00014);
     const increment=Math.min(MAX_NUTRITION_GROWTH-u.growthScale,baseRate*(exceptional?.42:1));
     const cost=increment*(135+115*u.growthScale+(exceptional?110*u.growthScale*u.growthScale:0));
