@@ -279,20 +279,14 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
      ctx.lineTo(fx.x+Math.cos(a)*outer,fx.y+Math.sin(a)*outer);ctx.stroke();
     }
    }else if(fx.type==='consume'||fx.type==='scavenge'){
-    // Pink-violet absorption ring and particles moving into the consumer.
-    const color=fx.type==='consume'?'#ff5aab':'#bf70ff';
-    ctx.strokeStyle=color;ctx.lineWidth=3*(1-t)+.6;
-    ctx.beginPath();ctx.arc(fx.x,fx.y,17-t*13,0,TAU);ctx.stroke();
-    ctx.fillStyle='#ffe1fa';
-    for(let i=0;i<7;i++){const a=TAU*i/7,rad=18*(1-t)+2;
-     ctx.beginPath();ctx.arc(fx.x+Math.cos(a)*rad,fx.y+Math.sin(a)*rad,2.6*(1-t)+.5,0,TAU);ctx.fill();
+    // Fading, compact sparks preserve predation feedback without large rings.
+    ctx.fillStyle=fx.type==='consume'?'#ffb0cf':'#cbb0ff';
+    for(let i=0;i<3;i++){
+     const angle=TAU*i/3,rad=7*(1-t)+1;
+     ctx.beginPath();ctx.arc(fx.x+Math.cos(angle)*rad,fx.y+Math.sin(angle)*rad,1.8*(1-t)+.5,0,TAU);ctx.fill();
     }
    }else if(fx.type==='drink'){
-    // Blue ripples, visibly unlike grazing or attacking.
-    ctx.strokeStyle='#b5f3ff';ctx.lineWidth=2.2*(1-t)+.5;
-    ctx.beginPath();ctx.arc(fx.x,fx.y,3+t*13,0,TAU);ctx.stroke();
-    ctx.strokeStyle='#39b9fa';ctx.lineWidth=1.4;
-    ctx.beginPath();ctx.arc(fx.x,fx.y,2+t*7,Math.PI*.08,Math.PI*.92);ctx.stroke();
+    // No repeated drink ripples; water-seeking movement remains visible.
    }else{
     // Food fragments converge from plant location toward the slime's center.
     const aquatic=fx.type==='waterweed';
