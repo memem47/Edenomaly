@@ -1,7 +1,7 @@
 // Run with: node --test web/simulation.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Ecosystem,morphology,organismMorphology,MAX_NUTRITION_GROWTH} from './simulation.js';
+import {Ecosystem,morphology,organismMorphology,MAX_NUTRITION_GROWTH,adaptationColor} from './simulation.js';
 import {slimeEyeAngles,slimeEyeColor,slimeEyeLocation,drawWorld} from './renderer.js';
 const populated=seed=>{const s=new Ecosystem(seed);s.introduce(160,135,3);return s;};
 test('same seed creates same initial ecosystem',()=>{const a=populated(42),b=populated(42);assert.deepEqual(a.tiles,b.tiles);assert.deepEqual(a.units,b.units);});
@@ -128,14 +128,16 @@ test('large clutches cost more parental energy',()=>{
  };
  assert.ok(run(8)>run(1));
 });
-test('pigment and brood genes remain within bounds after mutation',()=>{
+test('brood is bounded and redundant pigmentation genes stay absent after mutation',()=>{
  const s=populated(94);
  for(let i=0;i<100;i++){
   const g=s.mutate(s.gene());
   assert.ok(g.brood>=1&&g.brood<=8&&Number.isInteger(g.brood));
   assert.equal(g.pattern,undefined);
-  assert.ok(g.saturation>=35&&g.saturation<=100);
-  assert.ok(g.lightness>=35&&g.lightness<=85);
+  for(const key of ['hue','saturation','lightness']){
+   assert.equal(Object.hasOwn(g,key),false);
+   assert.equal(Object.hasOwn(g.alleles,key),false);
+  }
  }
 });
 
@@ -676,8 +678,7 @@ test('many-eyed slimes see around their entire rim and zero eyes stay eyeless',(
 
 test('cosmetic alleles do not split functionally identical slimes into new species',()=>{
  const w=new Ecosystem(1601),g=w.gene();
- const twin={...g,hue:(g.hue+130)%360,saturation:40,lightness:81,
-  shell:1-g.shell,guard:1-g.guard,nesting:1-g.nesting};
+ const twin={...g,shell:1-g.shell,guard:1-g.guard,nesting:1-g.nesting};
  assert.equal(w.category(g),w.category(twin));
  const a=w.spawn(180,130,g),b=w.spawn(210,130,twin);
  assert.equal(a.category,b.category);
@@ -785,10 +786,10 @@ test('starvation cannot generate growth, and acquired growth is bounded',()=>{
  assert.ok(u.growthScale<=MAX_NUTRITION_GROWTH);
 });
 
-test('eye color follows inherited body hue and eyes stay visibly inside the oval',()=>{
+test('eye color follows habitat adaptation and eyes stay visibly inside the oval',()=>{
  const w=new Ecosystem(1901),g=w.gene();
- const red={...g,hue:2},blue={...g,hue:210};
- assert.notEqual(slimeEyeColor(red),slimeEyeColor(blue));
+ const wet={...g,wet:1,dry:0,rock:0},dry={...g,wet:0,dry:1,rock:0};
+ assert.notEqual(slimeEyeColor(wet),slimeEyeColor(dry));
  const pos=slimeEyeLocation(.9,35,20);
  assert.ok((pos.x/35)**2+(pos.y/20)**2<.6);
 });
@@ -839,4 +840,32 @@ test('old corpse remains recyclable but is not drawn as a dark stain',()=>{
  assert.equal(ovalCount,0); // Old corpses are no longer rendered.
  assert.equal(corpse.mass,saved);
  assert.equal(w.corpses.length,1);
+});
+
+test('color traits derive from wet dry rock adaptation, with no independent genes',()=>{
+ const world=new Ecosystem(2001);
+ const grass={...world.gene(),wet:0,dry:0,rock:0};
+ const water={...grass,wet:1,dry:0,rock:0};
+ const desert={...grass,wet:0,dry:1,rock:0};
+ const stone={...grass,wet:0,dry:0,rock:1};
+ const hsv=[grass,water,desert,stone].map(adaptationColor);
+ assert.ok(hsv[0].hue>=90&&hsv[0].hue<=135);
+ assert.ok(hsv[1].hue>=170&&hsv[1].hue<=225);
+ assert.ok(hsv[2].hue>=20&&hsv[2].hue<=65);
+ assert.ok(hsv[3].hue>=245&&hsv[3].hue<=305);
+ assert.ok(new Set(hsv.map(x=>Math.round(x.hue))).size===4);
+ assert.ok(hsv.every(x=>Number.isFinite(x.hue)&&x.saturation>=58&&x.lightness<=70));
+});
+test('offspring inherit adapted body color only through their environment genes',()=>{
+ const world=new Ecosystem(2002);
+ const a=world.gene(),b=world.gene();
+ const child=world.recombine(a,b);
+ const expected=adaptationColor(child);
+ const unrelated={...child,hue:300,saturation:1,lightness:1};
+ assert.deepEqual(adaptationColor(unrelated),expected);
+ for(const key of ['hue','saturation','lightness']){
+  assert.equal(Object.hasOwn(a,key),false);
+  assert.equal(Object.hasOwn(child,key),false);
+  assert.equal(Object.hasOwn(child.alleles,key),false);
+ }
 });
