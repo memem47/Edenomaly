@@ -60,6 +60,11 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
    ctx.strokeStyle='#65638e';ctx.lineWidth=1;ctx.stroke();
   }
  }
+ // Weather darkens the terrain lightly without hiding organisms or map resources.
+ if(s.weather==='cloudy'||s.weather==='rain'){
+  ctx.fillStyle=s.weather==='rain'?'rgba(30,64,126,.13)':'rgba(50,78,107,.085)';
+  ctx.fillRect(0,0,width,height);
+ }
  ctx.strokeStyle='rgba(33,58,88,.08)';ctx.lineWidth=.5;ctx.beginPath();
  for(let x=0;x<width;x+=cell){ctx.moveTo(x,0);ctx.lineTo(x,height);}
  for(let y=0;y<height;y+=cell){ctx.moveTo(0,y);ctx.lineTo(width,y);}
@@ -166,6 +171,22 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
    }
    ctx.restore();
   }
+ }
+ // Falling rain: deterministic diagonal streaks, never one particle object per drop.
+ // This is visual-only and works even when the world is paused.
+ if(s.weather==='rain'){
+  const strength=Math.max(.3,s.weatherStrength??.6);
+  const count=Math.round(45+strength*115);
+  ctx.save();ctx.beginPath();ctx.rect(0,0,width,height);ctx.clip();
+  ctx.strokeStyle='rgba(220,251,255,.67)';ctx.lineWidth=1.2;ctx.lineCap='round';
+  ctx.beginPath();
+  for(let i=0;i<count;i++){
+   const x=((i*137.47+s.tick*2.8+i%5*14)% (width+40))-20;
+   const y=((i*83.19+s.tick*7.2)% (height+40))-20;
+   const len=8+strength*8+(i%4);
+   ctx.moveTo(x,y);ctx.lineTo(x-4,y+len);
+  }
+  ctx.stroke();ctx.restore();
  }
  if(showEffects){const colors={birth:'#91f7ac',death:'#ff8290',meal:'#f9d36b',pred:'#be82ec',new:'#ffe486',decay:'#e2b96e',mate:'#f5a5ed',egg:'#efd6a4',hatch:'#95eec2',eggeaten:'#f7818d'};for(const f of s.effects){if(f.type==='strike'||f.type==='consume')continue;ctx.save();ctx.globalAlpha=Math.max(0,1-f.age/35);ctx.strokeStyle=colors[f.type]||'#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(f.x,f.y,5+f.age*.65,0,TAU);ctx.stroke();ctx.restore();}}
 }
