@@ -467,7 +467,7 @@ export class Ecosystem{
   return true;
  }
  attack(hunter,prey,defensive=false){
-  if(hunter===prey||hunter.dead||prey.dead||hunter.bite>0||(!defensive&&dietProfile(hunter.g).meat<=0)||(defensive&&protectiveDrive(hunter.g)<=.34))return false;
+  if(hunter===prey||hunter.dead||prey.dead||hunter.bite>0||(!defensive&&dietProfile(hunter.g).meat<=0)||(defensive===true&&protectiveDrive(hunter.g)<=.34))return false;
   const mm=organismMorphology(hunter),v=vitality(hunter),def=vitality(prey);
   const damage=Math.max(2,(4+hunter.g.jaw*7+mm.bodyMass*.065)*(defensive==='rival'?.42:defensive?.65+protectiveDrive(hunter.g)*.65:dietProfile(hunter.g).meat)*v.vigor);
   prey.hp=Math.max(0,prey.hp-damage);
