@@ -1574,10 +1574,11 @@ test('collision size is continuous across the juvenile-adult stage change',()=>{
 });
 
 import {SpatialLookup,crowdMetrics} from './simulation.js';
-test('population cap allows 600 living organisms but not the 601st',()=>{
+test('ecological population targets are below the emergency safety cap',()=>{
  const w=new Ecosystem(8621),g=w.gene();
- for(let i=0;i<600;i++)assert.ok(w.spawn(20+(i*17)%760,20+(i*29)%420,g));
- assert.equal(w.units.length,600);
+ for(let i=0;i<601;i++)assert.ok(w.spawn(20+(i*17)%760,20+(i*29)%420,g));
+ assert.equal(w.units.length,601);
+ for(let i=601;i<2000;i++)assert.ok(w.spawn(20+(i*17)%760,20+(i*29)%420,g));
  assert.equal(w.spawn(100,100,g),null);
 });
 test('spatial index queries exactly match brute-force neighbors in original order',()=>{
@@ -1626,4 +1627,41 @@ test('damage mark positions vary per individual but are stable across renders',(
  assert.deepEqual(first,injuryMarks(a,16,10));
  assert.notDeepEqual(first,injuryMarks(b,16,10));
  assert.ok(first.every(m=>Number.isFinite(m.x)&&Number.isFinite(m.y)&&m.rx>0&&m.ry>0));
+});
+
+test('soil intervention increases local fertility and can revive depleted dry land',()=>{
+ const w=new Ecosystem(8661);
+ w.tiles.fill(2);w.grass.fill(0);w.soil.fill(0);
+ const center=w.cell(200,180),stone=w.cell(240,180);
+ w.tiles[stone]=3;
+ const treated=w.fertilize(200,180,2);
+ assert.ok(treated>0);
+ assert.equal(w.tiles[center],0);
+ assert.ok(w.grass[center]>0);
+ assert.ok(w.soil[center]>=65);
+ assert.equal(w.tiles[stone],3);
+ assert.equal(w.soil[stone],0);
+ const now=w.grass[center];
+ for(let i=0;i<6;i++)w.step();
+ assert.ok(w.grass[center]>now);
+});
+test('resource-based reproduction has no arbitrary crowd-count veto',()=>{
+ const w=new Ecosystem(8662),g=w.gene();
+ const u=w.spawn(240,180,g);
+ u.age=110;u.stage='adult';u.energy=250;u.infection=0;u.mateCooldown=0;
+ w.temperatureAt=()=>u.g.idealTemp;
+ u.localCrowd=35;u.crowdStress=8;u.habitatLoad=3;
+ // Local pressure raises energy needed rather than forbidding healthy adults.
+ assert.equal(w.isReadyToMate(u),true);
+ u.energy=58;
+ assert.equal(w.isReadyToMate(u),false);
+});
+test('more bodies mean more habitat occupation and higher maintenance',()=>{
+ const w=new Ecosystem(8663),g={...w.gene(),r:5,elongation:1,aquatic:0};
+ const anchor=w.spawn(300,210,g);anchor.age=100;
+ const sparse=habitatCrowding(anchor,w.units);
+ for(let i=0;i<15;i++)w.spawn(300+(i%5)*7,210+Math.floor(i/5)*7,g);
+ const dense=habitatCrowding(anchor,w.units);
+ assert.ok(dense>sparse);
+ assert.ok(dense>0);
 });
