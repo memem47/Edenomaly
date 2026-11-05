@@ -1,6 +1,7 @@
 import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=seasons-japan-1';
 import {drawWorld,drawChart} from './renderer.js?v=seasons-japan-1';
 import {EcologyLogbook,observeEcology} from './ecology-log.js?v=ecology-logs-1';
+import {performancePolicy,simulationBatch,BROWSER_BACKGROUND_INTERVAL} from './performance-policy.js?v=video-friendly-1';
 const $=id=>document.getElementById(id);
 const game=new Ecosystem();
 const LOG_VERSION=new URL(import.meta.url).searchParams.get('v')||'development';
@@ -9,7 +10,7 @@ try{localLogStorage=window.localStorage;}catch{}
 const ecologyLog=new EcologyLogbook(localLogStorage,LOG_VERSION);
 const recordStep=()=>ecologyLog.record(observeEcology(game));
 const canvas=$('world'),ctx=canvas.getContext('2d'),graph=$('chart').getContext('2d'),longGraph=$('ecologyLongChart').getContext('2d');
-let running=false,speed=1,mode='spawn',filter='all',brush=3,selected=null,selectedSpecies=null,catalogMarkup='',painting=false,last=0,acc=0,uiAt=0,logRunOptions='',selectedLogRun=null;
+let running=false,speed=1,mode='spawn',filter='all',brush=3,selected=null,selectedSpecies=null,catalogMarkup='',painting=false,last=0,acc=0,uiAt=0,paintAt=0,rafId=null,backgroundTimer=null,logRunOptions='',selectedLogRun=null;
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const GENE_LABELS={r:'体の大きさ',elongation:'体の長さ比',eyes:'目の数',mouths:'口の能力',jaw:'顎の能力',wet:'水への適応',dry:'乾燥への適応',rock:'岩場への適応',aquatic:'水生／陸生',shell:'卵殻',guard:'卵の保護',nesting:'産卵場所',brood:'産卵数',diet:'食性',deception:'擬態',resist:'感染抵抗力',longevity:'長寿特性',albino:'白色変異'};
 function genomeValue(key,value){return key==='aquatic'?(value===1?'水生':'陸生'):typeof value==='number'?(Number.isInteger(value)?String(value):value.toFixed(3)):String(value);}
@@ -103,15 +104,54 @@ function reset(){
  ecologyLog.end(ecologyLog.activeId===null?null:observeEcology(game));
  game.reset();selected=null;selectedSpecies=null;running=false;mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));syncSliders();update();render();}
 function syncSliders(){$('growth').value=game.growth;$('growthValue').value=game.growth;$('stress').value=game.stress;$('stressValue').value=game.stress;$('rainfall').value=game.rainfall;$('rainfallValue').value=game.rainfall;$('temperature').value=game.baseTemperature;$('temperatureValue').value=game.baseTemperature+'℃';$('climateEnabled').checked=game.climateEnabled;}
-function frame(time){if(!last)last=time;const dt=Math.min(.08,(time-last)/1000);last=time;game.visualTick=(game.visualTick??0)+dt*30;if(running){
-  // Do not process a backlog of 10 expensive simulation ticks in one frame.
-  // Dense worlds remain interactive rather than freezing on catch-up work.
-  const dense=game.units.length>250;
-  acc=Math.min(dense?2:10,acc+dt*14*speed);
-  const n=Math.min(dense?1:10,Math.floor(acc));
-  acc-=n;
-  for(let i=0;i<n;i++){game.step();if(game.tick%50===0)recordStep();}
- }for(const fx of game.effects)fx.age+=dt*30;game.effects=game.effects.filter(fx=>fx.age<35);render();if(time-uiAt>180){update();uiAt=time;}requestAnimationFrame(frame);}
+// The foreground animation is display-rate limited. Simulation ticks have
+// their own budget, so the renderer cannot monopolize the video decoder/GPU.
+function stepSimulation(){
+ game.step();
+ if(game.tick%50===0)recordStep();
+}
+function frame(time){
+ rafId=null;
+ if(document.hidden)return;
+ const dt=last?Math.max(0,Math.min(100,time-last)):0;
+ last=time;
+ game.visualTick=(game.visualTick??0)+dt*.03;
+ const policy=performancePolicy(game.units.length,$('lowImpactMode').checked);
+ if(running){
+  const batch=simulationBatch(acc,dt,policy,speed);
+  acc=batch.carry;
+  for(let i=0;i<batch.steps;i++)stepSimulation();
+ }
+ if(time-paintAt>=policy.paintInterval){
+  for(const fx of game.effects)fx.age+=Math.min(100,dt)*.03;
+  game.effects=game.effects.filter(fx=>fx.age<35);
+  render();
+  paintAt=time;
+ }
+ if(time-uiAt>=policy.uiInterval){update();uiAt=time;}
+ rafId=requestAnimationFrame(frame);
+}
+// requestAnimationFrame is usually suspended in an inactive tab or while
+// another tab is fullscreen. Use a low-frequency timer instead, without
+// graphics work or an expensive backlog catch-up when visibility returns.
+function backgroundStep(){
+ backgroundTimer=null;
+ if(!document.hidden)return;
+ if(running)stepSimulation();
+ backgroundTimer=setTimeout(backgroundStep,BROWSER_BACKGROUND_INTERVAL);
+}
+function syncVisibility(){
+ if(document.hidden){
+  if(rafId!==null){cancelAnimationFrame(rafId);rafId=null;}
+  if(backgroundTimer!==null)clearTimeout(backgroundTimer);
+  backgroundTimer=setTimeout(backgroundStep,BROWSER_BACKGROUND_INTERVAL);
+ }else{
+  if(backgroundTimer!==null){clearTimeout(backgroundTimer);backgroundTimer=null;}
+  last=0;acc=0;paintAt=0;uiAt=0;
+  if(rafId===null)rafId=requestAnimationFrame(frame);
+ }
+}
+document.addEventListener('visibilitychange',syncVisibility);
 function coords(e){const b=canvas.getBoundingClientRect();return {x:Math.max(0,Math.min(WORLD.width-.1,(e.clientX-b.left)/b.width*WORLD.width)),y:Math.max(0,Math.min(WORLD.height-.1,(e.clientY-b.top)/b.height*WORLD.height))};}
 function interact(e){const {x,y}=coords(e);if(['0','1','2','3'].includes(mode))game.paint(x,y,Number(mode),brush);else if(mode==='food'){game.paint(x,y,0,brush);game.log('info','プレイヤーが草を補充');}else if(mode==='fertilize'){game.fertilize(x,y,brush);}else if(mode==='spawn'){const n=Math.max(1,Math.min(6,Math.trunc(Number($('founderTypes').value)||1)));$('founderTypes').value=n;const result=game.introduce(x,y,n);if(result.individuals>0){if(ecologyLog.activeId===null)ecologyLog.start(game.initialSeed);ecologyLog.record(observeEcology(game),true);running=true;}}else if(mode==='inspect'){selected=null;let best=500;for(const u of game.units){const d=(u.x-x)**2+(u.y-y)**2;if(d<best){best=d;selected=u;}}}update();render();}
 canvas.addEventListener('pointerdown',e=>{painting=true;canvas.setPointerCapture(e.pointerId);interact(e);});canvas.addEventListener('pointermove',e=>{if(painting&&['0','1','2','3','fertilize'].includes(mode))interact(e);});canvas.addEventListener('pointerup',()=>painting=false);canvas.addEventListener('pointercancel',()=>painting=false);
@@ -145,4 +185,4 @@ $('clearEcologyLog').onclick=()=>{
 $('founderTypes').oninput=e=>{const n=Math.max(1,Math.min(6,Math.trunc(Number(e.target.value)||1)));$('founderPreview').textContent=n+'種類・'+(n*8)+'体';};
 $('brush').oninput=e=>{brush=Number(e.target.value);$('brushValue').value=brush;};$('growth').oninput=e=>{game.growth=Number(e.target.value);$('growthValue').value=game.growth;};$('stress').oninput=e=>{game.stress=Number(e.target.value);$('stressValue').value=game.stress;};$('rainfall').oninput=e=>{game.rainfall=Number(e.target.value);$('rainfallValue').value=game.rainfall;};$('climateEnabled').onchange=e=>{game.climateEnabled=e.target.checked;game.updateTemperature();update();};$('temperature').oninput=e=>{game.baseTemperature=Number(e.target.value);game.updateTemperature();$('temperatureValue').value=game.baseTemperature+'℃';update();};
 $('drought').onclick=()=>{game.drought();syncSliders();update();};$('rain').onclick=()=>{game.rain();syncSliders();update();};$('epidemic').onclick=()=>{game.epidemic();update();};
-reset();requestAnimationFrame(frame);
+reset();syncVisibility();
