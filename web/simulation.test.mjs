@@ -1988,7 +1988,7 @@ test('genome code is stable, quantized, and changes when a trait crosses a bin',
  const w=new Ecosystem(9114),g=w.gene();
  const code=genomeCode(g);
  assert.equal(code,genomeCode({...g}));
- assert.ok(/^[0-9A-F]{4}(-[0-9A-F]{4}){4}-[0-9A-F]$/.test(code));
+ assert.ok(/^[0-9A-F]{4}(-[0-9A-F]{4}){4}-[0-9A-F]{2}$/.test(code));
  const variant={...g,longevity:2};
  assert.notEqual(genomeCode(variant),code);
  assert.equal(genomeCode({...g,wet:.401}),genomeCode({...g,wet:.402}));
@@ -2300,4 +2300,79 @@ test('courtship that never gets close enough times out with a recorded failure',
  assert.ok(w.logs.some(e=>e.type==='courtFail'&&e.message.includes('進展しない')));
  const report=observeEcology(w);
  assert.equal(report.courtFailStalled,1);
+});
+
+test('starving organisms forage nearby vegetation before entering dormancy',()=>{
+ const w=new Ecosystem(9981),g={...w.gene(),aquatic:0,diet:0,idealTemp:0,
+  tempTolerance:5,hibernate:1};
+ w.tiles.fill(0);w.grass.fill(80);w.water.fill(90);
+ const u=w.spawn(212,151,g);
+ u.energy=22;u.age=100;u.hp=u.maxHp=1000;
+ w.tick=900;w.baseTemperature=22;w.updateTemperature();
+ const before=u.energy;
+ for(let i=0;i<8;i++)w.step();
+ assert.ok(u.forageSuccess>0,'should eat available grass before sleeping');
+ assert.ok(u.energy>before,'feeding should restore energy');
+});
+test('nearby plant target is the accessible edge rather than tile centre',()=>{
+ const w=new Ecosystem(9982),g={...w.gene(),aquatic:0,diet:0};
+ w.tiles.fill(2);w.grass.fill(0);
+ const tile=w.cell(230,150);w.tiles[tile]=0;w.grass[tile]=70;
+ const closest=w.nearestGrass(219,151,65,g);
+ assert.ok(closest);
+ assert.ok(Math.hypot(closest.x-219,closest.y-151)<13);
+ const waterTile=w.cell(230,150);
+ w.tiles[waterTile]=1;w.water[waterTile]=80;w.waterweed[waterTile]=80;
+ const wet=w.nearestWaterweed(219,151,65);
+ assert.ok(wet);
+ assert.ok(Math.hypot(wet.x-219,wet.y-151)<13);
+});
+test('climate-adapted dormancy reduces bad-season expenditure but never restores health',()=>{
+ const gene={idealTemp:23,tempTolerance:5,hibernate:1,diet:0,aquatic:0};
+ const w=new Ecosystem(9983),g={...w.gene(),...gene};
+ w.tiles.fill(0);w.grass.fill(90);w.water.fill(95);
+ const u=w.spawn(215,160,g);u.age=110;u.energy=150;u.hp=u.maxHp=500;
+ w.tick=1900;w.weather='cloudy';w.updateTemperature();
+ assert.ok(thermalFitness(u.g,w.temperatureAt(u.x,u.y)).excess>3);
+ const initial={hp:u.hp,energy:u.energy,x:u.x,y:u.y};
+ for(let i=0;i<25;i++)w.step();
+ assert.equal(u.dormant,true);
+ assert.equal(u.x,initial.x);assert.equal(u.y,initial.y);
+ assert.ok(u.energy<initial.energy);
+ assert.ok(u.hp<initial.hp);
+ assert.ok(w.logs.some(e=>e.type==='rest'));
+ w.tick=2490;w.updateTemperature();w.step();
+ assert.equal(u.dormant,false);
+ assert.ok(w.logs.some(e=>e.type==='wake'));
+});
+test('seasonal egg dormancy delays hatching and consumes finite reserves',()=>{
+ const w=new Ecosystem(9984);
+ w.tiles.fill(0);w.grass.fill(80);w.water.fill(85);
+ const cold={...w.gene(),idealTemp:23,tempTolerance:5,shell:1,hibernate:1};
+ const ordinary={...cold,shell:0,hibernate:0};
+ const eggs=[
+  {id:10001,x:210,y:150,g:cold,age:0,hatchAt:45,energy:30,dead:false,parent:1,otherParent:2,generation:1,lineage:'test'},
+  {id:10002,x:230,y:150,g:ordinary,age:0,hatchAt:45,energy:30,dead:false,parent:1,otherParent:2,generation:1,lineage:'test'}
+ ];
+ w.eggs=eggs;
+ w.tick=1850;w.weather='cloudy';w.updateTemperature();
+ for(let i=0;i<20;i++)w.step();
+ assert.ok(eggs[0].dormant);
+ assert.ok(eggs[0].age<eggs[1].age);
+ assert.ok(eggs[0].energy<30);
+ assert.ok(eggs[0].heatExposure<eggs[1].heatExposure);
+});
+test('dormancy is inherited and mutates without introducing an immortal strategy',()=>{
+ const w=new Ecosystem(9985);
+ const high={...w.gene(),hibernate:.95},low={...w.gene(),hibernate:.08};
+ for(let i=0;i<40;i++){
+  const child=w.recombine(high,high);
+  assert.ok(child.hibernate>=0&&child.hibernate<=1);
+  assert.ok(w.mutate(child).hibernate>=0&&w.mutate(child).hibernate<=1);
+ }
+ const dormant=w.spawn(200,150,high);
+ dormant.stage='adult';dormant.age=100;dormant.energy=140;dormant.hp=20;
+ w.tick=1900;w.updateTemperature();
+ for(let i=0;i<1000&&!dormant.dead;i++)w.step();
+ assert.ok(dormant.dead||dormant.hp<20);
 });
