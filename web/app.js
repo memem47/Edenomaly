@@ -8,11 +8,12 @@ const LOG_VERSION=new URL(import.meta.url).searchParams.get('v')||'development';
 let localLogStorage=null;
 try{localLogStorage=window.localStorage;}catch{}
 const ecologyLog=new EcologyLogbook(localLogStorage,LOG_VERSION);
-const recordStep=()=>ecologyLog.record(observeEcology(game));
+let lastReproductionSample=null;
+const recordStep=()=>{lastReproductionSample=observeEcology(game);return ecologyLog.record(lastReproductionSample);};
 const canvas=$('world'),ctx=canvas.getContext('2d'),graph=$('chart').getContext('2d'),longGraph=$('ecologyLongChart').getContext('2d');
 let running=false,speed=1,mode='spawn',filter='all',brush=3,selected=null,selectedSpecies=null,catalogMarkup='',painting=false,last=0,acc=0,uiAt=0,paintAt=0,rafId=null,backgroundTimer=null,logRunOptions='',selectedLogRun=null;
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const GENE_LABELS={r:'体の大きさ',elongation:'体の長さ比',eyes:'目の数',mouths:'口の能力',jaw:'顎の能力',wet:'水への適応',dry:'乾燥への適応',rock:'岩場への適応',aquatic:'水生／陸生',shell:'卵殻',guard:'卵の保護',nesting:'産卵場所',brood:'産卵数',diet:'食性',deception:'擬態',resist:'感染抵抗力',longevity:'長寿特性',albino:'白色変異'};
+const GENE_LABELS={idealTemp:'好みの温度',tempTolerance:'温度耐性',r:'体の大きさ',elongation:'体の長さ比',eyes:'目の数',mouths:'口の能力',jaw:'顎の能力',wet:'水への適応',dry:'乾燥への適応',rock:'岩場への適応',aquatic:'水生／陸生',shell:'卵殻',guard:'卵の保護',nesting:'産卵場所',brood:'産卵数',diet:'食性',deception:'擬態',resist:'感染抵抗力',longevity:'長寿特性',albino:'白色変異'};
 function genomeValue(key,value){return key==='aquatic'?(value===1?'水生':'陸生'):typeof value==='number'?(Number.isInteger(value)?String(value):value.toFixed(3)):String(value);}
 function speciesColor(sp){
  const g=sp.genome;
@@ -29,7 +30,7 @@ function speciesAbilityText(g){
  const fmt=v=>v.toFixed(2);
  const habitat=g.aquatic===1?'水生':'陸生';
  const strategy=protectiveDrive(g)>.52?'卵の守護種':eggPredationDrive(g)>.62?'卵を狙う危険種':'一般型';
- return `<div class="species-abilities" aria-label="計算済みの能力"><span title="草地での基準移動速度">速 ${fmt(m.speed*.58)}</span><span title="草地での視界距離">視 ${Math.round(m.eyeRange)}</span><span title="最大HP（健康な成体）">HP ${hp}</span><span title="長寿遺伝子。高いほどHPの自然減少が遅いが代謝コストが高い">長寿 ×${fmt(g.longevity??1)}</span><span title="1ステップあたりの基礎代謝（長寿のコストを含む）">代謝 ${fmt(m.upkeep+longevityUpkeep(g))}</span><span title="食性">${escapeHTML(diet.label)}</span><span title="遺伝した食性・顎・保護能力による生態的戦略">${strategy}</span><span title="生息型">${habitat}</span><span title="乾燥地／岩場／水辺の適応度">適応 乾${fmt(terrainFitness(g,2).fitness)} 岩${fmt(terrainFitness(g,3).fitness)} 水${fmt(terrainFitness(g,1).fitness)}</span></div>`;
+ return `<div class="species-abilities" aria-label="計算済みの能力"><span title="適温と生存に関わる温度耐性">適温 ${fmt(g.idealTemp??22)}℃ ±${fmt(g.tempTolerance??9)}℃</span><span title="草地での基準移動速度">速 ${fmt(m.speed*.58)}</span><span title="草地での視界距離">視 ${Math.round(m.eyeRange)}</span><span title="最大HP（健康な成体）">HP ${hp}</span><span title="長寿遺伝子。高いほどHPの自然減少が遅いが代謝コストが高い">長寿 ×${fmt(g.longevity??1)}</span><span title="1ステップあたりの基礎代謝（長寿のコストを含む）">代謝 ${fmt(m.upkeep+longevityUpkeep(g))}</span><span title="食性">${escapeHTML(diet.label)}</span><span title="遺伝した食性・顎・保護能力による生態的戦略">${strategy}</span><span title="生息型">${habitat}</span><span title="乾燥地／岩場／水辺の適応度">適応 乾${fmt(terrainFitness(g,2).fitness)} 岩${fmt(terrainFitness(g,3).fitness)} 水${fmt(terrainFitness(g,1).fitness)}</span></div>`;
 }
 function catalogSpecies(liveBySpecies){
  const phenotype=e=>speciesRepresentative(e[0],e[1],liveBySpecies);
@@ -66,6 +67,17 @@ function update(){
  const averageFitness=game.units.length?game.units.reduce((total,u)=>total+terrainFitness(u.g,game.terrain(u.x,u.y)).fitness,0)/game.units.length:0;
  const descendants=game.units.filter(u=>u.generation>0);
  const averageCrowding=game.units.length?game.units.reduce((sum,u)=>sum+(u.habitatLoad??0),0)/game.units.length:0;
+ const reproduction=lastReproductionSample;
+ const reproductionProblems=reproduction?
+  [ ['気温',reproduction.reproTemperature],['感染',reproduction.reproInfection],
+    ['未成熟',reproduction.reproImmature],['栄養不足',reproduction.reproEnergy],
+    ['休止中',reproduction.reproCooldown],['妊娠中',reproduction.reproPregnancy],
+    ['生命力',reproduction.reproWeak],['相手不在',reproduction.reproNoPartner]]
+   .filter(([,n])=>n>0).sort((a,b)=>b[1]-a[1]).slice(0,4)
+   .map(([name,count])=>name+' '+count+'体').join(' / '):'未記録';
+ $('reproductionReport').textContent=reproduction?
+  `Step ${reproduction.step}時点：繁殖可能 ${reproduction.reproReady}体、相手不在 ${reproduction.reproNoPartner}体。主な繁殖阻害：${reproductionProblems||'なし'}。求愛開始累計 ${reproduction.courtshipStarts}回、中断 ${reproduction.courtshipFailures}回（距離 ${reproduction.courtFailSeparated} / 気温 ${reproduction.courtFailTemperature} / 感染 ${reproduction.courtFailInfection} / エネルギー ${reproduction.courtFailEnergy}）。`:
+  '生命の移入後、50ステップごとに繁殖阻害原因を集計します。';
  const data={maxGeneration:game.units.length?Math.max(...game.units.map(u=>u.generation)):0,offspringCount:descendants.length,averageFitness:averageFitness.toFixed(2),population:game.units.length,eggCount:game.eggs.length,matingCount:game.matings,juvenileCount:game.units.filter(u=>u.stage==='juvenile').length,livingSpecies:game.livingSpecies,totalSpecies:game.species.size,corpses:game.corpses.length,nutrients:Math.round(game.grass.reduce((a,b)=>a+b,0)),waterRemaining:Math.round(game.water.reduce((a,b)=>a+b,0)),waterweedRemaining:Math.round(game.waterweed.reduce((a,b)=>a+b,0)),recycled:game.recycled,migrationCount:game.migrations};
  for(const [id,value] of Object.entries(data))$(id).textContent=typeof value==='number'?value.toLocaleString('ja-JP'):value;
  $('seasonStatus').textContent=game.climateEnabled?({spring:'🌸 春',summer:'☀️ 夏',autumn:'🍂 秋',winter:'❄️ 冬'}[game.seasonName()]):'季節変動 OFF';
@@ -77,7 +89,7 @@ function update(){
  $('catalogCount').textContent=($('showExtinct').checked?'表示':'現存')+' '+catalogRows.length+'種';
  const nextCatalog=catalogRows.map(([key,sp])=>`<button type="button" class="species species-entry${selectedSpecies===key?' selected':''}" data-category="${escapeHTML(key)}" aria-expanded="${selectedSpecies===key}"><span class="dot" style="background:${speciesColor(sp)}"></span><div class="species-info"><b>${escapeHTML(sp.name)}</b><small>#${sp.n} · Step ${sp.first} · ${sp.current?'現存':'絶滅'}</small>${speciesAbilityText(speciesRepresentative(key,sp,liveBySpecies))}</div><span>${sp.current}</span><span>${sp.total}</span></button>${selectedSpecies===key?`<div class="genome-panel species-expanded">${speciesGenomeHTML(key)}</div>`:''}`).join('');
  if(nextCatalog!==catalogMarkup){$('catalog').innerHTML=nextCatalog;catalogMarkup=nextCatalog;}
- const eventColors={birth:'#91f7ac',death:'#ff8290',meal:'#f9d36b',pred:'#be82ec',new:'#ffe486',decay:'#e2b96e',egg:'#eddfbd',hatch:'#a0e8bd',eggeaten:'#f5949c',mature:'#a0d9ff',attack:'#ffb7a1',defend:'#75f0e7',ill:'#ed8bab',migration:'#b4e0ff',settle:'#88debc',mate:'#f5a5ed',court:'#ff91e8',laid:'#ffe3a1'};
+ const eventColors={birth:'#91f7ac',death:'#ff8290',meal:'#f9d36b',pred:'#be82ec',new:'#ffe486',decay:'#e2b96e',egg:'#eddfbd',hatch:'#a0e8bd',eggeaten:'#f5949c',mature:'#a0d9ff',attack:'#ffb7a1',defend:'#75f0e7',ill:'#ed8bab',migration:'#b4e0ff',settle:'#88debc',mate:'#f5a5ed',court:'#ff91e8',courtFail:'#ff879b',laid:'#ffe3a1'};
  $('events').innerHTML=game.logs.filter(e=>filter==='all'||e.type===filter).slice(0,60).map(e=>`<div class="log-entry"><span style="color:${eventColors[e.type]||'#9eb0b8'}">●</span> [${e.step}] ${escapeHTML(e.message)}</div>`).join('');
  const people=[0,0,0,0],food=[0,0,0,0],corpses=[0,0,0,0],fitness=[0,0,0,0];for(const u of game.units){const t=game.terrain(u.x,u.y);people[t]++;fitness[t]+=terrainFitness(u.g,t).fitness;}for(let i=0;i<game.tiles.length;i++){food[game.tiles[i]]+=(game.grass[i]||0)+(game.waterweed[i]||0);}for(const c of game.corpses)corpses[game.terrain(c.x,c.y)]++;
  $('habitats').innerHTML=TERRAIN_NAMES.map((name,i)=>`<div><span><span style="display:inline-block;width:11px;height:11px;background:${TERRAIN_COLORS[i]};margin-right:5px"></span>${name}</span><span>植物生産性 ${Math.round(TERRAIN_FERTILITY[i]*100)}% / 生命 ${people[i]} / 適応度平均 ${people[i]?(fitness[i]/people[i]).toFixed(2):'—'} / 資源 ${Math.round(food[i])} / 死体 ${corpses[i]}</span></div>`).join('');
@@ -102,7 +114,7 @@ function update(){
 function render(){drawWorld(ctx,game,$('effects').checked,selected);}
 function reset(){
  ecologyLog.end(ecologyLog.activeId===null?null:observeEcology(game));
- game.reset();selected=null;selectedSpecies=null;running=false;mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));syncSliders();update();render();}
+ game.reset();lastReproductionSample=null;selected=null;selectedSpecies=null;running=false;mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));syncSliders();update();render();}
 function syncSliders(){$('growth').value=game.growth;$('growthValue').value=game.growth;$('stress').value=game.stress;$('stressValue').value=game.stress;$('rainfall').value=game.rainfall;$('rainfallValue').value=game.rainfall;$('temperature').value=game.baseTemperature;$('temperatureValue').value=game.baseTemperature+'℃';$('climateEnabled').checked=game.climateEnabled;}
 // The foreground animation is display-rate limited. Simulation ticks have
 // their own budget, so the renderer cannot monopolize the video decoder/GPU.
@@ -154,7 +166,7 @@ function syncVisibility(){
 }
 document.addEventListener('visibilitychange',syncVisibility);
 function coords(e){const b=canvas.getBoundingClientRect();return {x:Math.max(0,Math.min(WORLD.width-.1,(e.clientX-b.left)/b.width*WORLD.width)),y:Math.max(0,Math.min(WORLD.height-.1,(e.clientY-b.top)/b.height*WORLD.height))};}
-function interact(e){const {x,y}=coords(e);if(['0','1','2','3'].includes(mode))game.paint(x,y,Number(mode),brush);else if(mode==='food'){game.paint(x,y,0,brush);game.log('info','プレイヤーが草を補充');}else if(mode==='fertilize'){game.fertilize(x,y,brush);}else if(mode==='spawn'){const n=Math.max(1,Math.min(6,Math.trunc(Number($('founderTypes').value)||1)));$('founderTypes').value=n;const result=game.introduce(x,y,n);if(result.individuals>0){if(ecologyLog.activeId===null)ecologyLog.start(game.initialSeed);ecologyLog.record(observeEcology(game),true);running=true;}}else if(mode==='inspect'){selected=null;let best=500;for(const u of game.units){const d=(u.x-x)**2+(u.y-y)**2;if(d<best){best=d;selected=u;}}}update();render();}
+function interact(e){const {x,y}=coords(e);if(['0','1','2','3'].includes(mode))game.paint(x,y,Number(mode),brush);else if(mode==='food'){game.paint(x,y,0,brush);game.log('info','プレイヤーが草を補充');}else if(mode==='fertilize'){game.fertilize(x,y,brush);}else if(mode==='spawn'){const n=Math.max(1,Math.min(6,Math.trunc(Number($('founderTypes').value)||1)));$('founderTypes').value=n;const result=game.introduce(x,y,n);if(result.individuals>0){if(ecologyLog.activeId===null)ecologyLog.start(game.initialSeed);lastReproductionSample=observeEcology(game);ecologyLog.record(lastReproductionSample,true);running=true;}}else if(mode==='inspect'){selected=null;let best=500;for(const u of game.units){const d=(u.x-x)**2+(u.y-y)**2;if(d<best){best=d;selected=u;}}}update();render();}
 canvas.addEventListener('pointerdown',e=>{painting=true;canvas.setPointerCapture(e.pointerId);interact(e);});canvas.addEventListener('pointermove',e=>{if(painting&&['0','1','2','3','fertilize'].includes(mode))interact(e);});canvas.addEventListener('pointerup',()=>painting=false);canvas.addEventListener('pointercancel',()=>painting=false);
 document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{mode=b.dataset.mode;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x===b));}));
 document.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>{filter=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x===b));update();}));
@@ -180,7 +192,7 @@ $('downloadEcologyLog').onclick=()=>{
 $('clearEcologyLog').onclick=()=>{
  if(!window.confirm('このバージョンの生態系推移ログをすべて削除しますか？'))return;
  ecologyLog.clear();selectedLogRun=null;logRunOptions='';
- if(game.introducedCount>0){ecologyLog.start(game.initialSeed);ecologyLog.record(observeEcology(game),true);}
+ if(game.introducedCount>0){ecologyLog.start(game.initialSeed);lastReproductionSample=observeEcology(game);ecologyLog.record(lastReproductionSample,true);}
  update();
 };
 $('founderTypes').oninput=e=>{const n=Math.max(1,Math.min(6,Math.trunc(Number(e.target.value)||1)));$('founderPreview').textContent=n+'種類・'+(n*8)+'体';};
