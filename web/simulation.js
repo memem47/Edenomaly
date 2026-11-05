@@ -314,12 +314,15 @@ export class Ecosystem{
  gene(){
   // Most founders prefer mild temperatures, but rare cold/hot specialists
   // and broad-tolerance generalists can already exist before selection.
-  const thermalRoll=this.rand();
-  const founderIdeal=thermalRoll<.15?this.range(-3,12):
-   thermalRoll<.30?this.range(30,40):this.range(15,29);
-  const toleranceRoll=this.rand();
-  const founderTolerance=toleranceRoll<.20?this.range(14,18):
-   toleranceRoll<.30?this.range(4,8):this.range(8,14);
+  // Preserve the existing two random draws per genome: adding extra
+  // draws would also perturb unrelated size/diet/sex traits for fixed seeds.
+  const thermalRoll=this.rand(),toleranceRoll=this.rand();
+  const founderIdeal=thermalRoll<.15?-3+thermalRoll/.15*15:
+   thermalRoll<.30?30+(thermalRoll-.15)/.15*10:
+   15+(thermalRoll-.30)/.70*14;
+  const founderTolerance=toleranceRoll<.20?14+toleranceRoll/.20*4:
+   toleranceRoll<.30?4+(toleranceRoll-.20)/.10*4:
+   8+(toleranceRoll-.30)/.70*6;
   const g={idealTemp:founderIdeal,tempTolerance:founderTolerance,longevity:this.range(.8,1.5),repro:(()=>{const roll=this.rand();return roll<.004?1:roll<.006?2:0;})(),r:this.rand()<.065?this.range(8.5,12):this.range(3.1,7.5),
    elongation:(()=>{const roll=this.rand();
     return roll<.82?this.range(.94,1.16):roll<.98?this.range(1.43,2.04):this.range(2.35,2.83);
