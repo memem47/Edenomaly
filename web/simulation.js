@@ -312,7 +312,15 @@ export class Ecosystem{
  cell(x,y){return clamp(Math.floor(y/CELL),0,NY-1)*NX+clamp(Math.floor(x/CELL),0,NX-1);}
  terrain(x,y){return this.tiles[this.cell(x,y)];}
  gene(){
-  const g={idealTemp:this.range(15,29),tempTolerance:this.range(8,14),longevity:this.range(.8,1.5),repro:(()=>{const roll=this.rand();return roll<.004?1:roll<.006?2:0;})(),r:this.rand()<.065?this.range(8.5,12):this.range(3.1,7.5),
+  // Most founders prefer mild temperatures, but rare cold/hot specialists
+  // and broad-tolerance generalists can already exist before selection.
+  const thermalRoll=this.rand();
+  const founderIdeal=thermalRoll<.15?this.range(-3,12):
+   thermalRoll<.30?this.range(30,40):this.range(15,29);
+  const toleranceRoll=this.rand();
+  const founderTolerance=toleranceRoll<.20?this.range(14,18):
+   toleranceRoll<.30?this.range(4,8):this.range(8,14);
+  const g={idealTemp:founderIdeal,tempTolerance:founderTolerance,longevity:this.range(.8,1.5),repro:(()=>{const roll=this.rand();return roll<.004?1:roll<.006?2:0;})(),r:this.rand()<.065?this.range(8.5,12):this.range(3.1,7.5),
    elongation:(()=>{const roll=this.rand();
     return roll<.82?this.range(.94,1.16):roll<.98?this.range(1.43,2.04):this.range(2.35,2.83);
    })(),eyes:(()=>{const roll=this.rand();return roll<.08?0:roll<.36?1:roll<.71?2:roll<.90?3:roll<.975?4:roll<.995?5:6;})(),
@@ -484,10 +492,42 @@ export class Ecosystem{
   if(a.parent===b.id||b.parent===a.id)return false;
   return true;
  }
- isReadyToMate(u){
-  const thermal=thermalFitness(u.g,this.temperatureAt(u.x,u.y));
-  if(!thermal.reproduction)return false;
-  return !u.dead&&u.infection===0&&u.stage==='adult'&&u.age>42&&u.energy>=68+Math.max(0,organismMorphology(u).bodyMass-100)*.22+(u.crowdStress??0)*3.1+(u.habitatLoad??0)*4.2&&u.mateCooldown===0&&!u.pregnancy&&vitality(u).vigor>.35;
+ // The same diagnostic conditions govern actual reproduction and the
+ // persistent 50-step census: no mismatch between displayed reasons and rules.
+ reproductionBlockReason(u){
+  if(!u||u.dead)return 'dead';
+  if(!thermalFitness(u.g,this.temperatureAt(u.x,u.y)).reproduction)return 'temperature';
+  if(u.infection>0)return 'infection';
+  if(u.stage!=='adult'||u.age<=42)return 'immature';
+  if(u.energy<68+Math.max(0,organismMorphology(u).bodyMass-100)*.22+
+   (u.crowdStress??0)*3.1+(u.habitatLoad??0)*4.2)return 'energy';
+  if(u.mateCooldown>0)return 'cooldown';
+  if(u.pregnancy)return 'pregnancy';
+  if(vitality(u).vigor<=.35)return 'weak';
+  return null;
+ }
+ isReadyToMate(u){return this.reproductionBlockReason(u)===null;}
+ // Count inability to reproduce separately from courtships that actually failed.
+ reproductionCensus(){
+  const live=this.units.filter(u=>!u.dead);
+  const counts={ready:0,temperature:0,infection:0,immature:0,energy:0,
+   cooldown:0,pregnancy:0,weak:0,noPartner:0,paired:0};
+  const available=[],lookup=new SpatialLookup(live);
+  for(const u of live){
+   const reason=this.reproductionBlockReason(u);
+   if(reason){counts[reason]++;continue;}
+   counts.ready++;available.push(u);
+  }
+  const eligible=new Set(available);
+  for(const u of available){
+   if(u.courtPartner){counts.paired++;continue;}
+   const sight=Math.max(85,organismMorphology(u).eyeRange*1.55);
+   const options=lookup.query(u.x,u.y,sight,false);
+   if(!options.some(v=>v!==u&&eligible.has(v)&&!v.courtPartner&&
+    sexualCompatibility(u,v)&&u.parent!==v.id&&v.parent!==u.id&&
+    distance(u,v)<sight*sight))counts.noPartner++;
+  }
+  return counts;
  }
  findMate(u,batch){
   if(!this.isReadyToMate(u))return null;
@@ -507,6 +547,7 @@ export class Ecosystem{
   if(!a||!b||a===b||a.courtPartner||b.courtPartner||!this.canMate(a,b))return false;
   a.courtPartner=b.id;b.courtPartner=a.id;
   this.courtships.push({a:a.id,b:b.id,progress:0,required:24});
+  this.courtshipStarts++;
   this.log('court','#'+a.id+' と #'+b.id+' が求愛を開始',a);
   return true;
  }
@@ -596,7 +637,18 @@ export class Ecosystem{
  updateCourtships(){
   for(const pair of this.courtships){
    const a=this.units.find(u=>u.id===pair.a),b=this.units.find(u=>u.id===pair.b);
-   if(!a||!b||!this.canMate(a,b)||distance(a,b)>65**2){
+   const reason=!a||!b||a.dead||b.dead?'partnerMissing':
+    !sexualCompatibility(a,b)?'incompatible':
+    this.reproductionBlockReason(a)||this.reproductionBlockReason(b)||
+     (a.parent===b.id||b.parent===a.id?'incompatible':null)||
+     (distance(a,b)>65**2?'separated':null);
+   if(reason){
+    this.courtshipFailures[reason]=(this.courtshipFailures[reason]??0)+1;
+    this.log('courtFail','#'+pair.a+' × #'+pair.b+' 求愛中断：'+
+     ({partnerMissing:'相手の死亡・消失',incompatible:'繁殖不適合',
+       separated:'離れすぎ',temperature:'気温が不適合',infection:'感染',
+       immature:'未成熟',energy:'エネルギー不足',cooldown:'繁殖休止',
+       pregnancy:'妊娠中',weak:'生命力不足'}[reason]||reason));
     this.cancelCourtship(pair);pair.done=true;continue;
    }
    if(distance(a,b)<35**2)pair.progress++;
@@ -739,7 +791,7 @@ export class Ecosystem{
   }
  }
  reset(){
-  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.deathCauses={};this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];this.climateEnabled=true;this.seasonLength=600;
+  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.deathCauses={};this.courtshipFailures={};this.courtshipStarts=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];this.climateEnabled=true;this.seasonLength=600;
   this.setupTerrain();
   this.grass=new Float32Array(this.tiles.length);
   this.water=new Float32Array(this.tiles.length);
