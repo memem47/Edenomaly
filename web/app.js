@@ -123,7 +123,8 @@ function frame(time){
   for(let i=0;i<batch.steps;i++)stepSimulation();
  }
  if(time-paintAt>=policy.paintInterval){
-  for(const fx of game.effects)fx.age+=Math.min(100,dt)*.03;
+  const displayElapsed=paintAt?Math.min(100,time-paintAt):dt;
+  for(const fx of game.effects)fx.age+=displayElapsed*.03;
   game.effects=game.effects.filter(fx=>fx.age<35);
   render();
   paintAt=time;
