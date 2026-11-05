@@ -549,7 +549,7 @@ export class Ecosystem{
  startCourtship(a,b){
   if(!a||!b||a===b||a.courtPartner||b.courtPartner||!this.canMate(a,b))return false;
   a.courtPartner=b.id;b.courtPartner=a.id;
-  this.courtships.push({a:a.id,b:b.id,progress:0,required:24});
+  this.courtships.push({a:a.id,b:b.id,progress:0,required:24,elapsed:0});
   this.courtshipStarts++;
   this.log('court','#'+a.id+' と #'+b.id+' が求愛を開始',a);
   return true;
@@ -640,16 +640,18 @@ export class Ecosystem{
  updateCourtships(){
   for(const pair of this.courtships){
    const a=this.units.find(u=>u.id===pair.a),b=this.units.find(u=>u.id===pair.b);
+   pair.elapsed=(pair.elapsed??0)+1;
    const reason=!a||!b||a.dead||b.dead?'partnerMissing':
     !sexualCompatibility(a,b)?'incompatible':
     this.reproductionBlockReason(a)||this.reproductionBlockReason(b)||
      (a.parent===b.id||b.parent===a.id?'incompatible':null)||
-     (distance(a,b)>65**2?'separated':null);
+     (distance(a,b)>65**2?'separated':null)||
+     (pair.elapsed>120?'stalled':null);
    if(reason){
     this.courtshipFailures[reason]=(this.courtshipFailures[reason]??0)+1;
     this.log('courtFail','#'+pair.a+' × #'+pair.b+' 求愛中断：'+
      ({partnerMissing:'相手の死亡・消失',incompatible:'繁殖不適合',
-       separated:'離れすぎ',temperature:'気温が不適合',infection:'感染',
+       separated:'離れすぎ',stalled:'距離を詰められず進展しない',temperature:'気温が不適合',infection:'感染',
        immature:'未成熟',energy:'エネルギー不足',cooldown:'繁殖休止',
        pregnancy:'妊娠中',weak:'生命力不足'}[reason]||reason));
     this.cancelCourtship(pair);pair.done=true;continue;
@@ -657,7 +659,10 @@ export class Ecosystem{
    if(distance(a,b)<35**2)pair.progress++;
    if(pair.progress>=pair.required){
     this.cancelCourtship(pair);pair.done=true;
-    this.conceive(a.sex==='M'?b:a,a.sex==='M'?a:b);
+    if(!this.conceive(a.sex==='M'?b:a,a.sex==='M'?a:b)){
+     this.courtshipFailures.conception=(this.courtshipFailures.conception??0)+1;
+     this.log('courtFail','#'+pair.a+' × #'+pair.b+' 受精不成立：産卵枠または繁殖条件');
+    }
    }
   }
   this.courtships=this.courtships.filter(p=>!p.done);
