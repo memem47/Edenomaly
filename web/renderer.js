@@ -269,6 +269,12 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   ctx.fillStyle=dead?'#77707e':slimeEyeColor(g);
   for(const angle of (dead?[]:eyes)){
    const {x:ex,y:ey}=slimeEyeLocation(angle,rx,ry);
+   if(u.dormant){
+    // Closed eyes indicate dormancy without particle or ripple clutter.
+    ctx.strokeStyle=slimeEyeColor(g);ctx.lineWidth=Math.max(1,eyeRadius*.8);
+    ctx.beginPath();ctx.moveTo(ex-eyeRadius,ey);ctx.quadraticCurveTo(ex,ey+eyeRadius*.6,ex+eyeRadius,ey);ctx.stroke();
+    continue;
+   }
    ctx.beginPath();ctx.arc(ex,ey,eyeRadius,0,TAU);ctx.fill();
    // A tiny glossy reflection gives readable eyes without white sclera.
    if(!dead){ctx.fillStyle='rgba(255,255,255,.82)';ctx.beginPath();ctx.arc(ex-eyeRadius*.30,ey-eyeRadius*.30,Math.max(.55,eyeRadius*.23),0,TAU);ctx.fill();ctx.fillStyle=slimeEyeColor(g);}
