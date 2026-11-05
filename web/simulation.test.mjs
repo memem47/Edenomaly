@@ -2286,3 +2286,18 @@ test('CSV tracks reproductive blockers and failed courtships with distinct colum
  assert.ok(csv.includes('courtFailTemperature'));
  assert.ok(csv.includes('meanPreferredTemp'));
 });
+
+test('courtship that never gets close enough times out with a recorded failure',()=>{
+ const w=new Ecosystem(99006),g={...w.gene(),idealTemp:22,tempTolerance:10};
+ w.temperatureAt=()=>22;
+ const a=w.spawn(180,160,g),b=w.spawn(230,160,g);
+ a.sex='F';b.sex='M';
+ for(const u of [a,b]){u.age=120;u.energy=200;u.stage='adult';u.infection=0;u.mateCooldown=0;}
+ assert.ok(w.startCourtship(a,b));
+ for(let i=0;i<125;i++)w.updateCourtships();
+ assert.equal(w.courtships.length,0);
+ assert.equal(w.courtshipFailures.stalled,1);
+ assert.ok(w.logs.some(e=>e.type==='courtFail'&&e.message.includes('進展しない')));
+ const report=observeEcology(w);
+ assert.equal(report.courtFailStalled,1);
+});
