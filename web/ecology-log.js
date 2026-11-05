@@ -7,13 +7,17 @@ export const ECOLOGY_LOG_FIELDS=[
  'livingSpecies','discoveredSpecies','maxGeneration','herbivores','omnivores','carnivores',
  'grass','waterweed','food','corpses','water','soilMean','meanEnergy','meanHpPercent',
  'meanHabitatLoad','infected','births','deaths','deathStarvation',
- 'deathPredation','deathInfection','deathOther','matings','temperature','season',
- 'growthSetting','rainfallSetting','stressSetting'
+ 'deathPredation','deathInfection','deathOther','matings','courtshipStarts',
+ 'courtshipFailures','courtFailTemperature','courtFailEnergy','courtFailInfection',
+ 'courtFailSeparated','courtFailOther','reproReady','reproTemperature',
+ 'reproInfection','reproImmature','reproEnergy','reproCooldown','reproPregnancy',
+ 'reproWeak','reproNoPartner','reproPaired','meanPreferredTemp','meanTempTolerance',
+ 'temperature','season','growthSetting','rainfallSetting','stressSetting'
 ];
 const finite=v=>Number.isFinite(v)?Math.round(v*100)/100:0;
 export function observeEcology(game){
  let grass=0,waterweed=0,water=0,soil=0,juveniles=0,herbivores=0,omnivores=0,
-  carnivores=0,energy=0,hp=0,habitatLoad=0,infected=0,maxGeneration=0;
+  carnivores=0,energy=0,hp=0,habitatLoad=0,infected=0,maxGeneration=0,idealTotal=0,toleranceTotal=0;
  for(let i=0;i<game.grass.length;i++){
   grass+=game.grass[i];waterweed+=game.waterweed[i];water+=game.water[i];soil+=game.soil[i];
  }
@@ -21,6 +25,7 @@ export function observeEcology(game){
   if(u.dead)continue;
   if(u.stage==='juvenile')juveniles++;
   if(u.g.diet<.3)herbivores++;else if(u.g.diet>.7)carnivores++;else omnivores++;
+  idealTotal+=u.g.idealTemp??22;toleranceTotal+=u.g.tempTolerance??9;
   energy+=u.energy;hp+=u.hp/Math.max(1,u.maxHp);
   habitatLoad+=u.habitatLoad??0;
   infected+=u.infection>0?1:0;
@@ -32,6 +37,9 @@ export function observeEcology(game){
  const predation=(causes['捕食']??0)+(causes['卵の捕食']??0);
  const infection=causes['感染症']??0;
  const deaths=Object.values(causes).reduce((a,b)=>a+b,0);
+ const census=game.reproductionCensus();
+ const failures=game.courtshipFailures??{};
+ const failureTotal=Object.values(failures).reduce((a,b)=>a+b,0);
  return {
   step:game.tick,population:n,adults:n-juveniles,juveniles,eggs:game.eggs.length,
   livingSpecies:game.livingSpecies,discoveredSpecies:game.species.size,
@@ -43,7 +51,19 @@ export function observeEcology(game){
   births:totalBirths,deaths,deathStarvation:starvation,
   deathPredation:predation,deathInfection:infection,
   deathOther:deaths-starvation-predation-infection,
-  matings:game.matings,temperature:finite(game.temperature),
+  matings:game.matings,
+  courtshipStarts:game.courtshipStarts??0,courtshipFailures:failureTotal,
+  courtFailTemperature:failures.temperature??0,courtFailEnergy:failures.energy??0,
+  courtFailInfection:failures.infection??0,courtFailSeparated:failures.separated??0,
+  courtFailOther:failureTotal-(failures.temperature??0)-(failures.energy??0)-
+   (failures.infection??0)-(failures.separated??0),
+  reproReady:census.ready,reproTemperature:census.temperature,
+  reproInfection:census.infection,reproImmature:census.immature,
+  reproEnergy:census.energy,reproCooldown:census.cooldown,
+  reproPregnancy:census.pregnancy,reproWeak:census.weak,
+  reproNoPartner:census.noPartner,reproPaired:census.paired,
+  meanPreferredTemp:finite(n?idealTotal/n:0),meanTempTolerance:finite(n?toleranceTotal/n:0),
+  temperature:finite(game.temperature),
   season:game.climateEnabled?game.seasonName():'off',
   growthSetting:game.growth,rainfallSetting:game.rainfall,stressSetting:game.stress
  };
