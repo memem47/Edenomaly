@@ -1074,7 +1074,7 @@ export class Ecosystem{
    // Life declines naturally each step; damage, infection, and harsh environments
    // consume the same finite reserve. Feeding provides energy, not extra years.
    const canRest=u.stage==='adult'&&g.aquatic!==1&&(g.hibernate??0)>.68&&
-    thermal.excess>3&&u.energy>90&&!u.pregnancy&&!u.courtPartner&&
+    thermal.excess>3&&u.energy>112&&!u.pregnancy&&!u.courtPartner&&
     terrainFitness(g,t).fitness>.75;
    if(canRest){
     if(!u.dormant){u.dormant=true;this.log('rest','#'+u.id+' が休眠に入った',u);}
