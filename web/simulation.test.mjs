@@ -2191,3 +2191,98 @@ test('slow or hidden frames never create a catch-up simulation burst',()=>{
  assert.ok(lowSteps<=85,'low-impact mode must limit background resource contention');
  assert.ok(highSteps>lowSteps,'full-speed mode can use more CPU when requested');
 });
+
+test('reproductive diagnosis classifies genuine barriers without changing mating rules',()=>{
+ const w=new Ecosystem(99001);
+ const base={...w.gene(),idealTemp:22,tempTolerance:10};
+ const u=w.spawn(200,150,base);
+ u.age=100;u.stage='adult';u.energy=180;u.infection=0;u.mateCooldown=0;
+ w.temperatureAt=()=>22;
+ assert.equal(w.reproductionBlockReason(u),null);
+ assert.equal(w.isReadyToMate(u),true);
+ w.temperatureAt=()=>45;
+ assert.equal(w.reproductionBlockReason(u),'temperature');
+ assert.equal(w.isReadyToMate(u),false);
+ w.temperatureAt=()=>22;
+ u.infection=12;assert.equal(w.reproductionBlockReason(u),'infection');u.infection=0;
+ u.stage='juvenile';assert.equal(w.reproductionBlockReason(u),'immature');u.stage='adult';
+ u.energy=1;assert.equal(w.reproductionBlockReason(u),'energy');u.energy=180;
+ u.mateCooldown=10;assert.equal(w.reproductionBlockReason(u),'cooldown');u.mateCooldown=0;
+ u.pregnancy={remaining:10};assert.equal(w.reproductionBlockReason(u),'pregnancy');u.pregnancy=null;
+ assert.equal(w.reproductionBlockReason(u),null);
+});
+test('courtship interruption records specific reason and does not invent a birth',()=>{
+ const w=new Ecosystem(99002),g={...w.gene(),idealTemp:22,tempTolerance:10};
+ const a=w.spawn(200,150,g),b=w.spawn(207,150,g);
+ a.sex='F';b.sex='M';
+ for(const u of [a,b]){u.age=110;u.stage='adult';u.energy=200;u.infection=0;u.mateCooldown=0;}
+ w.temperatureAt=()=>22;
+ assert.ok(w.startCourtship(a,b));
+ assert.equal(w.courtshipStarts,1);
+ b.infection=20;w.updateCourtships();
+ assert.equal(w.courtshipFailures.infection,1);
+ assert.ok(w.logs.some(x=>x.type==='courtFail'&&x.message.includes('感染')));
+ assert.equal(w.matings,0);
+ b.infection=0;
+ assert.ok(w.startCourtship(a,b));
+ b.x+=100;w.updateCourtships();
+ assert.equal(w.courtshipFailures.separated,1);
+ assert.equal(w.courtships.length,0);
+});
+test('reproduction census distinguishes unsuitable temperature from no compatible mate',()=>{
+ const w=new Ecosystem(99003),g={...w.gene(),idealTemp:22,tempTolerance:8};
+ w.temperatureAt=()=>22;
+ const a=w.spawn(200,150,g);
+ a.stage='adult';a.age=100;a.energy=180;a.mateCooldown=0;a.infection=0;
+ let count=w.reproductionCensus();
+ assert.equal(count.ready,1);assert.equal(count.noPartner,1);
+ const b=w.spawn(210,150,{...g});b.stage='adult';b.age=100;b.energy=180;b.mateCooldown=0;b.infection=0;
+ a.sex='F';b.sex='M';
+ count=w.reproductionCensus();
+ assert.equal(count.ready,2);assert.equal(count.noPartner,0);
+ w.temperatureAt=()=>42;
+ count=w.reproductionCensus();
+ assert.equal(count.temperature,2);assert.equal(count.ready,0);
+ const summary=observeEcology(w);
+ assert.equal(summary.reproTemperature,2);
+ assert.equal(summary.reproReady,0);
+ assert.ok(summary.meanPreferredTemp>0&&summary.meanTempTolerance>0);
+});
+test('founder thermal genes include cold-hot specialists and heritable differences',()=>{
+ const w=new Ecosystem(99004),distribution={cold:0,hot:0,generalist:0};
+ for(let i=0;i<800;i++){
+  const g=w.gene();
+  if(g.idealTemp<12)distribution.cold++;
+  if(g.idealTemp>31)distribution.hot++;
+  if(g.tempTolerance>=14)distribution.generalist++;
+ }
+ assert.ok(distribution.cold>15);
+ assert.ok(distribution.hot>15);
+ assert.ok(distribution.generalist>20);
+ const cold={...w.gene(),idealTemp:2,tempTolerance:12};
+ const warm={...w.gene(),idealTemp:35,tempTolerance:8};
+ assert.ok(thermalFitness(cold,0).comfort>thermalFitness(warm,0).comfort);
+ assert.ok(thermalFitness(warm,35).comfort>thermalFitness(cold,35).comfort);
+ assert.ok(thermalFitness(warm,35).reproduction);
+ assert.equal(thermalFitness(cold,35).reproduction,false);
+ assert.ok(w.recombine(cold,cold).idealTemp<20);
+});
+test('CSV tracks reproductive blockers and failed courtships with distinct columns',()=>{
+ const w=new Ecosystem(99005),g={...w.gene(),idealTemp:22,tempTolerance:7};
+ const u=w.spawn(205,150,g);u.age=100;u.stage='adult';u.energy=170;
+ w.temperatureAt=()=>42;
+ w.courtshipStarts=2;w.courtshipFailures.temperature=1;
+ const row=observeEcology(w);
+ assert.equal(row.reproTemperature,1);
+ assert.equal(row.courtshipStarts,2);
+ assert.equal(row.courtFailTemperature,1);
+ const data=new Map();
+ const storage={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)};
+ const book=new EcologyLogbook(storage,'repro-diagnostics-test');
+ book.start(99005);book.record(row,true);
+ const csv=book.toCSV();
+ assert.ok(csv.includes('reproTemperature'));
+ assert.ok(csv.includes('reproNoPartner'));
+ assert.ok(csv.includes('courtFailTemperature'));
+ assert.ok(csv.includes('meanPreferredTemp'));
+});
