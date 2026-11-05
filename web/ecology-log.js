@@ -9,7 +9,7 @@ export const ECOLOGY_LOG_FIELDS=[
  'meanHabitatLoad','infected','births','deaths','deathStarvation',
  'deathPredation','deathInfection','deathOther','matings','courtshipStarts',
  'courtshipFailures','courtFailTemperature','courtFailEnergy','courtFailInfection',
- 'courtFailSeparated','courtFailOther','reproReady','reproTemperature',
+ 'courtFailSeparated','courtFailStalled','courtFailConception','courtFailOther','reproReady','reproTemperature',
  'reproInfection','reproImmature','reproEnergy','reproCooldown','reproPregnancy',
  'reproWeak','reproNoPartner','reproPaired','meanPreferredTemp','meanTempTolerance',
  'temperature','season','growthSetting','rainfallSetting','stressSetting'
@@ -55,8 +55,9 @@ export function observeEcology(game){
   courtshipStarts:game.courtshipStarts??0,courtshipFailures:failureTotal,
   courtFailTemperature:failures.temperature??0,courtFailEnergy:failures.energy??0,
   courtFailInfection:failures.infection??0,courtFailSeparated:failures.separated??0,
+  courtFailStalled:failures.stalled??0,courtFailConception:failures.conception??0,
   courtFailOther:failureTotal-(failures.temperature??0)-(failures.energy??0)-
-   (failures.infection??0)-(failures.separated??0),
+   (failures.infection??0)-(failures.separated??0)-(failures.stalled??0)-(failures.conception??0),
   reproReady:census.ready,reproTemperature:census.temperature,
   reproInfection:census.infection,reproImmature:census.immature,
   reproEnergy:census.energy,reproCooldown:census.cooldown,
