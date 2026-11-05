@@ -1460,7 +1460,7 @@ export class Ecosystem{
     // A single founder type must be able to use ambient nutrients;
     // later types remain fully random (including predators).
     const dryFounder=this.terrain(x,y)===2||this.terrain(x,y)===3;
-    if(k===0&&(!dryFounder&&g.diet>.28||morphology(g).bodyMass>100||g.eyes<2))continue;
+    if(k===0&&(!dryFounder&&g.diet>.28||morphology(g).bodyMass>100||g.eyes<2||!thermalFitness(g,this.temperatureAt(x,y)).reproduction))continue;
     if(!used.has(key))break;
    }
    if(used.has(key))continue;
