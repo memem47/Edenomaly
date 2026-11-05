@@ -323,7 +323,7 @@ export class Ecosystem{
   const founderTolerance=toleranceRoll<.20?14+toleranceRoll/.20*4:
    toleranceRoll<.30?4+(toleranceRoll-.20)/.10*4:
    8+(toleranceRoll-.30)/.70*6;
-  const g={idealTemp:founderIdeal,tempTolerance:founderTolerance,hibernate:this.rand()<.25?this.range(.7,1):this.range(0,.55),longevity:this.range(.8,1.5),repro:(()=>{const roll=this.rand();return roll<.004?1:roll<.006?2:0;})(),r:this.rand()<.065?this.range(8.5,12):this.range(3.1,7.5),
+  const g={idealTemp:founderIdeal,tempTolerance:founderTolerance,longevity:this.range(.8,1.5),repro:(()=>{const roll=this.rand();return roll<.004?1:roll<.006?2:0;})(),r:this.rand()<.065?this.range(8.5,12):this.range(3.1,7.5),
    elongation:(()=>{const roll=this.rand();
     return roll<.82?this.range(.94,1.16):roll<.98?this.range(1.43,2.04):this.range(2.35,2.83);
    })(),eyes:(()=>{const roll=this.rand();return roll<.08?0:roll<.36?1:roll<.71?2:roll<.90?3:roll<.975?4:roll<.995?5:6;})(),
@@ -337,6 +337,7 @@ export class Ecosystem{
   // recessive alleles that are not necessarily visible in its phenotype.
   g.alleles={};
   for(const key of HERITABLE){
+   if(key==='hibernate')continue; // initialize from other inherited founder traits without consuming RNG
    let second=g[key];
    if(key==='repro')second=0;
     else if(key==='idealTemp')second=clamp(g.idealTemp+this.range(-3,3),...LIMITS.idealTemp);
@@ -355,6 +356,10 @@ export class Ecosystem{
    g.alleles[key]=pair;
    g[key]=alleleExpression(key,pair);
   }
+  // An existing inherited trait combination seeds a new independently
+  // recombining mutation locus without shifting all previous seed outcomes.
+  g.hibernate=clamp(.07+g.shell*.57+g.guard*.44,0,1);
+  g.alleles.hibernate=[g.hibernate,g.hibernate];
   return g;
  }
  mutate(g){
