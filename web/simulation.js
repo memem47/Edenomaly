@@ -730,7 +730,11 @@ export class Ecosystem{
    for(let xx=Math.max(0,cx-reach);xx<=Math.min(NX-1,cx+reach);xx++){
     const i=yy*NX+xx;
     if(this.tiles[i]!==1||this.water[i]<=0||this.waterweed[i]<=.2)continue;
-    const px=(xx+.5)*CELL,py=(yy+.5)*CELL,d=(px-x)**2+(py-y)**2;
+    // Approach the reachable edge of a food tile instead of its centre.
+    // This reduces needless movement before taking the first bite.
+    const px=clamp(x,xx*CELL+2,(xx+1)*CELL-2);
+    const py=clamp(y,yy*CELL+2,(yy+1)*CELL-2);
+    const d=(px-x)**2+(py-y)**2;
     if(d<score){best={x:px,y:py};score=d;}
    }
   return best;
@@ -792,7 +796,8 @@ export class Ecosystem{
    for(let xx=Math.max(0,cx-reach);xx<=Math.min(NX-1,cx+reach);xx++){
     const id=yy*NX+xx;if(this.tiles[id]!==0||this.grass[id]<=.2)continue;
     if(!terrainFitness(g,0).passable)continue;
-    const a=(xx+.5)*CELL,b=(yy+.5)*CELL;
+    const a=clamp(x,xx*CELL+2,(xx+1)*CELL-2);
+    const b=clamp(y,yy*CELL+2,(yy+1)*CELL-2);
     const d=(a-x)**2+(b-y)**2;
     if(d<score){score=d;best={x:a,y:b};}
    }
@@ -1069,7 +1074,7 @@ export class Ecosystem{
    // Life declines naturally each step; damage, infection, and harsh environments
    // consume the same finite reserve. Feeding provides energy, not extra years.
    const canRest=u.stage==='adult'&&g.aquatic!==1&&(g.hibernate??0)>.68&&
-    thermal.excess>3&&u.energy>38&&!u.pregnancy&&!u.courtPartner&&
+    thermal.excess>3&&u.energy>90&&!u.pregnancy&&!u.courtPartner&&
     terrainFitness(g,t).fitness>.75;
    if(canRest){
     if(!u.dormant){u.dormant=true;this.log('rest','#'+u.id+' が休眠に入った',u);}
