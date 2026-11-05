@@ -2156,3 +2156,27 @@ test('autumn foliage and winter ice render without changing terrain and ecology'
  assert.equal(w.water[0],firstWater);
  assert.equal(w.rng,rng);
 });
+
+import {performancePolicy,simulationBatch,BROWSER_BACKGROUND_INTERVAL} from './performance-policy.js';
+test('video-friendly scheduler reduces drawing and simulation work as the ecosystem grows',()=>{
+ const small=performancePolicy(30,true),dense=performancePolicy(300,true),crowded=performancePolicy(600,true);
+ assert.ok(small.paintInterval>=45);
+ assert.ok(dense.paintInterval>small.paintInterval);
+ assert.ok(crowded.paintInterval>dense.paintInterval);
+ assert.ok(crowded.stepsPerSecond<small.stepsPerSecond);
+ assert.ok(small.uiInterval>=900);
+ assert.equal(BROWSER_BACKGROUND_INTERVAL,1000);
+ const detailed=performancePolicy(30,false);
+ assert.ok(detailed.paintInterval<small.paintInterval);
+});
+test('slow or hidden frames never create a catch-up simulation burst',()=>{
+ const policy=performancePolicy(600,true);
+ let batch=simulationBatch(0,100000,policy,8);
+ assert.ok(batch.steps<=1);
+ assert.ok(batch.carry<2);
+ batch=simulationBatch(batch.carry,100000,policy,8);
+ assert.ok(batch.steps<=1);
+ assert.ok(batch.carry<2);
+ const noTime=simulationBatch(0,0,policy,1);
+ assert.equal(noTime.steps,0);
+});
