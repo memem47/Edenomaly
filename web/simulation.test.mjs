@@ -2179,4 +2179,15 @@ test('slow or hidden frames never create a catch-up simulation burst',()=>{
  assert.ok(batch.carry<2);
  const noTime=simulationBatch(0,0,policy,1);
  assert.equal(noTime.steps,0);
+ const low=performancePolicy(600,true),high=performancePolicy(600,false);
+ let lowSteps=0,highSteps=0,lowCarry=0,highCarry=0;
+ // 10 seconds of frame scheduling at 60fps, in fast-forward mode.
+ for(let i=0;i<600;i++){
+  const a=simulationBatch(lowCarry,1000/60,low,8);
+  lowCarry=a.carry;lowSteps+=a.steps;
+  const b=simulationBatch(highCarry,1000/60,high,8);
+  highCarry=b.carry;highSteps+=b.steps;
+ }
+ assert.ok(lowSteps<=85,'low-impact mode must limit background resource contention');
+ assert.ok(highSteps>lowSteps,'full-speed mode can use more CPU when requested');
 });
