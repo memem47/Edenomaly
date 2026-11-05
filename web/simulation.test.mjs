@@ -2376,3 +2376,25 @@ test('dormancy is inherited and mutates without introducing an immortal strategy
  for(let i=0;i<1000&&!dormant.dead;i++)w.step();
  assert.ok(dormant.dead||dormant.hp<20);
 });
+
+test('ecology CSV reports overwintering animals, eggs and foraging history',()=>{
+ const w=new Ecosystem(9986),g={...w.gene(),hibernate:1,idealTemp:22,tempTolerance:6};
+ const u=w.spawn(210,150,g);
+ u.dormant=true;u.forageSuccess=15;u.forageFailure=4;
+ w.eggs.push({id:8123,x:210,y:150,g,age:2,dead:false,dormant:true});
+ const row=observeEcology(w);
+ assert.equal(row.dormantAdults,1);
+ assert.equal(row.dormantEggs,1);
+ assert.equal(row.forageSuccess,15);
+ assert.equal(row.forageFailure,4);
+ assert.ok(row.meanHibernate>.9);
+ const data=new Map(),storage={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)};
+ const book=new EcologyLogbook(storage,'forage-dormancy-test');
+ book.start(9986);book.record(row,true);
+ const csv=book.toCSV();
+ assert.ok(csv.includes('dormantAdults'));
+ assert.ok(csv.includes('dormantEggs'));
+ assert.ok(csv.includes('forageSuccess'));
+ assert.ok(csv.includes('forageFailure'));
+ assert.ok(csv.includes('meanHibernate'));
+});
