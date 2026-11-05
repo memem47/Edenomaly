@@ -262,7 +262,7 @@ export const rearPosition=(u,offset=0)=>({
  x:clamp(u.x-Math.cos(u.angle)*(u.g.r*u.g.elongation+5+offset),6,W-6),
  y:clamp(u.y-Math.sin(u.angle)*(u.g.r*u.g.elongation+5+offset),6,H-6)
 });
-const HERITABLE=['repro','idealTemp','tempTolerance','longevity','r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic','albino'];
+const HERITABLE=['repro','idealTemp','tempTolerance','hibernate','longevity','r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic','albino'];
 const INTEGER_GENES=new Set(['eyes','mouths','brood','aquatic','albino','repro']);
 // Detailed phenotype code: one rounded hexadecimal digit per expressed
 // inherited trait, in fixed gene order. Same genome -> same code after reset;
@@ -274,7 +274,7 @@ export const genomeCode=g=>HERITABLE.map(key=>{
  return step.toString(16).toUpperCase();
 }).join('').match(/.{1,4}/g).join('-');
 
-const LIMITS={repro:[0,2],idealTemp:[-5,40],tempTolerance:[3,18],longevity:[.6,2],r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1],albino:[0,1]};
+const LIMITS={repro:[0,2],idealTemp:[-5,40],tempTolerance:[3,18],hibernate:[0,1],longevity:[.6,2],r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1],albino:[0,1]};
 const alleleExpression=(key,pair)=>{
  // Eyes: more-eye allele is dominant; hidden low-eye alleles can reappear in grandchildren.
  // Other continuous traits use incomplete dominance (mean of the two inherited copies).
@@ -323,7 +323,7 @@ export class Ecosystem{
   const founderTolerance=toleranceRoll<.20?14+toleranceRoll/.20*4:
    toleranceRoll<.30?4+(toleranceRoll-.20)/.10*4:
    8+(toleranceRoll-.30)/.70*6;
-  const g={idealTemp:founderIdeal,tempTolerance:founderTolerance,longevity:this.range(.8,1.5),repro:(()=>{const roll=this.rand();return roll<.004?1:roll<.006?2:0;})(),r:this.rand()<.065?this.range(8.5,12):this.range(3.1,7.5),
+  const g={idealTemp:founderIdeal,tempTolerance:founderTolerance,hibernate:this.rand()<.25?this.range(.7,1):this.range(0,.55),longevity:this.range(.8,1.5),repro:(()=>{const roll=this.rand();return roll<.004?1:roll<.006?2:0;})(),r:this.rand()<.065?this.range(8.5,12):this.range(3.1,7.5),
    elongation:(()=>{const roll=this.rand();
     return roll<.82?this.range(.94,1.16):roll<.98?this.range(1.43,2.04):this.range(2.35,2.83);
    })(),eyes:(()=>{const roll=this.rand();return roll<.08?0:roll<.36?1:roll<.71?2:roll<.90?3:roll<.975?4:roll<.995?5:6;})(),
@@ -341,6 +341,7 @@ export class Ecosystem{
    if(key==='repro')second=0;
     else if(key==='idealTemp')second=clamp(g.idealTemp+this.range(-3,3),...LIMITS.idealTemp);
     else if(key==='tempTolerance')second=clamp(g.tempTolerance+this.range(-2,2),...LIMITS.tempTolerance);
+     else if(key==='hibernate')second=clamp(g.hibernate+this.range(-.14,.14),0,1);
     else if(key==='longevity')second=clamp(g.longevity+this.range(-.2,.2),...LIMITS.longevity);
     else if(key==='elongation')second=clamp(g.elongation+this.range(-.11,.11),...LIMITS.elongation);
    else if(key==='albino')second=0;
@@ -459,7 +460,7 @@ export class Ecosystem{
   if(this.units.length>=2000)return null;
   const mode=reproductiveMode(g);
    const sex=mode===1?'H':mode===2?'F':(this.rand()<.5?'F':'M');
-   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null};
+   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null};
   u.category=this.category(g);u.lineage??=u.id;this.units.push(u);
   if(!this.species.has(u.category)){
    const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(u.category),current:0,total:0,diet:dietProfile(g).label,first:this.tick,genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(u.category),u);
@@ -501,6 +502,7 @@ export class Ecosystem{
   if(!u||u.dead)return 'dead';
   if(!thermalFitness(u.g,this.temperatureAt(u.x,u.y)).reproduction)return 'temperature';
   if(u.infection>0)return 'infection';
+  if(u.dormant)return 'dormant';
   if(u.stage!=='adult'||u.age<=42)return 'immature';
   if(u.energy<68+Math.max(0,organismMorphology(u).bodyMass-100)*.22+
    (u.crowdStress??0)*3.1+(u.habitatLoad??0)*4.2)return 'energy';
@@ -513,7 +515,7 @@ export class Ecosystem{
  // Count inability to reproduce separately from courtships that actually failed.
  reproductionCensus(){
   const live=this.units.filter(u=>!u.dead);
-  const counts={ready:0,temperature:0,infection:0,immature:0,energy:0,
+  const counts={ready:0,temperature:0,infection:0,dormant:0,immature:0,energy:0,
    cooldown:0,pregnancy:0,weak:0,noPartner:0,paired:0};
   const available=[],lookup=new SpatialLookup(live);
   for(const u of live){
@@ -1029,8 +1031,15 @@ export class Ecosystem{
   }
   for(const egg of this.eggs){
    const eggClimate=thermalFitness(egg.g,this.temperatureAt(egg.x,egg.y));
-   egg.age+=eggClimate.excess>0?.32:clamp(.72+eggClimate.comfort*.28,.72,1);
-   egg.heatExposure=(egg.heatExposure??0)+eggClimate.excess*.016;
+   // Thick-shelled / dormant genotypes can delay hatching through a
+   // hostile season, at the expense of reserves and delayed reproduction.
+   const eggRest=eggClimate.excess>2&&
+    ((egg.g.hibernate??0)>.68||(egg.g.shell??0)>.78);
+   egg.dormant=eggRest;
+   egg.age+=eggRest?.025:eggClimate.excess>0?.32:clamp(.72+eggClimate.comfort*.28,.72,1);
+   egg.heatExposure=(egg.heatExposure??0)+eggClimate.excess*(eggRest?.0015:.016);
+   if(eggRest)egg.energy-=.007+eggClimate.excess*.001;
+   if(egg.energy<=0){egg.dead=true;this.log('death','卵 #'+egg.id+' が休眠中に栄養を使い切った',egg);continue;}
    if(egg.heatExposure>22){egg.dead=true;this.log('death','卵 #'+egg.id+' が極端な気温で死亡',egg);continue;}
 
    if(!egg.dead&&egg.age>=egg.hatchAt&&this.units.length<2000){
@@ -1054,8 +1063,25 @@ export class Ecosystem{
    u.thermalComfort=thermal.comfort;u.temperature=this.temperatureAt(u.x,u.y);
    // Life declines naturally each step; damage, infection, and harsh environments
    // consume the same finite reserve. Feeding provides energy, not extra years.
+   const canRest=u.stage==='adult'&&g.aquatic!==1&&(g.hibernate??0)>.68&&
+    thermal.excess>3&&u.energy>38&&!u.pregnancy&&!u.courtPartner&&
+    terrainFitness(g,t).fitness>.75;
+   if(canRest){
+    if(!u.dormant){u.dormant=true;this.log('rest','#'+u.id+' が休眠に入った',u);}
+    // Dormancy is costly and does not restore HP: weak/slim individuals
+    // still perish, while well-fed seasonal specialists can overwinter.
+    u.hp-=lifeDrain(u,{temperature:u.temperature,terrain:t})*.34+thermal.damage*.07;
+    u.energy-=.06+organismMorphology(u).bodyMass*.0015;
+    u.hydration=Math.max(0,u.hydration-.045);
+    if(u.hydration<=0||u.energy<=0||u.hp<=0){
+     this.die(u,u.hydration<=0?'脱水':u.energy<=0?'飢餓':'気温による衰弱');
+    }
+    continue;
+   }
+   if(u.dormant){u.dormant=false;this.log('wake','#'+u.id+' が休眠から目覚めた',u);}
+   // Maintaining dormancy-capable physiology carries a year-round cost.
    u.hp-=lifeDrain(u,{temperature:u.temperature,terrain:t});
-   u.hp-=thermal.damage;u.energy-=thermal.upkeep;
+   u.hp-=thermal.damage;u.energy-=thermal.upkeep+(g.hibernate??0)*.075;
    const near=unitGrid.query(u.x,u.y,Math.max(145,sight*1.6),false);
    const aquatic=g.aquatic===1,underwater=t===1&&this.water[this.cell(u.x,u.y)]>0;
    if(aquatic){
@@ -1073,7 +1099,13 @@ export class Ecosystem{
    }
    if(u.hydration<18)u.hp-=.06;
    let nearest=null,df=sight*sight;
-   if(diet.plant>0){nearest=aquatic?this.nearestWaterweed(u.x,u.y,sight):this.nearestGrass(u.x,u.y,sight,g);if(nearest)df=distance(u,nearest);}
+   if(diet.plant>0){
+    // Search farther only while hungry; no new food is generated.
+    const forageRadius=u.energy<80?Math.min(165,Math.max(65,sight*1.9)):sight;
+    nearest=aquatic?this.nearestWaterweed(u.x,u.y,forageRadius):this.nearestGrass(u.x,u.y,forageRadius,g);
+    if(nearest)df=distance(u,nearest);
+    if(u.energy<80&&!nearest)u.forageFailure++;
+   }
    let nearestCorpse=null,corpseDist=sight*sight;
    if(diet.meat>.3)for(const corpse of corpseGrid.query(u.x,u.y,sight)){
     if(corpse.mass<1)continue;
@@ -1199,11 +1231,11 @@ export class Ecosystem{
     }
    let target=prey&&pd<df*1.4?prey:nearest;
    if(nearestCorpse&&corpseDist<Math.min(df,pd)*1.35)target=nearestCorpse;
-   if(mate&&(u.courtPartner||!target||u.energy>=86))target=mate;
+   if(mate&&(u.courtPartner||!target||u.energy>=112))target=mate;
    if(targetEgg&&ed<Math.min(df,pd)*1.15)target=targetEgg;
    if(defenderTarget&&!u.courtPartner)target=defenderTarget;
     if(rival&&!mate&&!defenderTarget&&!flight)target=rival;
-   if(u.refugeTarget&&!flight&&!u.courtPartner)target=u.refugeTarget;
+   if(u.refugeTarget&&!flight&&!u.courtPartner&&u.energy>=85)target=u.refugeTarget;
    const nearFood=nearest&&distance(u,nearest)<Math.max(14,sight*.55)**2;
    const criticalWater=u.hydration<24||aquatic&&!underwater&&u.stranded>35;
    if((aquatic&&!underwater||!aquatic&&u.hydration<45&&!this.nearWater(u.x,u.y,1))&&(!nearFood||criticalWater)){
@@ -1211,7 +1243,7 @@ export class Ecosystem{
    }
    // Guarding trades feeding opportunities for staying near the offspring.
    const ownEgg=firstEggByParent.get(u.id);
-   if(ownEgg&&g.guard>.15&&!flight&&!defenderTarget&&!criticalWater&&u.energy>45){
+   if(ownEgg&&g.guard>.15&&!flight&&!defenderTarget&&!criticalWater&&u.energy>85){
     const guardRadius=12+g.guard*40;
     if(distance(u,ownEgg)>guardRadius**2||!target)target=ownEgg;
    }
@@ -1248,6 +1280,7 @@ export class Ecosystem{
     const eaten=this.consumeWaterweed(nearest.x,nearest.y,Math.min(5.5,1.3*m.foodGain*feedingCapacity(u)));
     if(eaten>0){u.energy+=eaten*7.5*diet.plant*home.fitness;
      u.recentFood=(u.recentFood??0)+eaten*4;
+     u.forageSuccess++;
      if(u.stage==='juvenile')u.juvenileFood+=eaten*7.5*diet.plant*home.fitness;
      // Eating sustains energy but cannot replenish spent lifespan.
      if((this.tick+u.id)%9===0)this.addVisualEffect('waterweed',u,{fromX:nearest.x,fromY:nearest.y});
@@ -1257,6 +1290,7 @@ export class Ecosystem{
     const eaten=this.consumeGrass(nearest.x,nearest.y,Math.min(4.8,1.05*m.foodGain*feedingCapacity(u)));
     if(eaten>0){u.energy+=eaten*10.5*diet.plant*home.fitness;
      u.recentFood=(u.recentFood??0)+eaten*4;
+     u.forageSuccess++;
      u.seedBank=Math.min(100,(u.seedBank??0)+eaten*.35);
      if(u.stage==='juvenile')u.juvenileFood+=eaten*10.5*diet.plant*home.fitness;
      // Grass restores energy reserves, not irreversible life HP.
