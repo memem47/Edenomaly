@@ -2567,7 +2567,12 @@ test('game completion settles lifetime reward once and keeps it across new runs'
  run.reset();assert.deepEqual(settleMeta(next,run),next);
 });
 
-test('dormant eye line cancels body rotation, keeping horizontal closed eyes on screen',()=>{
+test('closed eyes are straight tangents to their body outline and follow body rotation',async()=>{
+ const {closedEyeTangent}=await import('./renderer.js');
+ const close=(v,w)=>Math.abs(v-w)<1e-9;
+ const forward=closedEyeTangent(0,12,7),side=closedEyeTangent(Math.PI/2,12,7);
+ assert.ok(close(forward.x,0)&&close(forward.y,1),'front eye must close vertically in body space');
+ assert.ok(close(side.x,-1)&&close(side.y,0),'side eye must close horizontally in body space');
  const w=new Ecosystem(2026110701);w.units=[];w.eggs=[];w.corpses=[];
  const u=w.spawn(300,200,{...w.gene(),eyes:2});u.angle=Math.PI/2;u.dormant=true;
  const rotations=[],segments=[];let px=0,py=0;
@@ -2577,7 +2582,7 @@ test('dormant eye line cancels body rotation, keeping horizontal closed eyes on 
   lineTo(x,y){segments.push({from:[px,py],to:[x,y]});}},
   {get(o,k){return k in o?o[k]:()=>{};},set(o,k,v){o[k]=v;return true;}});
  drawWorld(ctx,w,false);
- assert.ok(rotations.some(a=>Math.abs(a-Math.PI/2)<1e-9),'body rotation');
- assert.ok(rotations.filter(a=>Math.abs(a+Math.PI/2)<1e-9).length>=2,'eye counterrotation');
- assert.ok(segments.some(s=>s.from[1]===0&&s.to[1]===0&&s.from[0]<0&&s.to[0]>0),'horizontal eye strokes');
+ assert.ok(rotations.some(a=>close(a,Math.PI/2)),'body rotates normally');
+ assert.ok(!rotations.some(a=>close(a,-Math.PI/2)),'eyes must not cancel body rotation');
+ assert.ok(segments.some(s=>close(s.from[0],s.to[0])&&s.from[1]!==s.to[1]),'tangent at front draws a vertical local stroke');
 });
