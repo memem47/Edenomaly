@@ -2915,3 +2915,32 @@ test('a received attack causes genetically chosen flight or retaliation',()=>{
  assert.ok(enemy.hp<1500,'counterattack must inflict damage');
  assert.ok(other.logs.some(e=>e.message.includes('反撃')));
 });
+
+test('water-bound slimes never pursue weeds across disconnected ponds',()=>{
+ const w=new Ecosystem(2026110812);
+ w.tiles.fill(2);w.grass.fill(0);w.water.fill(0);w.waterweed.fill(0);
+ // Two disconnected ponds, separated by impassable land for aquatic organisms.
+ const a=w.cell(210,210),b=w.cell(350,210);
+ w.tiles[a]=w.tiles[b]=1;w.water[a]=w.water[b]=100;w.waterweed[b]=95;
+ assert.equal(w.nearestWaterweed(210,210,165),null);
+ w.waterweed[a]=8;
+ const local=w.nearestWaterweed(210,210,165);
+ assert.ok(local&&w.cell(local.x,local.y)===a,'pond-local edible weed is reachable');
+ w.waterweed[a]=0;
+ // A same-step painted connection must invalidate cached region labels.
+ for(let x=230;x<=330;x+=20)w.paint(x,210,1,0);
+ w.waterweed[b]=95;
+ assert.ok(w.nearestWaterweed(210,210,165),'connected pond permits food-seeking');
+});
+test('starving oversized adult sheds maintenance-heavy bulk without free energy',()=>{
+ const w=new Ecosystem(2026110813);
+ w.tiles.fill(0);w.grass.fill(0);w.water.fill(0);
+ const g={...w.gene(),aquatic:0,diet:0,idealTemp:22,tempTolerance:18};
+ const u=w.spawn(210,180,g);
+ u.stage='adult';u.age=100;u.energy=0;u.growthScale=2.5;
+ u.hp=u.maxHp=2000;w.temperatureAt=()=>22;
+ w.step();
+ assert.ok(u.growthScale<2.485,'catabolism must respond before large animals starve');
+ assert.equal(u.energy,0,'shrinking must not generate calories');
+ assert.ok(u.hp<2000,'shrinking must not heal damage');
+});
