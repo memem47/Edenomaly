@@ -240,18 +240,30 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   }
   if(!dead&&fade<1){ctx.fillStyle=`rgba(255,255,255,${.36*(1-fade)})`;ctx.beginPath();
   ctx.ellipse(-rx*.30,-ry*.36,rx*.21,ry*.10,-.35,0,TAU);ctx.fill();}
-  // Infection persists on the body as a green dashed rim with orbiting spores.
+  // Sickness: muted bruised skin and irregular blotches, not bright
+  // green orbiting particles that can be mistaken for a positive buff.
   if(condition.infected){
-   const pulse=.5+.5*Math.sin(s.tick*.19+(u.id||0));
-   ctx.strokeStyle='rgba(59,212,99,.86)';
-   ctx.lineWidth=1.8+pulse;
-   ctx.setLineDash([3,3]);ctx.beginPath();
-   ctx.ellipse(0,0,rx+4,ry+4,0,0,TAU);ctx.stroke();ctx.setLineDash([]);
-   ctx.fillStyle='rgba(104,248,121,.88)';
-   for(let i=0;i<3;i++){
-    const a=s.tick*.035+i*TAU/3+(u.id||0);
-    ctx.beginPath();ctx.arc(Math.cos(a)*(rx+6),Math.sin(a)*(ry+6)-2,2,0,TAU);ctx.fill();
+   const severity=Math.max(.25,Math.min(1,(u.infection??0)/90));
+   ctx.save();
+   ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.clip();
+   ctx.fillStyle=`rgba(91,35,83,${(.13+severity*.12).toFixed(3)})`;
+   ctx.fillRect(-rx,-ry,rx*2,ry*2);
+   // Fixed, asymmetric sores remain attached to the organism.
+   // Avoid placing them over the central eye region.
+   ctx.fillStyle='rgba(104,34,67,.61)';
+   for(const [px,py,sx,sy] of [[-.42,.26,.17,.12],[.23,-.32,.14,.10],[.40,.35,.12,.09]]){
+    ctx.beginPath();
+    ctx.ellipse(px*rx,py*ry,Math.max(.9,sx*rx),Math.max(.75,sy*ry),-.4,0,TAU);
+    ctx.fill();
    }
+   ctx.restore();
+   // A dim broken border makes infected individuals identifiable at a glance
+   // without looking like a celebratory halo.
+   ctx.strokeStyle='rgba(123,43,74,.78)';
+   ctx.lineWidth=1.2;
+   ctx.setLineDash([2.5,4.5]);
+   ctx.beginPath();ctx.ellipse(0,0,rx+2,ry+2,0,0,TAU);ctx.stroke();
+   ctx.setLineDash([]);
   }
   // Predator attack flashes toward its facing direction (+X in local space).
   if(condition.attacking){
