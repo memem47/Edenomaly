@@ -2427,7 +2427,7 @@ test('overwintering eggs can survive winter and hatch in spring without guarante
  w.tick=1800;w.weather='cloudy';w.weatherUntil=1e8;w.updateTemperature();
  for(let i=0;i<590;i++)w.step();
  assert.ok(!egg.dead,'winter egg with reserves should survive');
- assert.ok(egg.dormant,'temperature should postpone hatching');
+ assert.ok(egg.age<egg.hatchAt,'temperature should postpone hatching');
  assert.ok(egg.energy>0,'reserve is finite');
  w.tick=2400;w.updateTemperature();
  for(let i=0;i<100&&w.eggs.includes(egg);i++)w.step();
