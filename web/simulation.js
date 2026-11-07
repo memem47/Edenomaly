@@ -263,6 +263,9 @@ export const rearPosition=(u,offset=0)=>({
  y:clamp(u.y-Math.sin(u.angle)*(u.g.r*u.g.elongation+5+offset),6,H-6)
 });
 const HERITABLE=['repro','idealTemp','tempTolerance','hibernate','longevity','r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic','albino'];
+// Natural ponds always retain a viable reservoir. Drought reduces excess
+// water depth, but only deliberate terrain painting may remove a water tile.
+export const POND_RESERVE=35;
 const INTEGER_GENES=new Set(['eyes','mouths','brood','aquatic','albino','repro']);
 // Detailed phenotype code: one rounded hexadecimal digit per expressed
 // inherited trait, in fixed gene order. Same genome -> same code after reset;
@@ -752,9 +755,8 @@ export class Ecosystem{
  }
  consumeWater(x,y,amount){
   const i=this.cell(x,y);if(this.tiles[i]!==1)return 0;
-  const taken=Math.min(this.water[i],amount);
+  const taken=Math.min(Math.max(0,this.water[i]-POND_RESERVE),amount);
   this.water[i]-=taken;
-  if(this.water[i]<=.001){this.water[i]=0;this.tiles[i]=2;}
   return taken;
  }
  nearWater(x,y,radius=1){
@@ -996,16 +998,13 @@ export class Ecosystem{
    }
    this.waterweed=next;
   }
-  // Standing water evaporates naturally. Rain replenishes depleted waterbeds.
-  // Climate slider: 0 = no natural precipitation, 100 = heavy rain.
-  // Default 25 restores about 3 units per 180 steps, below typical evaporation.
+  // Ponds are permanent terrain. Rain affects water above the minimum
+  // reservoir; no climatic condition is allowed to erase a water tile.
   if(this.tick%180===0&&this.rainfall>0)
    this.replenishWater(12*this.rainfall/100);
   if(this.tick%8===0){
-   for(let i=0;i<this.tiles.length;i++)if(this.water[i]>0){
-    this.water[i]=Math.max(0,this.water[i]-(.16+this.stress*.003));
-    if(this.water[i]===0&&this.tiles[i]===1){this.tiles[i]=2;this.waterweed[i]=0;}
-   }
+   for(let i=0;i<this.tiles.length;i++)if(this.tiles[i]===1)
+    this.water[i]=Math.max(POND_RESERVE,this.water[i]-(.16+this.stress*.003));
   }
   for(let i=this.corpses.length-1;i>=0;i--){
    const c=this.corpses[i];c.age++;
@@ -1044,11 +1043,11 @@ export class Ecosystem{
    // Thick-shelled / dormant genotypes can delay hatching through a
    // hostile season, at the expense of reserves and delayed reproduction.
    const eggRest=eggClimate.excess>2&&
-    ((egg.g.hibernate??0)>.68||(egg.g.shell??0)>.78);
+    ((egg.g.hibernate??0)>.52||(egg.g.shell??0)>.58);
    egg.dormant=eggRest;
-   egg.age+=eggRest?.025:eggClimate.excess>0?.32:clamp(.72+eggClimate.comfort*.28,.72,1);
-   egg.heatExposure=(egg.heatExposure??0)+eggClimate.excess*(eggRest?.0015:.016);
-   if(eggRest)egg.energy-=.007+eggClimate.excess*.001;
+   egg.age+=eggRest?.008:eggClimate.excess>0?.32:clamp(.72+eggClimate.comfort*.28,.72,1);
+   egg.heatExposure=(egg.heatExposure??0)+eggClimate.excess*(eggRest?.0003:.016);
+   if(eggRest)egg.energy-=.0025+eggClimate.excess*.00035;
    if(egg.energy<=0){egg.dead=true;this.log('death','卵 #'+egg.id+' が休眠中に栄養を使い切った',egg);continue;}
    if(egg.heatExposure>22){egg.dead=true;this.log('death','卵 #'+egg.id+' が極端な気温で死亡',egg);continue;}
 
@@ -1073,16 +1072,18 @@ export class Ecosystem{
    u.thermalComfort=thermal.comfort;u.temperature=this.temperatureAt(u.x,u.y);
    // Life declines naturally each step; damage, infection, and harsh environments
    // consume the same finite reserve. Feeding provides energy, not extra years.
-   const canRest=u.stage==='adult'&&g.aquatic!==1&&(g.hibernate??0)>.68&&
-    thermal.excess>3&&u.energy>112&&!u.pregnancy&&!u.courtPartner&&
-    terrainFitness(g,t).fitness>.75;
+   // Hysteresis: entering hibernation needs reserves; remaining asleep
+   // requires less, so organisms do not repeatedly wake and starve midwinter.
+   const canRest=u.stage==='adult'&&g.aquatic!==1&&(g.hibernate??0)>.52&&
+    thermal.excess>2&&(u.dormant?u.energy>22:u.energy>112)&&
+    !u.pregnancy&&!u.courtPartner&&terrainFitness(g,t).fitness>.75;
    if(canRest){
     if(!u.dormant){u.dormant=true;this.log('rest','#'+u.id+' が休眠に入った',u);}
     // Dormancy is costly and does not restore HP: weak/slim individuals
     // still perish, while well-fed seasonal specialists can overwinter.
     u.hp-=lifeDrain(u,{temperature:u.temperature,terrain:t})*.34+thermal.damage*.07;
-    u.energy-=.06+organismMorphology(u).bodyMass*.0015;
-    u.hydration=Math.max(0,u.hydration-.045);
+    u.energy-=.04+organismMorphology(u).bodyMass*.0009;
+    u.hydration=Math.max(0,u.hydration-.028);
     if(u.hydration<=0||u.energy<=0||u.hp<=0){
      this.die(u,u.hydration<=0?'脱水':u.energy<=0?'飢餓':'気温による衰弱');
     }
@@ -1563,12 +1564,10 @@ export class Ecosystem{
  replenishWater(amount){
   let restored=0;
   for(let i=0;i<this.tiles.length;i++){
-   if(!this.waterbed[i]||(this.tiles[i]!==1&&this.tiles[i]!==2))continue;
-   if(this.tiles[i]!==1&&this.units.some(u=>!u.dead&&u.g.aquatic!==1&&this.cell(u.x,u.y)===i))continue;
+   if(this.tiles[i]!==1)continue;
    const previous=this.water[i];
-   this.water[i]=Math.min(100,previous+amount);
-   if(this.water[i]>0){this.tiles[i]=1;this.grass[i]=0;}
-   if(previous===0&&this.water[i]>0)restored++;
+   this.water[i]=Math.min(100,Math.max(POND_RESERVE,previous)+amount);
+   if(previous<POND_RESERVE&&this.water[i]>=POND_RESERVE)restored++;
   }
   return restored;
  }
