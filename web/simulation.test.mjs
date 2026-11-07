@@ -1991,7 +1991,7 @@ test('genome code is stable, quantized, and changes when a trait crosses a bin',
  const w=new Ecosystem(9114),g=w.gene();
  const code=genomeCode(g);
  assert.equal(code,genomeCode({...g}));
- assert.ok(/^[0-9A-F]{4}(-[0-9A-F]{4}){4}-[0-9A-F]{2}$/.test(code));
+ assert.ok(/^[0-9A-F]{4}(-[0-9A-F]{4}){5}$/.test(code));
  const variant={...g,longevity:2};
  assert.notEqual(genomeCode(variant),code);
  assert.equal(genomeCode({...g,wet:.401}),genomeCode({...g,wet:.402}));
