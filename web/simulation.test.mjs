@@ -2586,3 +2586,47 @@ test('closed eyes are straight tangents to their body outline and follow body ro
  assert.ok(!rotations.some(a=>close(a,-Math.PI/2)),'eyes must not cancel body rotation');
  assert.ok(segments.some(s=>close(s.from[0],s.to[0])&&s.from[1]!==s.to[1]),'tangent at front draws a vertical local stroke');
 });
+
+test('inherited dispersal and sociability remain independent and bounded',()=>{
+ const w=new Ecosystem(202611071);
+ const mother=w.gene(),father=w.gene();
+ mother.dispersal=.95;mother.sociability=.05;
+ father.dispersal=.05;father.sociability=.95;
+ for(const g of [mother,father]){
+  g.alleles.dispersal=[g.dispersal,g.dispersal];
+  g.alleles.sociability=[g.sociability,g.sociability];
+ }
+ const child=w.recombine(mother,father);
+ for(const key of ['dispersal','sociability']){
+  assert.ok(child[key]>=0&&child[key]<=1);
+  assert.ok(Array.isArray(child.alleles[key])&&child.alleles[key].length===2);
+ }
+ for(let i=0;i<100;i++){
+  const m=w.mutate(w.gene());
+  assert.ok(m.dispersal>=0&&m.dispersal<=1);
+  assert.ok(m.sociability>=0&&m.sociability<=1);
+ }
+});
+test('dispersal tendency lowers tolerance to crowding while sociability raises it',async()=>{
+ const {dispersalPressureThreshold}=await import('./simulation.js');
+ const avoid=dispersalPressureThreshold({dispersal:1,sociability:0});
+ const stay=dispersalPressureThreshold({dispersal:0,sociability:1});
+ assert.ok(avoid<stay);
+ assert.ok(dispersalPressureThreshold({dispersal:.5,sociability:1})>
+   dispersalPressureThreshold({dispersal:.5,sociability:0}));
+});
+test('well-fed sociable organisms seek a distant conspecific without being forced into contact',()=>{
+ const w=new Ecosystem(202611072);
+ w.tiles.fill(0);w.grass.fill(100);
+ const g={...w.gene(),aquatic:0,diet:0,sociability:1,dispersal:0,
+  idealTemp:22,tempTolerance:18};
+ const a=w.spawn(180,200,g),b=w.spawn(265,200,g);
+ a.sex=b.sex='M';a.energy=b.energy=175;
+ a.hp=b.hp=10000;a.maxHp=b.maxHp=10000;
+ w.climateEnabled=false;w.baseTemperature=22;w.temperature=22;
+ w.tick=29;w.rand=()=>0;
+ w.step();
+ assert.equal(a.socialTarget?.id,b.id);
+ assert.equal(a.refugeTarget,null);
+ assert.ok((a.x-b.x)**2+(a.y-b.y)**2>30**2,'not an overlapping swarm');
+});
