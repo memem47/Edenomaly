@@ -26,6 +26,13 @@ export function slimeEyeColor(g){
 export function slimeEyeLocation(angle,rx,ry){
  return {x:rx*.70*Math.cos(angle),y:ry*.70*Math.sin(angle)};
 }
+// Direction tangent to the body ellipse at each eye's location.
+// The body transform already applies the organism's facing direction.
+export function closedEyeTangent(angle,rx,ry){
+ const dx=-rx*Math.sin(angle),dy=ry*Math.cos(angle);
+ const len=Math.hypot(dx,dy)||1;
+ return {x:dx/len,y:dy/len};
+}
 // HP is remaining life. Colors start fading below half-life; at zero
 // they match the corpse palette exactly. There are no persistent wound marks.
 export const lifeFade=u=>{
@@ -282,13 +289,15 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   for(const angle of (dead?[]:eyes)){
    const {x:ex,y:ey}=slimeEyeLocation(angle,rx,ry);
    if(u.dormant){
-    // The slime is already rotated by u.angle. Cancel that rotation only
-    // around this eye, so the closed pupil remains a horizontal screen-space dash.
-    ctx.save();ctx.translate(ex,ey);ctx.rotate(-u.angle);
+    // Closed eyes follow the local body outline: straight, not smile-shaped.
+    // Body rotation is inherited from the surrounding canvas transform.
+    const tangent=closedEyeTangent(angle,rx,ry);
     ctx.strokeStyle=slimeEyeColor(g);ctx.lineWidth=Math.max(1,eyeRadius*.8);
     ctx.lineCap='round';
-    ctx.beginPath();ctx.moveTo(-eyeRadius,0);ctx.lineTo(eyeRadius,0);ctx.stroke();
-    ctx.restore();
+    ctx.beginPath();
+    ctx.moveTo(ex-tangent.x*eyeRadius,ey-tangent.y*eyeRadius);
+    ctx.lineTo(ex+tangent.x*eyeRadius,ey+tangent.y*eyeRadius);
+    ctx.stroke();
     continue;
    }
    ctx.beginPath();ctx.arc(ex,ey,eyeRadius,0,TAU);ctx.fill();
