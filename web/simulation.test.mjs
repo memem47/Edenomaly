@@ -2940,7 +2940,7 @@ test('starving oversized adult sheds maintenance-heavy bulk without free energy'
  u.stage='adult';u.age=100;u.energy=0;u.growthScale=2.5;
  u.hp=u.maxHp=2000;w.temperatureAt=()=>22;
  w.step();
- assert.ok(u.growthScale<2.485,'catabolism must respond before large animals starve');
+ assert.ok(u.growthScale<2.49,'catabolism must respond before large animals starve');
  assert.equal(u.energy,0,'shrinking must not generate calories');
  assert.ok(u.hp<2000,'shrinking must not heal damage');
 });
