@@ -2630,3 +2630,28 @@ test('well-fed sociable organisms seek a distant conspecific without being force
  assert.equal(a.refugeTarget,null);
  assert.ok((a.x-b.x)**2+(a.y-b.y)**2>30**2,'not an overlapping swarm');
 });
+
+test('well-fed breeding adults pursue mates over nearby food and social targets',()=>{
+ const w=new Ecosystem(2026110715);
+ w.tiles.fill(0);w.grass.fill(100);w.water.fill(100);
+ const gene={...w.gene(),aquatic:0,diet:0,idealTemp:22,tempTolerance:15,
+  sociability:1,dispersal:0,guard:1};
+ const a=w.spawn(190,215,gene),b=w.spawn(250,215,{...gene});
+ a.sex='F';b.sex='M';
+ for(const u of [a,b]){u.stage='adult';u.age=110;u.energy=220;u.hp=u.maxHp=5000;u.mateCooldown=0;u.infection=0;}
+ w.temperatureAt=()=>22;
+ assert.equal(w.isReadyToMate(a),true);
+ assert.equal(w.findMate(a,[a,b]),b);
+ // A much closer food target must not win over a mate.
+ w.nearestGrass=()=>({x:192,y:215});
+ let chosen;
+ w.navigate=(u,target)=>{if(u===a)chosen=target;return 'moved';};
+ w.step();
+ assert.equal(chosen,b,'mate must supersede convenient food when reserves are sufficient');
+});
+test('release manifest version is a valid nonempty fixed-format string',async()=>{
+ const {readFileSync}=await import('node:fs');
+ const manifest=JSON.parse(readFileSync(new URL('./version.json',import.meta.url),'utf8'));
+ assert.match(manifest.version,/^\d{4}\.\d{2}\.\d{2}\.\d+$/);
+ assert.ok(manifest.description.length>0);
+});
