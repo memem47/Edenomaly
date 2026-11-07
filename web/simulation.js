@@ -519,7 +519,7 @@ export class Ecosystem{
   if(this.units.length>=2000)return null;
   const mode=reproductiveMode(g);
    const sex=mode===1?'H':mode===2?'F':(this.rand()<.5?'F':'M');
-   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null,socialTarget:null,mateTarget:null,rejectedBy:null,mateApproachFailures:0,behaviorTarget:'idle',threatDecision:null,attackResponse:null,retaliationCooldown:0};
+   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null,socialTarget:null,mateTarget:null,rejectedBy:null,mateApproachFailures:0,behaviorTarget:'idle',threatDecisions:new Map(),attackResponse:null,retaliationCooldown:0};
   u.category=this.category(g);u.lineage??=u.id;this.units.push(u);
   if(!this.species.has(u.category)){
    const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(u.category),current:0,total:0,diet:dietProfile(g).label,first:this.tick,genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(u.category),u);
@@ -1273,7 +1273,7 @@ export class Ecosystem{
    const foodWithinReach=!!(nearest&&distance(u,nearest)<
     (m.biteReach+(aquatic?14:13))**2&&diet.plant>0);
    let danger=null,dangerD=sight*sight*1.6;
-   const priorThreat=u.threatDecision;
+   if(!u.threatDecisions)u.threatDecisions=new Map();
    for(const v of near){
     if(v===u||v.dead)continue;
     // A compatible and actively approaching suitor does not trigger flight
@@ -1291,11 +1291,10 @@ export class Ecosystem{
     if(d>=dangerD)continue;
     // Store the response until the encounter ends. Ignore a signal for the
     // whole encounter when the inherited risk roll says "stand ground".
-    let decision=u.threatDecision;
-    if(!decision||decision.id!==v.id||decision.until<=this.tick){
-     decision={id:v.id,until:this.tick+70,
-      flee:this.rand()<threatFlightProbability(u,v)};
-     u.threatDecision=decision;
+    let decision=u.threatDecisions.get(v.id);
+    if(!decision){
+     decision={flee:this.rand()<threatFlightProbability(u,v)};
+     u.threatDecisions.set(v.id,decision);
     }
     if(decision.flee){danger=v;dangerD=d;}
    }
@@ -1310,10 +1309,11 @@ export class Ecosystem{
      if(d<defendDist){defendDist=d;defenderTarget=v;}
     }
    }
-   // The memory ends when the threat has left the detection radius;
-   // a new encounter will produce a fresh genetic response.
-   if(u.threatDecision&&!near.some(v=>v.id===u.threatDecision.id&&
-      !v.dead&&distance(u,v)<sight*sight*1.6))u.threatDecision=null;
+   // Forget individual encounters only after the threat has left, so
+   // multiple visible individuals cannot cause per-frame rerolls.
+   for(const id of u.threatDecisions.keys())
+    if(!near.some(v=>v.id===id&&!v.dead&&
+      distance(u,v)<sight*sight*1.6))u.threatDecisions.delete(id);
    const attacker=u.attackResponse?.until>this.tick?
     byId.get(u.attackResponse.id):null;
    const threatAttacker=attacker&&!attacker.dead?attacker:null;
