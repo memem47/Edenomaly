@@ -1,9 +1,34 @@
-import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=social-behavior-1';
+import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.07.1';
 import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=game-mode-1';
 import {drawWorld,drawChart} from './renderer.js?v=contour-closed-eyes-1';
 import {EcologyLogbook,observeEcology} from './ecology-log.js?v=forage-dormancy-1';
 import {performancePolicy,simulationBatch,BROWSER_BACKGROUND_INTERVAL} from './performance-policy.js?v=video-friendly-1';
 const $=id=>document.getElementById(id);
+// Release label is bundled with the running source; comparison uses a
+// separately published manifest from the repository's main branch.
+const BUILD_VERSION='2026.11.07.1';
+const VERSION_SOURCE='https://raw.githubusercontent.com/memem47/Edenomaly/main/web/version.json';
+$('buildVersion').textContent=BUILD_VERSION;
+async function checkLatestVersion(){
+ const status=$('versionStatus'),button=$('checkVersion');
+ status.textContent='確認中…';button.disabled=true;
+ try{
+  const response=await fetch(VERSION_SOURCE+'?t='+Date.now(),{cache:'no-store'});
+  if(!response.ok)throw new Error('HTTP '+response.status);
+  const latest=await response.json();
+  if(typeof latest.version!=='string'||!/^[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]+$/.test(latest.version))throw new Error('invalid manifest');
+  const current=BUILD_VERSION.split('.').map(Number),remote=latest.version.split('.').map(Number);
+  const comparison=remote.findIndex((n,i)=>n!==current[i]);
+  const needsUpdate=comparison>=0&&remote[comparison]>current[comparison];
+  const ahead=comparison>=0&&remote[comparison]<current[comparison];
+  status.textContent=needsUpdate?'更新あり：'+latest.version:ahead?'開発版（公開版 '+latest.version+'）':'最新版です';
+  $('latestVersionLink').href='https://github.com/memem47/Edenomaly';
+ }catch{
+  status.textContent='確認不可（ネットワークを確認）';
+ }finally{button.disabled=false;}
+}
+$('checkVersion').addEventListener('click',checkLatestVersion);
+checkLatestVersion();
 const game=new Ecosystem();
 const session=new GameSession(game);
 let playMode='lab';
