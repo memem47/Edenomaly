@@ -1,12 +1,13 @@
+import {zipFiles} from './zip-log.js?v=2026.11.07.4';
 import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.07.3';
 import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=game-mode-1';
 import {drawWorld,drawChart} from './renderer.js?v=contour-closed-eyes-1';
-import {EcologyLogbook,observeEcology} from './ecology-log.js?v=2026.11.07.3';
+import {EcologyLogbook,observeEcology} from './ecology-log.js?v=2026.11.07.4';
 import {performancePolicy,simulationBatch,BROWSER_BACKGROUND_INTERVAL} from './performance-policy.js?v=video-friendly-1';
 const $=id=>document.getElementById(id);
 // Release label is bundled with the running source; comparison uses a
 // separately published manifest from the repository's main branch.
-const BUILD_VERSION='2026.11.07.3';
+const BUILD_VERSION='2026.11.07.4';
 const VERSION_SOURCE='https://raw.githubusercontent.com/memem47/Edenomaly/main/web/version.json';
 $('buildVersion').textContent=BUILD_VERSION;
 async function checkLatestVersion(){
@@ -298,18 +299,20 @@ $('catalog').addEventListener('click',e=>{
 });
 $('play').onclick=()=>{if(playMode==='game'&&session.finished)return;if(game.introducedCount===0){mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));return;}running=!running;update();};$('stepOnce').onclick=()=>{if(game.introducedCount===0)return;running=false;game.step();observeGame();if(game.tick%50===0)recordStep();update();render();};$('speed').onclick=()=>{speed=speed===1?3:speed===3?8:1;$('speed').textContent='速度 ×'+speed;};$('reset').onclick=()=>reset();
 $('ecologyRun').onchange=e=>{selectedLogRun=Number(e.target.value);update();};
-$('downloadEcologyLog').onclick=()=>{
- const csv=ecologyLog.toCSV(),blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
- const url=URL.createObjectURL(blob),link=document.createElement('a');
- link.href=url;link.download='edenomaly-ecology-'+LOG_VERSION+'.csv';
- document.body.appendChild(link);link.click();link.remove();
- URL.revokeObjectURL(url);
-};
-$('downloadIndividualLog').onclick=()=>{
- const csv=ecologyLog.toIndividualCSV();
- const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
- const url=URL.createObjectURL(blob),link=document.createElement('a');
- link.href=url;link.download='edenomaly-individual-reproduction-'+LOG_VERSION+'.csv';
+$('downloadAllLogs').onclick=()=>{
+ // Include the current step even if the 50-step sampling boundary is not due.
+ // This creates one diagnostic snapshot, without changing the ecosystem.
+ if(ecologyLog.activeId!==null){
+  const sample=observeEcology(game);
+  ecologyLog.record(sample,true);
+  ecologyLog.recordIndividuals(game,true);
+ }
+ const archive=zipFiles([
+  ['edenomaly-ecology-'+LOG_VERSION+'.csv',ecologyLog.toCSV()],
+  ['edenomaly-individual-reproduction-'+LOG_VERSION+'.csv',ecologyLog.toIndividualCSV()]
+ ]);
+ const url=URL.createObjectURL(archive),link=document.createElement('a');
+ link.href=url;link.download='edenomaly-all-logs-'+LOG_VERSION+'.zip';
  document.body.appendChild(link);link.click();link.remove();
  URL.revokeObjectURL(url);
 };
