@@ -951,6 +951,7 @@ export class Ecosystem{
  }
  reset(){
   this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.runStartTick=null;this.runEndedTick=null;this.founderSpeciesCount=0;this.deathCauses={};this.courtshipFailures={};this.courtshipStarts=0;this.mateApproachStarts=0;this.mateApproachStalled=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];this.climateEnabled=true;this.seasonLength=600;
+  this._waterRegionTick=null;this._waterRegions=null;
   this.setupTerrain();
   this.grass=new Float32Array(this.tiles.length);
   this.water=new Float32Array(this.tiles.length);
@@ -1713,6 +1714,7 @@ export class Ecosystem{
   return treated;
  }
  paint(x,y,type,radius){
+  this._waterRegionTick=null; // terrain paint can join/split a pond within a paused tick
   const cx=Math.floor(x/CELL),cy=Math.floor(y/CELL);
   for(let dy=-radius;dy<=radius;dy++)for(let dx=-radius;dx<=radius;dx++){
    if(dx*dx+dy*dy>radius*radius)continue;
