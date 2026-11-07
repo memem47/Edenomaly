@@ -102,6 +102,19 @@ export const morphology=g=>{
  return {width,length,bodyMass,eyeRange,speed,turnRate,biteReach,edibleRatio,predatory,upkeep,foodGain};
 };
 // Nutrition-derived growth changes physical performance without changing inherited genes.
+// A youngster recognizes parents/lineage by identity, not by a misleading
+// appearance. Real carnivorous predators remain dangerous even if related.
+// A starving organism can risk eating under a distant *apparent* threat,
+// but must still escape an actual carnivorous predator or a nearby threat.
+export const suppressFearSignal=(u,v,rawDistanceSq,foodWithinReach)=>{
+ const actualCarnivore=dietProfile(v.g).meat>.35&&organismMorphology(v).predatory;
+ if(actualCarnivore)return false;
+ const family=u.stage==='juvenile'&&(u.parent===v.id||u.otherParent===v.id||
+  u.lineage===v.lineage);
+ if(family)return true;
+ if(u.energy<38&&foodWithinReach&&rawDistanceSq>48**2)return true;
+ return false;
+};
 export const organismMorphology=u=>{
  if(stepCache){const cached=stepCache.morph.get(u);if(cached&&cached.scale===(u.growthScale??1))return cached.value;}
  const value=morphology({...u.g,r:u.g.r*(u.growthScale??1)});
@@ -1228,7 +1241,10 @@ export class Ecosystem{
     const d=distance(u,v)/Math.max(.1,coverFactor(preyTerrain,aquatic))**2;
      if(d<pd){pd=d;prey=v;}
    }
-   // Prey respond to the perceived, visible feeding signal, not hidden genome.
+   // Prey usually respond to apparent feeding signals, but juveniles know
+   // their family and starving animals can feed despite distant bluffs.
+   const foodWithinReach=!!(nearest&&distance(u,nearest)<
+    (m.biteReach+(aquatic?14:13))**2&&diet.plant>0);
    let danger=null,dangerD=sight*sight*1.6;
    for(const v of near){
     if(v===u||v.dead)continue;
@@ -1241,7 +1257,9 @@ export class Ecosystem{
     if(inviting)continue;
     const visible=dietProfile(v.g).signal;
     if(visible<.48||organismMorphology(v).bodyMass<m.bodyMass*.55)continue;
-    const d=distance(u,v)/Math.max(.1,coverFactor(t,aquatic))**2;
+    const directDistance=distance(u,v);
+    if(suppressFearSignal(u,v,directDistance,foodWithinReach))continue;
+    const d=directDistance/Math.max(.1,coverFactor(t,aquatic))**2;
      if(d<dangerD){danger=v;dangerD=d;}
    }
    // Guardians attack only nearby threats to their own or related eggs.
