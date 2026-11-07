@@ -1567,7 +1567,7 @@ export class Ecosystem{
    if(this.tiles[i]!==1)continue;
    const previous=this.water[i];
    this.water[i]=Math.min(100,Math.max(POND_RESERVE,previous)+amount);
-   if(previous<POND_RESERVE&&this.water[i]>=POND_RESERVE)restored++;
+   if(this.water[i]>previous)restored++;
   }
   return restored;
  }
@@ -1575,7 +1575,7 @@ export class Ecosystem{
   this.growth=90;this.stress=8;
   this.weather='rain';this.weatherStrength=Math.max(.7,this.rainfall/100);this.weatherUntil=this.tick+150;
   const restored=this.replenishWater(55);
-  this.log('info','降雨：'+restored+' マスの既存水場が復活した');
+  this.log('info','降雨：'+restored+' マスの恒久水場に水を補給した');
  }
  get livingSpecies(){return [...this.species.values()].filter(s=>s.current>0).length;}
  get recentSpecies(){return this.discoveries.filter(t=>this.tick-t<300).length;}
