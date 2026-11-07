@@ -270,9 +270,11 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   for(const angle of (dead?[]:eyes)){
    const {x:ex,y:ey}=slimeEyeLocation(angle,rx,ry);
    if(u.dormant){
-    // Closed eyes indicate dormancy without particle or ripple clutter.
+    // Dormancy closes the eye vertically: round pupil -> straight horizontal dash.
+    // Avoid curved eyelids, which look like a smile rather than sleeping eyes.
     ctx.strokeStyle=slimeEyeColor(g);ctx.lineWidth=Math.max(1,eyeRadius*.8);
-    ctx.beginPath();ctx.moveTo(ex-eyeRadius,ey);ctx.quadraticCurveTo(ex,ey+eyeRadius*.6,ex+eyeRadius,ey);ctx.stroke();
+    ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(ex-eyeRadius,ey);ctx.lineTo(ex+eyeRadius,ey);ctx.stroke();
     continue;
    }
    ctx.beginPath();ctx.arc(ex,ey,eyeRadius,0,TAU);ctx.fill();
