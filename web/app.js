@@ -1,12 +1,12 @@
-import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.07.2';
+import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.07.3';
 import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=game-mode-1';
 import {drawWorld,drawChart} from './renderer.js?v=contour-closed-eyes-1';
-import {EcologyLogbook,observeEcology} from './ecology-log.js?v=2026.11.07.2';
+import {EcologyLogbook,observeEcology} from './ecology-log.js?v=2026.11.07.3';
 import {performancePolicy,simulationBatch,BROWSER_BACKGROUND_INTERVAL} from './performance-policy.js?v=video-friendly-1';
 const $=id=>document.getElementById(id);
 // Release label is bundled with the running source; comparison uses a
 // separately published manifest from the repository's main branch.
-const BUILD_VERSION='2026.11.07.2';
+const BUILD_VERSION='2026.11.07.3';
 const VERSION_SOURCE='https://raw.githubusercontent.com/memem47/Edenomaly/main/web/version.json';
 $('buildVersion').textContent=BUILD_VERSION;
 async function checkLatestVersion(){
@@ -51,7 +51,7 @@ function observeGame(){
  }
 }
 let lastReproductionSample=null;
-const recordStep=()=>{lastReproductionSample=observeEcology(game);return ecologyLog.record(lastReproductionSample);};
+const recordStep=()=>{lastReproductionSample=observeEcology(game);const ok=ecologyLog.record(lastReproductionSample);ecologyLog.recordIndividuals(game);return ok;};
 const canvas=$('world'),ctx=canvas.getContext('2d'),graph=$('chart').getContext('2d'),longGraph=$('ecologyLongChart').getContext('2d');
 let running=false,speed=1,mode='spawn',filter='all',brush=3,selected=null,selectedSpecies=null,catalogMarkup='',painting=false,last=0,acc=0,uiAt=0,paintAt=0,rafId=null,backgroundTimer=null,logRunOptions='',selectedLogRun=null;
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -120,6 +120,22 @@ function update(){
  $('reproductionReport').textContent=reproduction?
   `Step ${reproduction.step}時点：繁殖可能 ${reproduction.reproReady}体、相手不在 ${reproduction.reproNoPartner}体。主な繁殖阻害：${reproductionProblems||'なし'}。求愛開始累計 ${reproduction.courtshipStarts}回、中断 ${reproduction.courtshipFailures}回（距離 ${reproduction.courtFailSeparated} / 気温 ${reproduction.courtFailTemperature} / 感染 ${reproduction.courtFailInfection} / エネルギー ${reproduction.courtFailEnergy}）。`:
   '生命の移入後、50ステップごとに繁殖阻害原因を集計します。';
+ // Live status uses the same reproduction gates as the simulation.
+ const active=game.units.filter(u=>!u.dead);
+ const diagnosis=(selected&&!selected.dead?[selected,...active.filter(u=>u!==selected)]:active)
+  .slice(0,12).map(u=>game.reproductionDiagnostic(u));
+ const cause={ready:'繁殖可能',energy:'栄養不足',temperature:'気温',infection:'感染',
+  dormant:'休眠',immature:'未成熟',cooldown:'休止中',pregnancy:'妊娠',weak:'衰弱'};
+ const action={mate:'相手へ接近',food:'餌探索',disperse:'分散',social:'集合',
+  escape:'逃走',guard:'卵保護',wander:'巡回',idle:'未行動',other:'その他'};
+ $('individualReproduction').innerHTML=diagnosis.length?
+  '<div class="repro-row repro-head"><span>個体・状態</span><span>栄養 / 必要量</span><span>相手距離</span><span>行動</span></div>'+
+  diagnosis.map(d=>'<div class="repro-row'+(selected?.id===d.id?' repro-selected':'')+'"><span>#'+d.id+' '+(cause[d.reason]||d.reason)+'</span>'+
+   '<span class="'+(d.energy<d.required?'repro-low':'')+'">'+d.energy.toFixed(0)+' / '+d.required.toFixed(0)+'</span>'+
+   '<span>'+(d.mateId===null?'相手なし':'#'+d.mateId+' '+d.mateDistance.toFixed(0)+'px')+'</span>'+
+   '<span>'+(action[d.target]||d.target)+(d.approachSteps?' '+d.approachSteps+'step':'')+
+   (d.approachFailures?' 失敗'+d.approachFailures:'')+'</span></div>').join(''):
+  '<p class="muted">現存個体なし。個体別CSVには過去の記録が残ります。</p>';
  const dormancy=game.units.filter(u=>u.dormant&&!u.dead).length;
  const restingEggs=game.eggs.filter(e=>e.dormant&&!e.dead).length;
  $('seasonalStrategies').textContent=`休眠 ${dormancy}体 ・ 休眠卵 ${restingEggs}個。寒暖の適温から外れたとき、休眠遺伝子の強い個体は蓄えを消費して活動を止めます。卵も殻・休眠遺伝子で孵化を遅らせる場合があります。`;
@@ -245,7 +261,7 @@ function interact(e){
   if(mode==='spawn'){
    if(!session.active&&!session.finished&&session.start(x,y)){
     if(ecologyLog.activeId===null)ecologyLog.start(game.initialSeed);
-    lastReproductionSample=observeEcology(game);ecologyLog.record(lastReproductionSample,true);
+    lastReproductionSample=observeEcology(game);ecologyLog.record(lastReproductionSample,true);ecologyLog.recordIndividuals(game,true);
     running=true;mode='inspect';
     document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
    }
@@ -261,7 +277,7 @@ function interact(e){
    const result=game.introduce(x,y,n);
    if(result.individuals>0){
     if(ecologyLog.activeId===null)ecologyLog.start(game.initialSeed);
-    lastReproductionSample=observeEcology(game);ecologyLog.record(lastReproductionSample,true);running=true;
+    lastReproductionSample=observeEcology(game);ecologyLog.record(lastReproductionSample,true);ecologyLog.recordIndividuals(game,true);running=true;
    }
   }else if(mode==='inspect'){selected=null;let best=500;for(const u of game.units){const d=(u.x-x)**2+(u.y-y)**2;if(d<best){best=d;selected=u;}}}
  }
@@ -289,10 +305,18 @@ $('downloadEcologyLog').onclick=()=>{
  document.body.appendChild(link);link.click();link.remove();
  URL.revokeObjectURL(url);
 };
+$('downloadIndividualLog').onclick=()=>{
+ const csv=ecologyLog.toIndividualCSV();
+ const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+ const url=URL.createObjectURL(blob),link=document.createElement('a');
+ link.href=url;link.download='edenomaly-individual-reproduction-'+LOG_VERSION+'.csv';
+ document.body.appendChild(link);link.click();link.remove();
+ URL.revokeObjectURL(url);
+};
 $('clearEcologyLog').onclick=()=>{
  if(!window.confirm('このバージョンの生態系推移ログをすべて削除しますか？'))return;
  ecologyLog.clear();selectedLogRun=null;logRunOptions='';
- if(game.introducedCount>0){ecologyLog.start(game.initialSeed);lastReproductionSample=observeEcology(game);ecologyLog.record(lastReproductionSample,true);}
+ if(game.introducedCount>0){ecologyLog.start(game.initialSeed);lastReproductionSample=observeEcology(game);ecologyLog.record(lastReproductionSample,true);ecologyLog.recordIndividuals(game,true);}
  update();
 };
 $('founderTypes').oninput=e=>{const n=Math.max(1,Math.min(6,Math.trunc(Number(e.target.value)||1)));$('founderPreview').textContent=n+'種類・'+(n*8)+'体';};
