@@ -213,9 +213,36 @@ function syncVisibility(){
 }
 document.addEventListener('visibilitychange',syncVisibility);
 function coords(e){const b=canvas.getBoundingClientRect();return {x:Math.max(0,Math.min(WORLD.width-.1,(e.clientX-b.left)/b.width*WORLD.width)),y:Math.max(0,Math.min(WORLD.height-.1,(e.clientY-b.top)/b.height*WORLD.height))};}
-function interact(e){const {x,y}=coords(e);if(['0','1','2','3'].includes(mode))game.paint(x,y,Number(mode),brush);else if(mode==='food'){game.paint(x,y,0,brush);game.log('info','プレイヤーが草を補充');}else if(mode==='fertilize'){game.fertilize(x,y,brush);}else if(mode==='spawn'){const n=Math.max(1,Math.min(6,Math.trunc(Number($('founderTypes').value)||1)));$('founderTypes').value=n;const result=game.introduce(x,y,n);if(result.individuals>0){if(ecologyLog.activeId===null)ecologyLog.start(game.initialSeed);lastReproductionSample=observeEcology(game);ecologyLog.record(lastReproductionSample,true);running=true;}}else if(mode==='inspect'){selected=null;let best=500;for(const u of game.units){const d=(u.x-x)**2+(u.y-y)**2;if(d<best){best=d;selected=u;}}}update();render();}
+function interact(e){
+ const {x,y}=coords(e);
+ if(playMode==='game'){
+  if(mode==='spawn'){
+   if(!session.active&&!session.finished&&session.start(x,y)){
+    if(ecologyLog.activeId===null)ecologyLog.start(game.initialSeed);
+    lastReproductionSample=observeEcology(game);ecologyLog.record(lastReproductionSample,true);
+    running=true;mode='inspect';
+    document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
+   }
+  }else if(mode==='food')session.intervene('seed',x,y);
+  else if(mode==='fertilize')session.intervene('fertilize',x,y);
+  else if(mode==='inspect'){selected=null;let best=500;for(const u of game.units){const d=(u.x-x)**2+(u.y-y)**2;if(d<best){best=d;selected=u;}}}
+ }else{
+  if(['0','1','2','3'].includes(mode))game.paint(x,y,Number(mode),brush);
+  else if(mode==='food'){game.paint(x,y,0,brush);game.log('info','プレイヤーが草を補充');}
+  else if(mode==='fertilize')game.fertilize(x,y,brush);
+  else if(mode==='spawn'){
+   const n=Math.max(1,Math.min(6,Math.trunc(Number($('founderTypes').value)||1)));$('founderTypes').value=n;
+   const result=game.introduce(x,y,n);
+   if(result.individuals>0){
+    if(ecologyLog.activeId===null)ecologyLog.start(game.initialSeed);
+    lastReproductionSample=observeEcology(game);ecologyLog.record(lastReproductionSample,true);running=true;
+   }
+  }else if(mode==='inspect'){selected=null;let best=500;for(const u of game.units){const d=(u.x-x)**2+(u.y-y)**2;if(d<best){best=d;selected=u;}}}
+ }
+ update();render();
+}
 canvas.addEventListener('pointerdown',e=>{painting=true;canvas.setPointerCapture(e.pointerId);interact(e);});canvas.addEventListener('pointermove',e=>{if(painting&&['0','1','2','3','fertilize'].includes(mode))interact(e);});canvas.addEventListener('pointerup',()=>painting=false);canvas.addEventListener('pointercancel',()=>painting=false);
-document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{mode=b.dataset.mode;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x===b));}));
+document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{if(b.disabled)return;mode=b.dataset.mode;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x===b));}));
 document.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>{filter=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x===b));update();}));
 $('speciesSort').onchange=update;
 $('showExtinct').onchange=update;
@@ -244,5 +271,11 @@ $('clearEcologyLog').onclick=()=>{
 };
 $('founderTypes').oninput=e=>{const n=Math.max(1,Math.min(6,Math.trunc(Number(e.target.value)||1)));$('founderPreview').textContent=n+'種類・'+(n*8)+'体';};
 $('brush').oninput=e=>{brush=Number(e.target.value);$('brushValue').value=brush;};$('growth').oninput=e=>{game.growth=Number(e.target.value);$('growthValue').value=game.growth;};$('stress').oninput=e=>{game.stress=Number(e.target.value);$('stressValue').value=game.stress;};$('rainfall').oninput=e=>{game.rainfall=Number(e.target.value);$('rainfallValue').value=game.rainfall;};$('climateEnabled').onchange=e=>{game.climateEnabled=e.target.checked;game.updateTemperature();update();};$('temperature').oninput=e=>{game.baseTemperature=Number(e.target.value);game.updateTemperature();$('temperatureValue').value=game.baseTemperature+'℃';update();};
-$('drought').onclick=()=>{game.drought();syncSliders();update();};$('rain').onclick=()=>{game.rain();syncSliders();update();};$('epidemic').onclick=()=>{game.epidemic();update();};
+$('drought').onclick=()=>{if(playMode==='game')return;game.drought();syncSliders();update();};
+$('rain').onclick=()=>{if(playMode==='game')session.intervene('rain');else{game.rain();syncSliders();}update();};
+$('epidemic').onclick=()=>{if(playMode==='game')return;game.epidemic();update();};
+for(const [id,kind] of [['playModeLab','lab'],['playModeGame','game']])$(id).onclick=()=>{
+ if(kind===playMode)return;
+ playMode=kind;reset();
+};
 reset();syncVisibility();
