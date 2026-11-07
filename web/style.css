@@ -57,3 +57,12 @@ button.active{background:linear-gradient(#42ce95,#12996e);border-color:#b1ffe2;b
 .genome-panel{background:#143653;border-color:#70bad7}
 .gene{background:#235575;color:#f4fdff}
 #chart{background:#183950}
+
+/* Provisional run score stays separate from ecological diagnostic metrics. */
+.score-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px;padding:12px;background:#112b2b;border:1px solid #35665b;border-radius:10px}
+.score-strip>div{padding:3px 9px;border-right:1px solid #315550;min-width:0}
+.score-strip>div:last-of-type{border-right:0}
+.score-strip small{display:block;font-size:11px;color:#a1c4ba;margin-bottom:3px}
+.score-strip strong{display:block;font-size:20px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.score-strip p{grid-column:1/-1;color:#9fb8b0;font-size:11px;margin:2px 8px 0}
+@media(max-width:700px){.score-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.score-strip>div:nth-child(2){border-right:0}}
