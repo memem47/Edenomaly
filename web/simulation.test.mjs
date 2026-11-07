@@ -2434,3 +2434,12 @@ test('overwintering eggs can survive winter and hatch in spring without guarante
  assert.ok(!w.eggs.includes(egg),'egg should hatch when spring is warm');
  assert.ok(w.units.some(u=>u.generation===1));
 });
+
+test('high inherited temperature tolerance reduces thermal injury with an upkeep tradeoff',()=>{
+ const narrow={idealTemp:22,tempTolerance:8},broad={idealTemp:22,tempTolerance:18};
+ const coldNarrow=thermalFitness(narrow,-10),coldBroad=thermalFitness(broad,-10);
+ assert.ok(coldBroad.damage<coldNarrow.damage);
+ assert.ok(thermalFitness(broad,22).upkeep>thermalFitness(narrow,22).upkeep);
+ assert.ok(thermalFitness(broad,22).reproduction);
+ assert.equal(thermalFitness(narrow,-10).reproduction,false);
+});
