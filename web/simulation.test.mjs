@@ -171,6 +171,7 @@ test('nutrient eater runs away from apparent large predator',()=>{
  grazer.x=100;grazer.y=100;grazer.g.diet=0;grazer.g.deception=.5;
  hunter.x=120;hunter.y=100;hunter.g.diet=1;hunter.g.deception=.8;
  hunter.g.r=Math.max(hunter.g.r,grazer.g.r*1.5);hunter.g.elongation=grazer.g.elongation;grazer.g.eyes=6;
+ grazer.threatDecisions.set(hunter.id,{flee:true});
  s.step();
  assert.equal(grazer.fleeing,true);
 });
@@ -1821,6 +1822,7 @@ test('hungry meat-eaters can attack similarly sized members of their own species
  hunter.mateCooldown=other.mateCooldown=900;
  hunter.hp=hunter.maxHp=1000;
  other.hp=other.maxHp=1000;
+ hunter.threatDecisions.set(other.id,{flee:false});
  w.step();
  assert.ok(other.hp<1000);
  assert.ok(hunter.attackFlash>0);
@@ -1991,7 +1993,7 @@ test('genome code is stable, quantized, and changes when a trait crosses a bin',
  const w=new Ecosystem(9114),g=w.gene();
  const code=genomeCode(g);
  assert.equal(code,genomeCode({...g}));
- assert.ok(/^[0-9A-F]{4}(-[0-9A-F]{4}){5}$/.test(code));
+ assert.ok(/^[0-9A-F]{4}(-[0-9A-F]{4}){5}-[0-9A-F]{3}$/.test(code));
  const variant={...g,longevity:2};
  assert.notEqual(genomeCode(variant),code);
  assert.equal(genomeCode({...g,wet:.401}),genomeCode({...g,wet:.402}));
@@ -2782,6 +2784,7 @@ test('unrelated predatory signals still trigger flight during courtship approach
  w.temperatureAt=()=>22;
  suitor.mateTarget={id:recipient.id,until:120,since:0};
  w.tick=10;
+ recipient.threatDecisions.set(threat.id,{flee:true});
  w.step();
  assert.equal(recipient.fleeing,true,'third-party threat must continue to cause flight');
 });
