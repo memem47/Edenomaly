@@ -1273,6 +1273,7 @@ export class Ecosystem{
    const foodWithinReach=!!(nearest&&distance(u,nearest)<
     (m.biteReach+(aquatic?14:13))**2&&diet.plant>0);
    let danger=null,dangerD=sight*sight*1.6;
+   const priorThreat=u.threatDecision;
    for(const v of near){
     if(v===u||v.dead)continue;
     // A compatible and actively approaching suitor does not trigger flight
@@ -1287,7 +1288,16 @@ export class Ecosystem{
     const directDistance=distance(u,v);
     if(suppressFearSignal(u,v,directDistance,foodWithinReach))continue;
     const d=directDistance/Math.max(.1,coverFactor(t,aquatic))**2;
-     if(d<dangerD){danger=v;dangerD=d;}
+    if(d>=dangerD)continue;
+    // Store the response until the encounter ends. Ignore a signal for the
+    // whole encounter when the inherited risk roll says "stand ground".
+    let decision=u.threatDecision;
+    if(!decision||decision.id!==v.id||decision.until<=this.tick){
+     decision={id:v.id,until:this.tick+70,
+      flee:this.rand()<threatFlightProbability(u,v)};
+     u.threatDecision=decision;
+    }
+    if(decision.flee){danger=v;dangerD=d;}
    }
    // Guardians attack only nearby threats to their own or related eggs.
    let defenderTarget=null,defendDist=65*65;
@@ -1300,7 +1310,18 @@ export class Ecosystem{
      if(d<defendDist){defendDist=d;defenderTarget=v;}
     }
    }
-   const flight=!defenderTarget&&!!danger&&(diet.diet<.7||organismMorphology(danger).bodyMass>m.bodyMass*1.5);
+   // The memory ends when the threat has left the detection radius;
+   // a new encounter will produce a fresh genetic response.
+   if(u.threatDecision&&!near.some(v=>v.id===u.threatDecision.id&&
+      !v.dead&&distance(u,v)<sight*sight*1.6))u.threatDecision=null;
+   const attacker=u.attackResponse?.until>this.tick?
+    byId.get(u.attackResponse.id):null;
+   const threatAttacker=attacker&&!attacker.dead?attacker:null;
+   const counterAttack=!!threatAttacker&&u.attackResponse.retaliate;
+   if(threatAttacker&&!counterAttack)danger=threatAttacker;
+   // A defended nest still matters, but direct attack takes priority.
+   const flight=!!threatAttacker&&!counterAttack||
+    !counterAttack&&!defenderTarget&&!!danger;
    u.fleeing=flight;
    // Competition is local crowding for the same food, not an arbitrary caste.
    // When nearby rivals monopolize a rich tile, search for a less crowded refuge.
@@ -1434,6 +1455,7 @@ export class Ecosystem{
    if(target&&!breedingPriority&&u.avoidTarget&&u.avoidTarget.until>this.tick&&
       distance(target,u.avoidTarget)<20*20&&!flight)target=null;
    // Immediate escape overrides food, reproduction and egg guarding.
+   if(counterAttack)target=threatAttacker;
    if(flight)target=null;
    const desired=flight?Math.atan2(u.y-danger.y,u.x-danger.x)
       :target?Math.atan2(target.y-u.y,target.x-u.x):u.angle+this.range(-.5,.5);
@@ -1453,7 +1475,7 @@ export class Ecosystem{
      target===prey||target===defenderTarget||target===rival?Math.max(3,m.biteReach*.7):
      target===u.refugeTarget?11:
      this.terrain(target.x,target.y)===1&&g.aquatic!==1?25:9;
-   u.behaviorTarget=flight?'escape':breedingPriority?'mate':
+   u.behaviorTarget=flight?'escape':counterAttack?'retaliate':breedingPriority?'mate':
     target===nearest||target===nearestCorpse?'food':
     target===u.refugeTarget?'disperse':
     target===byId.get(u.socialTarget?.id)?'social':
@@ -1507,6 +1529,11 @@ export class Ecosystem{
    if(!flight&&!defenderTarget&&mate&&!u.courtPartner&&!mate.courtPartner&&distance(u,mate)<38**2){
      if(this.startCourtship(u,mate)){u.mateTarget=null;mate.mateTarget=null;}
     }
+   if(counterAttack&&!flight&&u.bite===0&&
+     distance(u,threatAttacker)<(m.biteReach+threatAttacker.g.r+4)**2){
+    u.retaliationCooldown=this.tick+65;
+    if(this.attack(u,threatAttacker,'retaliation'))u.attackResponse=null;
+   }
    if(rival&&!flight&&!rival.dead&&distance(u,rival)<(m.biteReach+rival.g.r+3)**2)
      this.attack(u,rival,'rival');
     if(!flight&&diet.meat>0&&prey&&!prey.dead&&
