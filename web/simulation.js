@@ -484,7 +484,7 @@ export class Ecosystem{
   if(this.units.length>=2000)return null;
   const mode=reproductiveMode(g);
    const sex=mode===1?'H':mode===2?'F':(this.rand()<.5?'F':'M');
-   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null,socialTarget:null,mateTarget:null};
+   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null,socialTarget:null,mateTarget:null,mateApproachFailures:0,behaviorTarget:'idle'};
   u.category=this.category(g);u.lineage??=u.id;this.units.push(u);
   if(!this.species.has(u.category)){
    const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(u.category),current:0,total:0,diet:dietProfile(g).label,first:this.tick,genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(u.category),u);
@@ -539,6 +539,24 @@ export class Ecosystem{
   return null;
  }
  isReadyToMate(u){return this.reproductionBlockReason(u)===null;}
+ // Read-only diagnosis for UI and CSV; does not alter simulation state.
+ reproductionDiagnostic(u){
+  const required=68+Math.max(0,organismMorphology(u).bodyMass-100)*.22+
+   (u.crowdStress??0)*3.1+(u.habitatLoad??0)*4.2-(u.courtPartner?14:0);
+  const eligible=this.units.filter(v=>v!==u&&!v.dead&&sexualCompatibility(u,v)&&
+   u.parent!==v.id&&v.parent!==u.id&&this.isReadyToMate(v));
+  const closest=eligible.reduce((best,v)=>!best||distance(u,v)<distance(u,best)?v:best,null);
+  const mate=eligible.find(v=>v.id===u.courtPartner)||eligible.find(v=>v.id===u.mateTarget?.id)||closest;
+  const mateDistance=mate?Math.sqrt(distance(u,mate)):null;
+  const reason=this.reproductionBlockReason(u);
+  return {id:u.id,sex:u.sex,step:this.tick,energy:+u.energy.toFixed(2),
+   required:+required.toFixed(2),reason:reason??'ready',
+   mateId:mate?.id??null,mateDistance:mateDistance===null?null:+mateDistance.toFixed(2),
+   target:u.behaviorTarget??'idle',approachSteps:u.mateTarget?.since===undefined?0:
+    Math.max(0,this.tick-u.mateTarget.since),
+   approachFailures:u.mateApproachFailures??0,
+   courtPartner:u.courtPartner??null,hpPercent:+(100*u.hp/Math.max(1,u.maxHp)).toFixed(1)};
+ }
  // Count inability to reproduce separately from courtships that actually failed.
  reproductionCensus(){
   const live=this.units.filter(u=>!u.dead);
@@ -579,7 +597,7 @@ export class Ecosystem{
    if(d<best){match=v;best=d;}
   }
   if(match){
-   u.mateTarget={id:match.id,until:this.tick+100};
+   u.mateTarget={id:match.id,until:this.tick+100,since:this.tick};
    this.mateApproachStarts++;
    this.log('mateSeek','#'+u.id+' が繁殖相手 #'+match.id+' に接近開始',u);
   }
@@ -1369,9 +1387,16 @@ export class Ecosystem{
      target===prey||target===defenderTarget||target===rival?Math.max(3,m.biteReach*.7):
      target===u.refugeTarget?11:
      this.terrain(target.x,target.y)===1&&g.aquatic!==1?25:9;
+   u.behaviorTarget=flight?'escape':breedingPriority?'mate':
+    target===nearest||target===nearestCorpse?'food':
+    target===u.refugeTarget?'disperse':
+    target===byId.get(u.socialTarget?.id)?'social':
+    target===ownEgg?'guard':
+    target?'other':'wander';
    const navigation=this.navigate(u,target,desired,speed,m.turnRate,arrivalRadius);
    if(navigation==='abandoned'&&breedingPriority&&u.mateTarget?.id===mate.id){
     this.mateApproachStalled++;
+    u.mateApproachFailures++;
     this.log('mateFail','#'+u.id+' が相手 #'+mate.id+' に近づけず探索をやり直す',u);
     u.mateTarget=null;
    }
