@@ -484,7 +484,7 @@ export class Ecosystem{
   if(this.units.length>=2000)return null;
   const mode=reproductiveMode(g);
    const sex=mode===1?'H':mode===2?'F':(this.rand()<.5?'F':'M');
-   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null,socialTarget:null,mateTarget:null,mateApproachFailures:0,behaviorTarget:'idle'};
+   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null,socialTarget:null,mateTarget:null,rejectedBy:null,mateApproachFailures:0,behaviorTarget:'idle'};
   u.category=this.category(g);u.lineage??=u.id;this.units.push(u);
   if(!this.species.has(u.category)){
    const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(u.category),current:0,total:0,diet:dietProfile(g).label,first:this.tick,genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(u.category),u);
@@ -583,7 +583,8 @@ export class Ecosystem{
   if(!this.isReadyToMate(u)){u.mateTarget=null;return null;}
   // Mate-seeking uses a wider search than foraging to connect dispersed founders.
   const sight=Math.max(120,organismMorphology(u).eyeRange*1.55);
-  const compatible=v=>v&&v!==u&&this.canMate(u,v)&&
+  const compatible=v=>v&&v!==u&&
+   !(u.rejectedBy?.id===v.id&&u.rejectedBy.until>this.tick)&&this.canMate(u,v)&&
    (!v.courtPartner||v.courtPartner===u.id)&&distance(u,v)<sight*sight;
   // Retain a viable partner rather than switching to a nearer animal each tick.
   const remembered=u.mateTarget&&u.mateTarget.until>this.tick?
@@ -606,6 +607,19 @@ export class Ecosystem{
  // A pair must remain close while courting; pairing is not permanent.
  startCourtship(a,b){
   if(!a||!b||a===b||a.courtPartner||b.courtPartner||!this.canMate(a,b))return false;
+  // Readiness is necessary but does not guarantee consent to courtship.
+  // Energy reserve, crowding and hereditary sociability affect willingness.
+  const required=68+Math.max(0,organismMorphology(b).bodyMass-100)*.22+
+   (b.crowdStress??0)*3.1+(b.habitatLoad??0)*4.2;
+  const willingness=required+12+(1-clamp(b.g.sociability??.45,0,1))*20+
+   Math.max(0,b.crowdStress??0)*3;
+  if(b.energy<willingness){
+   a.rejectedBy={id:b.id,until:this.tick+90};
+   a.mateTarget=null;
+   this.log('courtReject','#'+b.id+' が #'+a.id+' の求愛を拒絶（繁殖余力不足）',b);
+   return false;
+  }
+  a.rejectedBy=null;
   a.courtPartner=b.id;b.courtPartner=a.id;
   this.courtships.push({a:a.id,b:b.id,progress:0,required:24,elapsed:0});
   this.courtshipStarts++;
@@ -1218,6 +1232,13 @@ export class Ecosystem{
    let danger=null,dangerD=sight*sight*1.6;
    for(const v of near){
     if(v===u||v.dead)continue;
+    // A compatible and actively approaching suitor does not trigger flight
+    // just because its silhouette suggests predation. Other threats remain.
+    const inviting=v.courtPartner===u.id||
+     (v.mateTarget?.id===u.id&&v.mateTarget.until>this.tick&&
+      !(v.rejectedBy?.id===u.id&&v.rejectedBy.until>this.tick)&&
+      this.canMate(u,v));
+    if(inviting)continue;
     const visible=dietProfile(v.g).signal;
     if(visible<.48||organismMorphology(v).bodyMass<m.bodyMass*.55)continue;
     const d=distance(u,v)/Math.max(.1,coverFactor(t,aquatic))**2;
