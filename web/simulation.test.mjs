@@ -2751,3 +2751,57 @@ test('one-click ZIP archive contains all ecology and individual CSVs intact',asy
  assert.equal(view.getUint32(bytes.length-22,true),0x06054b50,'ZIP end record');
  assert.equal(view.getUint16(bytes.length-22+10,true),2);
 });
+
+test('a compatible active suitor does not cause predator-signal flight',()=>{
+ const w=new Ecosystem(2026110801);w.tiles.fill(0);w.grass.fill(100);
+ const g={...w.gene(),diet:.08,deception:1,aquatic:0,idealTemp:22,tempTolerance:18,
+  sociability:.6,guard:0,eyes:2,r:5};
+ const recipient=w.spawn(200,180,g),suitor=w.spawn(226,180,{...g});
+ recipient.sex='F';suitor.sex='M';
+ for(const u of [recipient,suitor]){
+  u.age=120;u.energy=200;u.hp=u.maxHp=1000;u.mateCooldown=0;u.infection=0;
+ }
+ w.temperatureAt=()=>22;
+ assert.ok(dietProfile(suitor.g).signal>.48,'the apparent predator signal must be present');
+ assert.equal(w.canMate(recipient,suitor),true);
+ suitor.mateTarget={id:recipient.id,until:120,since:0};
+ w.tick=10;
+ w.step();
+ assert.equal(recipient.fleeing,false,'recipient must not flee from its legitimate active suitor');
+});
+test('unrelated predatory signals still trigger flight during courtship approach',()=>{
+ const w=new Ecosystem(2026110802);w.tiles.fill(0);w.grass.fill(100);
+ const g={...w.gene(),diet:.08,deception:1,aquatic:0,idealTemp:22,tempTolerance:18,
+  sociability:.6,guard:0,eyes:2,r:5};
+ const recipient=w.spawn(200,180,g),suitor=w.spawn(235,180,{...g});
+ const threat=w.spawn(205,180,{...g,repro:0});
+ recipient.sex='F';suitor.sex='M';threat.sex='F';
+ for(const u of [recipient,suitor,threat]){
+  u.age=120;u.energy=200;u.hp=u.maxHp=1000;u.mateCooldown=0;u.infection=0;
+ }
+ w.temperatureAt=()=>22;
+ suitor.mateTarget={id:recipient.id,until:120,since:0};
+ w.tick=10;
+ w.step();
+ assert.equal(recipient.fleeing,true,'third-party threat must continue to cause flight');
+});
+test('receptive adults can refuse courtship and later accept after recovering',()=>{
+ const w=new Ecosystem(2026110803);w.tiles.fill(0);
+ const g={...w.gene(),aquatic:0,idealTemp:22,tempTolerance:18,sociability:0,r:4};
+ const initiator=w.spawn(200,180,g),recipient=w.spawn(210,180,{...g});
+ initiator.sex='M';recipient.sex='F';w.temperatureAt=()=>22;
+ for(const u of [initiator,recipient]){
+  u.age=120;u.energy=200;u.hp=u.maxHp=1000;u.mateCooldown=0;
+ }
+ recipient.energy=84;
+ assert.equal(w.canMate(initiator,recipient),true,'eligible recipient is not obligated to agree');
+ initiator.mateTarget={id:recipient.id,until:100,since:0};
+ assert.equal(w.startCourtship(initiator,recipient),false);
+ assert.equal(w.courtshipStarts,0);
+ assert.equal(initiator.rejectedBy.id,recipient.id);
+ assert.equal(w.findMate(initiator,[initiator,recipient]),null,'rejected partner is avoided for a while');
+ assert.ok(w.logs.some(e=>e.type==='courtReject'));
+ w.tick=100;recipient.energy=200;
+ assert.equal(w.startCourtship(initiator,recipient),true);
+ assert.equal(initiator.courtPartner,recipient.id);
+});
