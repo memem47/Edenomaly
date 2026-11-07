@@ -308,6 +308,9 @@ export const protectiveDrive=g=>clamp((g.guard??0)*(.35+.65*clamp((g.jaw??1)/2.5
 // Shelter changes detection, not invulnerability.
 export const coverFactor=(terrain,observerAquatic=false)=>terrain===3?.34:
  terrain===1?(observerAquatic?.80:.06):1;
+ // Higher dispersal means lower crowd tolerance; social affinity raises it.
+export const dispersalPressureThreshold=g=>2.15+
+ (1-clamp(g.dispersal??.45,0,1))*1.05+clamp(g.sociability??.45,0,1)*.65;
 export const eggTraits=g=>({
  shell:g.shell,guard:g.guard,nesting:g.nesting,
  incubation:Math.round(34+g.shell*30),
@@ -1233,7 +1236,7 @@ export class Ecosystem{
    // dispersal until serious pressure makes staying ecologically expensive.
    const partnerNearby=u.energy>90&&near.some(v=>v!==u&&!v.dead&&
     sexualCompatibility(u,v)&&distance(u,v)<85**2);
-   const retreatThreshold=2.15+(1-dispersal)*1.05+sociability*.65;
+   const retreatThreshold=dispersalPressureThreshold(g);
    const crowdEscape=pressure>retreatThreshold||habitatLoad>2.0+(1-dispersal)*1.1;
    const seekRefuge=!u.courtPartner&&!u.pregnancy&&!flight&&u.energy>75&&
     (thermal.excess>2||crowdEscape&&(!partnerNearby||pressure>retreatThreshold*1.6));
