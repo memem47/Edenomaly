@@ -2730,3 +2730,24 @@ test('individual reproduction CSV records per-organism observations',async()=>{
  assert.equal(logs.data.runs[0].individuals[0].id,w.units[0].id);
  assert.ok(INDIVIDUAL_DIAG_FIELDS.length>10);
 });
+
+test('one-click ZIP archive contains all ecology and individual CSVs intact',async()=>{
+ const {zipFiles}=await import('./zip-log.js');
+ const files=[['ecology.csv','run,step\r\n1,50\r\n'],['individual.csv','id,reason\r\n1,ready\r\n']];
+ const blob=zipFiles(files),bytes=new Uint8Array(await blob.arrayBuffer());
+ const view=new DataView(bytes.buffer),decoder=new TextDecoder();
+ assert.equal(blob.type,'application/zip');
+ let pos=0;
+ for(const [name,content] of files){
+  assert.equal(view.getUint32(pos,true),0x04034b50);
+  const size=view.getUint32(pos+18,true),namelen=view.getUint16(pos+26,true);
+  const extra=view.getUint16(pos+28,true);
+  const actualName=decoder.decode(bytes.subarray(pos+30,pos+30+namelen));
+  const actual=decoder.decode(bytes.subarray(pos+30+namelen+extra,pos+30+namelen+extra+size));
+  assert.equal(actualName,name);assert.equal(actual,content);
+  pos+=30+namelen+extra+size;
+ }
+ assert.equal(view.getUint32(pos,true),0x02014b50,'ZIP central directory');
+ assert.equal(view.getUint32(bytes.length-22,true),0x06054b50,'ZIP end record');
+ assert.equal(view.getUint16(bytes.length-22+10,true),2);
+});
