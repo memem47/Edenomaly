@@ -278,7 +278,7 @@ export const rearPosition=(u,offset=0)=>({
  x:clamp(u.x-Math.cos(u.angle)*(u.g.r*u.g.elongation+5+offset),6,W-6),
  y:clamp(u.y-Math.sin(u.angle)*(u.g.r*u.g.elongation+5+offset),6,H-6)
 });
-const HERITABLE=['repro','idealTemp','tempTolerance','hibernate','longevity','r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic','albino','dispersal','sociability'];
+const HERITABLE=['repro','idealTemp','tempTolerance','hibernate','longevity','r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic','albino','dispersal','sociability','caution','predatorSense','retaliation'];
 // Natural ponds always retain a viable reservoir. Drought reduces excess
 // water depth, but only deliberate terrain painting may remove a water tile.
 export const POND_RESERVE=35;
@@ -293,7 +293,7 @@ export const genomeCode=g=>HERITABLE.map(key=>{
  return step.toString(16).toUpperCase();
 }).join('').match(/.{1,4}/g).join('-');
 
-const LIMITS={repro:[0,2],idealTemp:[-5,40],tempTolerance:[3,18],hibernate:[0,1],longevity:[.6,2],r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1],albino:[0,1],dispersal:[0,1],sociability:[0,1]};
+const LIMITS={repro:[0,2],idealTemp:[-5,40],tempTolerance:[3,18],hibernate:[0,1],longevity:[.6,2],r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1],albino:[0,1],dispersal:[0,1],sociability:[0,1],caution:[0,1],predatorSense:[0,1],retaliation:[0,1]};
 const alleleExpression=(key,pair)=>{
  // Eyes: more-eye allele is dominant; hidden low-eye alleles can reappear in grandchildren.
  // Other continuous traits use incomplete dominance (mean of the two inherited copies).
@@ -318,6 +318,22 @@ export const sexualCompatibility=(a,b)=>{
 export const reproductiveUpkeep=g=>reproductiveMode(g)===1?.23:reproductiveMode(g)===2?.14:0;
 export const eggPredationDrive=g=>clamp(dietProfile(g).meat*(1-.65*(g.guard??0))*(1.1-.08*(g.jaw??1)),0,1);
 export const protectiveDrive=g=>clamp((g.guard??0)*(.35+.65*clamp((g.jaw??1)/2.5,0,1)),0,1);
+// One decision per predator encounter rather than repeated frame-by-frame
+// lotteries. Visible feeding signals retain their camouflage mechanics.
+export const threatFlightProbability=(u,v)=>{
+ const display=dietProfile(v.g).signal;
+ if(display<.48)return 0;
+ const caution=clamp(u.g.caution??.45,0,1);
+ const sense=clamp(u.g.predatorSense??.45,0,1);
+ const signal=clamp((display-.48)/.52,0,1);
+ const carnivore=clamp((dietProfile(v.g).meat-.35)/.65,0,1);
+ return clamp(caution*(.08+.67*sense*signal+.23*carnivore),0,.98);
+};
+export const retaliationProbability=(prey,attacker)=>{
+ const resolve=clamp(prey.g.retaliation??.35,0,1);
+ const ratio=organismMorphology(prey).bodyMass/Math.max(1,organismMorphology(attacker).bodyMass);
+ return clamp(resolve*clamp(ratio,.25,1.5)*vitality(prey).vigor,0,.95);
+};
 // Shelter changes detection, not invulnerability.
 export const coverFactor=(terrain,observerAquatic=false)=>terrain===3?.34:
  terrain===1?(observerAquatic?.80:.06):1;
@@ -362,7 +378,7 @@ export class Ecosystem{
   // recessive alleles that are not necessarily visible in its phenotype.
   g.alleles={};
   for(const key of HERITABLE){
-   if(key==='hibernate'||key==='dispersal'||key==='sociability')continue; // preserve older founder RNG sequence
+   if(key==='hibernate'||key==='dispersal'||key==='sociability'||key==='caution'||key==='predatorSense'||key==='retaliation')continue; // preserve older founder RNG sequence
    let second=g[key];
    if(key==='repro')second=0;
     else if(key==='idealTemp')second=clamp(g.idealTemp+this.range(-3,3),...LIMITS.idealTemp);
@@ -392,6 +408,12 @@ export class Ecosystem{
   g.sociability=clamp(.08+g.guard*.42+g.nesting*.27+g.brood/8*.22,0,1);
   g.alleles.dispersal=[g.dispersal,g.dispersal];
   g.alleles.sociability=[g.sociability,g.sociability];
+   // Derive founding combat traits from existing variation without altering
+   // previous seed RNG. They subsequently recombine/mutate independently.
+   g.caution=clamp(.10+g.eyes/6*.35+g.resist*.21+g.dry*.13,0,1);
+   g.predatorSense=clamp(.12+g.eyes/6*.4+g.deception*.16+g.guard*.12,0,1);
+   g.retaliation=clamp(.08+g.jaw/2.5*.42+g.guard*.32,0,1);
+   for(const key of ['caution','predatorSense','retaliation'])g.alleles[key]=[g[key],g[key]];
   return g;
  }
  mutate(g){
@@ -497,7 +519,7 @@ export class Ecosystem{
   if(this.units.length>=2000)return null;
   const mode=reproductiveMode(g);
    const sex=mode===1?'H':mode===2?'F':(this.rand()<.5?'F':'M');
-   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null,socialTarget:null,mateTarget:null,rejectedBy:null,mateApproachFailures:0,behaviorTarget:'idle'};
+   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null,socialTarget:null,mateTarget:null,rejectedBy:null,mateApproachFailures:0,behaviorTarget:'idle',threatDecision:null,attackResponse:null,retaliationCooldown:0};
   u.category=this.category(g);u.lineage??=u.id;this.units.push(u);
   if(!this.species.has(u.category)){
    const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(u.category),current:0,total:0,diet:dietProfile(g).label,first:this.tick,genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(u.category),u);
@@ -775,25 +797,30 @@ export class Ecosystem{
  attack(hunter,prey,defensive=false){
   if(hunter===prey||hunter.dead||prey.dead||hunter.bite>0||(!defensive&&dietProfile(hunter.g).meat<=0)||(defensive===true&&protectiveDrive(hunter.g)<=.34))return false;
   const mm=organismMorphology(hunter),v=vitality(hunter),def=vitality(prey);
-  const damage=Math.max(2,(4+hunter.g.jaw*7+mm.bodyMass*.065)*(defensive==='rival'?.42:defensive?.65+protectiveDrive(hunter.g)*.65:dietProfile(hunter.g).meat)*v.vigor);
+  const damage=Math.max(2,(4+hunter.g.jaw*7+mm.bodyMass*.065)*(defensive==='rival'?.42:defensive==='retaliation'?.72:defensive?.65+protectiveDrive(hunter.g)*.65:dietProfile(hunter.g).meat)*v.vigor);
   prey.hp=Math.max(0,prey.hp-damage);
-  if(defensive){hunter.energy-=defensive==='rival'?4:2.5;prey.bite=Math.max(prey.bite,14);}
+  if(defensive){hunter.energy-=defensive==='rival'?4:2.5;if(defensive!=='retaliation')prey.bite=Math.max(prey.bite,14);}
+  // Retaliation choice is made on impact, and has a limited validity window.
+  // Cooldown prevents unbounded retaliation loops.
+  const retaliate=(prey.retaliationCooldown??0)<=this.tick&&
+   this.rand()<retaliationProbability(prey,hunter);
+  prey.attackResponse={id:hunter.id,retaliate,until:this.tick+45};
   prey.woundFlash=14;
   hunter.bite=22;
   hunter.attackFlash=16;
-  if(defensive===true)hunter.defendFlash=16;
+  if(defensive===true||defensive==='retaliation')hunter.defendFlash=16;
   this.addVisualEffect(defensive==='rival'?'rivalStrike':'strike',prey,{fromX:hunter.x,fromY:hunter.y});
-  this.log(defensive==='rival'?'rival':defensive?'defend':'attack','#'+hunter.id+(defensive==='rival'?' が同性の #':defensive?' が卵を守って #':' が #')+prey.id+' に '+Math.round(damage)+' ダメージ',prey);
+  this.log(defensive==='rival'?'rival':defensive?'defend':'attack','#'+hunter.id+(defensive==='rival'?' が同性の #':defensive==='retaliation'?' が反撃して #':defensive?' が卵を守って #':' が #')+prey.id+' に '+Math.round(damage)+' ダメージ',prey);
   if(prey.hp<=0){
    // A large prey supplies an exceptional meal, but the eaten tissue is
    // removed from the corpse so nutrients are never counted twice.
-   const meat=defensive===true?0:dietProfile(hunter.g).meat*(defensive==='rival'?.65:1);
+   const meat=defensive===true||defensive==='retaliation'?0:dietProfile(hunter.g).meat*(defensive==='rival'?.65:1);
    const tissue=Math.max(4,organismMorphology(prey).bodyMass*.23);
    const gained=(Math.max(5,prey.energy*.35)+tissue)*meat;
    hunter.energy+=gained;
    if(hunter.stage==='juvenile')hunter.juvenileFood=(hunter.juvenileFood??0)+gained;
    hunter.recentFood=(hunter.recentFood??0)+tissue*meat*1.3;
-   this.die(prey,defensive==='rival'?'同性間の争い':defensive?'防衛':'捕食',tissue*meat);
+   this.die(prey,defensive==='rival'?'同性間の争い':defensive==='retaliation'?'反撃':defensive?'防衛':'捕食',tissue*meat);
    this.addVisualEffect('consume',prey);
    if(meat>0)this.log('pred','#'+hunter.id+' が #'+prey.id+' を捕食',prey);
   }
