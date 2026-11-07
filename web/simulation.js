@@ -265,7 +265,7 @@ export const rearPosition=(u,offset=0)=>({
  x:clamp(u.x-Math.cos(u.angle)*(u.g.r*u.g.elongation+5+offset),6,W-6),
  y:clamp(u.y-Math.sin(u.angle)*(u.g.r*u.g.elongation+5+offset),6,H-6)
 });
-const HERITABLE=['repro','idealTemp','tempTolerance','hibernate','longevity','r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic','albino'];
+const HERITABLE=['repro','idealTemp','tempTolerance','hibernate','longevity','r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic','albino','dispersal','sociability'];
 // Natural ponds always retain a viable reservoir. Drought reduces excess
 // water depth, but only deliberate terrain painting may remove a water tile.
 export const POND_RESERVE=35;
@@ -280,7 +280,7 @@ export const genomeCode=g=>HERITABLE.map(key=>{
  return step.toString(16).toUpperCase();
 }).join('').match(/.{1,4}/g).join('-');
 
-const LIMITS={repro:[0,2],idealTemp:[-5,40],tempTolerance:[3,18],hibernate:[0,1],longevity:[.6,2],r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1],albino:[0,1]};
+const LIMITS={repro:[0,2],idealTemp:[-5,40],tempTolerance:[3,18],hibernate:[0,1],longevity:[.6,2],r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1],albino:[0,1],dispersal:[0,1],sociability:[0,1]};
 const alleleExpression=(key,pair)=>{
  // Eyes: more-eye allele is dominant; hidden low-eye alleles can reappear in grandchildren.
  // Other continuous traits use incomplete dominance (mean of the two inherited copies).
@@ -341,7 +341,9 @@ export class Ecosystem{
    shell:this.rand(),guard:this.rand(),nesting:this.rand(),
    brood:1+Math.floor(this.rand()*8),diet:this.rand(),
    deception:clamp(.5+this.range(-.42,.42),0,1),resist:this.rand(),
-   aquatic:this.rand()<.25?1:0,albino:this.rand()<.0015?1:0};
+   aquatic:this.rand()<.25?1:0,albino:this.rand()<.0015?1:0,
+    // Separate heritable behaviors: sociable animals may also disperse.
+    dispersal:this.range(.05,.95),sociability:this.range(.05,.95)};
   // Each founding individual carries two genetic copies per locus, including
   // recessive alleles that are not necessarily visible in its phenotype.
   g.alleles={};
@@ -474,7 +476,7 @@ export class Ecosystem{
   if(this.units.length>=2000)return null;
   const mode=reproductiveMode(g);
    const sex=mode===1?'H':mode===2?'F':(this.rand()<.5?'F':'M');
-   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null};
+   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null,socialTarget:null};
   u.category=this.category(g);u.lineage??=u.id;this.units.push(u);
   if(!this.species.has(u.category)){
    const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(u.category),current:0,total:0,diet:dietProfile(g).label,first:this.tick,genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(u.category),u);
@@ -1207,6 +1209,7 @@ export class Ecosystem{
    u.crowdStress=congestion;
    u.habitatLoad=habitatLoad;
    const pressure=(rivals+stronger*.7)/(1+GROWTH[t]*5)+congestion*.6+habitatLoad*.55;
+   const dispersal=clamp(g.dispersal??.45,0,1),sociability=clamp(g.sociability??.45,0,1);
    // Kin-specific contact disease is more likely in dense founder lineages.
    // A new mutation is not instantly immune: lineage persists across offspring.
    let relatives=0,infectious=0;
@@ -1226,8 +1229,14 @@ export class Ecosystem{
    // The area burden is especially expensive for large, near-stationary bodies.
    u.energy-=crowdEnergyCost(habitatLoad,u.growthScale??1);
    u.localCrowd=relatives;
+   // Genetic dispersal controls crowd tolerance; a partner nearby tempers
+   // dispersal until serious pressure makes staying ecologically expensive.
+   const partnerNearby=u.energy>90&&near.some(v=>v!==u&&!v.dead&&
+    sexualCompatibility(u,v)&&distance(u,v)<85**2);
+   const retreatThreshold=2.15+(1-dispersal)*1.05+sociability*.65;
+   const crowdEscape=pressure>retreatThreshold||habitatLoad>2.0+(1-dispersal)*1.1;
    const seekRefuge=!u.courtPartner&&!u.pregnancy&&!flight&&u.energy>75&&
-    (pressure>1.35||relatives>7||congestion>2||habitatLoad>1.2||thermal.excess>2);
+    (thermal.excess>2||crowdEscape&&(!partnerNearby||pressure>retreatThreshold*1.6));
    if(seekRefuge&&(this.tick+u.id)%14===0){
     let best=null,bestScore=-Infinity;
     for(let i=0;i<12;i++){
@@ -1277,7 +1286,26 @@ export class Ecosystem{
    if(targetEgg&&ed<Math.min(df,pd)*1.15)target=targetEgg;
    if(defenderTarget&&!u.courtPartner)target=defenderTarget;
     if(rival&&!mate&&!defenderTarget&&!flight)target=rival;
-   if(u.refugeTarget&&!flight&&!u.courtPartner&&u.energy>=85)target=u.refugeTarget;
+   if(u.refugeTarget&&!flight&&!u.courtPartner&&!mate&&u.energy>=85)target=u.refugeTarget;
+   // Social attraction is gentle: no swarm into a dense pile, and never
+   // override escape, courtship, urgent hunger, or migration.
+   if(!flight&&!mate&&!u.courtPartner&&!u.pregnancy&&!u.refugeTarget&&
+      u.energy>105&&sociability>.22){
+    if((this.tick+u.id)%31===0){
+     const candidates=near.filter(v=>v!==u&&!v.dead&&v.category===u.category&&
+      terrainFitness(g,this.terrain(v.x,v.y)).passable&&
+      distance(u,v)>40**2&&distance(u,v)<135**2);
+     if(candidates.length&&this.rand()<sociability*.85){
+      const companion=candidates.reduce((best,v)=>!best||distance(u,v)<distance(u,best)?v:best,null);
+      u.socialTarget={id:companion.id,until:this.tick+78};
+     }
+    }
+    const companion=u.socialTarget&&u.socialTarget.until>this.tick?byId.get(u.socialTarget.id):null;
+    if(companion&&!companion.dead&&companion.category===u.category&&
+       distance(u,companion)>34**2&&distance(u,companion)<155**2&&
+       (!target||u.energy>121))target=companion;
+    else if(!companion||distance(u,companion)<=34**2)u.socialTarget=null;
+   }else u.socialTarget=null;
    const nearFood=nearest&&distance(u,nearest)<Math.max(14,sight*.55)**2;
    const criticalWater=u.hydration<24||aquatic&&!underwater&&u.stranded>35;
    if((aquatic&&!underwater||!aquatic&&u.hydration<45&&!this.nearWater(u.x,u.y,1))&&(!nearFood||criticalWater)){
@@ -1308,6 +1336,7 @@ export class Ecosystem{
      target===mate||target===courtingMate?18:
      target===nearest||target===nearestCorpse?Math.max(7,m.biteReach+5):
      target===ownEgg?14:
+     target===byId.get(u.socialTarget?.id)?30:
      target===targetEgg?Math.max(3,m.biteReach*.75):
      target===prey||target===defenderTarget||target===rival?Math.max(3,m.biteReach*.7):
      target===u.refugeTarget?11:
