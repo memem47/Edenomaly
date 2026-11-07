@@ -484,7 +484,7 @@ export class Ecosystem{
   if(this.units.length>=2000)return null;
   const mode=reproductiveMode(g);
    const sex=mode===1?'H':mode===2?'F':(this.rand()<.5?'F':'M');
-   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null,socialTarget:null};
+   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null,socialTarget:null,mateTarget:null};
   u.category=this.category(g);u.lineage??=u.id;this.units.push(u);
   if(!this.species.has(u.category)){
    const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(u.category),current:0,total:0,diet:dietProfile(g).label,first:this.tick,genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(u.category),u);
@@ -529,8 +529,10 @@ export class Ecosystem{
   if(u.infection>0)return 'infection';
   if(u.dormant)return 'dormant';
   if(u.stage!=='adult'||u.age<=42)return 'immature';
+  // Paired individuals can spend a modest reserved energy budget while courting.
+  const courtshipReserve=u.courtPartner?14:0;
   if(u.energy<68+Math.max(0,organismMorphology(u).bodyMass-100)*.22+
-   (u.crowdStress??0)*3.1+(u.habitatLoad??0)*4.2)return 'energy';
+   (u.crowdStress??0)*3.1+(u.habitatLoad??0)*4.2-courtshipReserve)return 'energy';
   if(u.mateCooldown>0)return 'cooldown';
   if(u.pregnancy)return 'pregnancy';
   if(vitality(u).vigor<=.35)return 'weak';
@@ -560,15 +562,26 @@ export class Ecosystem{
   return counts;
  }
  findMate(u,batch){
-  if(!this.isReadyToMate(u))return null;
-  const sight=Math.max(85,organismMorphology(u).eyeRange*1.55);
+  if(!this.isReadyToMate(u)){u.mateTarget=null;return null;}
+  // Mate-seeking uses a wider search than foraging to connect dispersed founders.
+  const sight=Math.max(120,organismMorphology(u).eyeRange*1.55);
+  const compatible=v=>v&&v!==u&&this.canMate(u,v)&&
+   (!v.courtPartner||v.courtPartner===u.id)&&distance(u,v)<sight*sight;
+  // Retain a viable partner rather than switching to a nearer animal each tick.
+  const remembered=u.mateTarget&&u.mateTarget.until>this.tick?
+   batch.find(v=>v.id===u.mateTarget.id):null;
+  if(compatible(remembered))return remembered;
+  if(u.mateTarget)u.mateTarget=null;
   let match=null,best=sight*sight;
   for(const v of batch){
-   if(v===u||!this.canMate(u,v)||v.courtPartner&&v.courtPartner!==u.id)continue;
-   // Direct parent-offspring pairing is excluded.
-   if(u.parent===v.id||v.parent===u.id)continue;
+   if(!compatible(v))continue;
    const d=distance(u,v);
    if(d<best){match=v;best=d;}
+  }
+  if(match){
+   u.mateTarget={id:match.id,until:this.tick+100};
+   this.mateApproachStarts++;
+   this.log('mateSeek','#'+u.id+' が繁殖相手 #'+match.id+' に接近開始',u);
   }
   return match;
  }
@@ -839,7 +852,7 @@ export class Ecosystem{
   }
  }
  reset(){
-  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.runStartTick=null;this.runEndedTick=null;this.founderSpeciesCount=0;this.deathCauses={};this.courtshipFailures={};this.courtshipStarts=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];this.climateEnabled=true;this.seasonLength=600;
+  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.runStartTick=null;this.runEndedTick=null;this.founderSpeciesCount=0;this.deathCauses={};this.courtshipFailures={};this.courtshipStarts=0;this.mateApproachStarts=0;this.mateApproachStalled=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];this.climateEnabled=true;this.seasonLength=600;
   this.setupTerrain();
   this.grass=new Float32Array(this.tiles.length);
   this.water=new Float32Array(this.tiles.length);
@@ -1244,7 +1257,7 @@ export class Ecosystem{
      sexualCompatibility(u,v)&&distance(u,v)<85**2);
    const retreatThreshold=dispersalPressureThreshold(g);
    const crowdEscape=pressure>retreatThreshold||habitatLoad>2.0+(1-dispersal)*1.1;
-   const seekRefuge=!u.courtPartner&&!u.pregnancy&&!flight&&u.energy>75&&
+   const seekRefuge=!u.courtPartner&&!u.mateTarget&&!u.pregnancy&&!flight&&u.energy>75&&
     (thermal.excess>2||crowdEscape&&(!partnerNearby||pressure>retreatThreshold*1.6));
    if(seekRefuge&&(this.tick+u.id)%14===0){
     let best=null,bestScore=-Infinity;
@@ -1331,7 +1344,7 @@ export class Ecosystem{
    // Danger and critical dehydration remain higher priorities.
    const breedingPriority=!flight&&!criticalWater&&mate&&!mate.dead&&
     (u.courtPartner||this.isReadyToMate(u)&&u.energy>=112);
-   if(breedingPriority)target=mate;
+   if(breedingPriority){target=mate;u.refugeTarget=null;u.socialTarget=null;}
    // A blocked food/refuge target may be abandoned, but a compatible mate
    // should not be discarded by an unrelated avoidance marker.
    if(target&&!breedingPriority&&u.avoidTarget&&u.avoidTarget.until>this.tick&&
@@ -1356,12 +1369,17 @@ export class Ecosystem{
      target===prey||target===defenderTarget||target===rival?Math.max(3,m.biteReach*.7):
      target===u.refugeTarget?11:
      this.terrain(target.x,target.y)===1&&g.aquatic!==1?25:9;
-   this.navigate(u,target,desired,speed,m.turnRate,arrivalRadius);
+   const navigation=this.navigate(u,target,desired,speed,m.turnRate,arrivalRadius);
+   if(navigation==='abandoned'&&breedingPriority&&u.mateTarget?.id===mate.id){
+    this.mateApproachStalled++;
+    this.log('mateFail','#'+u.id+' が相手 #'+mate.id+' に近づけず探索をやり直す',u);
+    u.mateTarget=null;
+   }
    u.hp-=home.hazard;
    // Terrain-fit offspring retain energy and can reproduce more successfully.
    const adaptationCost=clamp(1.65-home.fitness*.75,.70,1.5)*(1.08-.08*thermal.comfort);
    u.energy-=reproductiveUpkeep(g)*youth;
-    u.energy-=(m.upkeep+longevityUpkeep(g))*youth*adaptationCost*(1+body.old*.18)+acquiredSizeMaintenance(u)*youth*adaptationCost+(flight?.10:0)+(ownEgg?g.guard*.16:0)+this.stress*.0035+home.upkeep+(g.wet+g.dry+g.rock)*.055;
+    u.energy-=((u.courtPartner?.75:1)*m.upkeep+longevityUpkeep(g))*youth*adaptationCost*(1+body.old*.18)+acquiredSizeMaintenance(u)*youth*adaptationCost+(flight?.10:0)+(ownEgg?g.guard*.16:0)+this.stress*.0035+home.upkeep+(g.wet+g.dry+g.rock)*.055;
    if(!flight&&aquatic&&underwater&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+14)**2){
     const eaten=this.consumeWaterweed(nearest.x,nearest.y,Math.min(5.5,1.3*m.foodGain*feedingCapacity(u)));
     if(eaten>0){u.energy+=eaten*7.5*diet.plant*home.fitness;
@@ -1395,7 +1413,9 @@ export class Ecosystem{
    if(!flight&&!defenderTarget&&targetEgg&&!targetEgg.dead&&u.bite===0&&distance(u,targetEgg)<(m.biteReach+4)**2)this.eatEgg(targetEgg,u);
    if(defenderTarget&&!defenderTarget.dead&&u.bite===0&&distance(u,defenderTarget)<(m.biteReach+defenderTarget.g.r+5)**2)
     this.attack(u,defenderTarget,true);
-   if(!flight&&!defenderTarget&&mate&&!u.courtPartner&&!mate.courtPartner&&distance(u,mate)<38**2)this.startCourtship(u,mate);
+   if(!flight&&!defenderTarget&&mate&&!u.courtPartner&&!mate.courtPartner&&distance(u,mate)<38**2){
+     if(this.startCourtship(u,mate)){u.mateTarget=null;mate.mateTarget=null;}
+    }
    if(rival&&!flight&&!rival.dead&&distance(u,rival)<(m.biteReach+rival.g.r+3)**2)
      this.attack(u,rival,'rival');
     if(!flight&&diet.meat>0&&prey&&!prey.dead&&
