@@ -66,3 +66,12 @@ button.active{background:linear-gradient(#42ce95,#12996e);border-color:#b1ffe2;b
 .score-strip strong{display:block;font-size:20px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .score-strip p{grid-column:1/-1;color:#9fb8b0;font-size:11px;margin:2px 8px 0}
 @media(max-width:700px){.score-strip{grid-template-columns:repeat(2,minmax(0,1fr))}.score-strip>div:nth-child(2){border-right:0}}
+
+/* Lab/game mode selector and scoped resource HUD. */
+.game-controls{border-color:#355f59}
+.game-economy{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.game-economy>div{padding:9px;background:#192f32;border-radius:7px}
+.game-economy small{display:block;color:#a3b9b2;font-size:11px}
+.game-economy strong{display:block;font-size:21px;font-variant-numeric:tabular-nums}
+button:disabled,input:disabled{opacity:.40;cursor:not-allowed}
+@media(max-width:540px){.game-economy{grid-template-columns:repeat(2,minmax(0,1fr))}}
