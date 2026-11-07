@@ -2805,3 +2805,50 @@ test('receptive adults can refuse courtship and later accept after recovering',(
  assert.equal(w.startCourtship(initiator,recipient),true);
  assert.equal(initiator.courtPartner,recipient.id);
 });
+
+test('juvenile ignores harmless parent and lineage predator-like disguises',async()=>{
+ const {suppressFearSignal}=await import('./simulation.js');
+ const w=new Ecosystem(2026110804);
+ const g={...w.gene(),diet:.08,deception:1,jaw:.2,mouths:1,aquatic:0};
+ const parent=w.spawn(200,180,g),child=w.spawn(212,180,{...g},parent);
+ const sibling=w.spawn(220,180,{...g},parent);
+ child.stage='juvenile';child.energy=60;
+ assert.equal(suppressFearSignal(child,parent,12**2,false),true);
+ assert.equal(suppressFearSignal(child,sibling,8**2,false),true);
+ child.stage='adult';
+ assert.equal(suppressFearSignal(child,parent,12**2,false),false,
+  'harmless-looking relatives are not permanently exempt once adult');
+});
+test('a related true carnivore remains a danger even to juveniles',async()=>{
+ const {suppressFearSignal}=await import('./simulation.js');
+ const w=new Ecosystem(2026110805);
+ const g={...w.gene(),diet:.08,deception:1,jaw:.8,mouths:2,aquatic:0};
+ const parent=w.spawn(200,180,g),child=w.spawn(220,180,{...g},parent);
+ child.stage='juvenile';child.energy=5;
+ parent.g.diet=.95;
+ assert.equal(suppressFearSignal(child,parent,20**2,true),false);
+});
+test('starving slimes eat despite distant bluff signals but still flee immediate danger',async()=>{
+ const {suppressFearSignal}=await import('./simulation.js');
+ const w=new Ecosystem(2026110806);
+ const g={...w.gene(),diet:.08,deception:1,jaw:.2,mouths:1,aquatic:0};
+ const hungry=w.spawn(200,180,g),bluffer=w.spawn(267,180,{...g});
+ hungry.stage='juvenile';hungry.energy=12;
+ assert.equal(suppressFearSignal(hungry,bluffer,67**2,true),true);
+ assert.equal(suppressFearSignal(hungry,bluffer,33**2,true),false);
+ assert.equal(suppressFearSignal(hungry,bluffer,67**2,false),false);
+ hungry.energy=65;
+ assert.equal(suppressFearSignal(hungry,bluffer,67**2,true),false);
+});
+test('starving child feeds near deceptive family without losing predator-signal escape',()=>{
+ const w=new Ecosystem(2026110807);w.tiles.fill(0);w.grass.fill(100);
+ const g={...w.gene(),diet:.08,deception:1,jaw:.2,mouths:1,aquatic:0,
+  idealTemp:22,tempTolerance:18,guard:0,eyes:2,r:5};
+ const parent=w.spawn(205,180,g),child=w.spawn(208,180,{...g},parent);
+ child.stage='juvenile';child.energy=15;child.hp=child.maxHp=1000;
+ parent.energy=160;parent.hp=parent.maxHp=1000;
+ w.temperatureAt=()=>22;
+ w.step();
+ assert.equal(child.fleeing,false,'harmless parent does not cause flight');
+ assert.ok(child.energy>15,'feeding should increase energy for hungry child');
+});
