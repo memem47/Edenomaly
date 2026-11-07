@@ -193,3 +193,15 @@ button:disabled,input:disabled{opacity:.40;cursor:not-allowed}
  #latestVersionLink{font-size:10px}
 }
 @media(max-width:800px){.header-version{justify-content:flex-start}}
+
+
+/* Compact reproduction diagnostics, including inside the fullscreen side panel. */
+.repro-detail-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0 5px;font-size:12px}
+.repro-detail-head small{font-size:10px;color:#c2d7e4}
+.repro-table{max-height:280px;overflow:auto;border:1px solid #42708c;border-radius:6px;scrollbar-width:thin}
+.repro-row{display:grid;grid-template-columns:minmax(80px,1.2fr) minmax(86px,1fr) minmax(85px,1fr) minmax(90px,1.4fr);gap:5px;padding:6px 7px;border-bottom:1px solid #37617b;font-size:11px;line-height:1.4;align-items:center}
+.repro-row:last-child{border-bottom:0}
+.repro-row>span{min-width:0;overflow-wrap:anywhere}
+.repro-row.repro-head{font-weight:700;color:#b5e8f8;background:#163a58;position:sticky;top:0}
+.repro-row.repro-selected{background:#235d60}
+.repro-low{color:#ffbc9e;font-weight:700}
