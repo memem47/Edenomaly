@@ -2655,3 +2655,39 @@ test('release manifest version is a valid nonempty fixed-format string',async()=
  assert.match(manifest.version,/^\d{4}\.\d{2}\.\d{2}\.\d+$/);
  assert.ok(manifest.description.length>0);
 });
+
+test('mate pursuit is stable across frames instead of repeatedly changing partners',()=>{
+ const w=new Ecosystem(2026110731);
+ w.tiles.fill(0);w.grass.fill(100);
+ const g={...w.gene(),aquatic:0,repro:0,idealTemp:22,tempTolerance:18};
+ const a=w.spawn(180,190,g),b=w.spawn(275,190,g),c=w.spawn(300,190,g);
+ a.sex='F';b.sex=c.sex='M';
+ for(const u of [a,b,c]){u.age=110;u.energy=200;u.stage='adult';u.infection=0;u.mateCooldown=0;u.hp=u.maxHp=500;}
+ w.temperatureAt=()=>22;w.tick=20;
+ const first=w.findMate(a,[a,b,c]);
+ assert.equal(first,b);
+ assert.equal(w.mateApproachStarts,1);
+ // A different partner becomes temporarily closer: don't lose original intent.
+ c.x=190;
+ const again=w.findMate(a,[a,b,c]);
+ assert.equal(again,b);
+ assert.equal(w.mateApproachStarts,1);
+ // A missing partner is forgotten and the eligible replacement is pursued.
+ b.dead=true;
+ const replacement=w.findMate(a,[a,b,c]);
+ assert.equal(replacement,c);
+ assert.equal(w.mateApproachStarts,2);
+});
+test('courtship energy reserve prevents immediate cancellation but not starvation',()=>{
+ const w=new Ecosystem(2026110732);
+ const g={...w.gene(),aquatic:0,repro:0,idealTemp:22,tempTolerance:18};
+ const a=w.spawn(180,190,g),b=w.spawn(186,190,g);
+ a.sex='F';b.sex='M';w.temperatureAt=()=>22;
+ for(const u of [a,b]){u.age=120;u.energy=200;u.stage='adult';u.hp=u.maxHp=800;u.mateCooldown=0;}
+ assert.equal(w.startCourtship(a,b),true);
+ const min=68+Math.max(0,organismMorphology(a).bodyMass-100)*.22+(a.crowdStress??0)*3.1+(a.habitatLoad??0)*4.2;
+ a.energy=min-8;
+ assert.equal(w.reproductionBlockReason(a),null,'paired animals have a small energy reserve');
+ a.energy=min-16;
+ assert.equal(w.reproductionBlockReason(a),'energy','reserve does not permit starvation');
+});
