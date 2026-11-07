@@ -1239,8 +1239,9 @@ export class Ecosystem{
    u.localCrowd=relatives;
    // Genetic dispersal controls crowd tolerance; a partner nearby tempers
    // dispersal until serious pressure makes staying ecologically expensive.
-   const partnerNearby=u.energy>90&&near.some(v=>v!==u&&!v.dead&&
-    sexualCompatibility(u,v)&&distance(u,v)<85**2);
+   const partnerNearby=u.energy>90&&this.isReadyToMate(u)&&
+    near.some(v=>v!==u&&!v.dead&&this.isReadyToMate(v)&&
+     sexualCompatibility(u,v)&&distance(u,v)<85**2);
    const retreatThreshold=dispersalPressureThreshold(g);
    const crowdEscape=pressure>retreatThreshold||habitatLoad>2.0+(1-dispersal)*1.1;
    const seekRefuge=!u.courtPartner&&!u.pregnancy&&!flight&&u.energy>75&&
