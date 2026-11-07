@@ -2574,7 +2574,7 @@ test('closed eyes are straight tangents to their body outline and follow body ro
  assert.ok(close(forward.x,0)&&close(forward.y,1),'front eye must close vertically in body space');
  assert.ok(close(side.x,-1)&&close(side.y,0),'side eye must close horizontally in body space');
  const w=new Ecosystem(2026110701);w.units=[];w.eggs=[];w.corpses=[];
- const u=w.spawn(300,200,{...w.gene(),eyes:2});u.angle=Math.PI/2;u.dormant=true;
+ const u=w.spawn(300,200,{...w.gene(),eyes:1});u.angle=Math.PI/2;u.dormant=true;
  const rotations=[],segments=[];let px=0,py=0;
  const ctx=new Proxy({canvas:{width:800,height:460},createRadialGradient:()=>({addColorStop(){}}),
   rotate(angle){rotations.push(angle);},
