@@ -2855,3 +2855,63 @@ test('starving child feeds near deceptive family without losing predator-signal 
  assert.equal(child.fleeing,false,'harmless parent does not cause flight');
  assert.ok(child.energy>15,'feeding should increase energy for hungry child');
 });
+
+test('behavioral genes are bounded, inherited, and recombined',async()=>{
+ const {threatFlightProbability,retaliationProbability}=await import('./simulation.js');
+ const w=new Ecosystem(2026110808);
+ const a=w.gene(),b=w.gene();
+ for(const key of ['caution','predatorSense','retaliation']){
+  assert.ok(a[key]>=0&&a[key]<=1);
+  assert.equal(a.alleles[key].length,2);
+ }
+ const child=w.recombine(a,b);
+ for(const key of ['caution','predatorSense','retaliation']){
+  assert.ok(child[key]>=0&&child[key]<=1);
+  assert.ok(child[key]>=Math.min(a[key],b[key])-.001&&child[key]<=Math.max(a[key],b[key])+.001);
+ }
+ const x=w.spawn(100,100,{...a,caution:0,predatorSense:0,retaliation:0});
+ const y=w.spawn(110,100,{...b,diet:1,deception:1});
+ assert.equal(threatFlightProbability(x,y),0);
+ assert.equal(retaliationProbability(x,y),0);
+ x.g.caution=1;x.g.predatorSense=1;x.g.retaliation=1;
+ assert.ok(threatFlightProbability(x,y)>.5);
+ assert.ok(retaliationProbability(x,y)>0);
+});
+test('one threat response is retained across a continuous encounter',()=>{
+ const w=new Ecosystem(2026110809);w.tiles.fill(0);w.grass.fill(80);
+ const g={...w.gene(),aquatic:0,idealTemp:22,tempTolerance:18,
+  diet:0,deception:.5,caution:0,predatorSense:0};
+ const u=w.spawn(180,180,g),v=w.spawn(212,180,{...g,diet:.9,deception:1});
+ u.sex=v.sex='F';
+ u.energy=v.energy=150;u.hp=u.maxHp=v.hp=v.maxHp=1500;
+ w.temperatureAt=()=>22;
+ w.step();
+ const first=u.threatDecisions.get(v.id);
+ assert.equal(first?.flee,false);
+ for(let i=0;i<10;i++)w.step();
+ assert.equal(u.threatDecisions.get(v.id),first,'the same encounter should not reroll');
+});
+test('a received attack causes genetically chosen flight or retaliation',()=>{
+ const w=new Ecosystem(2026110810);w.tiles.fill(0);w.grass.fill(80);
+ const g={...w.gene(),aquatic:0,diet:0,idealTemp:22,tempTolerance:18,r:5,
+  jaw:1.8,mouths:2};
+ const victim=w.spawn(160,180,{...g,retaliation:0}),attacker=w.spawn(168,180,{...g,diet:1});
+ victim.hp=victim.maxHp=attacker.hp=attacker.maxHp=1500;
+ victim.energy=attacker.energy=160;
+ w.temperatureAt=()=>22;
+ assert.equal(w.attack(attacker,victim),true);
+ assert.equal(victim.attackResponse.retaliate,false);
+ w.step();
+ assert.equal(victim.fleeing,true);
+ const other=new Ecosystem(2026110811);other.tiles.fill(0);other.grass.fill(80);
+ const responder=other.spawn(160,180,{...g,retaliation:1}),
+  enemy=other.spawn(168,180,{...g,diet:1});
+ responder.hp=responder.maxHp=enemy.hp=enemy.maxHp=1500;
+ responder.energy=enemy.energy=160;
+ responder.age=100;enemy.age=100;other.temperatureAt=()=>22;
+ responder.attackResponse={id:enemy.id,retaliate:true,until:30};
+ other.tick=10;
+ other.step();
+ assert.ok(enemy.hp<1500,'counterattack must inflict damage');
+ assert.ok(other.logs.some(e=>e.message.includes('反撃')));
+});
