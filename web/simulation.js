@@ -344,14 +344,12 @@ export class Ecosystem{
    shell:this.rand(),guard:this.rand(),nesting:this.rand(),
    brood:1+Math.floor(this.rand()*8),diet:this.rand(),
    deception:clamp(.5+this.range(-.42,.42),0,1),resist:this.rand(),
-   aquatic:this.rand()<.25?1:0,albino:this.rand()<.0015?1:0,
-    // Separate heritable behaviors: sociable animals may also disperse.
-    dispersal:this.range(.05,.95),sociability:this.range(.05,.95)};
+   aquatic:this.rand()<.25?1:0,albino:this.rand()<.0015?1:0};
   // Each founding individual carries two genetic copies per locus, including
   // recessive alleles that are not necessarily visible in its phenotype.
   g.alleles={};
   for(const key of HERITABLE){
-   if(key==='hibernate')continue; // initialize from other inherited founder traits without consuming RNG
+   if(key==='hibernate'||key==='dispersal'||key==='sociability')continue; // preserve older founder RNG sequence
    let second=g[key];
    if(key==='repro')second=0;
     else if(key==='idealTemp')second=clamp(g.idealTemp+this.range(-3,3),...LIMITS.idealTemp);
@@ -374,6 +372,13 @@ export class Ecosystem{
   // recombining mutation locus without shifting all previous seed outcomes.
   g.hibernate=clamp(.07+g.shell*.57+g.guard*.44,0,1);
   g.alleles.hibernate=[g.hibernate,g.hibernate];
+  // Seed two behavioral loci from existing variation without consuming extra
+  // random draws or perturbing older morphology and reproduction trajectories.
+  // Their values can subsequently mutate and recombine independently.
+  g.dispersal=clamp(.08+g.dry*.42+g.eyes/6*.28+g.jaw/2.5*.13,0,1);
+  g.sociability=clamp(.08+g.guard*.42+g.nesting*.27+g.brood/8*.22,0,1);
+  g.alleles.dispersal=[g.dispersal,g.dispersal];
+  g.alleles.sociability=[g.sociability,g.sociability];
   return g;
  }
  mutate(g){
