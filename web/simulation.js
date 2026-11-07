@@ -1326,9 +1326,15 @@ export class Ecosystem{
     const guardRadius=12+g.guard*40;
     if(distance(u,ownEgg)>guardRadius**2||!target)target=ownEgg;
    }
-   // A blocked pursuit is temporarily ignored so animals can search for
-   // another accessible resource or partner instead of tracing the same shore.
-   if(target&&u.avoidTarget&&u.avoidTarget.until>this.tick&&
+   // Well-fed, reproduction-ready adults seek an eligible mate BEFORE
+   // foraging, guarding eggs, social regrouping and voluntary dispersal.
+   // Danger and critical dehydration remain higher priorities.
+   const breedingPriority=!flight&&!criticalWater&&mate&&!mate.dead&&
+    (u.courtPartner||this.isReadyToMate(u)&&u.energy>=112);
+   if(breedingPriority)target=mate;
+   // A blocked food/refuge target may be abandoned, but a compatible mate
+   // should not be discarded by an unrelated avoidance marker.
+   if(target&&!breedingPriority&&u.avoidTarget&&u.avoidTarget.until>this.tick&&
       distance(target,u.avoidTarget)<20*20&&!flight)target=null;
    // Immediate escape overrides food, reproduction and egg guarding.
    if(flight)target=null;
