@@ -837,13 +837,39 @@ export class Ecosystem{
   if(this.waterweed[i]<.001)this.waterweed[i]=0;
   return taken;
  }
+ // Water-bound organisms cannot cross land to weeds in another pond.
+ // Connected regions are built once per tick, not once per individual.
+ waterRegions(){
+  if(this._waterRegionTick===this.tick&&this._waterRegions)return this._waterRegions;
+  const regions=new Uint16Array(this.tiles.length),queue=new Int32Array(this.tiles.length);
+  let region=0;
+  for(let i=0;i<this.tiles.length;i++){
+   if(this.tiles[i]!==1||regions[i])continue;
+   region++;
+   let head=0,tail=1;queue[0]=i;regions[i]=region;
+   while(head<tail){
+    const cell=queue[head++],x=cell%NX,y=Math.floor(cell/NX);
+    const neighbors=[x>0?cell-1:-1,x<NX-1?cell+1:-1,
+     y>0?cell-NX:-1,y<NY-1?cell+NX:-1];
+    for(const next of neighbors)if(next>=0&&this.tiles[next]===1&&!regions[next]){
+     regions[next]=region;queue[tail++]=next;
+    }
+   }
+  }
+  this._waterRegions=regions;this._waterRegionTick=this.tick;
+  return regions;
+ }
  nearestWaterweed(x,y,radius){
   let best=null,score=radius*radius;
+  const home=this.cell(x,y);
+  const region=this.tiles[home]===1?this.waterRegions()[home]:0;
+  const regions=region?this._waterRegions:null;
   const cx=Math.floor(x/CELL),cy=Math.floor(y/CELL),reach=Math.ceil(radius/CELL)+1;
   for(let yy=Math.max(0,cy-reach);yy<=Math.min(NY-1,cy+reach);yy++)
    for(let xx=Math.max(0,cx-reach);xx<=Math.min(NX-1,cx+reach);xx++){
     const i=yy*NX+xx;
-    if(this.tiles[i]!==1||this.water[i]<=0||this.waterweed[i]<=.2)continue;
+    if(this.tiles[i]!==1||this.water[i]<=0||this.waterweed[i]<=.2||
+     region&&regions[i]!==region)continue;
     // Approach the reachable edge of a food tile instead of its centre.
     // This reduces needless movement before taking the first bite.
     const px=clamp(x,xx*CELL+2,(xx+1)*CELL-2);
@@ -1580,8 +1606,14 @@ export class Ecosystem{
     }
    }
    // Starved organisms gradually lose their acquired oversized body mass.
-   if((u.growthScale??1)>1.03&&u.energy<85)
-    u.growthScale=Math.max(1,u.growthScale-(85-u.energy)*.000045);
+   if((u.growthScale??1)>1.03&&u.energy<85){
+    // Tissue catabolism limits the energy burden of exceptional size.
+    // It does not grant energy/HP: starvation and natural selection remain.
+    const hunger=clamp((85-u.energy)/85,0,1);
+    const maintenance=acquiredSizeMaintenance(u);
+    const shrink=.002+.008*hunger+Math.min(.007,maintenance*.00018);
+    u.growthScale=Math.max(1,u.growthScale-shrink);
+   }
    // Limit stored reserves so immobile giants cannot live on old stockpiles.
    if((u.growthScale??1)>1.05)u.energy=Math.min(u.energy,energyStorageLimit(u));
    // Zero food no longer kills instantaneously: the accelerated life drain
