@@ -111,7 +111,7 @@ function update(){
  $('interventionHelp').textContent=playMode==='game'?'1種類だけ移入。生存・新種発見・世代交代・移住でポイント獲得。草の種・雨・土壌改良で支援します。':'テストモードでは従来どおり自由に操作できます。';
  for(const button of document.querySelectorAll('[data-mode]')){
   const kind=button.dataset.mode;
-  button.disabled=playMode==='game'&&(session.finished||!['spawn','inspect','food','fertilize'].includes(kind)||(kind==='spawn'&&session.active));
+  button.disabled=playMode==='game'&&(session.finished||!['spawn','inspect','food','fertilize'].includes(kind)||(kind==='spawn'&&session.active)||(kind==='food'&&(!session.active||session.points<5))||(kind==='fertilize'&&(!session.active||session.points<10)));
   if(kind==='food')button.textContent=playMode==='game'?'🌱 草の種（5pt）':'草を補充';
   if(kind==='fertilize')button.textContent=playMode==='game'?'🌿 土壌改良（10pt）':'🌱 土壌改良';
  }
@@ -166,6 +166,7 @@ function syncSliders(){$('growth').value=game.growth;$('growthValue').value=game
 // The foreground animation is display-rate limited. Simulation ticks have
 // their own budget, so the renderer cannot monopolize the video decoder/GPU.
 function stepSimulation(){
+ if(playMode==='game'&&session.finished)return;
  game.step();observeGame();
  if(game.tick%50===0)recordStep();
 }
@@ -241,7 +242,7 @@ function interact(e){
  }
  update();render();
 }
-canvas.addEventListener('pointerdown',e=>{painting=true;canvas.setPointerCapture(e.pointerId);interact(e);});canvas.addEventListener('pointermove',e=>{if(painting&&['0','1','2','3','fertilize'].includes(mode))interact(e);});canvas.addEventListener('pointerup',()=>painting=false);canvas.addEventListener('pointercancel',()=>painting=false);
+canvas.addEventListener('pointerdown',e=>{painting=true;canvas.setPointerCapture(e.pointerId);interact(e);});canvas.addEventListener('pointermove',e=>{if(playMode==='lab'&&painting&&['0','1','2','3','fertilize'].includes(mode))interact(e);});canvas.addEventListener('pointerup',()=>painting=false);canvas.addEventListener('pointercancel',()=>painting=false);
 document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{if(b.disabled)return;mode=b.dataset.mode;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x===b));}));
 document.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>{filter=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x===b));update();}));
 $('speciesSort').onchange=update;
