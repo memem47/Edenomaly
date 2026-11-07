@@ -2691,3 +2691,42 @@ test('courtship energy reserve prevents immediate cancellation but not starvatio
  a.energy=min-16;
  assert.equal(w.reproductionBlockReason(a),'energy','reserve does not permit starvation');
 });
+
+test('individual reproductive diagnosis identifies energy threshold, mate distance and pursuit',()=>{
+ const w=new Ecosystem(2026110733);
+ w.tiles.fill(0);
+ const g={...w.gene(),aquatic:0,idealTemp:22,tempTolerance:18,repro:0};
+ const a=w.spawn(150,180,g),b=w.spawn(210,180,g);
+ a.sex='F';b.sex='M';w.temperatureAt=()=>22;
+ for(const u of [a,b]){u.age=120;u.energy=150;u.stage='adult';u.mateCooldown=0;u.hp=u.maxHp=500;}
+ a.mateTarget={id:b.id,until:150,since:30};a.behaviorTarget='mate';w.tick=42;
+ const d=w.reproductionDiagnostic(a);
+ assert.equal(d.id,a.id);assert.equal(d.reason,'ready');assert.equal(d.target,'mate');
+ assert.equal(d.mateId,b.id);assert.equal(d.mateDistance,60);assert.equal(d.approachSteps,12);
+ assert.ok(d.energy>d.required);
+ a.energy=d.required-1;
+ assert.equal(w.reproductionDiagnostic(a).reason,'energy');
+ assert.equal(w.reproductionDiagnostic(a).energy,+a.energy.toFixed(2));
+});
+test('individual reproductive diagnosis is read-only',()=>{
+ const w=new Ecosystem(2026110734);
+ const u=w.spawn(180,180,w.gene());
+ const before=w.rng,oldX=u.x,oldY=u.y;
+ const one=w.reproductionDiagnostic(u),two=w.reproductionDiagnostic(u);
+ assert.deepEqual(one,two);assert.equal(w.rng,before);
+ assert.equal(u.x,oldX);assert.equal(u.y,oldY);
+});
+test('individual reproduction CSV records per-organism observations',async()=>{
+ const {EcologyLogbook,INDIVIDUAL_DIAG_FIELDS}=await import('./ecology-log.js');
+ const storage={data:new Map(),getItem(k){return this.data.get(k)},setItem(k,v){this.data.set(k,v)}};
+ const logs=new EcologyLogbook(storage,'2026.11.07.3');
+ const w=new Ecosystem(2026110735);
+ w.spawn(150,160,w.gene());w.tick=50;logs.start(w.initialSeed);
+ assert.equal(logs.recordIndividuals(w),true);
+ assert.ok(logs.toIndividualCSV().includes('required'));
+ assert.ok(logs.toIndividualCSV().includes('mateDistance'));
+ assert.ok(logs.toIndividualCSV().includes('approachFailures'));
+ assert.equal(logs.data.runs[0].individuals.length,1);
+ assert.equal(logs.data.runs[0].individuals[0].id,w.units[0].id);
+ assert.ok(INDIVIDUAL_DIAG_FIELDS.length>10);
+});
