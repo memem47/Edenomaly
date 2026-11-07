@@ -2566,3 +2566,18 @@ test('game completion settles lifetime reward once and keeps it across new runs'
  assert.equal(parseMeta(JSON.stringify(next)).bank,next.bank);
  run.reset();assert.deepEqual(settleMeta(next,run),next);
 });
+
+test('dormant eye line cancels body rotation, keeping horizontal closed eyes on screen',()=>{
+ const w=new Ecosystem(2026110701);w.units=[];w.eggs=[];w.corpses=[];
+ const u=w.spawn(300,200,{...w.gene(),eyes:2});u.angle=Math.PI/2;u.dormant=true;
+ const rotations=[],segments=[];let px=0,py=0;
+ const ctx=new Proxy({canvas:{width:800,height:460},createRadialGradient:()=>({addColorStop(){}}),
+  rotate(angle){rotations.push(angle);},
+  moveTo(x,y){px=x;py=y;},
+  lineTo(x,y){segments.push({from:[px,py],to:[x,y]});}},
+  {get(o,k){return k in o?o[k]:()=>{};},set(o,k,v){o[k]=v;return true;}});
+ drawWorld(ctx,w,false);
+ assert.ok(rotations.some(a=>Math.abs(a-Math.PI/2)<1e-9),'body rotation');
+ assert.ok(rotations.filter(a=>Math.abs(a+Math.PI/2)<1e-9).length>=2,'eye counterrotation');
+ assert.ok(segments.some(s=>s.from[1]===0&&s.to[1]===0&&s.from[0]<0&&s.to[0]>0),'horizontal eye strokes');
+});
