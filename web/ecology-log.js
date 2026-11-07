@@ -2,6 +2,7 @@
 // Only observations are saved; the full running ecosystem is not saved.
 export const ECOLOGY_LOG_KEY='edenomaly:ecology-observations';
 export const ECOLOGY_LOG_INTERVAL=50;
+export const INDIVIDUAL_DIAG_FIELDS=['run','version','step','id','sex','energy','required','reason','mateId','mateDistance','target','approachSteps','approachFailures','courtPartner','hpPercent'];
 export const ECOLOGY_LOG_FIELDS=[
  'run','version','step','population','adults','juveniles','eggs',
  'livingSpecies','discoveredSpecies','maxGeneration','herbivores','omnivores','carnivores',
@@ -94,7 +95,7 @@ export class EcologyLogbook{
  start(seed){
   const id=this.data.nextId++;
   this.activeId=id;
-  this.data.runs.push({id,seed,startedAt:new Date().toISOString(),samples:[]});
+  this.data.runs.push({id,seed,startedAt:new Date().toISOString(),samples:[],individuals:[]});
   this.save();
   return id;
  }
@@ -108,6 +109,29 @@ export class EcologyLogbook{
   else if(!previous||row.step>previous.step)run.samples.push(row);
   else return false;
   this.save();return true;
+ }
+ recordIndividuals(world,force=false){
+  const run=this.data.runs.find(r=>r.id===this.activeId);
+  if(!run||!world||!force&&world.tick%ECOLOGY_LOG_INTERVAL!==0)return false;
+  run.individuals??=[];
+  // Limit browser storage use in dense populations, retaining recent records.
+  const population=world.units.filter(u=>!u.dead);
+  const sample=population.length<=48?population:population.slice(0,48);
+  for(const u of sample)run.individuals.push({
+   run:run.id,version:this.version,...world.reproductionDiagnostic(u)
+  });
+  if(run.individuals.length>6000)run.individuals.splice(0,run.individuals.length-6000);
+  this.save();return true;
+ }
+ toIndividualCSV(){
+  const quoted=value=>{
+   const str=String(value??'');
+   return /[",\n\r]/.test(str)?'"'+str.replace(/"/g,'""')+'"':str;
+  };
+  const lines=[INDIVIDUAL_DIAG_FIELDS.join(',')];
+  for(const run of this.data.runs)for(const sample of run.individuals??[])
+   lines.push(INDIVIDUAL_DIAG_FIELDS.map(field=>quoted(sample[field])).join(','));
+  return '\ufeff'+lines.join('\r\n')+'\r\n';
  }
  end(observation){
   if(this.activeId===null)return;
