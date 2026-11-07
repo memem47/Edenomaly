@@ -33,7 +33,7 @@ export class GameSession{
   for(let n=this.maxGeneration+1;n<=highest;n++)this.grant('generation:'+n,3,'第'+n+'世代');
   this.maxGeneration=highest;
   for(let n=600;n<=score.duration;n+=600)this.grant('season:'+n,8,'季節の節目 '+n+'ステップ');
-  for(let n=this.lastMigrations+1;n<=w.migrations;n++)this.grant('migration:'+n,6,'新しい生息地へ移住');
+  if(w.migrations>0)this.grant('migration:first',6,'初めての移住成功');
   this.lastMigrations=w.migrations;
   if(score.ended){
    this.finished=true;this.finalScore=score.total;
