@@ -2518,3 +2518,48 @@ test('extinction score freezes only after every egg is lost',()=>{
  const finalScore=w.runScore.total;
  w.step();assert.equal(w.runScore.total,finalScore);
 });
+
+import {GameSession,parseMeta,settleMeta} from './game-mode.js';
+test('game begins with one founding species and only one introduction',()=>{
+ const w=new Ecosystem(4001),run=new GameSession(w);
+ assert.equal(run.start(170,130),true);
+ assert.equal(run.points,15);
+ assert.equal(w.introducedCount,8);
+ assert.equal(run.start(170,130),false);
+ assert.equal(w.introducedCount,8);
+});
+test('paid actions require enough points, preserve terrain and reject repeat after extinction',()=>{
+ const w=new Ecosystem(4002),run=new GameSession(w);
+ assert.equal(run.intervene('rain'),false);
+ assert.equal(run.start(170,130),true);
+ assert.equal(run.intervene('seed',170,130),w.terrain(170,130)===0);
+ const remaining=run.points;
+ assert.equal(run.intervene('seed',-1,-1),false);
+ assert.equal(run.points,remaining);
+ assert.equal(run.intervene('rain'),remaining>=8);
+ assert.equal(run.points,remaining-(remaining>=8?8:0));
+ assert.equal(run.intervene('fertilize',170,130),false);
+ run.finished=true;
+ assert.equal(run.intervene('rain'),false);
+});
+test('survival points are earned only at milestones and cannot be farmed by repeated observation',()=>{
+ const w=new Ecosystem(4003),run=new GameSession(w);run.start(170,130);
+ w.tick=300;run.observe();
+ assert.equal(run.points,20);
+ run.observe();assert.equal(run.points,20);
+ w.tick=600;run.observe();assert.equal(run.points,33);
+ run.observe();assert.equal(run.points,33);
+});
+test('game completion settles lifetime reward once and keeps it across new runs',()=>{
+ const w=new Ecosystem(4004),run=new GameSession(w);run.start(170,130);
+ w.tick=2500;
+ for(const u of w.units)w.die(u,'test');
+ w.units=[];w.eggs=[];w.runEndedTick=2500;
+ run.observe();assert.equal(run.finished,true);
+ assert.equal(run.reward,Math.floor(w.runScore.total/1000));
+ const old=parseMeta('{"bank":3,"best":600,"runs":2}');
+ const next=settleMeta(old,run);
+ assert.equal(next.bank,3+run.reward);assert.equal(next.runs,3);
+ assert.equal(parseMeta(JSON.stringify(next)).bank,next.bank);
+ run.reset();assert.deepEqual(settleMeta(next,run),next);
+});
