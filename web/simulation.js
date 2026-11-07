@@ -55,7 +55,10 @@ export const thermalFitness=(g,temp)=>{
  const delta=Math.abs(temp-ideal),comfort=clamp(1-delta/tolerance,0,1),excess=Math.max(0,delta-tolerance);
  return {ideal,tolerance,comfort,excess,activity:clamp(1.09-.033*delta,.33,1.09),
   upkeep:.035*delta+.095*excess+Math.max(0,tolerance-7)*.045,
-  damage:excess>0?Math.min(2.5,excess*.045):0,
+  // Broad-tolerance genes reduce the severity of extreme-weather injury.
+  // They already incur metabolic upkeep, so this is not a free immunity.
+  damage:excess>0?Math.min(2.5,excess*.038*
+   (1-.42*clamp((tolerance-8)/10,0,1))):0,
   reproduction:excess<tolerance*.16};
 };
 export const terrainFitness=(g,t)=>{
@@ -1197,7 +1200,8 @@ export class Ecosystem{
    // The area burden is especially expensive for large, near-stationary bodies.
    u.energy-=crowdEnergyCost(habitatLoad,u.growthScale??1);
    u.localCrowd=relatives;
-   const seekRefuge=!u.courtPartner&&!u.pregnancy&&!flight&&(pressure>1.35||relatives>7||congestion>2||habitatLoad>1.2);
+   const seekRefuge=!u.courtPartner&&!u.pregnancy&&!flight&&u.energy>75&&
+    (pressure>1.35||relatives>7||congestion>2||habitatLoad>1.2||thermal.excess>2);
    if(seekRefuge&&(this.tick+u.id)%14===0){
     let best=null,bestScore=-Infinity;
     for(let i=0;i<12;i++){
