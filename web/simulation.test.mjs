@@ -1282,7 +1282,10 @@ test('infection, immediate hit flash, and attack have separate draw colors',()=>
    set(o,k,v){if(k==='strokeStyle')styles.stroke.push(v);
     if(k==='fillStyle')styles.fill.push(v);o[k]=v;return true;}});
  drawWorld(ctx,w,true);
- assert.ok(styles.stroke.includes('rgba(59,212,99,.86)'));
+ assert.ok(styles.stroke.includes('rgba(123,43,74,.78)'));
+ assert.ok(styles.fill.includes('rgba(104,34,67,.61)'));
+ assert.ok(!styles.stroke.includes('rgba(59,212,99,.86)'));
+ assert.ok(!styles.fill.includes('rgba(104,248,121,.88)'));
  assert.ok(styles.stroke.includes('rgba(255,148,42,.92)'));
  assert.ok(!styles.fill.includes('rgba(105,34,36,.66)'));
  assert.ok(styles.fill.includes('rgba(255,92,75,.27)'));
