@@ -1,4 +1,4 @@
-import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=game-mode-1';
+import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=social-behavior-1';
 import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=game-mode-1';
 import {drawWorld,drawChart} from './renderer.js?v=contour-closed-eyes-1';
 import {EcologyLogbook,observeEcology} from './ecology-log.js?v=forage-dormancy-1';
@@ -30,7 +30,7 @@ const recordStep=()=>{lastReproductionSample=observeEcology(game);return ecology
 const canvas=$('world'),ctx=canvas.getContext('2d'),graph=$('chart').getContext('2d'),longGraph=$('ecologyLongChart').getContext('2d');
 let running=false,speed=1,mode='spawn',filter='all',brush=3,selected=null,selectedSpecies=null,catalogMarkup='',painting=false,last=0,acc=0,uiAt=0,paintAt=0,rafId=null,backgroundTimer=null,logRunOptions='',selectedLogRun=null;
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const GENE_LABELS={idealTemp:'好みの温度',tempTolerance:'温度耐性',hibernate:'休眠傾向',r:'体の大きさ',elongation:'体の長さ比',eyes:'目の数',mouths:'口の能力',jaw:'顎の能力',wet:'水への適応',dry:'乾燥への適応',rock:'岩場への適応',aquatic:'水生／陸生',shell:'卵殻',guard:'卵の保護',nesting:'産卵場所',brood:'産卵数',diet:'食性',deception:'擬態',resist:'感染抵抗力',longevity:'長寿特性',albino:'白色変異'};
+const GENE_LABELS={idealTemp:'好みの温度',tempTolerance:'温度耐性',hibernate:'休眠傾向',r:'体の大きさ',elongation:'体の長さ比',eyes:'目の数',mouths:'口の能力',jaw:'顎の能力',wet:'水への適応',dry:'乾燥への適応',rock:'岩場への適応',aquatic:'水生／陸生',shell:'卵殻',guard:'卵の保護',nesting:'産卵場所',brood:'産卵数',diet:'食性',deception:'擬態',resist:'感染抵抗力',longevity:'長寿特性',albino:'白色変異',dispersal:'分散傾向',sociability:'集合傾向'};
 function genomeValue(key,value){return key==='aquatic'?(value===1?'水生':'陸生'):typeof value==='number'?(Number.isInteger(value)?String(value):value.toFixed(3)):String(value);}
 function speciesColor(sp){
  const g=sp.genome;
@@ -47,7 +47,7 @@ function speciesAbilityText(g){
  const fmt=v=>v.toFixed(2);
  const habitat=g.aquatic===1?'水生':'陸生';
  const strategy=protectiveDrive(g)>.52?'卵の守護種':eggPredationDrive(g)>.62?'卵を狙う危険種':'一般型';
- return `<div class="species-abilities" aria-label="計算済みの能力"><span title="適温と生存に関わる温度耐性">適温 ${fmt(g.idealTemp??22)}℃ ±${fmt(g.tempTolerance??9)}℃</span><span title="休眠能力は遺伝。高いと悪条件で休眠し、活動と繁殖を止めるが栄養を節約する">休眠 ${fmt(g.hibernate??0)}</span><span title="草地での基準移動速度">速 ${fmt(m.speed*.58)}</span><span title="草地での視界距離">視 ${Math.round(m.eyeRange)}</span><span title="最大HP（健康な成体）">HP ${hp}</span><span title="長寿遺伝子。高いほどHPの自然減少が遅いが代謝コストが高い">長寿 ×${fmt(g.longevity??1)}</span><span title="1ステップあたりの基礎代謝（長寿のコストを含む）">代謝 ${fmt(m.upkeep+longevityUpkeep(g))}</span><span title="食性">${escapeHTML(diet.label)}</span><span title="遺伝した食性・顎・保護能力による生態的戦略">${strategy}</span><span title="生息型">${habitat}</span><span title="乾燥地／岩場／水辺の適応度">適応 乾${fmt(terrainFitness(g,2).fitness)} 岩${fmt(terrainFitness(g,3).fitness)} 水${fmt(terrainFitness(g,1).fitness)}</span></div>`;
+ return `<div class="species-abilities" aria-label="計算済みの能力"><span title="適温と生存に関わる温度耐性">適温 ${fmt(g.idealTemp??22)}℃ ±${fmt(g.tempTolerance??9)}℃</span><span title="休眠能力は遺伝。高いと悪条件で休眠し、活動と繁殖を止めるが栄養を節約する">休眠 ${fmt(g.hibernate??0)}</span><span title="混雑時に仲間から離れようとする遺伝的傾向">分散 ${fmt(g.dispersal??.45)}</span><span title="十分な栄養があるとき同種の仲間に近づく遺伝的傾向">集合 ${fmt(g.sociability??.45)}</span><span title="草地での基準移動速度">速 ${fmt(m.speed*.58)}</span><span title="草地での視界距離">視 ${Math.round(m.eyeRange)}</span><span title="最大HP（健康な成体）">HP ${hp}</span><span title="長寿遺伝子。高いほどHPの自然減少が遅いが代謝コストが高い">長寿 ×${fmt(g.longevity??1)}</span><span title="1ステップあたりの基礎代謝（長寿のコストを含む）">代謝 ${fmt(m.upkeep+longevityUpkeep(g))}</span><span title="食性">${escapeHTML(diet.label)}</span><span title="遺伝した食性・顎・保護能力による生態的戦略">${strategy}</span><span title="生息型">${habitat}</span><span title="乾燥地／岩場／水辺の適応度">適応 乾${fmt(terrainFitness(g,2).fitness)} 岩${fmt(terrainFitness(g,3).fitness)} 水${fmt(terrainFitness(g,1).fitness)}</span></div>`;
 }
 function catalogSpecies(liveBySpecies){
  const phenotype=e=>speciesRepresentative(e[0],e[1],liveBySpecies);
@@ -73,7 +73,7 @@ function speciesGenomeHTML(key){
  if(!genome)return '<p class="muted">この種の遺伝子記録はありません。</p>';
  const origin=representative?'現存する代表個体 #'+representative.id:'発見時に保存した遺伝子';
  const fields=Object.entries(GENE_LABELS).filter(([gene])=>genome[gene]!==undefined).map(([gene,label])=>{const pair=genome.alleles?.[gene];return `<div class="gene"><span>${escapeHTML(label)} <small>${gene}</small>${pair?`<small class="allele-pair">遺伝子型 ${pair.map(v=>escapeHTML(genomeValue(gene,v))).join(' / ')}</small>`:''}</span><b>${escapeHTML(genomeValue(gene,genome[gene]))}</b></div>`;}).join('');
- return `<div class="genome-heading"><strong>${escapeHTML(species.name)} の遺伝子</strong><button type="button" data-close-genome="true">閉じる</button></div><p class="muted">${escapeHTML(origin)}。種名は8つの分類特徴から固定生成されるため、初期化しても同じ分類なら同名です。詳細遺伝子コードは21項目の数値を16段階に丸めたものです。同じ種でも個体ごとに異なる場合があります。</p><p class="muted"><strong>遺伝子コード：<code>${genomeCode(genome)}</code></strong></p><div class="genome-grid">${fields}</div>`;
+ return `<div class="genome-heading"><strong>${escapeHTML(species.name)} の遺伝子</strong><button type="button" data-close-genome="true">閉じる</button></div><p class="muted">${escapeHTML(origin)}。種名は8つの分類特徴から固定生成されるため、初期化しても同じ分類なら同名です。詳細遺伝子コードは遺伝形質を16段階に丸めたものです。同じ種でも個体ごとに異なる場合があります。</p><p class="muted"><strong>遺伝子コード：<code>${genomeCode(genome)}</code></strong></p><div class="genome-grid">${fields}</div>`;
 }
 function update(){
  const dietCounts=[0,0,0];for(const u of game.units){const d=dietProfile(u.g).diet;dietCounts[d<.3?0:d>.7?2:1]++;}
