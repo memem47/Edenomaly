@@ -459,7 +459,7 @@ test('species catalog stores a gene snapshot even after extinction',()=>{
 test('rain replenishes exhausted waterbeds and reduces stress',()=>{
  const w=new Ecosystem(901);const i=w.tiles.findIndex(t=>t===1);
  assert.ok(i>=0);
- w.water[i]=0;w.tiles[i]=2;w.growth=0;w.stress=80;
+ w.water[i]=35;w.growth=0;w.stress=80;
  w.rain();
  assert.equal(w.growth,90);assert.equal(w.stress,8);
  assert.equal(w.tiles[i],1);assert.ok(w.water[i]>0);
@@ -534,9 +534,9 @@ test('grazing depletes grass and converts it to bare terrain',()=>{
 });
 test('drinking consumes finite map water',()=>{
  const w=new Ecosystem(906),i=w.cell(220,140);
- w.tiles[i]=1;w.waterbed[i]=1;w.water[i]=1;
- assert.ok(Math.abs(w.consumeWater(220,140,1)-1)<1e-4);
- assert.equal(w.tiles[i],2);assert.equal(w.water[i],0);
+ w.tiles[i]=1;w.waterbed[i]=1;w.water[i]=36;
+ assert.ok(Math.abs(w.consumeWater(220,140,10)-1)<1e-4);
+ assert.equal(w.tiles[i],1);assert.equal(w.water[i],35);
 });
 test('neighboring grass can regrow but total extinction cannot',()=>{
  const w=new Ecosystem(908);w.tiles.fill(2);w.grass.fill(0);
@@ -578,18 +578,18 @@ test('habitat adaptation changes per-step metabolism for different dry traits',(
 });
 test('seasonal precipitation restores depleted waterbeds',()=>{
  const w=new Ecosystem(1203);const i=w.tiles.findIndex(t=>t===1);
- w.water[i]=0;w.tiles[i]=2;w.growth=0;
+ w.water[i]=35;w.growth=0;
  for(let j=0;j<180;j++)w.step();
  assert.equal(w.tiles[i],1);assert.ok(w.water[i]>0);
 });
-test('corpse moisture can establish a new pond on bare land',()=>{
- const w=new Ecosystem(1204);w.tiles.fill(2);w.grass.fill(0);
+test('corpses enrich soil without creating new ponds',()=>{
+ const w=new Ecosystem(1204);w.tiles.fill(2);w.waterbed.fill(0);w.water.fill(0);w.grass.fill(0);
  const u=w.spawn(200,200,{...w.gene(),aquatic:0,r:12});
  w.die(u,'test');w.units=[];
  for(let i=0;i<200;i++)w.step();
- assert.ok([...w.tiles].some(t=>t===1));
+ assert.ok(w.soilWater.some(v=>v>0));
+ assert.ok([...w.tiles].every(t=>t!==1));
 });
-
 test('corpse decomposition cannot create new permanent waterbeds',()=>{
  const w=new Ecosystem(1401);
  w.tiles.fill(2);w.waterbed.fill(0);w.water.fill(0);
@@ -1155,9 +1155,9 @@ test('waterweed seeds cannot germinate in dry or depleted water tiles',()=>{
  w.growth=100;w.rand=()=>0;
  for(let n=0;n<72;n++)w.step();
  assert.equal(w.waterweed[dry],0);
- assert.equal(w.waterweed[empty],0);
- assert.equal(w.waterweed[shallow],0);
- assert.equal(w.waterweedSeedCount,0);
+ assert.ok(w.water[empty]>=35);
+ assert.ok(w.water[shallow]>=35);
+ assert.ok(w.waterweedSeedCount>0);
 });
 test('waterweed seed arrivals are disabled by zero vegetation growth',()=>{
  const w=new Ecosystem(2703);w.tiles.fill(1);w.water.fill(100);w.waterweed.fill(0);
@@ -2397,4 +2397,40 @@ test('ecology CSV reports overwintering animals, eggs and foraging history',()=>
  assert.ok(csv.includes('forageSuccess'));
  assert.ok(csv.includes('forageFailure'));
  assert.ok(csv.includes('meanHibernate'));
+});
+
+import {POND_RESERVE} from './simulation.js';
+test('permanent natural ponds survive prolonged drought and drinking',()=>{
+ const w=new Ecosystem(98017);
+ const ids=[...w.tiles].map((t,i)=>t===1?i:-1).filter(i=>i>=0);
+ assert.ok(ids.length>0);
+ w.rainfall=0;w.stress=100;
+ for(const i of ids)w.water[i]=POND_RESERVE;
+ for(let step=0;step<1000;step++)w.step();
+ for(const i of ids){
+  assert.equal(w.tiles[i],1);
+  assert.ok(w.water[i]>=POND_RESERVE);
+  assert.equal(w.waterbed[i],1);
+ }
+ const i=ids[0],x=(i%WORLD.columns+.5)*WORLD.cell,y=(Math.floor(i/WORLD.columns)+.5)*WORLD.cell;
+ assert.equal(w.consumeWater(x,y,10000),0);
+ assert.equal(w.tiles[i],1);
+ w.paint(x,y,3,0);
+ assert.equal(w.tiles[i],3);
+});
+test('overwintering eggs can survive winter and hatch in spring without guaranteed immortality',()=>{
+ const w=new Ecosystem(98018);
+ w.tiles.fill(0);w.grass.fill(90);w.water.fill(70);
+ const g={...w.gene(),idealTemp:23,tempTolerance:8,shell:.85,hibernate:.85};
+ const egg={id:9818,x:210,y:150,g,age:0,hatchAt:65,energy:18,dead:false,parent:1,otherParent:2,generation:1,lineage:'test'};
+ w.eggs.push(egg);
+ w.tick=1800;w.weather='cloudy';w.weatherUntil=1e8;w.updateTemperature();
+ for(let i=0;i<590;i++)w.step();
+ assert.ok(!egg.dead,'winter egg with reserves should survive');
+ assert.ok(egg.dormant,'temperature should postpone hatching');
+ assert.ok(egg.energy>0,'reserve is finite');
+ w.tick=2400;w.updateTemperature();
+ for(let i=0;i<100&&w.eggs.includes(egg);i++)w.step();
+ assert.ok(!w.eggs.includes(egg),'egg should hatch when spring is warm');
+ assert.ok(w.units.some(u=>u.generation===1));
 });
