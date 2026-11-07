@@ -305,6 +305,9 @@ export const sexualCompatibility=(a,b)=>{
 export const reproductiveUpkeep=g=>reproductiveMode(g)===1?.23:reproductiveMode(g)===2?.14:0;
 export const eggPredationDrive=g=>clamp(dietProfile(g).meat*(1-.65*(g.guard??0))*(1.1-.08*(g.jaw??1)),0,1);
 export const protectiveDrive=g=>clamp((g.guard??0)*(.35+.65*clamp((g.jaw??1)/2.5,0,1)),0,1);
+// Shelter changes detection, not invulnerability.
+export const coverFactor=(terrain,observerAquatic=false)=>terrain===3?.34:
+ terrain===1?(observerAquatic?.80:.06):1;
 export const eggTraits=g=>({
  shell:g.shell,guard:g.guard,nesting:g.nesting,
  incubation:Math.round(34+g.shell*30),
@@ -496,7 +499,8 @@ export class Ecosystem{
    const x=clamp(u.x+this.range(-34,34),10,W-10),y=clamp(u.y+this.range(-34,34),10,H-10);
    let threat=0;for(const v of this.units){if(v!==u&&!v.dead&&organismMorphology(v).predatory&&distance({x,y},v)<45**2)threat++;}
    const landscape=this.terrain(x,y);
-   const safe=terrainFitness(u.g,landscape).fitness*.9+GROWTH[landscape]*.6-threat*2;
+   const sheltered=landscape===3?.85:landscape===1&&u.g.aquatic===1?1.1:0;
+    const safe=terrainFitness(u.g,landscape).fitness*.9+GROWTH[landscape]*.6+sheltered-threat*2;
    const s=trait*safe+this.range(-.6,.6)-(1-trait)*Math.hypot(x-u.x,y-u.y)/50;
    if(s>score){score=s;best={x,y};}
   }
@@ -641,9 +645,17 @@ export class Ecosystem{
    const rear=rearPosition(parent,3+i*.65);
    const egg={id:this.nextId++,x:clamp(rear.x+Math.cos(parent.angle+Math.PI/2)*this.range(-3,3),6,W-6),y:clamp(rear.y+Math.sin(parent.angle+Math.PI/2)*this.range(-6,6),6,H-6),g,parent:p.parent,otherParent:p.otherParent,generation:p.generation,lineage:p.lineage,age:0,hatchAt:traits.incubation,energy:traits.eggEnergy,dead:false,bornTick:this.tick,birthX:parent.x-Math.cos(parent.angle)*(parent.g.r*parent.g.elongation+2),birthY:parent.y-Math.sin(parent.angle)*(parent.g.r*parent.g.elongation+2)};
    if(g.aquatic!==parent.g.aquatic){
-    const site=this.shoreEggSite(egg.x,egg.y,g);
-    egg.x=site.x;egg.y=site.y;
-   }
+     const site=this.shoreEggSite(egg.x,egg.y,g);
+     egg.x=site.x;egg.y=site.y;
+    }
+    // Shore-dwellers with strong inherited nesting instinct deposit eggs
+    // underwater, outside the reach of terrestrial egg predators.
+    if(g.aquatic!==1&&parent.g.nesting>.68&&this.nearWater(egg.x,egg.y,3)){
+     const waterSite=this.nearestWater(egg.x,egg.y);
+     if(waterSite&&distance(egg,waterSite)<70**2){
+      egg.x=waterSite.x;egg.y=waterSite.y;egg.submergedNest=true;
+     }
+    }
    laid.push(egg);this.eggs.push(egg);
   }
   parent.pregnancy=null;
@@ -682,6 +694,7 @@ export class Ecosystem{
  }
  eatEgg(egg,hunter){
   if(egg.dead||dietProfile(hunter.g).meat===0)return false;
+   if(this.terrain(egg.x,egg.y)===1&&hunter.g.aquatic!==1)return false;
   egg.dead=true;
   const nutrients=egg.energy*(.8+eggTraits(egg.g).shell*.12)*dietProfile(hunter.g).meat;
   hunter.energy+=nutrients;
@@ -900,7 +913,11 @@ export class Ecosystem{
    const nx=clamp(u.x+Math.cos(angle)*speed,7,W-7);
    const ny=clamp(u.y+Math.sin(angle)*speed,7,H-7);
    if((nx-u.x)**2+(ny-u.y)**2<=Math.max(.0001,speed*speed*.04))return null;
-   return terrainFitness(u.g,this.terrain(nx,ny)).passable?{x:nx,y:ny}:null;
+   const nextTerrain=this.terrain(nx,ny);
+    // Aquatic organisms cannot wander out of a pond, but stranded ones can
+    // still return from the shore after a habitat-change mutation.
+    if(u.g.aquatic===1&&this.terrain(u.x,u.y)===1&&nextTerrain!==1)return null;
+    return terrainFitness(u.g,nextTerrain).passable?{x:nx,y:ny}:null;
   };
   let next=canMove(u.angle);
   if(next){u.x=next.x;u.y=next.y;u.blockedSteps=0;return 'moved';}
@@ -1056,7 +1073,9 @@ export class Ecosystem{
 
    if(!egg.dead&&egg.age>=egg.hatchAt&&this.units.length<2000){
     egg.dead=true;
-    const child=this.spawn(egg.x,egg.y,egg.g,{id:egg.parent,otherParent:egg.otherParent,generation:egg.generation-1,lineage:egg.lineage});
+    const hatchSite=egg.g.aquatic!==1&&this.terrain(egg.x,egg.y)===1?
+      this.shoreEggSite(egg.x,egg.y,egg.g):{x:egg.x,y:egg.y};
+     const child=this.spawn(hatchSite.x,hatchSite.y,egg.g,{id:egg.parent,otherParent:egg.otherParent,generation:egg.generation-1,lineage:egg.lineage});
     if(child){child.energy=egg.energy+35;child.stage='juvenile';this.log('hatch','卵 #'+egg.id+' から #'+child.id+' が孵化',egg);}
    }
   }
@@ -1130,7 +1149,11 @@ export class Ecosystem{
    let targetEgg=null,ed=sight*sight*(.65+eggPredationDrive(g)*1.5);
    if(u.bite===0&&eggPredationDrive(g)>.24&&g.mouths>0)for(const egg of eggGrid.query(u.x,u.y,Math.sqrt(ed))){
     if(egg.dead||egg.parent===u.id||egg.otherParent===u.id)continue;
-    let d=distance(u,egg);if(d>=ed)continue;
+     const eggTerrain=this.terrain(egg.x,egg.y);
+     if(eggTerrain===1&&!aquatic)continue;
+     let d=distance(u,egg),cover=coverFactor(eggTerrain,aquatic);
+     if(d>=ed*cover*cover)continue;
+     d/=Math.max(.1,cover)**2;
     const guardian=byId.get(egg.parent);
     const guarded=guardian&&!guardian.dead&&guardian.g.guard>.25&&distance(guardian,egg)<(14+guardian.g.guard*43)**2;
     const risk=guarded&&guardian!==u&&organismMorphology(guardian).bodyMass>=m.bodyMass*.65?1+guardian.g.guard*3:1;
@@ -1139,13 +1162,16 @@ export class Ecosystem{
   let prey=null,pd=sight*sight;
    if(m.predatory&&u.bite===0)for(const v of near){
     if(v===u||v.dead||v.id===u.courtPartner)continue;
-     const preyMass=organismMorphology(v).bodyMass;
+      const preyTerrain=this.terrain(v.x,v.y);
+      if(preyTerrain===1&&!aquatic)continue;
+      const preyMass=organismMorphology(v).bodyMass;
      // Under famine, capable predators risk attacking similarly sized
      // conspecifics; successful attacks yield calories, not free biomass.
      const hungry=u.energy<65&&diet.meat>.24;
      const cannibal=hungry&&v.category===u.category;
      if(preyMass>m.bodyMass*(cannibal?1.15:m.edibleRatio))continue;
-    const d=distance(u,v);if(d<pd){pd=d;prey=v;}
+    const d=distance(u,v)/Math.max(.1,coverFactor(preyTerrain,aquatic))**2;
+     if(d<pd){pd=d;prey=v;}
    }
    // Prey respond to the perceived, visible feeding signal, not hidden genome.
    let danger=null,dangerD=sight*sight*1.6;
@@ -1153,8 +1179,8 @@ export class Ecosystem{
     if(v===u||v.dead)continue;
     const visible=dietProfile(v.g).signal;
     if(visible<.48||organismMorphology(v).bodyMass<m.bodyMass*.55)continue;
-    const d=distance(u,v);
-    if(d<dangerD){danger=v;dangerD=d;}
+    const d=distance(u,v)/Math.max(.1,coverFactor(t,aquatic))**2;
+     if(d<dangerD){danger=v;dangerD=d;}
    }
    // Guardians attack only nearby threats to their own or related eggs.
    let defenderTarget=null,defendDist=65*65;
@@ -1213,7 +1239,8 @@ export class Ecosystem{
      if(!habitat.passable)continue;
      const fit=habitat.fitness;
      const thermalBenefit=thermalFitness(g,localTemperature(this.temperature,terrain));
-      const score=fit*.85+GROWTH[terrain]*.6+thermalBenefit.comfort*.30-thermalBenefit.excess*.06-competitors*.37+this.range(-.12,.12);
+      const score=fit*.85+GROWTH[terrain]*.6+thermalBenefit.comfort*.30-thermalBenefit.excess*.06-competitors*.37+
+       (terrain===1&&aquatic?.9:0)+this.range(-.12,.12);
      if(score>bestScore){bestScore=score;best={x,y,terrain};}
     }
     if(best&&bestScore>home.fitness*.85+GROWTH[t]*.6+thermal.comfort*.30-thermal.excess*.06-pressure*.26){
@@ -1327,7 +1354,9 @@ export class Ecosystem{
    if(!flight&&!defenderTarget&&mate&&!u.courtPartner&&!mate.courtPartner&&distance(u,mate)<38**2)this.startCourtship(u,mate);
    if(rival&&!flight&&!rival.dead&&distance(u,rival)<(m.biteReach+rival.g.r+3)**2)
      this.attack(u,rival,'rival');
-    if(!flight&&diet.meat>0&&prey&&!prey.dead&&distance(u,prey)<(m.biteReach+prey.g.r)**2){
+    if(!flight&&diet.meat>0&&prey&&!prey.dead&&
+      (this.terrain(prey.x,prey.y)!==1||aquatic)&&
+      distance(u,prey)<(m.biteReach+prey.g.r)**2){
      this.attack(u,prey);
     }
    const newTerrain=this.terrain(u.x,u.y);
@@ -1400,7 +1429,8 @@ export class Ecosystem{
   }
   // Only physically neighboring organisms are tested. Grid is refreshed after
   // each correction pass so displaced individuals cannot miss new neighbors.
-  const canStand=(u,x,y)=>terrainFitness(u.g,this.terrain(x,y)).passable;
+  const canStand=(u,x,y)=>terrainFitness(u.g,this.terrain(x,y)).passable&&
+    !(u.g.aquatic===1&&this.terrain(u.x,u.y)===1&&this.terrain(x,y)!==1);
   const move=(u,dx,dy)=>{
    const x=clamp(u.x+dx,7,W-7),y=clamp(u.y+dy,7,H-7);
    if(canStand(u,x,y)){u.x=x;u.y=y;return;}
