@@ -1,13 +1,30 @@
-import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=score-preview-1';
+import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=game-mode-1';
+import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=game-mode-1';
 import {drawWorld,drawChart} from './renderer.js?v=permanent-water-1';
 import {EcologyLogbook,observeEcology} from './ecology-log.js?v=forage-dormancy-1';
 import {performancePolicy,simulationBatch,BROWSER_BACKGROUND_INTERVAL} from './performance-policy.js?v=video-friendly-1';
 const $=id=>document.getElementById(id);
 const game=new Ecosystem();
+const session=new GameSession(game);
+let playMode='lab';
+const META_KEY='edenomaly-game-rewards-v1';
 const LOG_VERSION=new URL(import.meta.url).searchParams.get('v')||'development';
 let localLogStorage=null;
 try{localLogStorage=window.localStorage;}catch{}
 const ecologyLog=new EcologyLogbook(localLogStorage,LOG_VERSION);
+let meta=parseMeta(localLogStorage?.getItem(META_KEY));let rewardRecorded=false;
+function observeGame(){
+ if(playMode!=='game')return;
+ session.observe();
+ if(session.finished){
+  running=false;
+  if(!rewardRecorded){
+   meta=settleMeta(meta,session);
+   try{localLogStorage?.setItem(META_KEY,JSON.stringify(meta));}catch{}
+   rewardRecorded=true;
+  }
+ }
+}
 let lastReproductionSample=null;
 const recordStep=()=>{lastReproductionSample=observeEcology(game);return ecologyLog.record(lastReproductionSample);};
 const canvas=$('world'),ctx=canvas.getContext('2d'),graph=$('chart').getContext('2d'),longGraph=$('ecologyLongChart').getContext('2d');
@@ -84,6 +101,28 @@ function update(){
  const data={maxGeneration:game.units.length?Math.max(...game.units.map(u=>u.generation)):0,offspringCount:descendants.length,averageFitness:averageFitness.toFixed(2),population:game.units.length,eggCount:game.eggs.length,matingCount:game.matings,juvenileCount:game.units.filter(u=>u.stage==='juvenile').length,livingSpecies:game.livingSpecies,totalSpecies:game.species.size,corpses:game.corpses.length,nutrients:Math.round(game.grass.reduce((a,b)=>a+b,0)),waterRemaining:Math.round(game.water.reduce((a,b)=>a+b,0)),waterweedRemaining:Math.round(game.waterweed.reduce((a,b)=>a+b,0)),recycled:game.recycled,migrationCount:game.migrations};
  for(const [id,value] of Object.entries(data))$(id).textContent=typeof value==='number'?value.toLocaleString('ja-JP'):value;
  const score=game.runScore;
+ $('playModeLab').classList.toggle('active',playMode==='lab');
+ $('playModeGame').classList.toggle('active',playMode==='game');
+ $('playModeStatus').textContent=playMode==='game'?(session.finished?'絶滅・プレイ終了':session.active?'観察・介入中':'最初の生命を移入'):'自由な環境実験';
+ $('interventionPoints').textContent=playMode==='game'?session.points.toLocaleString('ja-JP'):'—';
+ $('rewardBank').textContent=meta.bank.toLocaleString('ja-JP');
+ $('bestGameScore').textContent=meta.best.toLocaleString('ja-JP');
+ $('runReward').textContent=playMode==='game'&&session.finished?'今回 +'+session.reward+'pt':'1000スコアごとに報酬1pt（将来の初期遺伝子強化用）';
+ $('interventionHelp').textContent=playMode==='game'?'1種類だけ移入。生存・新種発見・世代交代・移住でポイント獲得。草の種・雨・土壌改良で支援します。':'テストモードでは従来どおり自由に操作できます。';
+ for(const button of document.querySelectorAll('[data-mode]')){
+  const kind=button.dataset.mode;
+  button.disabled=playMode==='game'&&(session.finished||!['spawn','inspect','food','fertilize'].includes(kind)||(kind==='spawn'&&session.active));
+  if(kind==='food')button.textContent=playMode==='game'?'🌱 草の種（5pt）':'草を補充';
+  if(kind==='fertilize')button.textContent=playMode==='game'?'🌿 土壌改良（10pt）':'🌱 土壌改良';
+ }
+ $('rain').textContent=playMode==='game'?'🌧 降雨（8pt）':'降雨';
+ $('rain').disabled=playMode==='game'&&(!session.active||session.finished||session.points<8);
+ for(const id of ['drought','epidemic','growth','stress','rainfall','climateEnabled','temperature','brush'])$(id).disabled=playMode==='game';
+ $('founderTypes').disabled=playMode==='game';
+ if(playMode==='game'){$('founderTypes').value=1;$('founderPreview').textContent='1種類・8体';}
+ $('stepOnce').disabled=playMode==='game';
+ $('startHint').textContent=playMode==='game'?'ゲームモード：1種類を移入して開始。再移入・直接編集は禁止。絶滅後は初期化して再挑戦。':'テストモード：生命を自由に移入し、生態系を実験できます。';
+
  $('gameScore').textContent=score.total.toLocaleString('ja-JP');
  $('survivalScore').textContent=score.duration.toLocaleString('ja-JP');
  $('discoveryScore').textContent=score.discoveries.toLocaleString('ja-JP')+'種 / +'+score.discoveryScore.toLocaleString('ja-JP')+'点';
@@ -122,12 +161,12 @@ function update(){
 function render(){drawWorld(ctx,game,$('effects').checked,selected);}
 function reset(){
  ecologyLog.end(ecologyLog.activeId===null?null:observeEcology(game));
- game.reset();lastReproductionSample=null;selected=null;selectedSpecies=null;running=false;mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));syncSliders();update();render();}
+ game.reset();session.reset();rewardRecorded=false;lastReproductionSample=null;selected=null;selectedSpecies=null;running=false;mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));syncSliders();update();render();}
 function syncSliders(){$('growth').value=game.growth;$('growthValue').value=game.growth;$('stress').value=game.stress;$('stressValue').value=game.stress;$('rainfall').value=game.rainfall;$('rainfallValue').value=game.rainfall;$('temperature').value=game.baseTemperature;$('temperatureValue').value=game.baseTemperature+'℃';$('climateEnabled').checked=game.climateEnabled;}
 // The foreground animation is display-rate limited. Simulation ticks have
 // their own budget, so the renderer cannot monopolize the video decoder/GPU.
 function stepSimulation(){
- game.step();
+ game.step();observeGame();
  if(game.tick%50===0)recordStep();
 }
 function frame(time){
@@ -188,7 +227,7 @@ $('catalog').addEventListener('click',e=>{
  const details=$('catalog').querySelector('.species-expanded');
  if(details)details.scrollIntoView({block:'nearest'});
 });
-$('play').onclick=()=>{if(game.introducedCount===0){mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));return;}running=!running;update();};$('stepOnce').onclick=()=>{if(game.introducedCount===0)return;running=false;game.step();if(game.tick%50===0)recordStep();update();render();};$('speed').onclick=()=>{speed=speed===1?3:speed===3?8:1;$('speed').textContent='速度 ×'+speed;};$('reset').onclick=()=>reset();
+$('play').onclick=()=>{if(playMode==='game'&&session.finished)return;if(game.introducedCount===0){mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));return;}running=!running;update();};$('stepOnce').onclick=()=>{if(game.introducedCount===0)return;running=false;game.step();observeGame();if(game.tick%50===0)recordStep();update();render();};$('speed').onclick=()=>{speed=speed===1?3:speed===3?8:1;$('speed').textContent='速度 ×'+speed;};$('reset').onclick=()=>reset();
 $('ecologyRun').onchange=e=>{selectedLogRun=Number(e.target.value);update();};
 $('downloadEcologyLog').onclick=()=>{
  const csv=ecologyLog.toCSV(),blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
