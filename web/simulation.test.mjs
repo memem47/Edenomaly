@@ -2472,3 +2472,49 @@ test('terrestrial carnivores cannot eat submerged eggs, aquatic carnivores can',
  assert.equal(egg.dead,false);
  assert.equal(w.eatEgg(egg,swimmer),true);
 });
+
+test('score starts at zero and excludes founder species from discoveries',()=>{
+ const w=new Ecosystem(20261109);
+ assert.deepEqual(w.runScore,{started:false,ended:false,duration:0,discoveries:0,survivalScore:0,discoveryScore:0,total:0});
+ const result=w.introduce(170,130,1);
+ assert.equal(result.types,1);
+ assert.equal(w.runScore.started,true);
+ assert.equal(w.runScore.discoveries,0);
+ for(let i=0;i<10;i++)w.step();
+ assert.equal(w.runScore.duration,10);
+ assert.equal(w.runScore.survivalScore,10);
+});
+test('score counts genuinely novel post-founder species with a 300 point bonus',()=>{
+ const w=new Ecosystem(20261110);
+ w.introduce(170,130,1);
+ const founderCount=w.species.size;
+ // A newly classified descendant counts once, not once per individual.
+ const candidate=w.units[0].g;
+ let novel=null;
+ for(const trait of [0,1]){
+  const trial={...candidate,eyes:trait===0?0:6,diet:trait===0?1:0,aquatic:0};
+  if(!w.species.has(w.category(trial))){novel=trial;break;}
+ }
+ assert.ok(novel);
+ w.spawn(180,140,novel,w.units[0]);
+ assert.equal(w.species.size,founderCount+1);
+ assert.equal(w.runScore.discoveryScore,300);
+ w.spawn(185,140,novel,w.units[0]);
+ assert.equal(w.runScore.discoveryScore,300);
+});
+test('extinction score freezes only after every egg is lost',()=>{
+ const w=new Ecosystem(20261111);w.introduce(170,130,1);
+ const parent=w.units[0],egg={id:99999,x:parent.x,y:parent.y,g:parent.g,
+  parent:parent.id,otherParent:null,generation:1,lineage:parent.lineage,
+  age:0,hatchAt:100000,energy:10,dead:false};
+ w.eggs.push(egg);
+ for(const u of w.units)w.die(u,'test');
+ w.units=[];
+ w.step();
+ assert.equal(w.runScore.ended,false);
+ egg.dead=true;
+ w.step();
+ assert.equal(w.runScore.ended,true);
+ const finalScore=w.runScore.total;
+ w.step();assert.equal(w.runScore.total,finalScore);
+});
