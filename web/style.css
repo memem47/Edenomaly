@@ -160,6 +160,13 @@ button:disabled,input:disabled{opacity:.40;cursor:not-allowed}
  main .panel{margin-bottom:8px;padding:9px}
  main .stack>section:first-child{margin-top:0}
  main .stack:first-child>section:first-child>p.muted:not(#startHint):not(#inspector){display:none}
+ main .stack:first-child>section:first-child{display:flex;flex-direction:column}
+ main .stack:first-child>section:first-child>h2{order:-5}
+ main .stack:first-child>section:first-child>#startHint{order:-4}
+ main .stack:first-child>section:first-child>#modes{order:-3}
+ main .stack:first-child>section:first-child>.buttons:not(#modes){order:-2}
+ main .stack:first-child>section:first-child>.setting{order:0}
+ main .stack:first-child>section:first-child>#inspector{order:1}
  main .stack:first-child .setting{margin:7px 0}
  main .stack:first-child .buttons{margin:6px 0;gap:4px}
  main .stack:first-child button{padding:5px 7px;font-size:11px}
