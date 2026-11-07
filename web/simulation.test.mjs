@@ -1,7 +1,7 @@
 // Run with: node --test web/simulation.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Ecosystem,morphology,organismMorphology,bodyCollisionAxes,localDensity,crowdStress,acquiredSizeMaintenance,feedingCapacity,energyStorageLimit,MAX_NUTRITION_GROWTH,adaptationColor,eggPredationDrive,protectiveDrive,habitatCrowding} from './simulation.js';
+import {Ecosystem,TERRAIN_COLORS,coverFactor,morphology,organismMorphology,bodyCollisionAxes,localDensity,crowdStress,acquiredSizeMaintenance,feedingCapacity,energyStorageLimit,MAX_NUTRITION_GROWTH,adaptationColor,eggPredationDrive,protectiveDrive,habitatCrowding} from './simulation.js';
 import {slimeEyeAngles,slimeEyeColor,slimeEyeLocation,organismVisualState,drawWorld} from './renderer.js';
 const populated=seed=>{const s=new Ecosystem(seed);s.introduce(160,135,3);if(s.units.length>1){s.units[0].sex='F';s.units[1].sex='M';}s.temperatureAt=()=>22;for(const u of s.units){u.g.idealTemp=22;u.g.tempTolerance=12;}return s;};
 test('same seed creates same initial ecosystem',()=>{const a=populated(42),b=populated(42);assert.deepEqual(a.tiles,b.tiles);assert.deepEqual(a.units,b.units);});
@@ -2412,7 +2412,7 @@ test('permanent natural ponds survive prolonged drought and drinking',()=>{
   assert.ok(w.water[i]>=POND_RESERVE);
   assert.equal(w.waterbed[i],1);
  }
- const i=ids[0],x=(i%WORLD.columns+.5)*WORLD.cell,y=(Math.floor(i/WORLD.columns)+.5)*WORLD.cell;
+ const i=ids[0],x=(i%40+.5)*20,y=(Math.floor(i/40)+.5)*20;
  assert.equal(w.consumeWater(x,y,10000),0);
  assert.equal(w.tiles[i],1);
  w.paint(x,y,3,0);
@@ -2442,4 +2442,33 @@ test('high inherited temperature tolerance reduces thermal injury with an upkeep
  assert.ok(thermalFitness(broad,22).upkeep>thermalFitness(narrow,22).upkeep);
  assert.ok(thermalFitness(broad,22).reproduction);
  assert.equal(thermalFitness(narrow,-10).reproduction,false);
+});
+
+test('aquatic founder remains inside permanent pond during wandering and shoreline pursuit',()=>{
+ const w=new Ecosystem(20261107);
+ const index=[...w.tiles].findIndex((t,i)=>t===1&&i%40>0&&w.tiles[i-1]!==1);
+ assert.ok(index>=0,'shore tile exists');
+ const x=(index%40+.5)*20,y=(Math.floor(index/40)+.5)*20;
+ const g=w.adaptFounderToTerrain(w.gene(),1),u=w.spawn(x,y,g);
+ assert.ok(u);assert.equal(u.g.aquatic,1);
+ for(let i=0;i<180;i++){
+  w.tick++;
+  w.navigate(u,{x:x-120,y},Math.PI,4,.28);
+  assert.equal(w.terrain(u.x,u.y),1,'aquatic animal must remain in pond');
+ }
+});
+test('rock refuge conceals prey and eggs without guaranteeing immunity',()=>{
+ assert.ok(coverFactor(3)<coverFactor(0));
+ assert.ok(coverFactor(1,false)<coverFactor(3));
+ assert.ok(coverFactor(1,true)>coverFactor(1,false));
+});
+test('terrestrial carnivores cannot eat submerged eggs, aquatic carnivores can',()=>{
+ const w=new Ecosystem(20261108);
+ const i=[...w.tiles].findIndex(t=>t===1),x=(i%40+.5)*20,y=(Math.floor(i/40)+.5)*20;
+ const g=w.gene(),land=w.spawn(x+180,y,{...g,aquatic:0,diet:1}),
+  swimmer=w.spawn(x,y,{...g,aquatic:1,diet:1});
+ const egg={id:9999,x,y,g:{...g,aquatic:0,shell:.5},energy:25,dead:false};
+ assert.equal(w.eatEgg(egg,land),false);
+ assert.equal(egg.dead,false);
+ assert.equal(w.eatEgg(egg,swimmer),true);
 });
