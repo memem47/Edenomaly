@@ -829,7 +829,7 @@ export class Ecosystem{
   }
  }
  reset(){
-  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.deathCauses={};this.courtshipFailures={};this.courtshipStarts=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];this.climateEnabled=true;this.seasonLength=600;
+  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.runStartTick=null;this.runEndedTick=null;this.founderSpeciesCount=0;this.deathCauses={};this.courtshipFailures={};this.courtshipStarts=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];this.climateEnabled=true;this.seasonLength=600;
   this.setupTerrain();
   this.grass=new Float32Array(this.tiles.length);
   this.water=new Float32Array(this.tiles.length);
@@ -1410,6 +1410,8 @@ export class Ecosystem{
   this.resolveUnitOverlap();
   this.updateCourtships();
   this.units=this.units.filter(u=>!u.dead);this.eggs=this.eggs.filter(e=>!e.dead);
+   // Unhatched eggs can repopulate the world: extinction requires both to vanish.
+   if(this.runStartTick!==null&&this.runEndedTick===null&&this.units.length===0&&this.eggs.length===0)this.runEndedTick=this.tick;
   for(const trail of this.eggTrails)trail.age++;
   this.eggTrails=this.eggTrails.filter(t=>t.age<t.life);
   if(this.tick%20===0)this.snapshot();
@@ -1583,6 +1585,7 @@ export class Ecosystem{
   }
   const total=founders.reduce((n,f)=>n+f.count,0);
   this.introducedCount+=total;
+   if(total>0&&this.runStartTick===null){this.runStartTick=this.tick;this.founderSpeciesCount=this.species.size;}
   this.log('info',founders.length+'種類・'+total+'体の生命を移入');
   return {types:founders.length,individuals:total};
  }
@@ -1611,7 +1614,13 @@ export class Ecosystem{
   const restored=this.replenishWater(55);
   this.log('info','降雨：'+restored+' マスの恒久水場に水を補給した');
  }
- get livingSpecies(){return [...this.species.values()].filter(s=>s.current>0).length;}
+ get runScore(){
+   const started=this.runStartTick!==null;
+   const duration=started?Math.max(0,(this.runEndedTick??this.tick)-this.runStartTick):0;
+   const discoveries=started?Math.max(0,this.species.size-this.founderSpeciesCount):0;
+   return {started,ended:this.runEndedTick!==null,duration,discoveries,survivalScore:duration,discoveryScore:discoveries*300,total:duration+discoveries*300};
+  }
+  get livingSpecies(){return [...this.species.values()].filter(s=>s.current>0).length;}
  get recentSpecies(){return this.discoveries.filter(t=>this.tick-t<300).length;}
 }
 export const WORLD={width:W,height:H,cell:CELL,columns:NX,rows:NY};
