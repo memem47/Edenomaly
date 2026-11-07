@@ -177,3 +177,19 @@ button:disabled,input:disabled{opacity:.40;cursor:not-allowed}
 }
 /* At short desktop heights, preserve normal document scroll rather than
    hiding part of the controls under the window edge. */
+
+
+/* Visible release identity in every display mode, including F11. */
+.header-version{display:flex;gap:9px;align-items:center;flex-wrap:wrap;justify-content:flex-end;min-width:0}
+.version-tag{font-size:11px;white-space:nowrap;border:1px solid #6da1c2;border-radius:5px;background:#153a51;padding:4px 7px}
+.version-tag strong{color:#bbffe0;font-variant-numeric:tabular-nums}
+#checkVersion{font-size:11px;padding:4px 8px}
+#latestVersionLink{font-size:11px;color:#c6f5ff;text-decoration:underline;text-underline-offset:2px;white-space:nowrap}
+@media (min-width:1280px) and (min-height:700px){
+ .header-version{gap:6px;flex-wrap:nowrap}
+ .header-version>.muted{display:none}
+ #checkVersion{padding:2px 5px;font-size:10px}
+ .version-tag{padding:2px 5px;font-size:10px}
+ #latestVersionLink{font-size:10px}
+}
+@media(max-width:800px){.header-version{justify-content:flex-start}}
