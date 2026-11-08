@@ -1164,7 +1164,7 @@ test('waterweed seeds cannot germinate in dry or depleted water tiles',()=>{
 });
 test('waterweed seed arrivals are disabled by zero vegetation growth',()=>{
  const w=new Ecosystem(2703);w.tiles.fill(1);w.water.fill(100);w.waterweed.fill(0);
- w.growth=0;w.rand=()=>0;
+ w.growth=0;w.waterweedGrowth=0;w.rand=()=>0;
  for(let n=0;n<120;n++)w.step();
  assert.equal(w.waterweedSeedCount,0);
  assert.ok(w.waterweed.every(v=>v===0));
