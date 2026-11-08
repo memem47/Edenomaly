@@ -77,9 +77,14 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
  const palette=seasonPalette(season);
  // Bright, layered handheld-console-style terrain, drawn procedurally.
  for(let y=0;y<rows;y++)for(let x=0;x<columns;x++){
-  const i=y*columns+x,t=s.tiles[i],px=x*cell,py=y*cell;
+  const i=y*columns+x,t=s.tiles[i],level=s.terrainLevels?.[i]??3,px=x*cell,py=y*cell;
   const seed=((x*73+y*137)*23)%17;
   ctx.fillStyle=palette.terrain[t];ctx.fillRect(px,py,cell,cell);
+  if(level!==3){
+   ctx.fillStyle=level>3?`rgba(8,22,38,${(level-3)*(t===1?.12:.075)})`:
+    `rgba(245,238,184,${(3-level)*.085})`;
+   ctx.fillRect(px,py,cell,cell);
+  }
   ctx.fillStyle='rgba(255,255,255,.13)';ctx.fillRect(px,py,cell,3);
   ctx.fillStyle='rgba(13,37,61,.10)';ctx.fillRect(px,py+cell-3,cell,3);
   if(t===0){
@@ -99,6 +104,15 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
     ctx.fillRect(px+5+(seed%5),py+13,2.5,2.5);
     if(fertility>.58)ctx.fillRect(px+13,py+5+(seed%5),2,2);
    }
+   if(level>=4&&cover>.12){
+    const trees=level===5?3:1;
+    for(let k=0;k<trees;k++){
+     const tx=px+5+(seed+k*7)%11,ty=py+7+(seed+k*3)%9;
+     ctx.fillStyle='#5a5134';ctx.fillRect(tx-1,ty+1,2,7);
+     ctx.fillStyle=season==='autumn'?'#9b6932':season==='winter'?'#7f9b8b':'#166a3e';
+     ctx.beginPath();ctx.arc(tx,ty,level===5?5:4,0,TAU);ctx.fill();
+    }
+   }
    if(season==='autumn'&&cover>.02){
     // Red, amber and rust leaves occupy actual vegetated pixels only.
     // Deterministic hashes avoid consuming ecosystem RNG.
@@ -110,6 +124,8 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
    }
   }else if(t===1){
    const depth=Math.max(0,Math.min(1,(s.water[i]||0)/100));
+   if(level>=4){ctx.fillStyle=`rgba(2,36,106,${(level-3)*.2})`;ctx.fillRect(px+1,py+1,cell-2,cell-2);}
+   if(level<=2){ctx.fillStyle='rgba(210,246,238,.22)';ctx.fillRect(px+1,py+1,cell-2,cell-2);}
    ctx.fillStyle=palette.water;ctx.fillRect(px+2,py+2,cell-4,(cell-4)*depth);
    ctx.strokeStyle='rgba(224,255,255,.82)';ctx.lineWidth=1.4;
    const wave=(s.tick*.08+seed)%8;
@@ -129,6 +145,11 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   }else{
    ctx.fillStyle='#b9b7df';ctx.beginPath();ctx.moveTo(px+3,py+11);ctx.lineTo(px+9,py+3);ctx.lineTo(px+16,py+8);ctx.lineTo(px+14,py+17);ctx.lineTo(px+4,py+16);ctx.closePath();ctx.fill();
    ctx.strokeStyle='#65638e';ctx.lineWidth=1;ctx.stroke();
+   if(level>=4){
+    ctx.fillStyle=level===5?'#dce0ed':'#9fa3bb';
+    ctx.beginPath();ctx.moveTo(px+5,py+12);ctx.lineTo(px+11,py+(level===5?0:3));
+    ctx.lineTo(px+18,py+13);ctx.closePath();ctx.fill();
+   }
   }
   // Winter snow cover and the crystalline surface of shallow water are
   // purely visual: water resources, terrain passability and RNG are unchanged.
