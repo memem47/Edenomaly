@@ -435,6 +435,7 @@ export class Ecosystem{
      else if(key==='hibernate')second=clamp(g.hibernate+this.range(-.14,.14),0,1);
     else if(key==='longevity')second=clamp(g.longevity+this.range(-.2,.2),...LIMITS.longevity);
     else if(key==='elongation')second=clamp(g.elongation+this.range(-.11,.11),...LIMITS.elongation);
+    else if(key==='r')second=clamp(g.r+this.range(-.35,.35),...LIMITS.r);
    else if(key==='albino')second=0;
    else if(key==='aquatic'&&this.rand()<.14)second=1-g.aquatic;
    else if(key==='eyes'&&this.rand()<.82)second=Math.max(0,g.eyes-1-Math.floor(this.rand()*3));
