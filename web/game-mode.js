@@ -1,13 +1,13 @@
 // Game-mode progression is independent of Lab mode and browser storage.
 export const INTERVENTIONS=Object.freeze({
- seed:{cost:5,label:'草の種をまく'},
+ seed:{cost:5,label:'草・水草の種をまく'},
  rain:{cost:8,label:'雨を降らせる'},
  fertilize:{cost:10,label:'土壌を肥やす'}
 });
 const integer=n=>Number.isFinite(Number(n))?Math.max(0,Math.floor(Number(n))):0;
 export class GameSession{
  constructor(world){this.world=world;this.reset();}
- reset(){this.active=false;this.finished=false;this.points=0;this.earned=0;this.spent=0;this.milestones=new Set();this.maxGeneration=0;this.lastDiscoveries=0;this.lastMigrations=0;this.finalScore=0;this.reward=0;}
+ reset(){this.active=false;this.finished=false;this.points=0;this.earned=0;this.spent=0;this.milestones=new Set();this.maxGeneration=0;this.lastDiscoveries=0;this.lastMigrations=0;this.finalScore=0;this.reward=0;this.interventionHistory=[];this.pendingImpact=null;this.lastImpact=null;}
  start(x,y){
   if(this.active||this.finished||this.world.introducedCount>0)return false;
   const result=this.world.introduce(x,y,1);
@@ -23,8 +23,26 @@ export class GameSession{
   this.world.log('info','達成：'+label+' / 介入ポイント +'+amount);
   return true;
  }
+ localFood(x,y){
+  const w=this.world,c=w.cell(x,y),cx=c%40,cy=Math.floor(c/40);
+  let biomass=0;
+  for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){
+   if(dx*dx+dy*dy>4)continue;
+   const tx=cx+dx,ty=cy+dy;if(tx<0||tx>=40||ty<0||ty>=23)continue;
+   const id=ty*40+tx;biomass+=w.grass[id]+w.waterweed[id];
+  }
+  return biomass;
+ }
  observe(){
   if(!this.active||this.finished)return;
+  if(this.pendingImpact&&this.world.tick>=this.pendingImpact.step+100){
+   const a=this.pendingImpact;
+   this.lastImpact={kind:a.kind,step:a.step,
+    deltaFood:Math.round(this.localFood(a.x,a.y)-a.food),
+    births:this.world.nextId-a.nextId,
+    deltaPopulation:this.world.units.length-a.population};
+   this.pendingImpact=null;
+  }
   const w=this.world,score=w.runScore;
   // Only after ecosystem has actually lived that long, not on free reset/idle.
   for(let n=300;n<=score.duration;n+=300)this.grant('survive:'+n,5,n+'ステップ生存');
@@ -46,15 +64,21 @@ export class GameSession{
   const w=this.world;
   if(kind==='rain')return true;
   if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||y<0||x>=800||y>=460)return false;
-  if(kind==='seed')return w.tiles[w.cell(x,y)]===0;
+  if(kind==='seed')return [0,1,2].includes(w.tiles[w.cell(x,y)]);
   if(kind==='fertilize')return w.tiles[w.cell(x,y)]!==3;
   return false;
  }
  intervene(kind,x,y){
   if(!this.canIntervene(kind,x,y))return false;
   const w=this.world;
+  const tracked=kind==='rain'?
+    {x:Math.min(799,Math.max(0,Number.isFinite(x)?x:400)),
+     y:Math.min(459,Math.max(0,Number.isFinite(y)?y:230))}:{x,y};
+  const before=this.localFood(tracked.x,tracked.y);
+  const previousPopulation=w.units.length,previousId=w.nextId;
   if(kind==='seed'){
-   // Seed existing grassland; do not terraform water or rock for only 5 points.
+   // Seeds support grass, dry-land restoration and underwater weeds.
+   // Rocks cannot be converted to pasture by a cheap seed action.
    const cx=Math.floor(x/20),cy=Math.floor(y/20);
    let improved=0;
    for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){
@@ -62,9 +86,17 @@ export class GameSession{
     const xx=cx+dx,yy=cy+dy;
     if(xx<0||xx>=40||yy<0||yy>=23)continue;
     const i=yy*40+xx;
-    if(w.tiles[i]!==0)continue;
-    const old=w.grass[i];w.grass[i]=Math.min(100,Math.max(10,old)+30);
-    if(w.grass[i]>old)improved++;
+    if(w.tiles[i]===3)continue;
+    if(w.tiles[i]===1){
+     const old=w.waterweed[i];
+     w.waterweed[i]=Math.min(100,Math.max(10,old)+25);
+     if(w.waterweed[i]>old)improved++;
+    }else{
+     const old=w.grass[i];
+     if(w.tiles[i]===2)w.tiles[i]=0;
+     w.grass[i]=Math.min(100,Math.max(10,old)+30);
+     if(w.grass[i]>old)improved++;
+    }
    }
    if(improved===0)return false;
   }else if(kind==='rain'){
@@ -79,6 +111,12 @@ export class GameSession{
   }
   const spec=INTERVENTIONS[kind];
   this.points-=spec.cost;this.spent+=spec.cost;
+  const record={kind,step:w.tick,x:tracked.x,y:tracked.y,
+   food:before,foodAfter:this.localFood(tracked.x,tracked.y),
+   population:previousPopulation,nextId:previousId,cost:spec.cost};
+  this.interventionHistory.push(record);
+  this.pendingImpact=record;
+  this.lastImpact=null;
   w.log('info','介入：'+spec.label+' / -'+spec.cost+'pt');
   return true;
  }
