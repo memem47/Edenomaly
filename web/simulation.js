@@ -817,7 +817,8 @@ export class Ecosystem{
   const mm=organismMorphology(hunter),v=vitality(hunter),def=vitality(prey);
   const damage=Math.max(2,(4+hunter.g.jaw*7+mm.bodyMass*.065)*(defensive==='rival'?.42:defensive==='retaliation'?.72:defensive?.65+protectiveDrive(hunter.g)*.65:dietProfile(hunter.g).meat)*v.vigor);
   const vulnerable=1+.8*metabolicFrugality(prey.g);
-  prey.hp=Math.max(0,prey.hp-damage*vulnerable);
+  const actualDamage=damage*vulnerable;
+  prey.hp=Math.max(0,prey.hp-actualDamage);
   if(defensive){hunter.energy-=defensive==='rival'?4:2.5;if(defensive!=='retaliation')prey.bite=Math.max(prey.bite,14);}
   // Retaliation choice is made on impact, and has a limited validity window.
   // Cooldown prevents unbounded retaliation loops.
@@ -829,7 +830,7 @@ export class Ecosystem{
   hunter.attackFlash=16;
   if(defensive===true||defensive==='retaliation')hunter.defendFlash=16;
   this.addVisualEffect(defensive==='rival'?'rivalStrike':'strike',prey,{fromX:hunter.x,fromY:hunter.y});
-  this.log(defensive==='rival'?'rival':defensive?'defend':'attack','#'+hunter.id+(defensive==='rival'?' が同性の #':defensive==='retaliation'?' が反撃して #':defensive?' が卵を守って #':' が #')+prey.id+' に '+Math.round(damage)+' ダメージ',prey);
+  this.log(defensive==='rival'?'rival':defensive?'defend':'attack','#'+hunter.id+(defensive==='rival'?' が同性の #':defensive==='retaliation'?' が反撃して #':defensive?' が卵を守って #':' が #')+prey.id+' に '+Math.round(actualDamage)+' ダメージ',prey);
   if(prey.hp<=0){
    // A large prey supplies an exceptional meal, but the eaten tissue is
    // removed from the corpse so nutrients are never counted twice.
