@@ -218,3 +218,8 @@ button:disabled,input:disabled{opacity:.40;cursor:not-allowed}
  .zoom-toolbar button{padding:3px 7px}
  .zoom-hint{display:none}
 }
+
+/* Each event type has its own visible checkbox; the default grass-meal toggle is off. */
+.event-toggles{display:flex;flex-wrap:wrap;gap:5px 10px;margin:8px 0;}
+.event-toggles label{font-size:12px;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;padding:4px 7px;border:1px solid #526572;border-radius:7px;cursor:pointer;}
+.event-toggles input{accent-color:#73c9a9;}
