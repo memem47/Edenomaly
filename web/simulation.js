@@ -65,6 +65,15 @@ export const thermalFitness=(g,temp)=>{
 export const landAcclimationGain=(u,onLand)=>onLand?
  Math.min(.72,(u.landAcclimation??0)+.0032):
  Math.max(0,(u.landAcclimation??0)-.0016);
+// Habitat-specific water economy: arid/rock specialists lose water slowly
+// and can replenish a modest amount from rain, without generating free food.
+export const terrestrialHydrationDelta=(g,terrain,weather)=>{
+ const adapted=terrain===2?clamp(g.dry??0,0,1):
+  terrain===3?clamp(g.rock??0,0,1):0;
+ const loss=.24*(1-.66*adapted);
+ const collected=weather==='rain'?(terrain===2||terrain===3?.24+.13*adapted:.08):0;
+ return collected-loss;
+};
 export const experiencedTerrainFitness=(u,t)=>{
  const base=terrainFitness(u.g,t);
  if(u.g.aquatic!==1||t===1)return base;
@@ -1392,7 +1401,8 @@ export class Ecosystem{
    }else{
     u.submerged=underwater?u.submerged+1:0;
     const drinking=this.nearWater(u.x,u.y,1);
-    u.hydration=drinking?Math.min(100,u.hydration+.9):u.hydration-.24;
+    u.hydration=drinking?Math.min(100,u.hydration+.9):
+      Math.min(100,u.hydration+terrestrialHydrationDelta(g,t,this.weather));
     if(drinking){const consumed=this.drinkNearby(u.x,u.y,.12);if(consumed>0&&(this.tick+u.id)%24===0)this.addVisualEffect('drink',u);}
    }
    if((aquatic&&u.stranded>95+330*(u.landAcclimation??0))||(!aquatic&&u.submerged>24)||u.hydration<=0){
@@ -1979,8 +1989,9 @@ export class Ecosystem{
    for(let i=0;i<8;i++){
     // Small variation, but no change to the adaptation category of the founder.
     let variant=g;
-    if(i>0){
-     // Founder individuals of one species need not be genetic clones.
+    if(i>1){
+     // Keep the initial female/male pair genetically compatible;
+     // subsequent founders still have inherited diversity.
      // Keep their functional species, but allow different hidden alleles.
      for(let attempt=0;attempt<8;attempt++){
       const trial=this.adaptFounderToTerrain(this.mutate(g),placedTerrain);
@@ -1995,8 +2006,8 @@ export class Ecosystem{
     u.lineage=foundingLineage;
     // Prevent an unwinnable founder cohort with no compatible sexes.
     if(reproductiveMode(variant)===0)u.sex=i%2===0?'F':'M';
-    u.age=Math.floor(this.range(48,64));
-    u.energy=this.range(115,145);
+    u.age=i<2?62:Math.floor(this.range(48,64));
+    u.energy=i<2?145:this.range(115,145);
     u.hydration=this.range(85,100);
     spawned++;
    }
