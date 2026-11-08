@@ -117,9 +117,17 @@ export const learnCarnivory=(u,consumed)=>{
  u.carnivoryExperience=clamp(old+Math.min(.035,consumed*.0025),0,.85);
  return u.carnivoryExperience-old;
 };
+// Most slimes have half-size bodies, while exceptionally rare large-genome
+// slimes retain the historical extreme diameter. The tail is not truncated.
+export const bodySizeMultiplier=g=>{
+ const r=clamp(g.sizeBaseRadius??g.r,3,15);
+ const t=clamp((r-10)/5,0,1);
+ return .5+.5*t*t;
+};
 export const morphology=g=>{
- const width=g.r, length=g.r*g.elongation;
+ const width=g.r*bodySizeMultiplier(g),length=width*g.elongation;
  const bodyMass=width*width*g.elongation;
+ const metabolicMass=g.r*g.r*g.elongation;
  const eyeRange=20+Math.min(g.eyes,3)*14+Math.max(0,g.eyes-3)*7;
  const speed=3.45/(.65+bodyMass*.017)*(1-Math.max(0,g.eyes-3)*.055);
  const turnRate=clamp(.29/(.75+g.elongation*.21),.12,.29);
@@ -127,7 +135,7 @@ export const morphology=g=>{
  const biteReach=width*(.7+.15*mouths)+g.jaw*1.6;
  const edibleRatio=clamp(.60+.055*mouths+.06*g.jaw,.62,.88);
  const predatory=dietProfile(g).meat>.14&&g.jaw>=.55&&mouths>=1;
- const upkeep=.09+bodyMass*.008+Math.max(0,bodyMass-110)**1.2*.002+g.eyes*.045+Math.max(0,g.eyes-3)**2*.06+mouths*.03+g.jaw*.02+Math.abs(g.deception-.5)*.035+(g.resist??.4)*.04;
+ const upkeep=.09+metabolicMass*.008+Math.max(0,metabolicMass-110)**1.2*.002+g.eyes*.045+Math.max(0,g.eyes-3)**2*.06+mouths*.03+g.jaw*.02+Math.abs(g.deception-.5)*.035+(g.resist??.4)*.04;
  const foodGain=1+Math.min(.42,(mouths-1)*.13);
  return {width,length,bodyMass,eyeRange,speed,turnRate,biteReach,edibleRatio,predatory,upkeep,foodGain};
 };
@@ -147,7 +155,7 @@ export const suppressFearSignal=(u,v,rawDistanceSq,foodWithinReach)=>{
 };
 export const organismMorphology=u=>{
  if(stepCache){const cached=stepCache.morph.get(u);if(cached&&cached.scale===(u.growthScale??1))return cached.value;}
- const value=morphology({...u.g,r:u.g.r*(u.growthScale??1)});
+ const value=morphology({...u.g,r:u.g.r*(u.growthScale??1),sizeBaseRadius:u.g.r});
  if(stepCache)stepCache.morph.set(u,{scale:u.growthScale??1,value});
  return value;
 };
@@ -251,7 +259,7 @@ export const juvenileGrowthIncrement=(u,food,habitatLoad=0,crowdStress=0)=>{
 export const bodyCollisionAxes=u=>{
  if(stepCache){const c=stepCache.axes.get(u);if(c&&c.stage===u.stage&&c.age===u.age&&c.scale===(u.growthScale??1)&&c.juvenileGrowth===(u.juvenileGrowth??0))return c.value;}
  const scale=lifeStageScale(u)*(u.growthScale??1)*(1-clamp(((u.age??0)-420)/900,0,1)*.12);
- const ry=Math.max(2,u.g.r*scale*1.06);
+ const ry=Math.max(.85,u.g.r*bodySizeMultiplier(u.g)*scale*1.06);
  const value={rx:ry*Math.max(1,Math.min(3,u.g.elongation??1)),ry};
  if(stepCache)stepCache.axes.set(u,{stage:u.stage,age:u.age,scale:u.growthScale??1,juvenileGrowth:u.juvenileGrowth??0,value});
  return value;
@@ -399,7 +407,13 @@ export class Ecosystem{
   const founderTolerance=toleranceRoll<.20?14+toleranceRoll/.20*4:
    toleranceRoll<.30?4+(toleranceRoll-.20)/.10*4:
    8+(toleranceRoll-.30)/.70*6;
-  const g={idealTemp:founderIdeal,tempTolerance:founderTolerance,longevity:this.range(.8,1.5),repro:(()=>{const roll=this.rand();return roll<.004?1:roll<.006?2:0;})(),r:this.rand()<.065?this.range(8.5,12):this.range(3.1,7.5),
+  const g={idealTemp:founderIdeal,tempTolerance:founderTolerance,longevity:this.range(.8,1.5),repro:(()=>{const roll=this.rand();return roll<.004?1:roll<.006?2:0;})(),r:(()=>{
+    const roll=this.rand();
+    // 88% compact, 10% medium, 1.8% large, 0.2% exceptionally large.
+    return roll<.88?this.range(3,4.2):
+     roll<.98?this.range(4.2,7):
+     roll<.998?this.range(7,11):this.range(11,15);
+   })(),
    elongation:(()=>{const roll=this.rand();
     return roll<.82?this.range(.94,1.16):roll<.98?this.range(1.43,2.04):this.range(2.35,2.83);
    })(),eyes:(()=>{const roll=this.rand();return roll<.08?0:roll<.36?1:roll<.71?2:roll<.90?3:roll<.975?4:roll<.995?5:6;})(),
