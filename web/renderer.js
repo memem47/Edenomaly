@@ -1,4 +1,4 @@
-import {WORLD,TERRAIN_COLORS,dietProfile,vitality,adaptationColor,lifeStageScale} from './simulation.js?v=permanent-water-1';
+import {WORLD,TERRAIN_COLORS,dietProfile,vitality,adaptationColor,lifeStageScale,bodySizeMultiplier} from './simulation.js?v=permanent-water-1';
 const TAU=Math.PI*2;
 // Angles are measured around the rim of a top-down oval; +X is forward.
 // Predators look forward, herbivores to either side, and many-eyed slimes all around.
@@ -199,7 +199,7 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   const dead=!!u.corpse;
   const condition=organismVisualState(u);
   const g=u.g,signal=dietProfile(g).signal,life=vitality(u),
-   scale=lifeStageScale(u)*(u.growthScale??1)*(1-life.old*.12)*(dead?u.decayScale:1),
+   scale=lifeStageScale(u)*(u.growthScale??1)*bodySizeMultiplier(g)*(1-life.old*.12)*(dead?u.decayScale:1),
    halfL=g.r*g.elongation*scale,halfW=g.r*scale,phase=s.tick*.18+u.id;
   if(dead){ctx.save();ctx.globalAlpha=.96*Math.max(.42,Math.sqrt(Math.max(0,u.corpseMass/u.corpseInitialMass)));}
 
