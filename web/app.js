@@ -8,7 +8,7 @@ import {performancePolicy,simulationBatch,BROWSER_BACKGROUND_INTERVAL} from './p
 const $=id=>document.getElementById(id);
 // Release label is bundled with the running source; comparison uses a
 // separately published manifest from the repository's main branch.
-const BUILD_VERSION='2026.11.08.11';
+const BUILD_VERSION='2026.11.08.12';
 const VERSION_SOURCE='https://raw.githubusercontent.com/memem47/Edenomaly/main/web/version.json';
 $('buildVersion').textContent=BUILD_VERSION;
 async function checkLatestVersion(){
