@@ -39,7 +39,7 @@ export class GameSession{
    const a=this.pendingImpact;
    this.lastImpact={kind:a.kind,step:a.step,
     deltaFood:Math.round(this.localFood(a.x,a.y)-a.food),
-    births:this.world.nextId-a.nextId,
+    births:[...this.world.species.values()].reduce((sum,sp)=>sum+sp.total,0)-a.births,
     deltaPopulation:this.world.units.length-a.population};
    this.pendingImpact=null;
   }
@@ -75,7 +75,8 @@ export class GameSession{
     {x:Math.min(799,Math.max(0,Number.isFinite(x)?x:400)),
      y:Math.min(459,Math.max(0,Number.isFinite(y)?y:230))}:{x,y};
   const before=this.localFood(tracked.x,tracked.y);
-  const previousPopulation=w.units.length,previousId=w.nextId;
+  const previousPopulation=w.units.length;
+  const previousBirths=[...w.species.values()].reduce((sum,sp)=>sum+sp.total,0);
   if(kind==='seed'){
    // Seeds support grass, dry-land restoration and underwater weeds.
    // Rocks cannot be converted to pasture by a cheap seed action.
@@ -113,7 +114,7 @@ export class GameSession{
   this.points-=spec.cost;this.spent+=spec.cost;
   const record={kind,step:w.tick,x:tracked.x,y:tracked.y,
    food:before,foodAfter:this.localFood(tracked.x,tracked.y),
-   population:previousPopulation,nextId:previousId,cost:spec.cost};
+   population:previousPopulation,births:previousBirths,cost:spec.cost};
   this.interventionHistory.push(record);
   this.pendingImpact=record;
   this.lastImpact=null;
