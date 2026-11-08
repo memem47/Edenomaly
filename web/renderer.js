@@ -65,6 +65,12 @@ export const seasonPalette=season=>({
  autumn:{terrain:['#b17c39','#379fc9','#dd9b4e','#9688a9'],grass:'#d99d43',blade:'#ad552b',water:'#5cb8db',weed:'#8c923e'},
  winter:{terrain:['#d9e7e7','#8ec6e2','#e7edf0','#b7c9d6'],grass:'#e1ece5',blade:'#9db9ab',water:'#b3e6f3',weed:'#6baf9c'}
 })[season]||{terrain:TERRAIN_COLORS,grass:'#89ec5e',blade:'#2aa943',water:'#48c7ff',weed:'#24a86b'};
+// Egg size follows the hatchling's physical size, not the pre-shrink pixels.
+export const eggVisualAxes=g=>{
+ const hatchRadius=g.r*bodySizeMultiplier(g)*.55;
+ const rx=Math.max(.7,hatchRadius*(.80+.18*(g.shell??.5)));
+ return {rx,ry:rx*1.16};
+};
 export function drawWorld(ctx,s,showEffects=true,selected=null){
  const {cell,columns,rows,width,height}=WORLD;
  const season=s.climateEnabled===false?'spring':s.seasonName?.()??'spring';
@@ -179,15 +185,15 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   // shadow beneath EACH egg merges into an apparent black ground stain.
   // Give each egg a light shell rim instead; do not paint dark backplates.
   const eggColor=adaptationColor(egg.g);
-  const eggRx=3.5+shell*2.1,eggRy=4.5+shell*2.1;
+  const {rx:eggRx,ry:eggRy}=eggVisualAxes(egg.g);
   ctx.fillStyle=`hsl(${eggColor.hue},${Math.max(35,eggColor.saturation*.62)}%,${Math.min(90,eggColor.lightness+17-shell*4)}%)`;
   ctx.beginPath();ctx.ellipse(0,0,eggRx,eggRy,0,0,TAU);ctx.fill();
-  ctx.strokeStyle='rgba(252,255,232,.92)';ctx.lineWidth=.85+shell*.8;ctx.stroke();
+  ctx.strokeStyle='rgba(252,255,232,.92)';ctx.lineWidth=Math.max(.35,Math.min(.8,eggRx*.24));ctx.stroke();
   ctx.fillStyle='rgba(255,255,255,.68)';ctx.beginPath();
-  ctx.ellipse(-eggRx*.28,-eggRy*.30,Math.max(1,eggRx*.28),Math.max(.8,eggRy*.17),-.35,0,TAU);ctx.fill();
+  ctx.ellipse(-eggRx*.28,-eggRy*.30,Math.max(.2,eggRx*.28),Math.max(.15,eggRy*.17),-.35,0,TAU);ctx.fill();
   // The developing embryo is a small colored dot, not a black opaque disk.
   ctx.fillStyle=`hsla(${eggColor.hue},${Math.max(45,eggColor.saturation*.75)}%,${Math.max(28,eggColor.lightness-22)}%,.72)`;
-  ctx.beginPath();ctx.arc(.8,.3,Math.min(1.65,.65+prog*.75),0,TAU);ctx.fill();
+  ctx.beginPath();ctx.arc(eggRx*.22,eggRy*.08,eggRx*(.15+prog*.12),0,TAU);ctx.fill();
   if(prog>.75){ctx.strokeStyle='#754765';ctx.beginPath();ctx.moveTo(-2,-3);ctx.lineTo(0,-1);ctx.lineTo(-1,2);ctx.stroke();}
   ctx.restore();
  }
