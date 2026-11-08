@@ -205,7 +205,7 @@ export const localDensity=(u,neighbors)=>{
 export const crowdMetrics=(u,neighbors)=>{
  const axes=bodyCollisionAxes(u),area=Math.max(1,axes.rx*axes.ry);
  const reach=48+Math.min(14,axes.rx*.45);
- let density=0,occupied=axes.rx*axes.ry;
+ let density=0,occupied=0; // Body size costs energy separately; crowding measures neighbors.
  for(const v of neighbors){
   if(v===u||v.dead)continue;
   const dx=v.x-u.x,dy=v.y-u.y,d2=dx*dx+dy*dy;
@@ -230,7 +230,7 @@ export const crowdEnergyCost=(load,growthScale=1)=>{
 // small patch even when every neighbor is similarly large.
 export const habitatCrowding=(u,neighbors)=>{
  const a=bodyCollisionAxes(u),radius=65;
- let occupied=a.rx*a.ry;
+ let occupied=0; // An isolated giant is not an overcrowded habitat by itself.
  for(const v of neighbors){
   if(v===u||v.dead)continue;
   const d=Math.hypot(v.x-u.x,v.y-u.y);
