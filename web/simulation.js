@@ -866,7 +866,13 @@ export class Ecosystem{
    const tissue=Math.max(4,organismMorphology(prey).bodyMass*.23);
    const gained=(Math.max(5,prey.energy*.35)+tissue)*meat;
    hunter.energy+=gained;
-   if(meat>0){learnCarnivory(hunter,tissue);if(prey.category===hunter.category)this.cannibalMeals=(this.cannibalMeals??0)+1;}
+   if(meat>0){
+    const old=carnivoryExperience(hunter);learnCarnivory(hunter,tissue);
+    if(prey.category===hunter.category){this.cannibalMeals=(this.cannibalMeals??0)+1;
+     this.log('cannibal','#'+hunter.id+' が同種 #'+prey.id+' を共食いした',hunter);}
+    if(old<.25&&carnivoryExperience(hunter)>=.25)
+     this.log('carnivoreLearn','#'+hunter.id+' が肉の摂取に順化し始めた',hunter);
+   }
    if(hunter.stage==='juvenile')hunter.juvenileFood=(hunter.juvenileFood??0)+gained;
    hunter.recentFood=(hunter.recentFood??0)+tissue*meat*1.3;
    this.die(prey,defensive==='rival'?'同性間の争い':defensive==='retaliation'?'反撃':defensive?'防衛':'捕食',tissue*meat);
@@ -1410,6 +1416,7 @@ export class Ecosystem{
      // conspecifics; successful attacks yield calories, not free biomass.
      const hungry=u.energy<65&&effectiveMeatAffinity(u)>.18;
      const cannibal=(hungry||famineCannibalism(u))&&v.category===u.category;
+     if(v.category===u.category&&!cannibal)continue;
      if(preyMass>m.bodyMass*(cannibal?1.15:m.edibleRatio))continue;
     const d=distance(u,v)/Math.max(.1,coverFactor(preyTerrain,aquatic))**2;
      if(d<pd){pd=d;prey=v;}
@@ -1682,7 +1689,11 @@ export class Ecosystem{
     const eaten=Math.min(nearestCorpse.mass,2.4*m.foodGain*feedingCapacity(u));
     nearestCorpse.mass-=eaten;
     u.energy+=eaten*5.5*effectiveMeatAffinity(u);
-    if(eaten>0)learnCarnivory(u,eaten);
+    if(eaten>0){
+     const previous=carnivoryExperience(u);learnCarnivory(u,eaten);
+     if(previous<.25&&carnivoryExperience(u)>=.25)
+      this.log('carnivoreLearn','#'+u.id+' が肉食に順化し始めた',u);
+    }
     u.recentFood=(u.recentFood??0)+eaten*4;
     if(u.stage==='juvenile')u.juvenileFood+=eaten*5.5*diet.meat;
     if(eaten>0){if((this.tick+u.id)%9===0)this.addVisualEffect('scavenge',u,{fromX:nearestCorpse.x,fromY:nearestCorpse.y});this.log('meal','#'+u.id+' が死体を食べた',u);}
