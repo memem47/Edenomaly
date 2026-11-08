@@ -1,10 +1,10 @@
 // Render-free, deterministic ecology experiments shared by CLI and tests.
 // The simulation's exact same Ecosystem.step() rules are used in the browser.
 import {performance} from 'node:perf_hooks';
-import {Ecosystem,organismMorphology,lifeStageScale,bodySizeMultiplier} from './simulation.js';
+import {Ecosystem,organismMorphology,lifeStageScale} from './simulation.js';
 import {observeEcology,ECOLOGY_LOG_FIELDS} from './ecology-log.js';
 
-export const HEADLESS_COLUMNS=[...ECOLOGY_LOG_FIELDS,'smallBodies','juvenileBodies','largeBodies','giantBodies','p10Radius','medianRadius','p90Radius'];
+export const HEADLESS_COLUMNS=['seed',...ECOLOGY_LOG_FIELDS,'smallBodies','juvenileBodies','largeBodies','giantBodies','p10Radius','medianRadius','p90Radius'];
 const percentile=(sorted,p)=>sorted.length?sorted[Math.floor((sorted.length-1)*p)]:0;
 export function bodySizeMetrics(world){
  const radii=world.units.filter(u=>!u.dead).map(u=>
@@ -19,7 +19,7 @@ export function bodySizeMetrics(world){
   p90Radius:+percentile(radii,.90).toFixed(2)};
 }
 export function runHeadless({seed=971253,steps=5000,interval=50,founders=1,
-  growth=70,rainfall=25,stress=15,stopAtExtinction=true,onSample=null}={}){
+  growth=70,rainfall=25,stress=15,version='development',stopAtExtinction=true,onSample=null}={}){
  if(!Number.isSafeInteger(seed)||seed<1||seed>2147483647)throw new RangeError('seed must be 1..2147483647');
  if(!Number.isSafeInteger(steps)||steps<1||steps>10000000)throw new RangeError('steps must be 1..10000000');
  if(!Number.isSafeInteger(interval)||interval<1||interval>steps)throw new RangeError('interval must be 1..steps');
@@ -30,7 +30,7 @@ export function runHeadless({seed=971253,steps=5000,interval=50,founders=1,
  const rows=[],started=performance.now();
  let peak=w.units.length;
  const sample=()=>{
-  const row={...observeEcology(w),...bodySizeMetrics(w),seed};
+  const row={...observeEcology(w),...bodySizeMetrics(w),seed,run:seed,version};
   rows.push(row);onSample?.(row,w);
  };
  sample();
@@ -42,7 +42,7 @@ export function runHeadless({seed=971253,steps=5000,interval=50,founders=1,
  const durationMs=Math.round((performance.now()-started)*100)/100;
  const last=rows.at(-1);
  return {world:w,rows,summary:{
-  seed,requestedSteps:steps,simulatedSteps:w.tick,interval,founders,
+  seed,version,requestedSteps:steps,simulatedSteps:w.tick,interval,founders,
   stoppedByExtinction:stopAtExtinction&&w.tick<steps&&w.units.length===0&&w.eggs.length===0,
   peakPopulation:peak,finalPopulation:w.units.length,finalEggs:w.eggs.length,
   totalBirths:last.births,totalDeaths:last.deaths,
