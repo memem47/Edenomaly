@@ -1193,8 +1193,8 @@ test('every slime has the same exceptional growth potential regardless of birth'
  assert.ok(MAX_NUTRITION_GROWTH>=3.5);
 });
 test('exceptional body can grow past ordinary size when food is continually abundant',()=>{
- const w=new Ecosystem(2802);w.tiles.fill(0);w.grass.fill(100);
- const u=w.spawn(220,180,{...w.gene(),aquatic:0,diet:0,r:4,frugality:0});
+ const w=new Ecosystem(2802);w.tiles.fill(0);w.grass.fill(100);w.climateEnabled=false;
+ const u=w.spawn(220,180,{...w.gene(),aquatic:0,diet:0,r:4,frugality:0,hibernate:0,idealTemp:22,tempTolerance:18});
  u.stage='adult';u.age=100;u.hp=u.maxHp=100000;
  for(let i=0;i<450;i++){
   u.energy=550;u.recentFood=170;
@@ -1399,8 +1399,8 @@ test('absolute habitat crowding penalizes large bodies more than equally positio
 });
 test('crowded giants lose more energy than the same isolated giants without food',()=>{
  const setup=dense=>{
-  const w=new Ecosystem(3102);w.tiles.fill(0);w.grass.fill(0);w.water.fill(0);w.growth=0;
-  const g={...w.gene(),r:5,elongation:1,aquatic:0,diet:0};
+  const w=new Ecosystem(3102);w.tiles.fill(0);w.grass.fill(0);w.water.fill(0);w.growth=0;w.climateEnabled=false;
+  const g={...w.gene(),r:5,elongation:1,aquatic:0,diet:0,hibernate:0,idealTemp:22,tempTolerance:18};
   const focal=w.spawn(280,190,{...g});
   focal.growthScale=1.7;focal.age=100;focal.maxHp=focal.hp=10000;
   focal.energy=200;focal.mateCooldown=500;
