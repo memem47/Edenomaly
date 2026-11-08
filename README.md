@@ -1,3 +1,7 @@
+## 高速シミュレーション（描画なし）
+
+Node.js 22 以降で `npm run headless -- --seed 72 --steps 10000 --runs 8 --interval 50 --out results/headless` を実行すると、画面を表示せずに同じ生態ルールで複数試行を実施し、CSV と JSON を保存できます。詳細は [HEADLESS.md](HEADLESS.md) を参照してください。
+
 # Edenomaly
 
 **Paradise Never Evolves as Planned.**  
