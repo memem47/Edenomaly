@@ -556,11 +556,16 @@ export class Ecosystem{
  addVisualEffect(type,point,extra={}){
   // Visual effects must never change simulation RNG or ecology. Avoid flooding
   // the renderer with dozens of repeated feeding and drinking events per step.
-  if(!point||this.effects.length>=140)return false;
+  if(this.headless||!point||this.effects.length>=140)return false;
   this.effects.push({type,x:point.x,y:point.y,age:0,...extra});
   return true;
  }
  log(type,message,point){
+  if(this.headless){
+   this.headlessEventCounts??={};
+   this.headlessEventCounts[type]=(this.headlessEventCounts[type]??0)+1;
+   return;
+  }
   this.logs.unshift({type,message,step:this.tick});
   if(this.logs.length>500)this.logs.pop();
   // Only deaths need a world-space notification ring. Mating, egg-laying,
