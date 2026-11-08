@@ -3298,3 +3298,34 @@ test('natural suffixes preserve trait family and distinguish temperature and str
  assert.equal(name(base.slice(0,5).concat('guardian','repro0','temperate','green')),'クサバソミドメオラチ');
  assert.equal(name(base.slice(0,3).concat('oval','few','general','repro0','temperate','green')),'クサバソミドメオリン');
 });
+
+test('terrain level paint and terrain effect are independent from four biome identities',async()=>{
+ const {terrainLevelFitness,TERRAIN_LEVEL_GROWTH,WATER_LEVEL_GROWTH,TERRAIN_LEVEL_NAMES}=await import('./simulation.js');
+ const w=new Ecosystem(2026110901);
+ assert.equal(w.terrainLevel(100,100),3);
+ w.paint(100,100,0,1,5);
+ assert.equal(w.terrain(100,100),0);
+ assert.equal(w.terrainLevel(100,100),5);
+ w.paint(100,100,1,1,5);
+ assert.equal(w.terrain(100,100),1);
+ assert.equal(w.terrainLevel(100,100),5);
+ assert.equal(w.terrainLevels.length,w.tiles.length);
+ assert.equal(TERRAIN_LEVEL_NAMES.length,4);
+ assert.equal(TERRAIN_LEVEL_GROWTH.length,5);
+ assert.equal(WATER_LEVEL_GROWTH.length,5);
+ const base={move:.5,sight:1,upkeep:0,hazard:0};
+ assert.deepEqual(terrainLevelFitness(base,0,3),base);
+ assert.ok(terrainLevelFitness(base,0,5).move<base.move);
+ assert.ok(terrainLevelFitness(base,3,5).move<base.move);
+ assert.ok(terrainLevelFitness(base,1,5,{wet:.1}).hazard>base.hazard);
+});
+test('grass and aquatic plants use distinct regrowth sliders',()=>{
+ const low=new Ecosystem(2026110902),high=new Ecosystem(2026110902);
+ low.tiles.fill(1);high.tiles.fill(1);
+ low.water.fill(95);high.water.fill(95);
+ low.waterweed.fill(15);high.waterweed.fill(15);
+ low.grass.fill(0);high.grass.fill(0);
+ low.waterweedGrowth=0;high.waterweedGrowth=200;
+ for(let i=0;i<6;i++){low.step();high.step();}
+ assert.ok(high.waterweed.reduce((a,b)=>a+b,0)>low.waterweed.reduce((a,b)=>a+b,0));
+});
