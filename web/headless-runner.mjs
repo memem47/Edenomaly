@@ -4,7 +4,9 @@ import {performance} from 'node:perf_hooks';
 import {Ecosystem,organismMorphology,lifeStageScale} from './simulation.js';
 import {observeEcology,ECOLOGY_LOG_FIELDS} from './ecology-log.js';
 
-export const HEADLESS_COLUMNS=['seed',...ECOLOGY_LOG_FIELDS,'smallBodies','juvenileBodies','largeBodies','giantBodies','p10Radius','medianRadius','p90Radius'];
+export const HEADLESS_EVENT_TYPES=['attack','defend','rival','pred','cannibal','carnivoreLearn','eggeaten','waterPlant','shore','acclimate','mate','courtFail','ill','death','hatch','mature','migration','settle'];
+export const HEADLESS_COLUMNS=['seed',...ECOLOGY_LOG_FIELDS,
+ ...HEADLESS_EVENT_TYPES.map(type=>'event_'+type),'smallBodies','juvenileBodies','largeBodies','giantBodies','p10Radius','medianRadius','p90Radius'];
 const percentile=(sorted,p)=>sorted.length?sorted[Math.floor((sorted.length-1)*p)]:0;
 export function bodySizeMetrics(world){
  const radii=world.units.filter(u=>!u.dead).map(u=>
@@ -25,12 +27,15 @@ export function runHeadless({seed=971253,steps=5000,interval=50,founders=1,
  if(!Number.isSafeInteger(interval)||interval<1||interval>steps)throw new RangeError('interval must be 1..steps');
  if(!Number.isSafeInteger(founders)||founders<1||founders>6)throw new RangeError('founders must be 1..6');
  const w=new Ecosystem(seed);
+ w.headless=true;w.headlessEventCounts={};
  w.growth=growth;w.rainfall=rainfall;w.stress=stress;
  w.introduce(170,130,founders);
  const rows=[],started=performance.now();
  let peak=w.units.length;
  const sample=()=>{
-  const row={...observeEcology(w),...bodySizeMetrics(w),seed,run:seed,version};
+  const eventFields=Object.fromEntries(HEADLESS_EVENT_TYPES.map(type=>
+   ['event_'+type,w.headlessEventCounts[type]??0]));
+  const row={...observeEcology(w),...bodySizeMetrics(w),...eventFields,seed,run:seed,version};
   rows.push(row);onSample?.(row,w);
  };
  sample();
@@ -51,6 +56,7 @@ export function runHeadless({seed=971253,steps=5000,interval=50,founders=1,
   carnivoreDeaths:last.deathPredation,cannibalMeals:last.cannibalMeals,
   waterPlantings:last.waterPlantings,landExplorers:last.landExplorers,
   medianRadius:last.medianRadius,p90Radius:last.p90Radius,
+  eventCounts:{...w.headlessEventCounts},
   durationMs,stepsPerSecond:Math.round(w.tick/(durationMs/1000||.001))
  }};
 }
