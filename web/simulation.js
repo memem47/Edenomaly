@@ -122,7 +122,7 @@ export const learnCarnivory=(u,consumed)=>{
 export const bodySizeMultiplier=g=>{
  const r=clamp(g.sizeBaseRadius??g.r,3,15);
  const t=clamp((r-10)/5,0,1);
- return .5+.5*t*t;
+ return 1.7*(.5+.5*t*t);
 };
 export const morphology=g=>{
  const width=g.r*bodySizeMultiplier(g),length=width*g.elongation;
@@ -131,7 +131,7 @@ export const morphology=g=>{
  const eyeRange=20+Math.min(g.eyes,3)*14+Math.max(0,g.eyes-3)*7;
  // Physical shrinking must not make locomotion faster by reducing the mass
  // denominator. Small limbs also cover less ground per simulation step.
- const speed=3.45/(.65+metabolicMass*.017)*(.55+.45*bodySizeMultiplier(g))
+ const speed=3.45/(.65+metabolicMass*.017)*(.55+.45*bodySizeMultiplier(g)/1.7)
   *(1-Math.max(0,g.eyes-3)*.055);
  const turnRate=clamp(.29/(.75+g.elongation*.21),.12,.29);
  const mouths=g.mouths;
