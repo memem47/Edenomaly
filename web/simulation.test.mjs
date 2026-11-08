@@ -1975,24 +1975,39 @@ test('classification-derived katakana names are deterministic across resets and 
  c.spawn(120,130,g);
  assert.equal(c.species.get(key).name,expected);
 });
-test('all 15552 ecological classifications map to distinct four-kana species names',()=>{
+test('all 108864 ecological classifications have unique readable names of ten kana',()=>{
  const habitats=['land','aquatic','dry','rock'];
  const groups=[['plant','mixed','hunter'],['tiny','medium','large','giant'],
   ['round','oval','long'],['blind','few','several','allround'],
   ['general','guardian','egg-hunter'],['repro0','repro1','repro2'],
-  ['temperate','cold','hot']];
+  ['temperate','cold','hot'],['red','yellow','green','blue','purple','pink','white']];
  const names=new Set();
  const traverse=(parts,index)=>{
   if(index===groups.length){
    const name=speciesNameFromCategory(parts.join('-'));
-   assert.ok(/^[モルガロ][アカサタナハマヤラワキシチニヒミ]{3}$/.test(name));
-   assert.ok(!names.has(name));
+   assert.ok(/^[ァ-ヶ]{10}$/.test(name),name);
+   assert.ok(!names.has(name),'duplicate '+name);
    names.add(name);return;
   }
   for(const category of groups[index])traverse([...parts,category],index+1);
  };
  for(const habitat of habitats)traverse([habitat],0);
- assert.equal(names.size,15552);
+ assert.equal(names.size,108864);
+ assert.ok(speciesNameFromCategory('aquatic-hunter-large-oval-few-guardian-repro2-cold-blue').startsWith('ミズベニアオメコ'));
+});
+test('pigment name follows color phenotype and remains stable for cosmetic variations',async()=>{
+ const {pigmentClass,adaptationColor}=await import('./simulation.js');
+ const w=new Ecosystem(9115),g=w.gene();
+ assert.equal(pigmentClass({...g,albino:1}),'white');
+ const key=w.category(g);
+ assert.equal(key.split('-').length,9);
+ const before=speciesNameFromCategory(key);
+ assert.equal(w.name(key),before);
+ const white=w.category({...g,albino:1});
+ assert.notEqual(white,key);
+ assert.ok(speciesNameFromCategory(white).includes('シロ'));
+ const hue=adaptationColor(g).hue;
+ assert.ok(hue>=0&&hue<360);
 });
 test('genome code is stable, quantized, and changes when a trait crosses a bin',()=>{
  const w=new Ecosystem(9114),g=w.gene();
