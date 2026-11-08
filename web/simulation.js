@@ -99,6 +99,22 @@ export const dietProfile=g=>{
   return value;
 };
 // Morphology is the source of functional abilities; no separate speed/vision/attack genes.
+// Acquired carnivory is reversible and never changes inherited diet.
+export const carnivoryExperience=u=>clamp(u.carnivoryExperience??0,0,1);
+export const effectiveMeatAffinity=u=>{
+ const native=dietProfile(u.g).meat;
+ return clamp(native+(1-native)*carnivoryExperience(u)*.72,0,1);
+};
+export const famineCannibalism=u=>u.energy<46&&u.stage==='adult'&&
+ u.g.jaw>=.55&&u.g.mouths>=1&&
+ (dietProfile(u.g).meat>.18||carnivoryExperience(u)>.12||
+  u.energy<24&&dietProfile(u.g).meat>.04);
+export const learnCarnivory=(u,consumed)=>{
+ if(consumed<=0)return 0;
+ const old=carnivoryExperience(u);
+ u.carnivoryExperience=clamp(old+Math.min(.035,consumed*.0025),0,.85);
+ return u.carnivoryExperience-old;
+};
 export const morphology=g=>{
  const width=g.r, length=g.r*g.elongation;
  const bodyMass=width*width*g.elongation;
@@ -549,7 +565,7 @@ export class Ecosystem{
   if(this.units.length>=2000)return null;
   const mode=reproductiveMode(g);
    const sex=mode===1?'H':mode===2?'F':(this.rand()<.5?'F':'M');
-   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null,socialTarget:null,mateTarget:null,rejectedBy:null,mateApproachFailures:0,behaviorTarget:'idle',waterSeedBank:0,lastWaterPlant:-100,landAcclimation:0,landExcursion:false,shoreTarget:null,threatDecisions:new Map(),attackResponse:null,retaliationCooldown:0};
+   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null,socialTarget:null,mateTarget:null,rejectedBy:null,mateApproachFailures:0,behaviorTarget:'idle',waterSeedBank:0,lastWaterPlant:-100,landAcclimation:0,carnivoryExperience:0,landExcursion:false,shoreTarget:null,threatDecisions:new Map(),attackResponse:null,retaliationCooldown:0};
   u.category=this.category(g);u.lineage??=u.id;this.units.push(u);
   if(!this.species.has(u.category)){
    const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(u.category),current:0,total:0,diet:dietProfile(g).label,first:this.tick,genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(u.category),u);
@@ -825,9 +841,9 @@ export class Ecosystem{
   return true;
  }
  attack(hunter,prey,defensive=false){
-  if(hunter===prey||hunter.dead||prey.dead||hunter.bite>0||(!defensive&&dietProfile(hunter.g).meat<=0)||(defensive===true&&protectiveDrive(hunter.g)<=.34))return false;
+  if(hunter===prey||hunter.dead||prey.dead||hunter.bite>0||(!defensive&&effectiveMeatAffinity(hunter)<=0)||(defensive===true&&protectiveDrive(hunter.g)<=.34))return false;
   const mm=organismMorphology(hunter),v=vitality(hunter),def=vitality(prey);
-  const damage=Math.max(2,(4+hunter.g.jaw*7+mm.bodyMass*.065)*(defensive==='rival'?.42:defensive==='retaliation'?.72:defensive?.65+protectiveDrive(hunter.g)*.65:dietProfile(hunter.g).meat)*v.vigor);
+  const damage=Math.max(2,(4+hunter.g.jaw*7+mm.bodyMass*.065)*(defensive==='rival'?.42:defensive==='retaliation'?.72:defensive?.65+protectiveDrive(hunter.g)*.65:effectiveMeatAffinity(hunter))*v.vigor);
   const vulnerable=1+.8*metabolicFrugality(prey.g);
   const actualDamage=damage*vulnerable;
   prey.hp=Math.max(0,prey.hp-actualDamage);
@@ -846,10 +862,11 @@ export class Ecosystem{
   if(prey.hp<=0){
    // A large prey supplies an exceptional meal, but the eaten tissue is
    // removed from the corpse so nutrients are never counted twice.
-   const meat=defensive===true||defensive==='retaliation'?0:dietProfile(hunter.g).meat*(defensive==='rival'?.65:1);
+   const meat=defensive===true||defensive==='retaliation'?0:effectiveMeatAffinity(hunter)*(defensive==='rival'?.65:1);
    const tissue=Math.max(4,organismMorphology(prey).bodyMass*.23);
    const gained=(Math.max(5,prey.energy*.35)+tissue)*meat;
    hunter.energy+=gained;
+   if(meat>0){learnCarnivory(hunter,tissue);if(prey.category===hunter.category)this.cannibalMeals=(this.cannibalMeals??0)+1;}
    if(hunter.stage==='juvenile')hunter.juvenileFood=(hunter.juvenileFood??0)+gained;
    hunter.recentFood=(hunter.recentFood??0)+tissue*meat*1.3;
    this.die(prey,defensive==='rival'?'同性間の争い':defensive==='retaliation'?'反撃':defensive?'防衛':'捕食',tissue*meat);
@@ -1038,7 +1055,7 @@ export class Ecosystem{
   this.soilWater=new Float32Array(this.tiles.length);
    this.grazingPressure=new Float32Array(this.tiles.length);
   this.waterweed=new Float32Array(this.tiles.length);
-  this.seedRainCount=0;this.waterweedSeedCount=0;this.corpseSproutCount=0;this.waterPlantings=0;
+  this.seedRainCount=0;this.waterweedSeedCount=0;this.corpseSproutCount=0;this.waterPlantings=0;this.cannibalMeals=0;
   for(let i=0;i<this.tiles.length;i++){
    if(this.tiles[i]===0)this.grass[i]=65+this.rand()*35;
    if(this.tiles[i]===1){this.water[i]=80+this.rand()*20;this.waterbed[i]=1;this.waterweed[i]=48+this.rand()*30;}
@@ -1316,6 +1333,8 @@ export class Ecosystem{
    // Maintaining dormancy-capable physiology carries a year-round cost.
    u.hp-=lifeDrain(u,{temperature:u.temperature,terrain:t});
    u.hp-=thermal.damage;u.energy-=thermal.upkeep+(g.hibernate??0)*.075;
+   u.carnivoryExperience=Math.max(0,(u.carnivoryExperience??0)-.00011);
+   u.energy-=carnivoryExperience(u)*.045;
    const near=unitGrid.query(u.x,u.y,Math.max(145,sight*1.6),false);
    const aquatic=g.aquatic===1,underwater=t===1&&this.water[this.cell(u.x,u.y)]>0;
    if(aquatic){
@@ -1362,7 +1381,7 @@ export class Ecosystem{
     if(u.energy<80&&!nearest)u.forageFailure++;
    }
    let nearestCorpse=null,corpseDist=sight*sight;
-   if(diet.meat>.3)for(const corpse of corpseGrid.query(u.x,u.y,sight)){
+   if(effectiveMeatAffinity(u)>.15||famineCannibalism(u))for(const corpse of corpseGrid.query(u.x,u.y,sight)){
     if(corpse.mass<1)continue;
     const d=distance(u,corpse);
     if(d<corpseDist){corpseDist=d;nearestCorpse=corpse;}
@@ -1382,15 +1401,15 @@ export class Ecosystem{
     d*=risk; if(d<ed){ed=d;targetEgg=egg;}
    }
   let prey=null,pd=sight*sight;
-   if(m.predatory&&u.bite===0)for(const v of near){
+   if((m.predatory||famineCannibalism(u)||carnivoryExperience(u)>.25)&&u.bite===0)for(const v of near){
     if(v===u||v.dead||v.id===u.courtPartner)continue;
       const preyTerrain=this.terrain(v.x,v.y);
       if(preyTerrain===1&&!aquatic)continue;
       const preyMass=organismMorphology(v).bodyMass;
      // Under famine, capable predators risk attacking similarly sized
      // conspecifics; successful attacks yield calories, not free biomass.
-     const hungry=u.energy<65&&diet.meat>.24;
-     const cannibal=hungry&&v.category===u.category;
+     const hungry=u.energy<65&&effectiveMeatAffinity(u)>.18;
+     const cannibal=(hungry||famineCannibalism(u))&&v.category===u.category;
      if(preyMass>m.bodyMass*(cannibal?1.15:m.edibleRatio))continue;
     const d=distance(u,v)/Math.max(.1,coverFactor(preyTerrain,aquatic))**2;
      if(d<pd){pd=d;prey=v;}
@@ -1659,10 +1678,11 @@ export class Ecosystem{
      this.log('meal','#'+u.id+' が草を食べた',u);}
    }
    // A carnivore can also scavenge a corpse: deserts cannot support herbivores.
-   if(!flight&&diet.meat>.3&&nearestCorpse&&distance(u,nearestCorpse)<(m.biteReach+14)**2&&u.energy<175){
+   if(!flight&&(effectiveMeatAffinity(u)>.15||famineCannibalism(u))&&nearestCorpse&&distance(u,nearestCorpse)<(m.biteReach+14)**2&&u.energy<175){
     const eaten=Math.min(nearestCorpse.mass,2.4*m.foodGain*feedingCapacity(u));
     nearestCorpse.mass-=eaten;
-    u.energy+=eaten*5.5*diet.meat;
+    u.energy+=eaten*5.5*effectiveMeatAffinity(u);
+    if(eaten>0)learnCarnivory(u,eaten);
     u.recentFood=(u.recentFood??0)+eaten*4;
     if(u.stage==='juvenile')u.juvenileFood+=eaten*5.5*diet.meat;
     if(eaten>0){if((this.tick+u.id)%9===0)this.addVisualEffect('scavenge',u,{fromX:nearestCorpse.x,fromY:nearestCorpse.y});this.log('meal','#'+u.id+' が死体を食べた',u);}
@@ -1680,7 +1700,7 @@ export class Ecosystem{
    }
    if(rival&&!flight&&!rival.dead&&distance(u,rival)<(m.biteReach+rival.g.r+3)**2)
      this.attack(u,rival,'rival');
-    if(!flight&&diet.meat>0&&prey&&!prey.dead&&
+    if(!flight&&effectiveMeatAffinity(u)>0&&prey&&!prey.dead&&
       (this.terrain(prey.x,prey.y)!==1||aquatic)&&
       distance(u,prey)<(m.biteReach+prey.g.r)**2){
      this.attack(u,prey);
