@@ -1986,6 +1986,8 @@ test('all 108864 ecological classifications have unique readable names of ten ka
   if(index===groups.length){
    const name=speciesNameFromCategory(parts.join('-'));
    assert.ok(/^[ァ-ヶ]{10}$/.test(name),name);
+   assert.ok(!/アア$/.test(name),'unnatural numeric ending '+name);
+   assert.ok(!/(.)\\1$/.test(name),'identical final mora '+name);
    assert.ok(!names.has(name),'duplicate '+name);
    names.add(name);return;
   }
@@ -1993,7 +1995,7 @@ test('all 108864 ecological classifications have unique readable names of ten ka
  };
  for(const habitat of habitats)traverse([habitat],0);
  assert.equal(names.size,108864);
- assert.ok(speciesNameFromCategory('aquatic-hunter-large-oval-few-guardian-repro2-cold-blue').startsWith('ミズベニアオメコ'));
+ assert.equal(speciesNameFromCategory('aquatic-hunter-large-oval-few-guardian-repro2-cold-blue'),'ミズベニアオメコギフ');
 });
 test('pigment name follows color phenotype and remains stable for cosmetic variations',async()=>{
  const {pigmentClass,adaptationColor}=await import('./simulation.js');
@@ -3285,4 +3287,14 @@ test('giantism log separates hereditary mass from acquired adult growth and samp
  const empty=new Ecosystem(2026110871),emptyRow=observeEcology(empty);
  assert.equal(emptyRow.adultGrowthMean,0);
  assert.equal(emptyRow.geneticMassP90,0);
+});
+
+test('natural suffixes preserve trait family and distinguish temperature and strategy',()=>{
+ const base=['land','plant','tiny','round','few','general','repro0','temperate','green'];
+ const name=parts=>speciesNameFromCategory(parts.join('-'));
+ assert.equal(name(base),'クサバソミドメオラン');
+ assert.equal(name(base.slice(0,7).concat('cold','green')),'クサバソミドメオラト');
+ assert.equal(name(base.slice(0,7).concat('hot','green')),'クサバソミドメオラス');
+ assert.equal(name(base.slice(0,5).concat('guardian','repro0','temperate','green')),'クサバソミドメオラチ');
+ assert.equal(name(base.slice(0,3).concat('oval','few','general','repro0','temperate','green')),'クサバソミドメオリン');
 });
