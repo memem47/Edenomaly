@@ -3,6 +3,9 @@ on:
   push:
     paths:
       - web/location-experiment.mjs
+      - web/simulation.js
+      - web/game-mode.js
+      - web/renderer.js
       - .github/workflows/location-balance.yml
   workflow_dispatch:
 jobs:
