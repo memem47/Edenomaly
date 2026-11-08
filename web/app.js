@@ -150,11 +150,18 @@ function update(){
  $('rewardBank').textContent=meta.bank.toLocaleString('ja-JP');
  $('bestGameScore').textContent=meta.best.toLocaleString('ja-JP');
  $('runReward').textContent=playMode==='game'&&session.finished?'今回 +'+session.reward+'pt':'1000スコアごとに報酬1pt（将来の初期遺伝子強化用）';
- $('interventionHelp').textContent=playMode==='game'?'1種類だけ移入。生存・新種発見・世代交代・移住でポイント獲得。草の種・雨・土壌改良で支援します。':'テストモードでは従来どおり自由に操作できます。';
+ const impact=session.lastImpact;
+  const impactText=impact?'直近の介入後100ステップ：周辺食料 '+(impact.deltaFood>=0?'+':'')+impact.deltaFood.toFixed(0)+
+   ' / 個体数 '+(impact.deltaPopulation>=0?'+':'')+impact.deltaPopulation+' / 新規誕生 '+impact.births+
+   '（相関であり介入による効果とは限りません）':
+   session.pendingImpact?'介入後100ステップの結果を計測中':'';
+  $('interventionHelp').textContent=playMode==='game'?
+   '生存・新種発見・世代交代・多様性維持でポイント獲得。草地・乾燥地・池への種まき、雨、土壌改良で支援。'+impactText:
+   'テストモードでは従来どおり自由に操作できます。';
  for(const button of document.querySelectorAll('[data-mode]')){
   const kind=button.dataset.mode;
   button.disabled=playMode==='game'&&(session.finished||!['spawn','inspect','food','fertilize'].includes(kind)||(kind==='spawn'&&session.active)||(kind==='food'&&(!session.active||session.points<5))||(kind==='fertilize'&&(!session.active||session.points<10)));
-  if(kind==='food')button.textContent=playMode==='game'?'🌱 草の種（5pt）':'草を補充';
+  if(kind==='food')button.textContent=playMode==='game'?'🌱 草・水草の種（5pt）':'草を補充';
   if(kind==='fertilize')button.textContent=playMode==='game'?'🌿 土壌改良（10pt）':'🌱 土壌改良';
  }
  $('rain').textContent=playMode==='game'?'🌧 降雨（8pt）':'降雨';
@@ -167,7 +174,8 @@ function update(){
 
  $('gameScore').textContent=score.total.toLocaleString('ja-JP');
  $('survivalScore').textContent=score.duration.toLocaleString('ja-JP');
- $('discoveryScore').textContent=score.discoveries.toLocaleString('ja-JP')+'種 / +'+score.discoveryScore.toLocaleString('ja-JP')+'点';
+ $('discoveryScore').textContent=score.discoveries.toLocaleString('ja-JP')+'種 / 新種 +'+score.discoveryScore.toLocaleString('ja-JP')+
+   '点 ／ 多様性維持 +'+score.balanceScore.toLocaleString('ja-JP')+'点';
  $('runScoreStatus').textContent=!score.started?'移入待ち':score.ended?'絶滅・スコア確定':'生存中・計測中';
  $('seasonStatus').textContent=game.climateEnabled?({spring:'🌸 春',summer:'☀️ 夏',autumn:'🍂 秋',winter:'❄️ 冬'}[game.seasonName()]):'季節変動 OFF';
  $('temperatureStatus').textContent='🌡 '+game.temperature.toFixed(1)+'℃';
