@@ -3220,3 +3220,25 @@ test('biodiversity bonus rewards sustaining multiple species, not a transient bu
  assert.equal(w.runScore.total,
   w.runScore.survivalScore+w.runScore.discoveryScore+w.runScore.balanceScore);
 });
+
+test('habitat acclimation lowers arid dehydration without granting immortality',async()=>{
+ const {terrestrialHydrationDelta}=await import('./simulation.js');
+ const g={dry:1,rock:1};
+ assert.ok(terrestrialHydrationDelta(g,2,'sunny')<0);
+ assert.ok(terrestrialHydrationDelta(g,2,'sunny')>terrestrialHydrationDelta(g,0,'sunny'));
+ assert.ok(terrestrialHydrationDelta(g,3,'rain')>terrestrialHydrationDelta(g,3,'sunny'));
+ assert.ok(terrestrialHydrationDelta(g,0,'sunny')<0);
+});
+test('founders start with one compatible pair rather than two unrelated genotypes',()=>{
+ const w=new Ecosystem(2026110867),result=w.introduce(170,130,1);
+ assert.equal(result.individuals,8);
+ const a=w.units[0],b=w.units[1];
+ assert.equal(a.stage,'adult');assert.equal(b.stage,'adult');
+ assert.equal(a.age,62);assert.equal(b.age,62);
+ assert.equal(a.energy,145);assert.equal(b.energy,145);
+ if(a.sex!=='H'&&b.sex!=='H'){
+  assert.notEqual(a.sex,b.sex);
+  assert.equal(a.g.diet,b.g.diet);
+  assert.equal(a.g.repro,b.g.repro);
+ }
+});
