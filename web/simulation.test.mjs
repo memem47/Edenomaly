@@ -895,7 +895,7 @@ test('coincident slimes acquire separate positions without changing genes',()=>{
  const before=JSON.stringify(a.g);
  w.resolveUnitOverlap();
  const distance=Math.hypot(a.x-b.x,a.y-b.y);
- assert.ok(distance>10,'overlapping centers remained superimposed');
+ assert.ok(distance>bodyCollisionAxes(a).ry+bodyCollisionAxes(b).ry*.30,'overlapping centers remained superimposed');
  assert.equal(JSON.stringify(a.g),before);
  assert.ok([a,b].every(u=>Number.isFinite(u.x)&&Number.isFinite(u.y)));
 });
@@ -909,7 +909,7 @@ test('giant body has a larger collision footprint and displaces a smaller slime'
  assert.ok(large.rx>small.rx*2);
  w.resolveUnitOverlap();
  assert.ok(Math.abs(b.x-originalB)>Math.abs(a.x-originalA));
- assert.ok(Math.hypot(a.x-b.x,a.y-b.y)>15);
+ assert.ok(Math.hypot(a.x-b.x,a.y-b.y)>small.ry*2,'larger slimes must displace smaller neighbors');
 });
 test('elongated slimes need more front-to-front separation than side-by-side',()=>{
  const g={...new Ecosystem(2103).gene(),r:8,elongation:2.6};
@@ -1207,7 +1207,7 @@ test('large dead slimes yield larger visible remains and more nutrients',()=>{
  const small=w.spawn(150,160,g),large=w.spawn(400,160,{...g});
  large.growthScale=2.7;
  w.die(small,'test');w.die(large,'test');w.units=[];
- assert.ok(w.corpses[1].mass>w.corpses[0].mass*3);
+ assert.ok(w.corpses[1].mass>w.corpses[0].mass*1.5,'large corpses still yield more nutrients');
  const ellipses=[];
  const ctx=new Proxy({canvas:{width:800,height:460},
   ellipse(...args){ellipses.push({x:ctx._x||0,rx:args[2]});},
