@@ -987,6 +987,25 @@ export class Ecosystem{
   }
   return best;
  }
+ // Find nutritious land directly bordering the current connected pond.
+ nearestEdibleShore(x,y,radius=105){
+  const home=this.cell(x,y);
+  if(this.tiles[home]!==1)return null;
+  const regions=this.waterRegions(),region=regions[home];
+  if(!region)return null;
+  let best=null,score=radius*radius;
+  for(let i=0;i<this.tiles.length;i++){
+   if(this.tiles[i]!==0||this.grass[i]<5)continue;
+   const gx=i%NX,gy=Math.floor(i/NX);
+   const neighbors=[gx>0?i-1:-1,gx<NX-1?i+1:-1,
+    gy>0?i-NX:-1,gy<NY-1?i+NX:-1];
+   if(!neighbors.some(j=>j>=0&&regions[j]===region))continue;
+   const px=(gx+.5)*CELL,py=(gy+.5)*CELL;
+   const d=(px-x)**2+(py-y)**2;
+   if(d<score){score=d;best={x:px,y:py};}
+  }
+  return best;
+ }
  nearestGrass(x,y,radius,g){
   let best=null,score=radius*radius;
   const cx=Math.floor(x/CELL),cy=Math.floor(y/CELL),reach=Math.ceil(radius/CELL)+1;
