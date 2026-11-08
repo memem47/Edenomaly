@@ -103,12 +103,14 @@ export const dietProfile=g=>{
 export const carnivoryExperience=u=>clamp(u.carnivoryExperience??0,0,1);
 export const effectiveMeatAffinity=u=>{
  const native=dietProfile(u.g).meat;
- return clamp(native+(1-native)*carnivoryExperience(u)*.72,0,1);
+ return clamp(Math.max(native+(1-native)*carnivoryExperience(u),
+  famineCannibalism(u)?.09:0),0,1);
 };
 export const famineCannibalism=u=>u.energy<46&&u.stage==='adult'&&
  u.g.jaw>=.55&&u.g.mouths>=1&&
- (dietProfile(u.g).meat>.18||carnivoryExperience(u)>.12||
-  u.energy<24&&dietProfile(u.g).meat>.04);
+ (dietProfile(u.g).meat>.18||carnivoryExperience(u)>.12||u.energy<24);
+export const effectivePlantAffinity=u=>clamp(dietProfile(u.g).plant*
+ (1-.65*carnivoryExperience(u)),0,1);
 export const learnCarnivory=(u,consumed)=>{
  if(consumed<=0)return 0;
  const old=carnivoryExperience(u);
@@ -1664,10 +1666,10 @@ export class Ecosystem{
     const eaten=this.consumeWaterweed(nearest.x,nearest.y,reserve);
     if(eaten>0){
      if(gardening>.4)u.waterSeedBank=Math.min(8,(u.waterSeedBank??0)+eaten*.12*gardening);
-     u.energy+=eaten*7.5*diet.plant*home.fitness;
+     u.energy+=eaten*7.5*effectivePlantAffinity(u)*home.fitness;
      u.recentFood=(u.recentFood??0)+eaten*4;
      u.forageSuccess++;
-     if(u.stage==='juvenile')u.juvenileFood+=eaten*7.5*diet.plant*home.fitness;
+     if(u.stage==='juvenile')u.juvenileFood+=eaten*7.5*effectivePlantAffinity(u)*home.fitness;
      // Eating sustains energy but cannot replenish spent lifespan.
      if((this.tick+u.id)%9===0)this.addVisualEffect('waterweed',u,{fromX:nearest.x,fromY:nearest.y});
      this.log('meal','#'+u.id+' が水草を食べた',u);}
@@ -1675,11 +1677,11 @@ export class Ecosystem{
    if(aquatic&&underwater&&!flight)this.plantWaterweed(u);
    if(!flight&&(!aquatic||onLand)&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+13)**2){
     const eaten=this.consumeGrass(nearest.x,nearest.y,Math.min(4.8,1.05*m.foodGain*feedingCapacity(u)));
-    if(eaten>0){u.energy+=eaten*10.5*diet.plant*home.fitness;
+    if(eaten>0){u.energy+=eaten*10.5*effectivePlantAffinity(u)*home.fitness;
      u.recentFood=(u.recentFood??0)+eaten*4;
      u.forageSuccess++;
      u.seedBank=Math.min(100,(u.seedBank??0)+eaten*.35);
-     if(u.stage==='juvenile')u.juvenileFood+=eaten*10.5*diet.plant*home.fitness;
+     if(u.stage==='juvenile')u.juvenileFood+=eaten*10.5*effectivePlantAffinity(u)*home.fitness;
      // Grass restores energy reserves, not irreversible life HP.
      if((this.tick+u.id)%9===0)this.addVisualEffect('graze',u,{fromX:nearest.x,fromY:nearest.y});
      this.log('meal','#'+u.id+' が草を食べた',u);}
@@ -1695,7 +1697,7 @@ export class Ecosystem{
       this.log('carnivoreLearn','#'+u.id+' が肉食に順化し始めた',u);
     }
     u.recentFood=(u.recentFood??0)+eaten*4;
-    if(u.stage==='juvenile')u.juvenileFood+=eaten*5.5*diet.meat;
+    if(u.stage==='juvenile')u.juvenileFood+=eaten*5.5*effectiveMeatAffinity(u);
     if(eaten>0){if((this.tick+u.id)%9===0)this.addVisualEffect('scavenge',u,{fromX:nearestCorpse.x,fromY:nearestCorpse.y});this.log('meal','#'+u.id+' が死体を食べた',u);}
    }
    if(!flight&&!defenderTarget&&targetEgg&&!targetEgg.dead&&u.bite===0&&distance(u,targetEgg)<(m.biteReach+4)**2)this.eatEgg(targetEgg,u);
