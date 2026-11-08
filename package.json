@@ -1,1 +1,10 @@
-{"name":"edenomaly","version":"0.1.0","private":true,"type":"module","scripts":{"test":"node --test web/simulation.test.mjs"}}
+{
+  "name": "edenomaly",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test web/simulation.test.mjs",
+    "headless": "node web/headless-cli.mjs"
+  }
+}
