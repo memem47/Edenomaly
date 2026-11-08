@@ -3105,3 +3105,32 @@ test('ecology reports acquired carnivory separately from inherited diet',async()
  assert.ok(snapshot.meanCarnivoryExperience>.65);
  assert.equal(snapshot.carnivores,0,'inherited diet classification stays unchanged');
 });
+
+test('a pure herbivore may resort to cannibalism only under extreme famine',async()=>{
+ const {famineCannibalism,effectiveMeatAffinity,effectivePlantAffinity}=await import('./simulation.js');
+ const w=new Ecosystem(2026110834),g={...w.gene(),diet:0,jaw:1.6,mouths:2};
+ const u=w.spawn(210,210,g);u.stage='adult';
+ u.energy=70;assert.equal(famineCannibalism(u),false);
+ assert.equal(effectiveMeatAffinity(u),0);
+ u.energy=15;assert.equal(famineCannibalism(u),true);
+ assert.ok(effectiveMeatAffinity(u)>0,'emergency minimal meat digestion enables learning');
+ assert.equal(effectivePlantAffinity(u),1);
+});
+test('learned carnivore can exceed inherited meat affinity but pays a plant-digestion tradeoff',async()=>{
+ const {effectiveMeatAffinity,effectivePlantAffinity}=await import('./simulation.js');
+ const w=new Ecosystem(2026110835),u=w.spawn(210,210,{...w.gene(),diet:0});
+ u.energy=130;
+ const plant=effectivePlantAffinity(u);
+ u.carnivoryExperience=.85;
+ assert.ok(effectiveMeatAffinity(u)>.7,'successful acclimation becomes functionally carnivorous');
+ assert.ok(effectivePlantAffinity(u)<plant,'specialization makes plant food less rewarding');
+ assert.equal(u.g.diet,0,'acclimation cannot alter inherited diet');
+});
+test('acquired carnivores are counted separately from genotypic carnivores',async()=>{
+ const {observeEcology}=await import('./ecology-log.js');
+ const w=new Ecosystem(2026110836),u=w.spawn(200,190,{...w.gene(),diet:0});
+ u.carnivoryExperience=.85;u.energy=130;
+ const observed=observeEcology(w);
+ assert.equal(observed.acquiredCarnivores,1);
+ assert.equal(observed.carnivores,0);
+});
