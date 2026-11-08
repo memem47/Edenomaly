@@ -14,13 +14,13 @@ export const ECOLOGY_LOG_FIELDS=[
  'reproInfection','reproImmature','reproEnergy','reproCooldown','reproPregnancy',
  'reproWeak','reproNoPartner','reproPaired','meanPreferredTemp','meanTempTolerance',
  'dormantAdults','dormantEggs','forageSuccess','forageFailure','meanHibernate',
-  'frugalAdults','aquaticGardeners','waterPlantings','meanFrugality','meanWaterGardening',
+  'frugalAdults','aquaticGardeners','waterPlantings','meanFrugality','meanWaterGardening','landExplorers','meanLandAcclimation',
  'temperature','season','growthSetting','rainfallSetting','stressSetting'
 ];
 const finite=v=>Number.isFinite(v)?Math.round(v*100)/100:0;
 export function observeEcology(game){
  let grass=0,waterweed=0,water=0,soil=0,juveniles=0,herbivores=0,omnivores=0,
-  carnivores=0,energy=0,hp=0,habitatLoad=0,infected=0,maxGeneration=0,idealTotal=0,toleranceTotal=0,dormantAdults=0,forageSuccess=0,forageFailure=0,hibernateTotal=0,frugalAdults=0,aquaticGardeners=0,frugalityTotal=0,gardeningTotal=0;
+  carnivores=0,energy=0,hp=0,habitatLoad=0,infected=0,maxGeneration=0,idealTotal=0,toleranceTotal=0,dormantAdults=0,forageSuccess=0,forageFailure=0,hibernateTotal=0,frugalAdults=0,aquaticGardeners=0,frugalityTotal=0,gardeningTotal=0,landExplorers=0,landAcclimationTotal=0;
  for(let i=0;i<game.grass.length;i++){
   grass+=game.grass[i];waterweed+=game.waterweed[i];water+=game.water[i];soil+=game.soil[i];
  }
@@ -31,6 +31,9 @@ export function observeEcology(game){
   idealTotal+=u.g.idealTemp??22;toleranceTotal+=u.g.tempTolerance??9;
   hibernateTotal+=u.g.hibernate??0;dormantAdults+=u.dormant?1:0;
   frugalityTotal+=u.g.frugality??0;gardeningTotal+=u.g.waterGardening??0;
+  if(u.g.aquatic===1){landAcclimationTotal+=u.landAcclimation??0;
+   if(game.terrain(u.x,u.y)!==1)landExplorers++;}
+
   if(u.stage==='adult'&&(u.g.frugality??0)>=.55)frugalAdults++;
   if(u.g.aquatic===1&&(u.g.waterGardening??0)>=.4)aquaticGardeners++;
   forageSuccess+=u.forageSuccess??0;forageFailure+=u.forageFailure??0;
@@ -77,7 +80,8 @@ export function observeEcology(game){
   forageSuccess,forageFailure,meanHibernate:finite(n?hibernateTotal/n:0),
   frugalAdults,aquaticGardeners,waterPlantings:game.waterPlantings??0,
   meanFrugality:finite(n?frugalityTotal/n:0),
-  meanWaterGardening:finite(n?gardeningTotal/n:0),
+  meanWaterGardening:finite(n?gardeningTotal/n:0),landExplorers,
+  meanLandAcclimation:finite(n?landAcclimationTotal/n:0),
   temperature:finite(game.temperature),
   season:game.climateEnabled?game.seasonName():'off',
   growthSetting:game.growth,rainfallSetting:game.rainfall,stressSetting:game.stress
