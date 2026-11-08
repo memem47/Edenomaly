@@ -137,6 +137,11 @@ export const feedingCapacity=u=>{
  return Math.min(3.8,1+1.15*(scale-1));
 };
 export const energyStorageLimit=u=>210+30*Math.max(0,(u.growthScale??1)-1);
+// Efficiency helps only with maintenance, not movement, climate hazards or
+// extra energy production. Smaller bodies sacrifice defense and adult growth.
+export const metabolicFrugality=g=>clamp(g.frugality??0,0,1);
+export const frugalityMaintenanceFactor=g=>1-.48*metabolicFrugality(g);
+export const adultGrowthCeiling=g=>MAX_NUTRITION_GROWTH*(1-.62*metabolicFrugality(g));
 
 // Crowding is measured by physical proximity, regardless of kinship or diet.
 // A large nearby body occupies more shared space than a small one.
@@ -278,7 +283,7 @@ export const rearPosition=(u,offset=0)=>({
  x:clamp(u.x-Math.cos(u.angle)*(u.g.r*u.g.elongation+5+offset),6,W-6),
  y:clamp(u.y-Math.sin(u.angle)*(u.g.r*u.g.elongation+5+offset),6,H-6)
 });
-const HERITABLE=['repro','idealTemp','tempTolerance','hibernate','longevity','r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic','albino','dispersal','sociability','caution','predatorSense','retaliation'];
+const HERITABLE=['repro','idealTemp','tempTolerance','hibernate','longevity','r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic','albino','dispersal','sociability','caution','predatorSense','retaliation','frugality','waterGardening'];
 // Natural ponds always retain a viable reservoir. Drought reduces excess
 // water depth, but only deliberate terrain painting may remove a water tile.
 export const POND_RESERVE=35;
@@ -293,7 +298,7 @@ export const genomeCode=g=>HERITABLE.map(key=>{
  return step.toString(16).toUpperCase();
 }).join('').match(/.{1,4}/g).join('-');
 
-const LIMITS={repro:[0,2],idealTemp:[-5,40],tempTolerance:[3,18],hibernate:[0,1],longevity:[.6,2],r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1],albino:[0,1],dispersal:[0,1],sociability:[0,1],caution:[0,1],predatorSense:[0,1],retaliation:[0,1]};
+const LIMITS={repro:[0,2],idealTemp:[-5,40],tempTolerance:[3,18],hibernate:[0,1],longevity:[.6,2],r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1],albino:[0,1],dispersal:[0,1],sociability:[0,1],caution:[0,1],predatorSense:[0,1],retaliation:[0,1],frugality:[0,1],waterGardening:[0,1]};
 const alleleExpression=(key,pair)=>{
  // Eyes: more-eye allele is dominant; hidden low-eye alleles can reappear in grandchildren.
  // Other continuous traits use incomplete dominance (mean of the two inherited copies).
@@ -378,7 +383,7 @@ export class Ecosystem{
   // recessive alleles that are not necessarily visible in its phenotype.
   g.alleles={};
   for(const key of HERITABLE){
-   if(key==='hibernate'||key==='dispersal'||key==='sociability'||key==='caution'||key==='predatorSense'||key==='retaliation')continue; // preserve older founder RNG sequence
+   if(key==='hibernate'||key==='dispersal'||key==='sociability'||key==='caution'||key==='predatorSense'||key==='retaliation'||key==='frugality'||key==='waterGardening')continue; // preserve older founder RNG sequence
    let second=g[key];
    if(key==='repro')second=0;
     else if(key==='idealTemp')second=clamp(g.idealTemp+this.range(-3,3),...LIMITS.idealTemp);
@@ -414,6 +419,12 @@ export class Ecosystem{
    g.predatorSense=clamp(.12+g.eyes/6*.4+g.deception*.16+g.guard*.12,0,1);
    g.retaliation=clamp(.08+g.jaw/2.5*.42+g.guard*.32,0,1);
    for(const key of ['caution','predatorSense','retaliation'])g.alleles[key]=[g[key],g[key]];
+   // New ecological niches initially remain uncommon, but can spread
+   // through mutation and recombination if their tradeoffs are beneficial.
+   g.frugality=clamp(.10+g.shell*.26+g.longevity*.10-g.jaw*.035,0,1);
+   g.waterGardening=clamp(.05+g.wet*.28+g.nesting*.15,0,1);
+   g.alleles.frugality=[g.frugality,g.frugality];
+   g.alleles.waterGardening=[g.waterGardening,g.waterGardening];
   return g;
  }
  mutate(g){
@@ -471,6 +482,13 @@ export class Ecosystem{
    const improved=clamp(child[trait]+this.range(.18,.43),0,1);
    child.alleles[trait]=[improved,improved];child[trait]=improved;
   }
+  // Rare dietary innovation creates predators without forcing an individual
+  // to change diet during its lifetime. Selection must sustain the lineage.
+  if(this.rand()<.014){
+   const delta=this.range(.20,.44)*(this.rand()<.72?1:-1);
+   const changed=clamp(child.diet+delta,0,1);
+   child.diet=changed;child.alleles.diet=[changed,changed];
+  }
   // Extremely rare stable inherited pigment loss, distinct from damage flash.
   if(this.rand()<.0025){child.albino=1;child.alleles.albino=[1,1];}
   return this.rand()<.32?this.mutate(child):child;
@@ -519,7 +537,7 @@ export class Ecosystem{
   if(this.units.length>=2000)return null;
   const mode=reproductiveMode(g);
    const sex=mode===1?'H':mode===2?'F':(this.rand()<.5?'F':'M');
-   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null,socialTarget:null,mateTarget:null,rejectedBy:null,mateApproachFailures:0,behaviorTarget:'idle',threatDecisions:new Map(),attackResponse:null,retaliationCooldown:0};
+   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null,socialTarget:null,mateTarget:null,rejectedBy:null,mateApproachFailures:0,behaviorTarget:'idle',waterSeedBank:0,lastWaterPlant:-100,threatDecisions:new Map(),attackResponse:null,retaliationCooldown:0};
   u.category=this.category(g);u.lineage??=u.id;this.units.push(u);
   if(!this.species.has(u.category)){
    const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(u.category),current:0,total:0,diet:dietProfile(g).label,first:this.tick,genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(u.category),u);
@@ -798,7 +816,8 @@ export class Ecosystem{
   if(hunter===prey||hunter.dead||prey.dead||hunter.bite>0||(!defensive&&dietProfile(hunter.g).meat<=0)||(defensive===true&&protectiveDrive(hunter.g)<=.34))return false;
   const mm=organismMorphology(hunter),v=vitality(hunter),def=vitality(prey);
   const damage=Math.max(2,(4+hunter.g.jaw*7+mm.bodyMass*.065)*(defensive==='rival'?.42:defensive==='retaliation'?.72:defensive?.65+protectiveDrive(hunter.g)*.65:dietProfile(hunter.g).meat)*v.vigor);
-  prey.hp=Math.max(0,prey.hp-damage);
+  const vulnerable=1+.8*metabolicFrugality(prey.g);
+  prey.hp=Math.max(0,prey.hp-damage*vulnerable);
   if(defensive){hunter.energy-=defensive==='rival'?4:2.5;if(defensive!=='retaliation')prey.bite=Math.max(prey.bite,14);}
   // Retaliation choice is made on impact, and has a limited validity window.
   // Cooldown prevents unbounded retaliation loops.
@@ -1519,7 +1538,10 @@ export class Ecosystem{
    // Terrain-fit offspring retain energy and can reproduce more successfully.
    const adaptationCost=clamp(1.65-home.fitness*.75,.70,1.5)*(1.08-.08*thermal.comfort);
    u.energy-=reproductiveUpkeep(g)*youth;
-    u.energy-=((u.courtPartner?.75:1)*m.upkeep+longevityUpkeep(g))*youth*adaptationCost*(1+body.old*.18)+acquiredSizeMaintenance(u)*youth*adaptationCost+(flight?.10:0)+(ownEgg?g.guard*.16:0)+this.stress*.0035+home.upkeep+(g.wet+g.dry+g.rock)*.055;
+    u.energy-=((u.courtPartner?.75:1)*m.upkeep+longevityUpkeep(g))*youth*adaptationCost*(1+body.old*.18)*frugalityMaintenanceFactor(g)+acquiredSizeMaintenance(u)*youth*adaptationCost+(flight?.10:0)+(ownEgg?g.guard*.16:0)+this.stress*.0035+home.upkeep+(g.wet+g.dry+g.rock)*.055;
+   // Efficient physiology is a low-energy, slow-growing niche, not a
+   // universal upgrade: sacrificing defense and reproduction speed.
+   if(metabolicFrugality(g)>.5)u.energy-=.035*metabolicFrugality(g);
    if(!flight&&aquatic&&underwater&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+14)**2){
     const eaten=this.consumeWaterweed(nearest.x,nearest.y,Math.min(5.5,1.3*m.foodGain*feedingCapacity(u)));
     if(eaten>0){u.energy+=eaten*7.5*diet.plant*home.fitness;
@@ -1594,9 +1616,9 @@ export class Ecosystem{
    // even high reserves alone cannot cause growth without active feeding.
    const foodNeeded=exceptional?58+Math.max(0,u.growthScale-NORMAL_NUTRITION_GROWTH)*55:16;
    const energyNeeded=exceptional?205:158;
-   if(u.stage==='adult'&&(u.habitatLoad??0)<.45&&u.energy>energyNeeded&&u.recentFood>foodNeeded&&u.growthScale<MAX_NUTRITION_GROWTH){
+   if(u.stage==='adult'&&(u.habitatLoad??0)<.45&&u.energy>energyNeeded&&u.recentFood>foodNeeded&&u.growthScale<adultGrowthCeiling(g)){
     const baseRate=.0018+Math.min(.003,u.recentFood*.00014);
-    const increment=Math.min(MAX_NUTRITION_GROWTH-u.growthScale,baseRate*(exceptional?.42:1));
+    const increment=Math.min(adultGrowthCeiling(g)-u.growthScale,baseRate*(exceptional?.42:1)*(1-.66*metabolicFrugality(g)));
     const cost=increment*(135+115*u.growthScale+(exceptional?110*u.growthScale*u.growthScale:0));
     if(u.energy>energyNeeded+cost){
      u.energy-=cost;
@@ -1607,6 +1629,8 @@ export class Ecosystem{
     }
    }
    // Starved organisms gradually lose their acquired oversized body mass.
+   if(u.growthScale>adultGrowthCeiling(g))
+    u.growthScale=Math.max(adultGrowthCeiling(g),u.growthScale-.01);
    if((u.growthScale??1)>1.03&&u.energy<85){
     // Tissue catabolism limits the energy burden of exceptional size.
     // It does not grant energy/HP: starvation and natural selection remain.
