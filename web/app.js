@@ -3,7 +3,7 @@ import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,
 import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.08.11';
 import {fitView,screenToWorld,zoomAround,panBy,MAX_ZOOM,ZOOM_STEP} from './viewport.js?v=2026.11.08.12';
 import {drawWorld,drawChart} from './renderer.js?v=2026.11.08.11';
-import {EcologyLogbook,observeEcology} from './ecology-log.js?v=2026.11.08.8';
+import {EcologyLogbook,observeEcology} from './ecology-log.js?v=2026.11.08.13';
 import {performancePolicy,simulationBatch,BROWSER_BACKGROUND_INTERVAL} from './performance-policy.js?v=video-friendly-1';
 const $=id=>document.getElementById(id);
 // Release label is bundled with the running source; comparison uses a
