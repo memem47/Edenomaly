@@ -3190,3 +3190,33 @@ test('dry and rock lichen is consumable, sparse, and regrows slowly',()=>{
   assert.equal(w.grass[index],2);
  }
 });
+
+test('game mode seeds submerged waterweed and records actual births after intervention',()=>{
+ const w=new Ecosystem(2026110865),water=[...w.tiles].findIndex(t=>t===1);
+ const x=(water%40+.5)*20,y=(Math.floor(water/40)+.5)*20;
+ const run=new GameSession(w);
+ assert.equal(run.start(x,y),true);
+ w.waterweed[water]=0;
+ assert.equal(run.intervene('seed',x,y),true);
+ assert.ok(w.waterweed[water]>0);
+ assert.ok(run.pendingImpact);
+ const startingBirths=[...w.species.values()].reduce((sum,sp)=>sum+sp.total,0);
+ w.tick+=100;run.observe();
+ assert.equal(run.lastImpact.births,
+  [...w.species.values()].reduce((sum,sp)=>sum+sp.total,0)-startingBirths);
+ assert.equal(run.lastImpact.deltaPopulation,0);
+});
+test('biodiversity bonus rewards sustaining multiple species, not a transient burst',()=>{
+ const w=new Ecosystem(2026110866),g=w.gene();
+ w.introduce(170,130,1);
+ const previous=w.runScore.balanceScore;
+ const novel={...g,diet:1-g.diet,eyes:g.eyes===1?5:1};
+ if(!w.species.has(w.category(novel)))w.spawn(185,130,novel);
+ // Score is accumulated through real steps, never by observing the state.
+ assert.equal(w.runScore.balanceScore,previous);
+ w.climateEnabled=false;
+ w.tick=19;w.step();
+ assert.ok(w.runScore.balanceScore>=previous);
+ assert.equal(w.runScore.total,
+  w.runScore.survivalScore+w.runScore.discoveryScore+w.runScore.balanceScore);
+});
