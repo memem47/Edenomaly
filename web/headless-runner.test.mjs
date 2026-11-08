@@ -15,13 +15,13 @@ test('founder sizes are strongly right-skewed, with 80% or more compact bodies',
  assert.ok(extremelyLarge<.01,'historically large bodies must be very rare');
 });
 
-test('average slime size is halved physically while historical rare giants remain attainable',()=>{
+test('slimes are 1.7 times larger than prior version without changing genetic size distribution',()=>{
  const w=new Ecosystem(2026110842),g={...w.gene(),r:4,elongation:1};
- assert.equal(bodySizeMultiplier(g),.5);
- assert.equal(morphology(g).width,2);
+ assert.equal(bodySizeMultiplier(g),.85);
+ assert.equal(morphology(g).width,3.4);
  const giant={...g,r:15};
- assert.equal(bodySizeMultiplier(giant),1);
- assert.equal(morphology(giant).width,15);
+ assert.equal(bodySizeMultiplier(giant),1.7);
+ assert.equal(morphology(giant).width,25.5);
  const small=w.spawn(170,170,g),big=w.spawn(200,170,giant);
  assert.ok(bodyCollisionAxes(big).rx>bodyCollisionAxes(small).rx*5);
 });
