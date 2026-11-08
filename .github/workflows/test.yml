@@ -12,3 +12,11 @@ jobs:
         with:
           node-version: '22'
       - run: npm test
+      - name: Headless smoke test (two reproducible seeds)
+        run: npm run headless -- --seed 72 --steps 300 --runs 2 --interval 50 --out results/ci-headless
+      - name: Upload headless baseline results
+        uses: actions/upload-artifact@v4
+        with:
+          name: edenomaly-headless-baseline
+          path: results/ci-headless/
+          retention-days: 7
