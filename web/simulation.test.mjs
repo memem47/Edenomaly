@@ -1392,6 +1392,7 @@ test('absolute habitat crowding penalizes large bodies more than equally positio
  assert.ok(large.load>1.8);
  assert.ok(small.load<1.8);
  large.w.units[0].habitatLoad=large.load;
+ large.w.units[0].energy=75;
  assert.equal(large.w.isReadyToMate(large.w.units[0]),false);
 });
 test('crowded giants lose more energy than the same isolated giants without food',()=>{
