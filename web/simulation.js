@@ -1995,7 +1995,7 @@ export class Ecosystem{
     u.lineage=foundingLineage;
     // Prevent an unwinnable founder cohort with no compatible sexes.
     if(reproductiveMode(variant)===0)u.sex=i%2===0?'F':'M';
-    u.age=Math.floor(this.range(40,57));
+    u.age=Math.floor(this.range(48,64));
     u.energy=this.range(115,145);
     u.hydration=this.range(85,100);
     spawned++;
