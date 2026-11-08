@@ -1,4 +1,4 @@
-import {WORLD,TERRAIN_COLORS,dietProfile,vitality,adaptationColor,lifeStageScale,bodySizeMultiplier} from './simulation.js?v=permanent-water-1';
+import {WORLD,TERRAIN_COLORS,dietProfile,vitality,adaptationColor,lifeStageScale,bodySizeMultiplier} from './simulation.js?v=2026.11.08.8';
 const TAU=Math.PI*2;
 // Angles are measured around the rim of a top-down oval; +X is forward.
 // Predators look forward, herbivores to either side, and many-eyed slimes all around.
