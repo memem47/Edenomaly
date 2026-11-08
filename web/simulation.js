@@ -4,6 +4,21 @@ export const TERRAIN_NAMES=['草地','水辺','乾燥地','岩場'];
 export const TERRAIN_COLORS=['#54c74c','#279cfa','#edb85c','#8980bf'];
 // Relative nutrient input: grass > wetland > dryland > rock.
 export const TERRAIN_FERTILITY=[1,.58,.14,.055];
+export const TERRAIN_LEVEL_NAMES=[['裸地','草地','草原','林','森'],['浅瀬','浅い池','池','深い池','深水域'],['乾いた土','砂地','乾燥地','荒野','砂漠'],['礫地','岩場','丘陵','岩山','高山']];
+export const TERRAIN_LEVEL_GROWTH=[.55,.8,1,1.2,1.45];
+export const WATER_LEVEL_GROWTH=[1.5,1.3,1,.82,.65];
+export const terrainLevelFitness=(base,t,level=3,g={})=>{
+ const delta=Math.max(-2,Math.min(2,level-3));
+ if(!delta)return base;
+ if(t===0)return {...base,move:base.move*(delta>0?1-.15*delta:1+.07*-delta),
+  sight:base.sight*(delta>0?1-.13*delta:1),upkeep:base.upkeep+(delta>0?.02*delta:0)};
+ if(t===1)return {...base,move:base.move*(delta>0?1-.13*delta:1+.045*-delta),
+  sight:base.sight*(delta>0?1-.15*delta:1),
+  hazard:base.hazard+(delta>0?delta*.12*(1-Math.max(0,Math.min(1,g.wet??0))):0)};
+ if(t===3)return {...base,move:base.move*(delta>0?1-.2*delta:1+.05*-delta),
+  upkeep:base.upkeep+(delta>0?.1*delta:0),hazard:base.hazard+(delta>0?.06*delta:0)};
+ return {...base,move:base.move*(delta>0?1-.06*delta:1+.03*-delta)};
+};
 const GROWTH=TERRAIN_FERTILITY,DECAY=[.026,.038,.006,.003];
 // Readable, stable species names: habitat(3) + diet(1) + pigment(2)
 // + eye count(1) + reproduction(1) + two-kana morphology/strategy suffix.
@@ -430,6 +445,7 @@ export class Ecosystem{
  range(a,b){return a+(b-a)*this.rand();}
  cell(x,y){return clamp(Math.floor(y/CELL),0,NY-1)*NX+clamp(Math.floor(x/CELL),0,NX-1);}
  terrain(x,y){return this.tiles[this.cell(x,y)];}
+ terrainLevel(x,y){return this.terrainLevels?.[this.cell(x,y)]??3;}
  gene(){
   // Most founders prefer mild temperatures, but rare cold/hot specialists
   // and broad-tolerance generalists can already exist before selection.
@@ -1108,9 +1124,10 @@ export class Ecosystem{
   }
  }
  reset(){
-  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.runStartTick=null;this.runEndedTick=null;this.founderSpeciesCount=0;this.ecosystemBalance=0;this.deathCauses={};this.courtshipFailures={};this.courtshipStarts=0;this.mateApproachStarts=0;this.mateApproachStalled=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];this.climateEnabled=true;this.seasonLength=600;
+  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.runStartTick=null;this.runEndedTick=null;this.founderSpeciesCount=0;this.ecosystemBalance=0;this.deathCauses={};this.courtshipFailures={};this.courtshipStarts=0;this.mateApproachStarts=0;this.mateApproachStalled=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.waterweedGrowth=140;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];this.climateEnabled=true;this.seasonLength=600;
   this._waterRegionTick=null;this._waterRegions=null;
   this.setupTerrain();
+  this.terrainLevels=new Uint8Array(this.tiles.length).fill(3);
   this.grass=new Float32Array(this.tiles.length);
   this.water=new Float32Array(this.tiles.length);
   this.waterbed=new Uint8Array(this.tiles.length);
@@ -1238,8 +1255,9 @@ export class Ecosystem{
    for(let i=0;i<this.tiles.length;i++){
     if(this.tiles[i]===0&&this.grass[i]>0){
      const localGrazing=this.grazingPressure[i];
+       const levelScale=TERRAIN_LEVEL_GROWTH[(this.terrainLevels?.[i]??3)-1]??1;
       const productivity=clamp(.28+this.soil[i]/120,.28,1.12);
-      const regen=(1.8+this.soil[i]*.05)*this.growth/70*productivity/(1+localGrazing*.52);
+      const regen=(1.8+this.soil[i]*.05)*this.growth/70*levelScale*productivity/(1+localGrazing*.52);
       next[i]=Math.min(100,this.grass[i]+regen);
       if(localGrazing>2.5){
        next[i]=Math.max(0,next[i]-Math.min(4.5,(localGrazing-2.5)*.23));
@@ -1267,7 +1285,8 @@ export class Ecosystem{
     }
     // Waterweed is a separate, edible plant resource: water itself is not food.
     if(this.tiles[i]===1&&this.water[i]>0&&this.waterweed[i]>0)
-     this.waterweed[i]=Math.min(100,this.waterweed[i]+(.55+this.soil[i]*.024)*this.growth/70/(1+this.grazingPressure[i]*.4));
+     this.waterweed[i]=Math.min(100,this.waterweed[i]+(.55+this.soil[i]*.024)*this.waterweedGrowth/70*
+       (WATER_LEVEL_GROWTH[(this.terrainLevels?.[i]??3)-1]??1)/(1+this.grazingPressure[i]*.4));
     this.soil[i]*=.997;
    }
    this.grass=next;
@@ -1291,17 +1310,17 @@ export class Ecosystem{
   // Aquatic plants spread locally, but an extinct pond can also recover via
   // rare windborne / waterfowl-carried seeds. No spontaneous growth on dry land.
   // Germination needs actual water; wetter ponds and rain favor seed arrival.
-  if(this.tick%12===0&&this.growth>0){
+  if(this.tick%12===0&&this.waterweedGrowth>0){
    const next=this.waterweed.slice();
    for(let i=0;i<this.tiles.length;i++)if(this.tiles[i]===1&&this.water[i]>=12&&this.waterweed[i]<=.001){
     const x=i%NX,y=Math.floor(i/NX);
     const adjacent=[x>0?i-1:-1,x<NX-1?i+1:-1,y>0?i-NX:-1,y<NY-1?i+NX:-1];
-    if(adjacent.some(j=>j>=0&&this.tiles[j]===1&&this.waterweed[j]>15)&&this.rand()<.08*this.growth/70){
+    if(adjacent.some(j=>j>=0&&this.tiles[j]===1&&this.waterweed[j]>15)&&this.rand()<.08*this.waterweedGrowth/70){
      next[i]=3;
     }else{
      const rain=this.weather==='rain'?1.7:1;
      const depth=clamp(this.water[i]/65,.25,1);
-     if(this.rand()<.006*rain*depth*this.growth/70){
+     if(this.rand()<.006*rain*depth*this.waterweedGrowth/70){
       next[i]=4+this.rand()*3;
       this.waterweedSeedCount++;
      }
@@ -1379,7 +1398,8 @@ export class Ecosystem{
   for(const u of batch){
    if(u.dead)continue;u.age++;u.juvenileFood=0;if(u.bite>0)u.bite--;if(u.woundFlash>0)u.woundFlash--;if(u.attackFlash>0)u.attackFlash--;if(u.defendFlash>0)u.defendFlash--;if(u.mateCooldown>0)u.mateCooldown--;
    if(u.pregnancy){u.pregnancy.remaining--;if(u.pregnancy.remaining<=0)this.layEgg(u);}
-   const g=u.g,t=this.terrain(u.x,u.y),m=organismMorphology(u),diet=dietProfile(g),home=experiencedTerrainFitness(u,t);
+   const g=u.g,t=this.terrain(u.x,u.y),m=organismMorphology(u),diet=dietProfile(g),
+    home=terrainLevelFitness(experiencedTerrainFitness(u,t),t,this.terrainLevels?.[this.cell(u.x,u.y)]??3,g);
    const youth=u.stage==='juvenile'?.50:1,body=vitality(u),sight=m.eyeRange*home.sight;
    const thermal=thermalFitness(g,this.temperatureAt(u.x,u.y));
    u.thermalComfort=thermal.comfort;u.temperature=this.temperatureAt(u.x,u.y);
@@ -1942,7 +1962,7 @@ export class Ecosystem{
   // Painting may run many times during a drag; avoid flooding the event log.
   return treated;
  }
- paint(x,y,type,radius){
+ paint(x,y,type,radius,level=3){
   this._waterRegionTick=null; // terrain paint can join/split a pond within a paused tick
   const cx=Math.floor(x/CELL),cy=Math.floor(y/CELL);
   for(let dy=-radius;dy<=radius;dy++)for(let dx=-radius;dx<=radius;dx++){
@@ -1951,6 +1971,7 @@ export class Ecosystem{
    const i=yy*NX+xx;
    if(type===1&&this.units.some(u=>!u.dead&&u.g.aquatic!==1&&this.cell(u.x,u.y)===i))continue;
    this.tiles[i]=type;
+   this.terrainLevels[i]=Math.max(1,Math.min(5,Math.round(level)));
    this.grass[i]=type===0?100:0;
    this.water[i]=type===1?100:0;
    this.waterweed[i]=type===1?70:0;
