@@ -60,3 +60,16 @@ test('headless CLI flags validate bounds, output path and repeatability settings
  assert.throws(()=>parseArgs(['--steps','10000001']),/10 million/);
  assert.throws(()=>parseArgs(['--unknown','foo']),/Unknown/);
 });
+
+test('high-speed ecology generates readable names for actual discovered species',()=>{
+ const names=[];
+ for(const seed of [72,73,74,75]){
+  const {world}=runHeadless({seed,steps:450,interval:150,founders:3});
+  for(const sp of world.species.values())names.push(sp.name);
+ }
+ assert.ok(names.length>0);
+ assert.ok(names.every(name=>name.length===10));
+ assert.ok(names.every(name=>!name.endsWith('アア')));
+ assert.ok(names.every(name=>!/([ァ-ヶ])\\1$/.test(name)));
+ assert.ok(names.some(name=>/^(クサバ|ミズベ|カレチ|イワバ)/.test(name)));
+});
