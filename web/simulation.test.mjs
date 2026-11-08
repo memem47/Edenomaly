@@ -421,8 +421,8 @@ test('terrestrial slime dies without drinking water',()=>{
 test('aquatic slime dies stranded outside water',()=>{
  const s=new Ecosystem(603);s.tiles.fill(0);
  const g={...s.gene(),aquatic:1},u=s.spawn(250,210,g);s.units=[u];
- u.energy=1e6;for(let i=0;i<115&&!u.dead;i++)s.step();
- assert.equal(u.dead,true);
+ u.energy=1e6;for(let i=0;i<500&&!u.dead;i++)s.step();
+ assert.equal(u.dead,true,'aquatic acclimation must not eliminate water dependence');
 });
 test('larger slimes move slower than smaller slimes',()=>{
  const g=new Ecosystem(604).gene();
@@ -3025,4 +3025,29 @@ test('ecology logs capture newly evolving resource strategies',async()=>{
  assert.ok(sample.meanFrugality>.8);
  for(const name of ['frugalAdults','aquaticGardeners','waterPlantings','meanFrugality','meanWaterGardening'])
   assert.ok(ECOLOGY_LOG_FIELDS.includes(name));
+});
+
+test('acquired land acclimation increases with exposure and decays in water without changing genes',async()=>{
+ const {landAcclimationGain,experiencedTerrainFitness}=await import('./simulation.js');
+ const w=new Ecosystem(2026110826),g={...w.gene(),aquatic:1};
+ const u=w.spawn(210,210,g),original=JSON.stringify(u.g);
+ const before=experiencedTerrainFitness(u,0);
+ for(let i=0;i<250;i++)u.landAcclimation=landAcclimationGain(u,true);
+ assert.ok(u.landAcclimation>.5&&u.landAcclimation<=.72);
+ assert.ok(experiencedTerrainFitness(u,0).move>before.move);
+ const learned=u.landAcclimation;
+ for(let i=0;i<80;i++)u.landAcclimation=landAcclimationGain(u,false);
+ assert.ok(u.landAcclimation<learned);
+ assert.equal(JSON.stringify(u.g),original,'acquired traits are not inherited mutations');
+});
+test('aquatic animals identify a grassy shoreline only if connected to their pond',()=>{
+ const w=new Ecosystem(2026110827);
+ w.tiles.fill(2);w.grass.fill(0);w.water.fill(0);
+ const center=w.cell(210,210),shore=w.cell(230,210),other=w.cell(350,210);
+ w.tiles[center]=1;w.water[center]=100;
+ w.tiles[shore]=0;w.grass[shore]=70;
+ w.tiles[other]=0;w.grass[other]=100;
+ assert.equal(w.nearestEdibleShore(210,210,150)?.x,230);
+ w.grass[shore]=0;
+ assert.equal(w.nearestEdibleShore(210,210,150),null);
 });
