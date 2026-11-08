@@ -14,13 +14,13 @@ export const ECOLOGY_LOG_FIELDS=[
  'reproInfection','reproImmature','reproEnergy','reproCooldown','reproPregnancy',
  'reproWeak','reproNoPartner','reproPaired','meanPreferredTemp','meanTempTolerance',
  'dormantAdults','dormantEggs','forageSuccess','forageFailure','meanHibernate',
-  'frugalAdults','aquaticGardeners','waterPlantings','meanFrugality','meanWaterGardening','landExplorers','meanLandAcclimation','cannibalMeals','learnedCarnivores','meanCarnivoryExperience',
+  'frugalAdults','aquaticGardeners','waterPlantings','meanFrugality','meanWaterGardening','landExplorers','meanLandAcclimation','cannibalMeals','learnedCarnivores','acquiredCarnivores','meanCarnivoryExperience',
  'temperature','season','growthSetting','rainfallSetting','stressSetting'
 ];
 const finite=v=>Number.isFinite(v)?Math.round(v*100)/100:0;
 export function observeEcology(game){
  let grass=0,waterweed=0,water=0,soil=0,juveniles=0,herbivores=0,omnivores=0,
-  carnivores=0,energy=0,hp=0,habitatLoad=0,infected=0,maxGeneration=0,idealTotal=0,toleranceTotal=0,dormantAdults=0,forageSuccess=0,forageFailure=0,hibernateTotal=0,frugalAdults=0,aquaticGardeners=0,frugalityTotal=0,gardeningTotal=0,landExplorers=0,landAcclimationTotal=0,learnedCarnivores=0,carnivoryTotal=0;
+  carnivores=0,energy=0,hp=0,habitatLoad=0,infected=0,maxGeneration=0,idealTotal=0,toleranceTotal=0,dormantAdults=0,forageSuccess=0,forageFailure=0,hibernateTotal=0,frugalAdults=0,aquaticGardeners=0,frugalityTotal=0,gardeningTotal=0,landExplorers=0,landAcclimationTotal=0,learnedCarnivores=0,acquiredCarnivores=0,carnivoryTotal=0;
  for(let i=0;i<game.grass.length;i++){
   grass+=game.grass[i];waterweed+=game.waterweed[i];water+=game.water[i];soil+=game.soil[i];
  }
@@ -29,6 +29,7 @@ export function observeEcology(game){
   if(u.stage==='juvenile')juveniles++;
   carnivoryTotal+=u.carnivoryExperience??0;
   if((u.carnivoryExperience??0)>=.25)learnedCarnivores++;
+  if(u.g.diet<=.7&&u.g.diet+(1-u.g.diet)*(u.carnivoryExperience??0)>.70)acquiredCarnivores++;
   if(u.g.diet<.3)herbivores++;else if(u.g.diet>.7)carnivores++;else omnivores++;
   idealTotal+=u.g.idealTemp??22;toleranceTotal+=u.g.tempTolerance??9;
   hibernateTotal+=u.g.hibernate??0;dormantAdults+=u.dormant?1:0;
@@ -84,7 +85,7 @@ export function observeEcology(game){
   meanFrugality:finite(n?frugalityTotal/n:0),
   meanWaterGardening:finite(n?gardeningTotal/n:0),landExplorers,
   meanLandAcclimation:finite(n?landAcclimationTotal/n:0),
-  cannibalMeals:game.cannibalMeals??0,learnedCarnivores,
+  cannibalMeals:game.cannibalMeals??0,learnedCarnivores,acquiredCarnivores,
   meanCarnivoryExperience:finite(n?carnivoryTotal/n:0),
   temperature:finite(game.temperature),
   season:game.climateEnabled?game.seasonName():'off',
