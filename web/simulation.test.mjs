@@ -3242,3 +3242,32 @@ test('founders start with one compatible pair rather than two unrelated genotype
   assert.equal(a.g.repro,b.g.repro);
  }
 });
+
+test('giantism log separates hereditary mass from acquired adult growth and samples broad IDs',async()=>{
+ const {observeEcology,EcologyLogbook,ECOLOGY_LOG_FIELDS,INDIVIDUAL_DIAG_FIELDS}=await import('./ecology-log.js');
+ const w=new Ecosystem(2026110870);w.introduce(170,130,1);
+ const adults=w.units.filter(u=>u.stage==='adult');
+ assert.ok(adults.length>=2);
+ adults[0].growthScale=2.5;adults[0].energy=230;adults[0].recentFood=100;
+ adults[1].growthScale=1;
+ const before=observeEcology(w);
+ assert.equal(before.geneticMassMean>0,true);
+ assert.ok(before.adultGrowthMean>1);
+ assert.ok(before.adultActualMassMean>before.adultGeneticMassMean);
+ assert.ok(before.adultGrowthP90>=before.adultGrowthP50);
+ assert.equal(before.adultGrowthOver235,1);
+ assert.equal(before.geneticSmallCount+before.geneticMediumCount+before.geneticLargeCount+before.geneticGiantCount,w.units.length);
+ assert.equal(before.acquiredSmallCount+before.acquiredMediumCount+before.acquiredLargeCount+before.acquiredGiantCount,adults.length);
+ const storage={getItem:()=>null,setItem:()=>{}};
+ const log=new EcologyLogbook(storage,'giantism-log-test');log.start(2026110870);
+ log.record(before,true);log.recordIndividuals(w,true);
+ const csv=log.toCSV(),individuals=log.toIndividualCSV();
+ for(const name of ['geneticMassMean','adultGrowthP90','adultActualMassMean','adultFrugalityMean','adultGrowingCount'])
+  assert.ok(ECOLOGY_LOG_FIELDS.includes(name)&&csv.includes(name),name);
+ for(const name of ['geneticMass','growthScale','actualMass','growthLimit','recentFood'])
+  assert.ok(INDIVIDUAL_DIAG_FIELDS.includes(name)&&individuals.includes(name),name);
+ assert.equal(log.data.runs[0].individuals[0].geneticMass>0,true);
+ const empty=new Ecosystem(2026110871),emptyRow=observeEcology(empty);
+ assert.equal(emptyRow.adultGrowthMean,0);
+ assert.equal(emptyRow.geneticMassP90,0);
+});
