@@ -214,7 +214,7 @@ export const crowdMetrics=(u,neighbors)=>{
   }
   occupied+=otherArea*(1-d/65);
  }
- return {density,habitatLoad:Math.max(0,occupied/450-.30)};
+ return {density,habitatLoad:Math.max(0,occupied/112.5-.30)};
 };
 // Smoothly increasing overcrowding penalties, without a fixed ceiling.
 export const crowdStress=density=>9*Math.asinh(Math.max(0,density-2.5)/9);
@@ -235,7 +235,7 @@ export const habitatCrowding=(u,neighbors)=>{
   const b=bodyCollisionAxes(v);
   occupied+=b.rx*b.ry*(1-d/radius);
  }
- return Math.max(0,(occupied/450-.30));
+ return Math.max(0,(occupied/112.5-.30));
 };
 
 
