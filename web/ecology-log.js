@@ -1,8 +1,10 @@
 // Persistent, version-scoped ecology time-series log.
+import {morphology,organismMorphology,adultGrowthCeiling} from './simulation.js';
 // Only observations are saved; the full running ecosystem is not saved.
 export const ECOLOGY_LOG_KEY='edenomaly:ecology-observations';
 export const ECOLOGY_LOG_INTERVAL=50;
-export const INDIVIDUAL_DIAG_FIELDS=['run','version','step','id','sex','energy','required','reason','mateId','mateDistance','target','approachSteps','approachFailures','courtPartner','hpPercent'];
+export const INDIVIDUAL_DIAG_FIELDS=['run','version','step','id','sex','energy','required','reason','mateId','mateDistance','target','approachSteps','approachFailures','courtPartner','hpPercent',
+ 'generation','age','stage','species','geneticRadius','geneticMass','growthScale','actualMass','growthLimit','frugality','recentFood','habitatLoad'];
 export const ECOLOGY_LOG_FIELDS=[
  'run','version','step','population','adults','juveniles','eggs',
  'livingSpecies','discoveredSpecies','maxGeneration','herbivores','omnivores','carnivores',
@@ -15,17 +17,49 @@ export const ECOLOGY_LOG_FIELDS=[
  'reproWeak','reproNoPartner','reproPaired','meanPreferredTemp','meanTempTolerance',
  'dormantAdults','dormantEggs','forageSuccess','forageFailure','meanHibernate',
   'frugalAdults','aquaticGardeners','waterPlantings','meanFrugality','meanWaterGardening','landExplorers','meanLandAcclimation','cannibalMeals','learnedCarnivores','acquiredCarnivores','meanCarnivoryExperience',
+ 'geneticMassMean','geneticMassP50','geneticMassP90','geneticMassGiantCount',
+ 'adultGeneticMassMean','adultGrowthMean','adultGrowthP50','adultGrowthP90',
+ 'adultGrowthOver150','adultGrowthOver235','adultGrowthOver300',
+ 'adultActualMassMean','adultActualMassP90','adultFrugalityMean',
+ 'adultGrowingCount','adultHighEnergyCount',
+ 'geneticSmallCount','geneticMediumCount','geneticLargeCount','geneticGiantCount',
+ 'acquiredSmallCount','acquiredMediumCount','acquiredLargeCount','acquiredGiantCount',
  'temperature','season','growthSetting','rainfallSetting','stressSetting'
 ];
 const finite=v=>Number.isFinite(v)?Math.round(v*100)/100:0;
+const percentile=(arr,p)=>{
+ if(!arr.length)return 0;
+ const values=[...arr].sort((a,b)=>a-b);
+ const index=(values.length-1)*p,lo=Math.floor(index),hi=Math.ceil(index);
+ return finite(values[lo]+(values[hi]-values[lo])*(index-lo));
+};
+const massBin=mass=>mass<45?0:mass<105?1:mass<195?2:3;
 export function observeEcology(game){
  let grass=0,waterweed=0,water=0,soil=0,juveniles=0,herbivores=0,omnivores=0,
   carnivores=0,energy=0,hp=0,habitatLoad=0,infected=0,maxGeneration=0,idealTotal=0,toleranceTotal=0,dormantAdults=0,forageSuccess=0,forageFailure=0,hibernateTotal=0,frugalAdults=0,aquaticGardeners=0,frugalityTotal=0,gardeningTotal=0,landExplorers=0,landAcclimationTotal=0,learnedCarnivores=0,acquiredCarnivores=0,carnivoryTotal=0;
+ const geneticMasses=[],adultGeneticMasses=[],adultGrowths=[],adultActualMasses=[];
+ const geneticCounts=[0,0,0,0],actualCounts=[0,0,0,0];
+ let adultFrugality=0,adultGrowingCount=0,adultHighEnergyCount=0,adultGrowthOver150=0,adultGrowthOver235=0,adultGrowthOver300=0;
  for(let i=0;i<game.grass.length;i++){
   grass+=game.grass[i];waterweed+=game.waterweed[i];water+=game.water[i];soil+=game.soil[i];
  }
  for(const u of game.units){
   if(u.dead)continue;
+  const geneticMass=morphology(u.g).bodyMass;
+  geneticMasses.push(geneticMass);geneticCounts[massBin(geneticMass)]++;
+  if(u.stage==='adult'){
+   const scale=u.growthScale??1;
+   adultGeneticMasses.push(geneticMass);
+   adultGrowths.push(scale);
+   const actualMass=organismMorphology(u).bodyMass;
+   adultActualMasses.push(actualMass);actualCounts[massBin(actualMass)]++;
+   adultFrugality+=u.g.frugality??0;
+   if(scale>1.5)adultGrowthOver150++;
+   if(scale>2.35)adultGrowthOver235++;
+   if(scale>3)adultGrowthOver300++;
+   if(u.energy>158&&u.recentFood>16&&(u.habitatLoad??0)<.45&&scale<adultGrowthCeiling(u.g))adultGrowingCount++;
+   if(u.energy>205)adultHighEnergyCount++;
+  }
   if(u.stage==='juvenile')juveniles++;
   carnivoryTotal+=u.carnivoryExperience??0;
   if((u.carnivoryExperience??0)>=.25)learnedCarnivores++;
@@ -87,6 +121,23 @@ export function observeEcology(game){
   meanLandAcclimation:finite(n?landAcclimationTotal/n:0),
   cannibalMeals:game.cannibalMeals??0,learnedCarnivores,acquiredCarnivores,
   meanCarnivoryExperience:finite(n?carnivoryTotal/n:0),
+  geneticMassMean:finite(n?geneticMasses.reduce((a,b)=>a+b,0)/n:0),
+  geneticMassP50:percentile(geneticMasses,.5),
+  geneticMassP90:percentile(geneticMasses,.9),
+  geneticMassGiantCount:geneticCounts[3],
+  adultGeneticMassMean:finite(adultGeneticMasses.length?adultGeneticMasses.reduce((a,b)=>a+b,0)/adultGeneticMasses.length:0),
+  adultGrowthMean:finite(adultGrowths.length?adultGrowths.reduce((a,b)=>a+b,0)/adultGrowths.length:0),
+  adultGrowthP50:percentile(adultGrowths,.5),
+  adultGrowthP90:percentile(adultGrowths,.9),
+  adultGrowthOver150,adultGrowthOver235,adultGrowthOver300,
+  adultActualMassMean:finite(adultActualMasses.length?adultActualMasses.reduce((a,b)=>a+b,0)/adultActualMasses.length:0),
+  adultActualMassP90:percentile(adultActualMasses,.9),
+  adultFrugalityMean:finite(adultGrowths.length?adultFrugality/adultGrowths.length:0),
+  adultGrowingCount,adultHighEnergyCount,
+  geneticSmallCount:geneticCounts[0],geneticMediumCount:geneticCounts[1],
+  geneticLargeCount:geneticCounts[2],geneticGiantCount:geneticCounts[3],
+  acquiredSmallCount:actualCounts[0],acquiredMediumCount:actualCounts[1],
+  acquiredLargeCount:actualCounts[2],acquiredGiantCount:actualCounts[3],
   temperature:finite(game.temperature),
   season:game.climateEnabled?game.seasonName():'off',
   growthSetting:game.growth,rainfallSetting:game.rainfall,stressSetting:game.stress
@@ -132,9 +183,15 @@ export class EcologyLogbook{
   run.individuals??=[];
   // Limit browser storage use in dense populations, retaining recent records.
   const population=world.units.filter(u=>!u.dead);
-  const sample=population.length<=48?population:population.slice(0,48);
+  // Spread deterministic samples across the population rather than over-representing old IDs.
+  const sample=population.length<=48?population:Array.from({length:48},(_,i)=>population[Math.floor((i+.5)*population.length/48)]);
   for(const u of sample)run.individuals.push({
-   run:run.id,version:this.version,...world.reproductionDiagnostic(u)
+   run:run.id,version:this.version,...world.reproductionDiagnostic(u),
+   generation:u.generation,age:u.age,stage:u.stage,species:u.category,
+   geneticRadius:finite(u.g.r),geneticMass:finite(morphology(u.g).bodyMass),
+   growthScale:finite(u.growthScale??1),actualMass:finite(organismMorphology(u).bodyMass),
+   growthLimit:finite(adultGrowthCeiling(u.g)),frugality:finite(u.g.frugality??0),
+   recentFood:finite(u.recentFood??0),habitatLoad:finite(u.habitatLoad??0)
   });
   if(run.individuals.length>6000)run.individuals.splice(0,run.individuals.length-6000);
   this.save();return true;
