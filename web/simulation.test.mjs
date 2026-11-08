@@ -1993,7 +1993,7 @@ test('genome code is stable, quantized, and changes when a trait crosses a bin',
  const w=new Ecosystem(9114),g=w.gene();
  const code=genomeCode(g);
  assert.equal(code,genomeCode({...g}));
- assert.ok(/^[0-9A-F]{4}(-[0-9A-F]{4}){5}-[0-9A-F]{3}$/.test(code));
+ assert.ok(/^[0-9A-F]{4}(-[0-9A-F]{4}){6}-[0-9A-F]$/.test(code));
  const variant={...g,longevity:2};
  assert.notEqual(genomeCode(variant),code);
  assert.equal(genomeCode({...g,wet:.401}),genomeCode({...g,wet:.402}));
@@ -2943,4 +2943,59 @@ test('starving oversized adult sheds maintenance-heavy bulk without free energy'
  assert.ok(u.growthScale<2.49,'catabolism must respond before large animals starve');
  assert.equal(u.energy,0,'shrinking must not generate calories');
  assert.ok(u.hp<2000,'shrinking must not heal damage');
+});
+
+test('new ecological genes inherit, recombine, mutate and bound correctly',async()=>{
+ const {metabolicFrugality,adultGrowthCeiling,frugalityMaintenanceFactor}=await import('./simulation.js');
+ const w=new Ecosystem(2026110820),mother=w.gene(),father=w.gene();
+ for(const key of ['frugality','waterGardening']){
+  assert.ok(mother[key]>=0&&mother[key]<=1);
+  assert.equal(mother.alleles[key].length,2);
+ }
+ for(let i=0;i<80;i++){
+  const child=w.recombine(mother,father),mut=w.mutate(child);
+  for(const key of ['frugality','waterGardening']){
+   assert.ok(mut[key]>=0&&mut[key]<=1);
+   assert.equal(mut.alleles[key].length,2);
+  }
+ }
+ assert.equal(metabolicFrugality({frugality:1}),1);
+ assert.ok(frugalityMaintenanceFactor({frugality:1})<frugalityMaintenanceFactor({frugality:0}));
+ assert.ok(adultGrowthCeiling({frugality:1})<adultGrowthCeiling({frugality:0}));
+});
+test('high-efficiency phenotype is more vulnerable to attack',()=>{
+ const w=new Ecosystem(2026110821),g=w.gene();
+ const preyA=w.spawn(100,100,{...g,frugality:0}),preyB=w.spawn(120,100,{...g,frugality:1});
+ const predator=w.spawn(110,110,{...g,diet:1});
+ for(const u of [preyA,preyB,predator]){u.hp=u.maxHp=1000;u.age=100;u.energy=160;}
+ assert.equal(w.attack(predator,preyA),true);
+ predator.bite=0;
+ assert.equal(w.attack(predator,preyB),true);
+ assert.ok(preyB.hp<preyA.hp,'high-efficiency prey suffers more damage');
+});
+test('gardeners plant only reachable water beds using acquired propagules and energy',()=>{
+ const w=new Ecosystem(2026110822);
+ w.tiles.fill(2);w.grass.fill(0);w.water.fill(0);w.waterweed.fill(0);
+ const home=w.cell(210,210),target=w.cell(230,210),other=w.cell(350,210);
+ for(const id of [home,target,other]){w.tiles[id]=1;w.water[id]=90;}
+ const g={...w.gene(),aquatic:1,diet:0,waterGardening:1};
+ const gardener=w.spawn(210,210,g);
+ gardener.waterSeedBank=2;gardener.energy=140;w.tick=50;
+ const before=w.waterweed[target]+w.waterweed[home];
+ assert.equal(w.plantWaterweed(gardener),true);
+ assert.ok(w.waterweed[target]+w.waterweed[home]>before);
+ assert.equal(w.waterweed[other],0);
+ assert.ok(gardener.energy<140&&gardener.waterSeedBank<2);
+ assert.equal(w.plantWaterweed(gardener),false,'planting has a cooldown');
+ gardener.waterSeedBank=0;w.tick=100;
+ assert.equal(w.plantWaterweed(gardener),false,'planting cannot create free propagules');
+});
+test('planting remains unavailable to terrestrial organisms and low-garden genotypes',()=>{
+ const w=new Ecosystem(2026110823);
+ w.tiles.fill(1);w.water.fill(90);w.waterweed.fill(0);
+ const a=w.spawn(180,180,{...w.gene(),aquatic:0,waterGardening:1});
+ const b=w.spawn(200,180,{...w.gene(),aquatic:1,waterGardening:0});
+ for(const u of [a,b]){u.waterSeedBank=5;u.energy=180;}
+ assert.equal(w.plantWaterweed(a),false);
+ assert.equal(w.plantWaterweed(b),false);
 });
