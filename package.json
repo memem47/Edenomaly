@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test web/*.test.mjs",
-    "headless": "node web/headless-cli.mjs"
+    "headless": "node web/headless-cli.mjs",
+    "name-audit": "node web/name-audit.mjs"
   }
 }
