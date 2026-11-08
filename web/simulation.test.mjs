@@ -3135,3 +3135,29 @@ test('acquired carnivores are counted separately from genotypic carnivores',asyn
  assert.equal(observed.acquiredCarnivores,1);
  assert.equal(observed.carnivores,0);
 });
+
+test('compact slimes move more slowly than their pre-shrink size would imply',()=>{
+ const w=new Ecosystem(2026110849);
+ const small={...w.gene(),r:4,elongation:1,eyes:2};
+ const baseline=3.45/(.65+small.r*small.r*.017);
+ const current=morphology(small).speed;
+ assert.ok(current<baseline*.82,'halved body radius should have reduced travel speed');
+ const extreme={...small,r:15};
+ assert.ok(morphology(extreme).speed>0,'rare giant remains mobile');
+ assert.ok(current>morphology(extreme).speed,'large bodies still move more slowly');
+});
+test('eggs are smaller than newly hatched bodies with proportional shell and detail',async()=>{
+ const {eggVisualAxes}=await import('./renderer.js');
+ const w=new Ecosystem(2026110850);
+ for(const r of [3,4.1,7,12,15]){
+  for(const shell of [0,.5,1]){
+   const g={...w.gene(),r,shell,elongation:1};
+   const egg=eggVisualAxes(g);
+   const juvenile=w.spawn(160,180,g,{id:50,generation:0,lineage:'test'});
+   const childRadius=bodyCollisionAxes(juvenile).ry;
+   assert.ok(egg.rx>0&&egg.ry>0);
+   assert.ok(egg.rx<childRadius,'egg must not dwarf a hatchling');
+   assert.ok(egg.ry<childRadius*1.12,'egg is only slightly taller than the hatchling');
+  }
+ }
+});
