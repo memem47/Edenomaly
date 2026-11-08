@@ -71,7 +71,7 @@ export const terrestrialHydrationDelta=(g,terrain,weather)=>{
  const adapted=terrain===2?clamp(g.dry??0,0,1):
   terrain===3?clamp(g.rock??0,0,1):0;
  const loss=.24*(1-.66*adapted);
- const collected=weather==='rain'?(terrain===2||terrain===3?.24+.13*adapted:.08):0;
+ const collected=weather==='rain'?((terrain===2||terrain===3)?(.24+.13*adapted):.08):0;
  return collected-loss;
 };
 export const experiencedTerrainFitness=(u,t)=>{
