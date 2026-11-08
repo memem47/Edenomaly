@@ -845,6 +845,33 @@ export class Ecosystem{
   }
   return true;
  }
+ // Aquatic gardeners carry viable propagules to depleted reachable beds.
+ // The propagules originate from eaten waterweed, and planting costs energy.
+ plantWaterweed(u){
+  if(u.g.aquatic!==1||this.terrain(u.x,u.y)!==1||
+     (u.g.waterGardening??0)<.4||(u.waterSeedBank??0)<1||
+     u.energy<52||this.tick-(u.lastWaterPlant??-100)<45)return false;
+  const home=this.cell(u.x,u.y),regions=this.waterRegions(),region=regions[home];
+  if(!region)return false;
+  const cx=home%NX,cy=Math.floor(home/NX);
+  let best=-1,biomass=Infinity;
+  for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){
+   const x=cx+dx,y=cy+dy;
+   if(x<0||y<0||x>=NX||y>=NY||dx*dx+dy*dy>4)continue;
+   const i=y*NX+x;
+   if(this.tiles[i]!==1||this.water[i]<POND_RESERVE||
+      regions[i]!==region||this.waterweed[i]>8)continue;
+   if(this.waterweed[i]<biomass){best=i;biomass=this.waterweed[i];}
+  }
+  if(best<0)return false;
+  const seed=Math.min(1.5,u.waterSeedBank);
+  u.waterSeedBank-=seed;u.energy-=3.5;
+  this.waterweed[best]=Math.min(100,this.waterweed[best]+seed*2.5);
+  u.lastWaterPlant=this.tick;
+  this.waterPlantings=(this.waterPlantings??0)+1;
+  this.log('waterPlant','#'+u.id+' が水草の繁殖体を運び定着させた',u);
+  return true;
+ }
  consumeWaterweed(x,y,amount){
   const i=this.cell(x,y);
   if(this.tiles[i]!==1||this.water[i]<=0)return 0;
@@ -979,7 +1006,7 @@ export class Ecosystem{
   this.soilWater=new Float32Array(this.tiles.length);
    this.grazingPressure=new Float32Array(this.tiles.length);
   this.waterweed=new Float32Array(this.tiles.length);
-  this.seedRainCount=0;this.waterweedSeedCount=0;this.corpseSproutCount=0;
+  this.seedRainCount=0;this.waterweedSeedCount=0;this.corpseSproutCount=0;this.waterPlantings=0;
   for(let i=0;i<this.tiles.length;i++){
    if(this.tiles[i]===0)this.grass[i]=65+this.rand()*35;
    if(this.tiles[i]===1){this.water[i]=80+this.rand()*20;this.waterbed[i]=1;this.waterweed[i]=48+this.rand()*30;}
@@ -1543,8 +1570,17 @@ export class Ecosystem{
    // universal upgrade: sacrificing defense and reproduction speed.
    if(metabolicFrugality(g)>.5)u.energy-=.035*metabolicFrugality(g);
    if(!flight&&aquatic&&underwater&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+14)**2){
-    const eaten=this.consumeWaterweed(nearest.x,nearest.y,Math.min(5.5,1.3*m.foodGain*feedingCapacity(u)));
-    if(eaten>0){u.energy+=eaten*7.5*diet.plant*home.fitness;
+    const gardening=clamp(g.waterGardening??0,0,1);
+    const patch=this.cell(nearest.x,nearest.y);
+    const maximum=Math.min(5.5,1.3*m.foodGain*feedingCapacity(u));
+    // A well-fed gardener leaves a viable source plant. Hungry individuals
+    // may graze through the reserve rather than starving for conservation.
+    const reserve=gardening>.45&&u.energy>78?
+     Math.max(0,Math.min(maximum,this.waterweed[patch]-4*gardening)):maximum;
+    const eaten=this.consumeWaterweed(nearest.x,nearest.y,reserve);
+    if(eaten>0){
+     if(gardening>.4)u.waterSeedBank=Math.min(8,(u.waterSeedBank??0)+eaten*.12*gardening);
+     u.energy+=eaten*7.5*diet.plant*home.fitness;
      u.recentFood=(u.recentFood??0)+eaten*4;
      u.forageSuccess++;
      if(u.stage==='juvenile')u.juvenileFood+=eaten*7.5*diet.plant*home.fitness;
@@ -1552,6 +1588,7 @@ export class Ecosystem{
      if((this.tick+u.id)%9===0)this.addVisualEffect('waterweed',u,{fromX:nearest.x,fromY:nearest.y});
      this.log('meal','#'+u.id+' が水草を食べた',u);}
    }
+   if(aquatic&&underwater&&!flight)this.plantWaterweed(u);
    if(!flight&&!aquatic&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+13)**2){
     const eaten=this.consumeGrass(nearest.x,nearest.y,Math.min(4.8,1.05*m.foodGain*feedingCapacity(u)));
     if(eaten>0){u.energy+=eaten*10.5*diet.plant*home.fitness;
