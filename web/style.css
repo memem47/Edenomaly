@@ -135,8 +135,8 @@ button:disabled,input:disabled{opacity:.40;cursor:not-allowed}
  .world-panel>.heading span{font-size:11px}
  #world{
   /* Canvas always fits vertically without cropping its 800x460 world. */
-  width:min(100%,calc((100dvh - 342px) * 1.73913));
-  max-height:calc(100dvh - 342px);
+  width:min(100%,calc((100dvh - 380px) * 1.73913));
+  max-height:calc(100dvh - 380px);
   height:auto;aspect-ratio:800 / 460;
   margin:6px auto;flex:0 1 auto;
  }
