@@ -1,0 +1,28 @@
+name: Game location balance experiment
+on:
+  push:
+    paths:
+      - web/location-experiment.mjs
+      - .github/workflows/location-balance.yml
+  workflow_dispatch:
+jobs:
+  compare-locations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Compare six locations over three seeds without interventions
+        run: node web/location-experiment.mjs 1200 72 3 results/locations-none none
+      - name: Compare the same locations with game-mode resource interventions
+        run: node web/location-experiment.mjs 1200 72 3 results/locations-resource resource
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: game-location-balance
+          path: |
+            results/locations-none/
+            results/locations-resource/
+          retention-days: 14
