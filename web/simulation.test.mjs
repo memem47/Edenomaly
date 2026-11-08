@@ -739,7 +739,7 @@ test('grazing animals carry seeds which germinate when their corpse decomposes',
  w.tiles[id]=0;w.grass[id]=30;
  const u=w.spawn(x,y,g);u.seedBank=12;
  w.die(u,'test');w.units=[];w.tiles[id]=2;w.grass[id]=0;
- w.growth=0;w.rand=()=>0;
+ w.growth=0;w.waterweedGrowth=0;w.rand=()=>0;
  for(let i=0;i<12;i++)w.step();
  assert.equal(w.tiles[id],0);
  assert.ok(w.grass[id]>0);assert.equal(w.corpseSproutCount,1);
@@ -1173,7 +1173,7 @@ test('rain and greater water depth improve external aquatic seed germination cha
  const sample=(weather,depth)=>{
   const w=new Ecosystem(2704);w.tiles.fill(2);w.water.fill(0);w.waterweed.fill(0);
   const i=w.cell(220,160);w.tiles[i]=1;w.water[i]=depth;
-  w.growth=70;w.weather=weather;w.weatherUntil=1e6;w.rand=()=>.007;
+  w.growth=70;w.waterweedGrowth=70;w.weather=weather;w.weatherUntil=1e6;w.rand=()=>.007;
   for(let n=0;n<12;n++)w.step();
   return w.waterweed[i];
  };
