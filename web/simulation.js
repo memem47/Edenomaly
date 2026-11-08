@@ -988,13 +988,13 @@ export class Ecosystem{
  }
  consumeGrass(x,y,amount){
   const i=this.cell(x,y);
-  if(this.tiles[i]!==0)return 0;
+  if(this.tiles[i]!==0&&this.tiles[i]!==2&&this.tiles[i]!==3)return 0;
   const taken=Math.min(this.grass[i],amount);
   this.grass[i]-=taken;
   if(taken>0)this.grazingPressure[i]+=taken/6;
    if(taken>0)this.soil[i]=Math.max(0,this.soil[i]-taken*.12);
   // An exhausted pasture becomes bare ground until grass spreads in again.
-  if(this.grass[i]<=.001){this.grass[i]=0;this.tiles[i]=2;}
+  if(this.grass[i]<=.001){this.grass[i]=0;if(this.tiles[i]===0)this.tiles[i]=2;}
   return taken;
  }
  consumeWater(x,y,amount){
@@ -1059,8 +1059,8 @@ export class Ecosystem{
   const cx=Math.floor(x/CELL),cy=Math.floor(y/CELL),reach=Math.ceil(radius/CELL)+1;
   for(let yy=Math.max(0,cy-reach);yy<=Math.min(NY-1,cy+reach);yy++)
    for(let xx=Math.max(0,cx-reach);xx<=Math.min(NX-1,cx+reach);xx++){
-    const id=yy*NX+xx;if(this.tiles[id]!==0||this.grass[id]<=.2)continue;
-    if(!terrainFitness(g,0).passable)continue;
+    const id=yy*NX+xx;if((this.tiles[id]!==0&&this.tiles[id]!==2&&this.tiles[id]!==3)||this.grass[id]<=.2)continue;
+    if(!terrainFitness(g,this.tiles[id]).passable)continue;
     const a=clamp(x,xx*CELL+2,(xx+1)*CELL-2);
     const b=clamp(y,yy*CELL+2,(yy+1)*CELL-2);
     const d=(a-x)**2+(b-y)**2;
@@ -1089,6 +1089,8 @@ export class Ecosystem{
   this.seedRainCount=0;this.waterweedSeedCount=0;this.corpseSproutCount=0;this.waterPlantings=0;this.cannibalMeals=0;
   for(let i=0;i<this.tiles.length;i++){
    if(this.tiles[i]===0)this.grass[i]=65+this.rand()*35;
+   if(this.tiles[i]===2)this.grass[i]=2+this.rand()*5;
+   if(this.tiles[i]===3)this.grass[i]=1+this.rand()*3;
    if(this.tiles[i]===1){this.water[i]=80+this.rand()*20;this.waterbed[i]=1;this.waterweed[i]=48+this.rand()*30;}
   }
   this.log('info','生命は未移入。種類数を選んでフィールドへ生命を移入してください');this.snapshot();
@@ -1212,6 +1214,14 @@ export class Ecosystem{
        this.soil[i]=Math.max(0,this.soil[i]-.075*Math.min(10,localGrazing));
        if(next[i]<.2){next[i]=0;this.tiles[i]=2;}
       }
+    }
+    // Lichen grows slowly on bare dry/rock terrain. It is not free food:
+    // grazed-off patches remain empty until spores reach them.
+    if((this.tiles[i]===2||this.tiles[i]===3)&&this.grass[i]>0){
+     const wetness=clamp((this.soilWater[i]??0)/70,0,1);
+     next[i]=Math.min(this.tiles[i]===2?12:7,
+      this.grass[i]+(this.tiles[i]===2?.17:.09)*(.25+wetness)*
+      this.growth/70/(1+this.grazingPressure[i]));
     }
     if(this.grass[i]<=0&&this.tiles[i]!==1&&this.tiles[i]!==3){
      const x=i%NX,y=Math.floor(i/NX);
@@ -1699,12 +1709,17 @@ export class Ecosystem{
    }
    if(aquatic&&underwater&&!flight)this.plantWaterweed(u);
    if(!flight&&(!aquatic||onLand)&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+13)**2){
-    const eaten=this.consumeGrass(nearest.x,nearest.y,Math.min(4.8,1.05*m.foodGain*feedingCapacity(u)));
-    if(eaten>0){u.energy+=eaten*10.5*effectivePlantAffinity(u)*home.fitness;
+    const forageTerrain=this.terrain(nearest.x,nearest.y);
+    const forageLimit=forageTerrain===0?4.8:forageTerrain===2?1.3:.9;
+    const eaten=this.consumeGrass(nearest.x,nearest.y,
+     Math.min(forageLimit,1.05*m.foodGain*feedingCapacity(u)));
+    if(eaten>0){
+     const foodYield=forageTerrain===0?10.5:forageTerrain===2?8:7;
+     u.energy+=eaten*foodYield*effectivePlantAffinity(u)*home.fitness;
      u.recentFood=(u.recentFood??0)+eaten*4;
      u.forageSuccess++;
      u.seedBank=Math.min(100,(u.seedBank??0)+eaten*.35);
-     if(u.stage==='juvenile')u.juvenileFood+=eaten*10.5*effectivePlantAffinity(u)*home.fitness;
+     if(u.stage==='juvenile')u.juvenileFood+=eaten*foodYield*effectivePlantAffinity(u)*home.fitness;
      // Grass restores energy reserves, not irreversible life HP.
      if((this.tick+u.id)%9===0)this.addVisualEffect('graze',u,{fromX:nearest.x,fromY:nearest.y});
      this.log('meal','#'+u.id+' が草を食べた',u);}
@@ -1908,7 +1923,12 @@ export class Ecosystem{
   const adapted={...g};
   adapted.aquatic=t===1?1:0;
   // On plant-free arid and rocky terrain, carnivorous/scavenging founders are favored.
-  if(t===2||t===3){adapted.diet=Math.max(.82,adapted.diet);adapted.jaw=Math.max(1.2,adapted.jaw);}
+  if(t===2||t===3){
+   // Sparse local lichen allows omnivory; obligate predation without prey
+   // made early gameplay an uncontrollable death lottery.
+   adapted.diet=clamp(adapted.diet,.32,.65);
+   adapted.jaw=Math.max(.9,adapted.jaw);
+  }
   if(t===1)adapted.wet=Math.max(.83,adapted.wet);
   if(t===2)adapted.dry=Math.max(.86,adapted.dry);
   if(t===3)adapted.rock=Math.max(.86,adapted.rock);
@@ -1967,6 +1987,8 @@ export class Ecosystem{
     const u=this.spawn(sx,sy,variant);
     if(!u)break;
     u.lineage=foundingLineage;
+    // Prevent an unwinnable founder cohort with no compatible sexes.
+    if(reproductiveMode(variant)===0)u.sex=i%2===0?'F':'M';
     u.age=Math.floor(this.range(40,57));
     u.energy=this.range(115,145);
     u.hydration=this.range(85,100);
