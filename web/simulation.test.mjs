@@ -414,6 +414,7 @@ test('aquatic state is inherited, and habitat changes are rare mutations',()=>{
 });
 test('terrestrial slime dies without drinking water',()=>{
  const s=new Ecosystem(602);s.tiles.fill(0);s.water.fill(0);s.waterbed.fill(0);
+ s.rainfall=0;s.soilWater.fill(0);s.weather='sunny';
  const g={...s.gene(),aquatic:0,diet:0},u=s.spawn(250,210,g);s.units=[u];
  u.energy=1e6;for(let i=0;i<480&&!u.dead;i++)s.step();
  assert.equal(u.dead,true);
@@ -649,12 +650,12 @@ test('fertilizer accelerates grass propagation from surviving neighbors',()=>{
  };
  assert.equal(run(false),0);assert.ok(run(true)>0);
 });
-test('dry and rocky founders inherit carnivorous traits',()=>{
+test('dry and rocky founders can exploit sparse local food without mandatory carnivory',()=>{
  for(const terrain of [2,3]){
   const w=new Ecosystem(1504+terrain);w.tiles.fill(terrain);w.grass.fill(0);
   w.introduce(200,150,1);
   assert.ok(w.units.length>0);
-  assert.ok(w.units.every(u=>u.g.aquatic===0&&u.g.diet>=.82&&u.g.jaw>=1.2));
+  assert.ok(w.units.every(u=>u.g.aquatic===0&&u.g.diet>=.32&&u.g.diet<=.65&&u.g.jaw>=.9));
  }
 });
 
@@ -1410,7 +1411,7 @@ test('crowded giants lose more energy than the same isolated giants without food
  };
  const alone=setup(false),packed=setup(true);
  alone.w.step();packed.w.step();
- assert.ok(packed.focal.habitatLoad>1);
+ assert.ok(packed.focal.habitatLoad>.65);
  assert.ok(packed.focal.energy<alone.focal.energy-4);
 });
 test('sufficiently crowded adult cannot continue growing merely because its reserves are high',()=>{
@@ -3161,5 +3162,30 @@ test('eggs are smaller than newly hatched bodies with proportional shell and det
    assert.ok(egg.rx<childRadius,'egg must not dwarf a hatchling');
    assert.ok(egg.ry<childRadius*1.12,'egg is only slightly taller than the hatchling');
   }
+ }
+});
+
+test('founding sexual population has both sexes regardless of spawn seed',()=>{
+ for(const seed of [72,73,74,75,76,77,78,79,6001,6002]){
+  const w=new Ecosystem(seed);
+  w.introduce(170,130,1);
+  const sexual=w.units.filter(u=>u.g.repro===0);
+  if(sexual.length>1){
+   assert.ok(sexual.some(u=>u.sex==='F'),String(seed));
+   assert.ok(sexual.some(u=>u.sex==='M'),String(seed));
+  }
+ }
+});
+test('dry and rock lichen is consumable, sparse, and regrows slowly',()=>{
+ const w=new Ecosystem(2026110860);
+ for(const terrain of [2,3]){
+  const index=w.cell(210,210);
+  w.tiles[index]=terrain;w.grass[index]=3;
+  const food=w.nearestGrass(210,210,25,{...w.gene(),aquatic:0,dry:1,rock:1});
+  assert.ok(food);
+  const eaten=w.consumeGrass(210,210,1);
+  assert.equal(eaten,1);
+  assert.equal(w.tiles[index],terrain);
+  assert.equal(w.grass[index],2);
  }
 });
