@@ -232,7 +232,7 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
    shine.addColorStop(.36,base);shine.addColorStop(1,outline);
   }
   ctx.fillStyle=dead?'#9e9788':shine;ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.fill();
-  ctx.strokeStyle=dead?'#655f56':outline;ctx.lineWidth=dead?1.5:1.6;ctx.stroke();
+  ctx.strokeStyle=dead?'#655f56':outline;ctx.lineWidth=dead?Math.max(.55,Math.min(1.5,ry*.2)):Math.max(.55,Math.min(1.6,ry*.17));ctx.stroke();
   // Above 250 organisms, radial gradients are too expensive to create for
   // every tiny slime. A cheap clipped sheen keeps the body glossy instead.
   if(!dead&&simpleBody&&fade<.98){
@@ -284,7 +284,7 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   }
   // Solid-colored, body-harmonized eyes, set inside the oval rather than on the rim.
   // No sclera or mouth: these slimes eat by enveloping food.
-  const eyes=slimeEyeAngles(g),eyeRadius=Math.max(1.2,Math.min(3.6,ry*.19));
+  const eyes=slimeEyeAngles(g),eyeRadius=Math.max(.45,Math.min(3.6,ry*.19));
   ctx.fillStyle=dead?'#77707e':slimeEyeColor(g);
   for(const angle of (dead?[]:eyes)){
    const {x:ex,y:ey}=slimeEyeLocation(angle,rx,ry);
@@ -302,7 +302,7 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
    }
    ctx.beginPath();ctx.arc(ex,ey,eyeRadius,0,TAU);ctx.fill();
    // A tiny glossy reflection gives readable eyes without white sclera.
-   if(!dead){ctx.fillStyle='rgba(255,255,255,.82)';ctx.beginPath();ctx.arc(ex-eyeRadius*.30,ey-eyeRadius*.30,Math.max(.55,eyeRadius*.23),0,TAU);ctx.fill();ctx.fillStyle=slimeEyeColor(g);}
+   if(!dead){ctx.fillStyle='rgba(255,255,255,.82)';ctx.beginPath();ctx.arc(ex-eyeRadius*.30,ey-eyeRadius*.30,Math.max(.2,eyeRadius*.23),0,TAU);ctx.fill();ctx.fillStyle=slimeEyeColor(g);}
   }
   if(dead){
    // Remaining food mass is visible as a few warm nutrient granules.
