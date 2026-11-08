@@ -14,6 +14,8 @@ jobs:
       - run: npm test
       - name: Headless smoke test (two reproducible seeds)
         run: npm run headless -- --seed 72 --steps 300 --runs 2 --interval 50 --out results/ci-headless
+      - name: Audit natural species names with fast simulation
+        run: npm run name-audit -- --seed 72 --steps 1200 --runs 4
       - name: Upload headless baseline results
         uses: actions/upload-artifact@v4
         with:
