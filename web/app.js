@@ -1,6 +1,6 @@
 import {zipFiles} from './zip-log.js?v=2026.11.07.4';
 import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.08.10';
-import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=game-mode-1';
+import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.08.10';
 import {drawWorld,drawChart} from './renderer.js?v=2026.11.08.10';
 import {EcologyLogbook,observeEcology} from './ecology-log.js?v=2026.11.08.8';
 import {performancePolicy,simulationBatch,BROWSER_BACKGROUND_INTERVAL} from './performance-policy.js?v=video-friendly-1';
