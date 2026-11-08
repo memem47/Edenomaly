@@ -2999,3 +2999,30 @@ test('planting remains unavailable to terrestrial organisms and low-garden genot
  assert.equal(w.plantWaterweed(a),false);
  assert.equal(w.plantWaterweed(b),false);
 });
+
+test('dietary innovation occasionally produces heritable carnivorous offspring',()=>{
+ const w=new Ecosystem(2026110824),g=w.gene();
+ g.diet=.60;g.alleles.diet=[.60,.60];
+ let novel=null;
+ for(let i=0;i<500;i++){
+  const descendant=w.recombine(g,g);
+  if(descendant.diet>.72){novel=descendant;break;}
+ }
+ assert.ok(novel,'rare diet innovations should create an opportunity for carnivory');
+ assert.equal(novel.alleles.diet.length,2);
+ assert.ok(novel.diet>.72);
+});
+test('ecology logs capture newly evolving resource strategies',async()=>{
+ const {observeEcology,ECOLOGY_LOG_FIELDS}=await import('./ecology-log.js');
+ const w=new Ecosystem(2026110825);
+ const g={...w.gene(),frugality:.9,waterGardening:.85,aquatic:1};
+ w.spawn(100,100,g);
+ w.waterPlantings=3;
+ const sample=observeEcology(w);
+ assert.equal(sample.frugalAdults,1);
+ assert.equal(sample.aquaticGardeners,1);
+ assert.equal(sample.waterPlantings,3);
+ assert.ok(sample.meanFrugality>.8);
+ for(const name of ['frugalAdults','aquaticGardeners','waterPlantings','meanFrugality','meanWaterGardening'])
+  assert.ok(ECOLOGY_LOG_FIELDS.includes(name));
+});
