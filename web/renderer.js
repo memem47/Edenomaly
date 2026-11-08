@@ -170,8 +170,11 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   const a=s.units.find(u=>u.id===pair.a),b=s.units.find(u=>u.id===pair.b);
   if(!a||!b)continue;
   const pulse=.5+.5*Math.sin(s.tick*.34);
-  ctx.save();ctx.strokeStyle='#ff91e8';ctx.lineWidth=2+pulse*2;ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.setLineDash([]);
-  ctx.fillStyle='#fff1fc';ctx.font='bold 11px system-ui';ctx.textAlign='center';const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;ctx.strokeStyle='#ffe1f9';ctx.lineWidth=2;ctx.beginPath();ctx.arc(mx,my,9+2*pulse,-Math.PI/2,-Math.PI/2+TAU*(pair.progress/pair.required));ctx.stroke();
+   const bondSize=Math.min(12,Math.max(3,
+    (a.g.r*bodySizeMultiplier(a.g)+b.g.r*bodySizeMultiplier(b.g))*.32));
+   const ringRadius=bondSize*(.9+.15*pulse);
+  ctx.save();ctx.strokeStyle='#ff91e8';ctx.lineWidth=.8+pulse*.75;ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#fff1fc';ctx.font='bold 9px system-ui';ctx.textAlign='center';const mx=(a.x+b.x)/2,my=(a.y+b.y)/2;ctx.strokeStyle='#ffe1f9';ctx.lineWidth=1;ctx.beginPath();ctx.arc(mx,my,ringRadius,-Math.PI/2,-Math.PI/2+TAU*(pair.progress/pair.required));ctx.stroke();
   ctx.restore();
  }
  // Eggs have a shell, do not move, and visibly develop before hatching.
@@ -210,10 +213,12 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
   if(dead){ctx.save();ctx.globalAlpha=.96*Math.max(.42,Math.sqrt(Math.max(0,u.corpseMass/u.corpseInitialMass)));}
 
   if(u.courtPartner||u.pregnancy){
-   ctx.save();ctx.strokeStyle=u.pregnancy?'#ffe59b':'#ff93e9';ctx.lineWidth=2.5;
-   ctx.beginPath();ctx.arc(u.x,u.y,Math.max(13,g.r*g.elongation+8),0,TAU);ctx.stroke();
+   ctx.save();ctx.strokeStyle=u.pregnancy?'#ffe59b':'#ff93e9';
+    const ceremonyRadius=Math.max(3.5,Math.min(25,halfW*1.06*Math.max(1,g.elongation)*1.18+1.5));
+    ctx.lineWidth=Math.max(.65,Math.min(1.4,halfW*.17));
+   ctx.beginPath();ctx.arc(u.x,u.y,ceremonyRadius,0,TAU);ctx.stroke();
    ctx.fillStyle=u.pregnancy?'#ffe59b':'#ffd5f5';ctx.font='bold 12px system-ui';ctx.textAlign='center';
-   if(u.pregnancy){const v=1-u.pregnancy.remaining/u.pregnancy.total;ctx.beginPath();ctx.arc(u.x,u.y,Math.max(13,g.r*g.elongation+8)+4,-Math.PI/2,-Math.PI/2+TAU*v);ctx.stroke();}else{ctx.beginPath();ctx.arc(u.x,u.y,Math.max(13,g.r*g.elongation+8)+3,0,TAU);ctx.stroke();}ctx.restore();
+   if(u.pregnancy){const v=1-u.pregnancy.remaining/u.pregnancy.total;ctx.beginPath();ctx.arc(u.x,u.y,ceremonyRadius+2,-Math.PI/2,-Math.PI/2+TAU*v);ctx.stroke();}else{ctx.beginPath();ctx.arc(u.x,u.y,ceremonyRadius+1.5,0,TAU);ctx.stroke();}ctx.restore();
   }
   // Ground shadow gives every slime some separation from the bright terrain.
   if(!dead){
