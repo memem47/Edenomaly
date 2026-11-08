@@ -61,6 +61,18 @@ export const thermalFitness=(g,temp)=>{
    (1-.42*clamp((tolerance-8)/10,0,1))):0,
   reproduction:excess<tolerance*.16};
 };
+// Environmental acclimation is learned, reversible, and never inherited.
+export const landAcclimationGain=(u,onLand)=>onLand?
+ Math.min(.72,(u.landAcclimation??0)+.0032):
+ Math.max(0,(u.landAcclimation??0)-.0016);
+export const experiencedTerrainFitness=(u,t)=>{
+ const base=terrainFitness(u.g,t);
+ if(u.g.aquatic!==1||t===1)return base;
+ const learned=clamp(u.landAcclimation??0,0,.72);
+ return {...base,fitness:base.fitness*(.64+.43*learned),
+  move:base.move*(.36+.7*learned),
+  upkeep:base.upkeep+.33*(1-learned)};
+};
 export const terrainFitness=(g,t)=>{
  // Traits are inherited; acquired acclimatization is deliberately not simulated.
  const tolerance=[1, g.wet, g.dry, g.rock??.2][t];
@@ -537,7 +549,7 @@ export class Ecosystem{
   if(this.units.length>=2000)return null;
   const mode=reproductiveMode(g);
    const sex=mode===1?'H':mode===2?'F':(this.rand()<.5?'F':'M');
-   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null,socialTarget:null,mateTarget:null,rejectedBy:null,mateApproachFailures:0,behaviorTarget:'idle',waterSeedBank:0,lastWaterPlant:-100,threatDecisions:new Map(),attackResponse:null,retaliationCooldown:0};
+   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null,socialTarget:null,mateTarget:null,rejectedBy:null,mateApproachFailures:0,behaviorTarget:'idle',waterSeedBank:0,lastWaterPlant:-100,landAcclimation:0,landExcursion:false,shoreTarget:null,threatDecisions:new Map(),attackResponse:null,retaliationCooldown:0};
   u.category=this.category(g);u.lineage??=u.id;this.units.push(u);
   if(!this.species.has(u.category)){
    const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(u.category),current:0,total:0,diet:dietProfile(g).label,first:this.tick,genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(u.category),u);
@@ -1085,7 +1097,8 @@ export class Ecosystem{
    const nextTerrain=this.terrain(nx,ny);
     // Aquatic organisms cannot wander out of a pond, but stranded ones can
     // still return from the shore after a habitat-change mutation.
-    if(u.g.aquatic===1&&this.terrain(u.x,u.y)===1&&nextTerrain!==1)return null;
+    if(u.g.aquatic===1&&this.terrain(u.x,u.y)===1&&nextTerrain!==1&&
+      !u.landExcursion)return null;
     return terrainFitness(u.g,nextTerrain).passable?{x:nx,y:ny}:null;
   };
   let next=canMove(u.angle);
@@ -1257,7 +1270,7 @@ export class Ecosystem{
   for(const u of batch){
    if(u.dead)continue;u.age++;u.juvenileFood=0;if(u.bite>0)u.bite--;if(u.woundFlash>0)u.woundFlash--;if(u.attackFlash>0)u.attackFlash--;if(u.defendFlash>0)u.defendFlash--;if(u.mateCooldown>0)u.mateCooldown--;
    if(u.pregnancy){u.pregnancy.remaining--;if(u.pregnancy.remaining<=0)this.layEgg(u);}
-   const g=u.g,t=this.terrain(u.x,u.y),m=organismMorphology(u),diet=dietProfile(g),home=terrainFitness(g,t);
+   const g=u.g,t=this.terrain(u.x,u.y),m=organismMorphology(u),diet=dietProfile(g),home=experiencedTerrainFitness(u,t);
    const youth=u.stage==='juvenile'?.50:1,body=vitality(u),sight=m.eyeRange*home.sight;
    const thermal=thermalFitness(g,this.temperatureAt(u.x,u.y));
    u.thermalComfort=thermal.comfort;u.temperature=this.temperatureAt(u.x,u.y);
@@ -1287,8 +1300,15 @@ export class Ecosystem{
    const near=unitGrid.query(u.x,u.y,Math.max(145,sight*1.6),false);
    const aquatic=g.aquatic===1,underwater=t===1&&this.water[this.cell(u.x,u.y)]>0;
    if(aquatic){
+    const before=u.landAcclimation??0;
+    u.landAcclimation=landAcclimationGain(u,!underwater);
+    if(before<.3&&u.landAcclimation>=.3)
+     this.log('acclimate','#'+u.id+' が陸上生活に順化し始めた',u);
+   }
+   if(aquatic){
     u.stranded=underwater?0:u.stranded+1;
-    u.hydration=underwater?Math.min(100,u.hydration+1.6):u.hydration-.85;
+    u.hydration=underwater?Math.min(100,u.hydration+1.6):
+      u.hydration-(.85-.53*clamp(u.landAcclimation??0,0,.72));
     if(underwater){const consumed=this.consumeWater(u.x,u.y,.095);if(consumed>0&&(this.tick+u.id)%24===0)this.addVisualEffect('drink',u);}
    }else{
     u.submerged=underwater?u.submerged+1:0;
@@ -1296,15 +1316,29 @@ export class Ecosystem{
     u.hydration=drinking?Math.min(100,u.hydration+.9):u.hydration-.24;
     if(drinking){const consumed=this.drinkNearby(u.x,u.y,.12);if(consumed>0&&(this.tick+u.id)%24===0)this.addVisualEffect('drink',u);}
    }
-   if((aquatic&&u.stranded>95)||(!aquatic&&u.submerged>24)||u.hydration<=0){
+   if((aquatic&&u.stranded>95+330*(u.landAcclimation??0))||(!aquatic&&u.submerged>24)||u.hydration<=0){
     this.die(u,aquatic?'離水':u.submerged>24?'溺水':'脱水');continue;
    }
    if(u.hydration<18)u.hp-=.06;
    let nearest=null,df=sight*sight;
+   const onLand=aquatic&&!underwater;
+   const waterFood=aquatic?this.nearestWaterweed(u.x,u.y,Math.min(95,Math.max(65,sight*1.7))):null;
+   if(aquatic&&underwater&&!waterFood&&u.energy<116&&!u.pregnancy){
+    if(!u.shoreTarget||this.tick>u.shoreTarget.until){
+     const site=this.nearestEdibleShore(u.x,u.y,105);
+     if(site){u.shoreTarget={...site,until:this.tick+150};u.landExcursion=true;
+      this.log('shore','#'+u.id+' が水草不足で陸上の餌を探し始めた',u);}
+    }
+   }
+   if(aquatic&&underwater&&waterFood&&u.landExcursion){
+    u.landExcursion=false;u.shoreTarget=null;
+   }
+   if(onLand)u.landExcursion=true;
    if(diet.plant>0){
     // Search farther only while hungry; no new food is generated.
     const forageRadius=u.energy<80?Math.min(165,Math.max(65,sight*1.9)):sight;
-    nearest=aquatic?this.nearestWaterweed(u.x,u.y,forageRadius):this.nearestGrass(u.x,u.y,forageRadius,g);
+    nearest=aquatic&&!onLand?waterFood||this.nearestWaterweed(u.x,u.y,forageRadius):
+     this.nearestGrass(u.x,u.y,forageRadius,g);
     if(nearest)df=distance(u,nearest);
     if(u.energy<80&&!nearest)u.forageFailure++;
    }
@@ -1508,8 +1542,9 @@ export class Ecosystem{
     else if(!companion||distance(u,companion)<=34**2)u.socialTarget=null;
    }else u.socialTarget=null;
    const nearFood=nearest&&distance(u,nearest)<Math.max(14,sight*.55)**2;
-   const criticalWater=u.hydration<24||aquatic&&!underwater&&u.stranded>35;
-   if((aquatic&&!underwater||!aquatic&&u.hydration<45&&!this.nearWater(u.x,u.y,1))&&(!nearFood||criticalWater)){
+   const criticalWater=u.hydration<24||aquatic&&!underwater&&
+     (u.stranded>85+220*(u.landAcclimation??0)||u.hydration<38);
+   if((aquatic&&!underwater&&criticalWater||!aquatic&&u.hydration<45&&!this.nearWater(u.x,u.y,1))&&(!nearFood||criticalWater)){
     const water=this.nearestWater(u.x,u.y);if(water)target=water;
    }
    // Guarding trades feeding opportunities for staying near the offspring.
@@ -1523,12 +1558,14 @@ export class Ecosystem{
    // Danger and critical dehydration remain higher priorities.
    const breedingPriority=!flight&&!criticalWater&&mate&&!mate.dead&&
     (u.courtPartner||this.isReadyToMate(u)&&u.energy>=112);
-   if(breedingPriority){target=mate;u.refugeTarget=null;u.socialTarget=null;}
+   if(breedingPriority&&!u.landExcursion){target=mate;u.refugeTarget=null;u.socialTarget=null;}
    // A blocked food/refuge target may be abandoned, but a compatible mate
    // should not be discarded by an unrelated avoidance marker.
    if(target&&!breedingPriority&&u.avoidTarget&&u.avoidTarget.until>this.tick&&
       distance(target,u.avoidTarget)<20*20&&!flight)target=null;
    // Immediate escape overrides food, reproduction and egg guarding.
+   if(aquatic&&underwater&&u.landExcursion&&u.shoreTarget&&!flight&&!criticalWater)
+    target=u.shoreTarget;
    if(counterAttack)target=threatAttacker;
    if(flight)target=null;
    const desired=flight?Math.atan2(u.y-danger.y,u.x-danger.x)
@@ -1549,7 +1586,8 @@ export class Ecosystem{
      target===prey||target===defenderTarget||target===rival?Math.max(3,m.biteReach*.7):
      target===u.refugeTarget?11:
      this.terrain(target.x,target.y)===1&&g.aquatic!==1?25:9;
-   u.behaviorTarget=flight?'escape':counterAttack?'retaliate':breedingPriority?'mate':
+   u.behaviorTarget=flight?'escape':counterAttack?'retaliate':
+    aquatic&&underwater&&u.landExcursion&&u.shoreTarget?'shore':breedingPriority?'mate':
     target===nearest||target===nearestCorpse?'food':
     target===u.refugeTarget?'disperse':
     target===byId.get(u.socialTarget?.id)?'social':
@@ -1590,7 +1628,7 @@ export class Ecosystem{
      this.log('meal','#'+u.id+' が水草を食べた',u);}
    }
    if(aquatic&&underwater&&!flight)this.plantWaterweed(u);
-   if(!flight&&!aquatic&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+13)**2){
+   if(!flight&&(!aquatic||onLand)&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+13)**2){
     const eaten=this.consumeGrass(nearest.x,nearest.y,Math.min(4.8,1.05*m.foodGain*feedingCapacity(u)));
     if(eaten>0){u.energy+=eaten*10.5*diet.plant*home.fitness;
      u.recentFood=(u.recentFood??0)+eaten*4;
