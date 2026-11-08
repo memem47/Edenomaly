@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Usage: npm run headless -- --seed 72 --steps 10000 --runs 4 --interval 50 --out results/headless
 // No canvas, rendering, browser, timers or game-speed throttle. Exact Ecosystem.step().
-import {mkdir,writeFile} from 'node:fs/promises';
+import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import {resolve,join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {runHeadless,headlessCSV} from './headless-runner.mjs';
@@ -41,16 +41,17 @@ export async function main(args=process.argv.slice(2)){
  const opts=parseArgs(args);
  if(opts.help){console.log(USAGE);return [];}
  const out=resolve(opts.out);
+ const {version}=JSON.parse(await readFile(new URL('./version.json',import.meta.url),'utf8'));
  await mkdir(out,{recursive:true});
  const runs=[];
  for(let i=0;i<opts.runs;i++){
   const seed=opts.seed+i;
-  const {summary,rows}=runHeadless({...opts,seed});
+  const {summary,rows}=runHeadless({...opts,seed,version});
   await writeFile(join(out,'ecology-seed-'+seed+'.csv'),headlessCSV(rows),'utf8');
   runs.push(summary);
   console.log(JSON.stringify(summary));
  }
- const final={mode:'headless',parameters:opts,runCount:runs.length,
+ const final={mode:'headless',version,parameters:opts,runCount:runs.length,
   summary:runs,generatedAt:new Date().toISOString()};
  await writeFile(join(out,'summary.json'),JSON.stringify(final,null,2)+'\n','utf8');
  console.log('Saved '+runs.length+' CSV file(s) and summary.json in '+out);
