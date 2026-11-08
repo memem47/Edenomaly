@@ -3051,3 +3051,57 @@ test('aquatic animals identify a grassy shoreline only if connected to their pon
  w.grass[shore]=0;
  assert.equal(w.nearestEdibleShore(210,210,150),null);
 });
+
+test('starvation unlocks cannibal hunting in weakly carnivorous genotypes',async()=>{
+ const {famineCannibalism,effectiveMeatAffinity}=await import('./simulation.js');
+ const w=new Ecosystem(2026110829),g={...w.gene(),diet:.10,jaw:1.7,mouths:2,aquatic:0};
+ const u=w.spawn(180,190,g);
+ u.stage='adult';u.energy=20;
+ assert.equal(famineCannibalism(u),true);
+ assert.ok(effectiveMeatAffinity(u)>0);
+ u.energy=90;
+ assert.equal(famineCannibalism(u),false);
+ u.stage='juvenile';u.energy=12;
+ assert.equal(famineCannibalism(u),false);
+});
+test('eating flesh gradually changes an individual without altering offspring genes',async()=>{
+ const {learnCarnivory,carnivoryExperience,effectiveMeatAffinity}=await import('./simulation.js');
+ const w=new Ecosystem(2026110830),g={...w.gene(),diet:.12};
+ const u=w.spawn(200,190,g),genome=JSON.stringify(u.g);
+ const base=effectiveMeatAffinity(u);
+ for(let i=0;i<15;i++)learnCarnivory(u,8);
+ assert.ok(carnivoryExperience(u)>.20);
+ assert.ok(effectiveMeatAffinity(u)>base);
+ assert.equal(JSON.stringify(u.g),genome,'learned habits do not mutate genome');
+ const child=w.spawn(205,190,u.g,u);
+ assert.equal(child.carnivoryExperience,0,'offspring does not inherit acquired adaptation');
+});
+test('conspecific kill records cannibal meal and raises digestive acclimation',()=>{
+ const w=new Ecosystem(2026110831),g={...w.gene(),aquatic:0,diet:.12,
+  jaw:2,mouths:2,r:5};
+ const hunter=w.spawn(190,190,g),prey=w.spawn(197,190,{...g});
+ hunter.energy=12;hunter.age=120;hunter.stage='adult';prey.hp=1;
+ assert.equal(w.attack(hunter,prey),true);
+ assert.equal(prey.dead,true);
+ assert.equal(w.cannibalMeals,1);
+ assert.ok(hunter.carnivoryExperience>0);
+});
+test('an experienced eater pays energy upkeep and gradually forgets without flesh',()=>{
+ const w=new Ecosystem(2026110832);w.tiles.fill(0);w.grass.fill(0);
+ const g={...w.gene(),aquatic:0,diet:.10,idealTemp:22,tempTolerance:18};
+ const u=w.spawn(200,190,g);
+ u.carnivoryExperience=.4;u.hp=u.maxHp=5000;u.energy=100;
+ w.temperatureAt=()=>22;
+ w.step();
+ assert.ok(u.carnivoryExperience<.4,'acclimation decays when meat is absent');
+});
+test('ecology reports acquired carnivory separately from inherited diet',async()=>{
+ const {observeEcology}=await import('./ecology-log.js');
+ const w=new Ecosystem(2026110833),g={...w.gene(),diet:.12};
+ const u=w.spawn(200,190,g);u.carnivoryExperience=.7;w.cannibalMeals=4;
+ const snapshot=observeEcology(w);
+ assert.equal(snapshot.learnedCarnivores,1);
+ assert.equal(snapshot.cannibalMeals,4);
+ assert.ok(snapshot.meanCarnivoryExperience>.65);
+ assert.equal(snapshot.carnivores,0,'inherited diet classification stays unchanged');
+});
