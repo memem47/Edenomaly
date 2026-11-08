@@ -5,32 +5,49 @@ export const TERRAIN_COLORS=['#54c74c','#279cfa','#edb85c','#8980bf'];
 // Relative nutrient input: grass > wetland > dryland > rock.
 export const TERRAIN_FERTILITY=[1,.58,.14,.055];
 const GROWTH=TERRAIN_FERTILITY,DECAY=[.026,.038,.006,.003];
-// Each species name is a reversible, deterministic transcription of its
-// ecological classification. Unlike discovery-order names, it survives reset.
+// Readable, stable species names: habitat(3) + diet(1) + pigment(2)
+// + eye count(1) + reproduction(1) + two-kana morphology/strategy suffix.
+// Each ecological classification has exactly one unique 10-kana name.
 const SPECIES_HABITAT=['land','aquatic','dry','rock'];
-const SPECIES_HABITAT_KANA=['モ','ル','ガ','ロ'];
-const SPECIES_TRAITS=[
- ['plant','mixed','hunter'],
- ['tiny','medium','large','giant'],
- ['round','oval','long'],
- ['blind','few','several','allround'],
- ['general','guardian','egg-hunter'],
- ['repro0','repro1','repro2'],
- ['temperate','cold','hot']
-];
-const HEX_KANA=['ア','カ','サ','タ','ナ','ハ','マ','ヤ','ラ','ワ','キ','シ','チ','ニ','ヒ','ミ'];
+const HABITAT_NAMES=['クサバ','ミズベ','カレチ','イワバ'];
+const DIET_NAMES=['ソ','ザ','ニ']; // 草食・雑食・肉食
+const PIGMENT_CLASSES=['red','yellow','green','blue','purple','pink','white'];
+const PIGMENT_NAMES=['アカ','キイ','ミド','アオ','ムラ','モモ','シロ'];
+const EYE_NAMES=['ム','メ','タ','ゼ']; // 無眼・少眼・多眼・全方位
+const REPRO_NAMES=['オ','リ','コ']; // 雌雄異体・両性・単為生殖
+const BODY_CLASSES=['tiny','medium','large','giant'];
+const SHAPE_CLASSES=['round','oval','long'];
+const STRATEGY_CLASSES=['general','guardian','egg-hunter'];
+const THERMAL_CLASSES=['temperate','cold','hot'];
+const SUFFIX_KANA=['ア','カ','サ','タ','ナ','ハ','マ','ヤ','ラ','ワ','キ','シ','チ','ニ','ヒ','ミ'];
+// Pigment is a derived phenotype, not an additional independent gene.
+// Wide hue ranges prevent every small color mutation from being a new name.
+export const pigmentClass=g=>{
+ if(g.albino===1)return 'white';
+ const hue=adaptationColor(g).hue;
+ if(hue<15||hue>=345)return 'red';
+ if(hue<75)return 'yellow';
+ if(hue<165)return 'green';
+ if(hue<250)return 'blue';
+ if(hue<315)return 'purple';
+ return 'pink';
+};
 export const speciesNameFromCategory=key=>{
- const match=/^(land|aquatic|dry|rock)-(plant|mixed|hunter)-(tiny|medium|large|giant)-(round|oval|long)-(blind|few|several|allround)-(general|guardian|egg-hunter)-(repro[012])-(temperate|cold|hot)$/.exec(key);
+ const match=/^(land|aquatic|dry|rock)-(plant|mixed|hunter)-(tiny|medium|large|giant)-(round|oval|long)-(blind|few|several|allround)-(general|guardian|egg-hunter)-(repro[012])-(temperate|cold|hot)-(red|yellow|green|blue|purple|pink|white)$/.exec(key);
  if(!match)throw new Error('Invalid species classification: '+key);
  const habitat=SPECIES_HABITAT.indexOf(match[1]);
- let number=0;
- for(let i=0;i<SPECIES_TRAITS.length;i++){
-  const choices=SPECIES_TRAITS[i];
-  number=number*choices.length+choices.indexOf(match[i+2]);
- }
- // 3 hexadecimal digits encode all 3888 non-habitat combinations.
- return SPECIES_HABITAT_KANA[habitat]+
-  HEX_KANA[(number>>8)&15]+HEX_KANA[(number>>4)&15]+HEX_KANA[number&15];
+ const diet=['plant','mixed','hunter'].indexOf(match[2]);
+ const body=BODY_CLASSES.indexOf(match[3]);
+ const shape=SHAPE_CLASSES.indexOf(match[4]);
+ const eyes=['blind','few','several','allround'].indexOf(match[5]);
+ const strategy=STRATEGY_CLASSES.indexOf(match[6]);
+ const repro=['repro0','repro1','repro2'].indexOf(match[7]);
+ const thermal=THERMAL_CLASSES.indexOf(match[8]);
+ const pigment=PIGMENT_CLASSES.indexOf(match[9]);
+ // 4*3*3*3=108 combinations; encoded as two kana from a 16-letter alphabet.
+ const suffix=((body*3+shape)*3+strategy)*3+thermal;
+ return HABITAT_NAMES[habitat]+DIET_NAMES[diet]+PIGMENT_NAMES[pigment]+
+  EYE_NAMES[eyes]+REPRO_NAMES[repro]+SUFFIX_KANA[suffix>>4]+SUFFIX_KANA[suffix&15];
 };
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 // Visual color is a derived phenotype, never a separate inherited trait.
@@ -552,8 +569,8 @@ export class Ecosystem{
  }
  category(g){
   // A species represents a recognizable ecological/morphological strategy.
-  // Cosmetic color and small differences in 19 separate genes must NOT generate
-  // hundreds of nominally different species.
+  // Coarsely categorized pigment is included because players can see color.
+  // Small changes within the same pigment group do not create new species.
   const m=morphology(g),d=dietProfile(g).diet;
   const diet=d<.32?'plant':d>.70?'hunter':'mixed';
   const body=m.bodyMass<45?'tiny':m.bodyMass<105?'medium':m.bodyMass<195?'large':'giant';
@@ -563,7 +580,7 @@ export class Ecosystem{
   // Habitat is a functional trait, not just a difference in appearance.
   const habitat=g.aquatic===1?'aquatic':g.dry>=.70&&g.dry>g.rock+.10?'dry':g.rock>=.70&&g.rock>g.dry+.10?'rock':'land';
   const thermal=g.idealTemp<12?'cold':g.idealTemp>31?'hot':'temperate';
-   return [habitat,diet,body,shape,eyes,strategy,'repro'+reproductiveMode(g),thermal].join('-');
+   return [habitat,diet,body,shape,eyes,strategy,'repro'+reproductiveMode(g),thermal,pigmentClass(g)].join('-');
  }
  name(category){return speciesNameFromCategory(category);}
  addVisualEffect(type,point,extra={}){
