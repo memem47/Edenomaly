@@ -19,7 +19,11 @@ const BODY_CLASSES=['tiny','medium','large','giant'];
 const SHAPE_CLASSES=['round','oval','long'];
 const STRATEGY_CLASSES=['general','guardian','egg-hunter'];
 const THERMAL_CLASSES=['temperate','cold','hot'];
-const SUFFIX_KANA=['ア','カ','サ','タ','ナ','ハ','マ','ヤ','ラ','ワ','キ','シ','チ','ニ','ヒ','ミ'];
+// The first syllable describes body size and silhouette (4 x 3).
+// The second describes strategy and temperature (3 x 3).
+// Unlike hexadecimal digits, every pair is a pronounceable two-mora ending.
+const MORPH_ENDINGS=['ラ','リ','ル','ナ','ニ','ヌ','ガ','ギ','グ','ド','デ','ダ'];
+const NICHE_ENDINGS=['ン','ト','ス','チ','フ','メ','ヨ','ワ','ズ'];
 // Pigment is a derived phenotype, not an additional independent gene.
 // Wide hue ranges prevent every small color mutation from being a new name.
 export const pigmentClass=g=>{
@@ -44,10 +48,12 @@ export const speciesNameFromCategory=key=>{
  const repro=['repro0','repro1','repro2'].indexOf(match[7]);
  const thermal=THERMAL_CLASSES.indexOf(match[8]);
  const pigment=PIGMENT_CLASSES.indexOf(match[9]);
- // 4*3*3*3=108 combinations; encoded as two kana from a 16-letter alphabet.
- const suffix=((body*3+shape)*3+strategy)*3+thermal;
+ // The pair is directly readable from the two 12/9-entry dictionaries.
+ // This preserves all 108 combinations without producing awkward "アア" tails.
+ const morphologyEnding=MORPH_ENDINGS[body*3+shape];
+ const nicheEnding=NICHE_ENDINGS[strategy*3+thermal];
  return HABITAT_NAMES[habitat]+DIET_NAMES[diet]+PIGMENT_NAMES[pigment]+
-  EYE_NAMES[eyes]+REPRO_NAMES[repro]+SUFFIX_KANA[suffix>>4]+SUFFIX_KANA[suffix&15];
+  EYE_NAMES[eyes]+REPRO_NAMES[repro]+morphologyEnding+nicheEnding;
 };
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 // Visual color is a derived phenotype, never a separate inherited trait.
