@@ -129,7 +129,10 @@ export const morphology=g=>{
  const bodyMass=width*width*g.elongation;
  const metabolicMass=g.r*g.r*g.elongation;
  const eyeRange=20+Math.min(g.eyes,3)*14+Math.max(0,g.eyes-3)*7;
- const speed=3.45/(.65+bodyMass*.017)*(1-Math.max(0,g.eyes-3)*.055);
+ // Physical shrinking must not make locomotion faster by reducing the mass
+ // denominator. Small limbs also cover less ground per simulation step.
+ const speed=3.45/(.65+metabolicMass*.017)*(.55+.45*bodySizeMultiplier(g))
+  *(1-Math.max(0,g.eyes-3)*.055);
  const turnRate=clamp(.29/(.75+g.elongation*.21),.12,.29);
  const mouths=g.mouths;
  const biteReach=width*(.7+.15*mouths)+g.jaw*1.6;
