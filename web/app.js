@@ -1,6 +1,7 @@
 import {zipFiles} from './zip-log.js?v=2026.11.07.4';
 import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.08.11';
 import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.08.11';
+import {fitView,screenToWorld,zoomAround,panBy,MAX_ZOOM,ZOOM_STEP} from './viewport.js?v=2026.11.08.12';
 import {drawWorld,drawChart} from './renderer.js?v=2026.11.08.11';
 import {EcologyLogbook,observeEcology} from './ecology-log.js?v=2026.11.08.8';
 import {performancePolicy,simulationBatch,BROWSER_BACKGROUND_INTERVAL} from './performance-policy.js?v=video-friendly-1';
@@ -55,6 +56,7 @@ let lastReproductionSample=null;
 const recordStep=()=>{lastReproductionSample=observeEcology(game);const ok=ecologyLog.record(lastReproductionSample);ecologyLog.recordIndividuals(game);return ok;};
 const canvas=$('world'),ctx=canvas.getContext('2d'),graph=$('chart').getContext('2d'),longGraph=$('ecologyLongChart').getContext('2d');
 let running=false,speed=1,mode='spawn',filter='all',brush=3,selected=null,selectedSpecies=null,catalogMarkup='',painting=false,last=0,acc=0,uiAt=0,paintAt=0,rafId=null,backgroundTimer=null,logRunOptions='',selectedLogRun=null;
+let view={zoom:1,x:0,y:0},panEnabled=false,panGesture=null;
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const GENE_LABELS={idealTemp:'好みの温度',tempTolerance:'温度耐性',hibernate:'休眠傾向',r:'体の大きさ',elongation:'体の長さ比',eyes:'目の数',mouths:'口の能力',jaw:'顎の能力',wet:'水への適応',dry:'乾燥への適応',rock:'岩場への適応',aquatic:'水生／陸生',shell:'卵殻',guard:'卵の保護',nesting:'産卵場所',brood:'産卵数',diet:'食性',deception:'擬態',resist:'感染抵抗力',longevity:'長寿特性',albino:'白色変異',dispersal:'分散傾向',sociability:'集合傾向',caution:'警戒心',predatorSense:'捕食者識別',retaliation:'反撃性',frugality:'省エネ特性',waterGardening:'水草栽培傾向'};
 function genomeValue(key,value){return key==='aquatic'?(value===1?'水生':'陸生'):typeof value==='number'?(Number.isInteger(value)?String(value):value.toFixed(3)):String(value);}
@@ -208,7 +210,11 @@ function update(){
   '生命を移入すると記録が始まります。';
  drawChart(graph,game.history);
 }
-function render(){drawWorld(ctx,game,$('effects').checked,selected);}
+function render(){
+  view=fitView(view,WORLD.width,WORLD.height);
+  ctx.save();ctx.setTransform(view.zoom,0,0,view.zoom,-view.x*view.zoom,-view.y*view.zoom);
+  try{drawWorld(ctx,game,$('effects').checked,selected);}finally{ctx.restore();}
+ }
 function reset(){
  ecologyLog.end(ecologyLog.activeId===null?null:observeEcology(game));
  game.reset();session.reset();rewardRecorded=false;lastReproductionSample=null;selected=null;selectedSpecies=null;running=false;mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));syncSliders();update();render();}
@@ -263,7 +269,29 @@ function syncVisibility(){
  }
 }
 document.addEventListener('visibilitychange',syncVisibility);
-function coords(e){const b=canvas.getBoundingClientRect();return {x:Math.max(0,Math.min(WORLD.width-.1,(e.clientX-b.left)/b.width*WORLD.width)),y:Math.max(0,Math.min(WORLD.height-.1,(e.clientY-b.top)/b.height*WORLD.height))};}
+function screenCoords(e){const b=canvas.getBoundingClientRect();return {x:(e.clientX-b.left)/b.width*canvas.width,y:(e.clientY-b.top)/b.height*canvas.height};}
+function coords(e){const p=screenCoords(e);return screenToWorld(view,p.x,p.y,WORLD.width,WORLD.height);}
+function updateZoomUI(){
+ $('zoomStatus').textContent='表示 '+view.zoom.toFixed(view.zoom===1?0:1)+'倍';
+ $('zoomOut').disabled=view.zoom<=1;
+ $('zoomIn').disabled=view.zoom>=MAX_ZOOM;
+ $('panView').classList.toggle('active',panEnabled);
+ $('panView').setAttribute('aria-pressed',String(panEnabled));
+ canvas.classList.toggle('panning',panEnabled);
+}
+function changeZoom(next,sx=canvas.width/2,sy=canvas.height/2){
+ view=zoomAround(view,next,sx,sy,WORLD.width,WORLD.height);
+ updateZoomUI();render();
+}
+$('zoomIn').onclick=()=>changeZoom(view.zoom*ZOOM_STEP);
+$('zoomOut').onclick=()=>changeZoom(view.zoom/ZOOM_STEP);
+$('zoomReset').onclick=()=>changeZoom(1);
+$('panView').onclick=()=>{panEnabled=!panEnabled;updateZoomUI();};
+canvas.addEventListener('wheel',e=>{
+ e.preventDefault();const p=screenCoords(e);
+ changeZoom(view.zoom*(e.deltaY<0?ZOOM_STEP:1/ZOOM_STEP),p.x,p.y);
+},{passive:false});
+updateZoomUI();
 function interact(e){
  const {x,y}=coords(e);
  if(playMode==='game'){
@@ -292,7 +320,27 @@ function interact(e){
  }
  update();render();
 }
-canvas.addEventListener('pointerdown',e=>{painting=true;canvas.setPointerCapture(e.pointerId);interact(e);});canvas.addEventListener('pointermove',e=>{if(playMode==='lab'&&painting&&['0','1','2','3','fertilize'].includes(mode))interact(e);});canvas.addEventListener('pointerup',()=>painting=false);canvas.addEventListener('pointercancel',()=>painting=false);
+canvas.addEventListener('pointerdown',e=>{
+  // Pan mode and the middle mouse button move the camera, not the terrain.
+  if(panEnabled||e.button===1){
+   e.preventDefault();const p=screenCoords(e);
+   panGesture={pointerId:e.pointerId,x:p.x,y:p.y};
+   canvas.setPointerCapture(e.pointerId);canvas.classList.add('dragging');return;
+  }
+  if(e.button!==0&&e.pointerType==='mouse')return;
+  painting=true;canvas.setPointerCapture(e.pointerId);interact(e);
+ });
+ canvas.addEventListener('pointermove',e=>{
+  if(panGesture&&e.pointerId===panGesture.pointerId){
+   const p=screenCoords(e);
+   view=panBy(view,p.x-panGesture.x,p.y-panGesture.y,WORLD.width,WORLD.height);
+   panGesture.x=p.x;panGesture.y=p.y;render();return;
+  }
+  if(playMode==='lab'&&painting&&['0','1','2','3','fertilize'].includes(mode))interact(e);
+ });
+ function endPointer(e){if(panGesture?.pointerId===e.pointerId){panGesture=null;canvas.classList.remove('dragging');}painting=false;}
+ canvas.addEventListener('pointerup',endPointer);canvas.addEventListener('pointercancel',endPointer);
+ canvas.addEventListener('lostpointercapture',endPointer);
 document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{if(b.disabled)return;mode=b.dataset.mode;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x===b));}));
 document.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>{filter=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x===b));update();}));
 $('speciesSort').onchange=update;
