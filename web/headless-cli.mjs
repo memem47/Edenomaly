@@ -3,6 +3,7 @@
 // No canvas, rendering, browser, timers or game-speed throttle. Exact Ecosystem.step().
 import {mkdir,writeFile} from 'node:fs/promises';
 import {resolve,join} from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {runHeadless,headlessCSV} from './headless-runner.mjs';
 
 export function parseArgs(args){
@@ -55,5 +56,5 @@ export async function main(args=process.argv.slice(2)){
  console.log('Saved '+runs.length+' CSV file(s) and summary.json in '+out);
  return runs;
 }
-if(process.argv[1]&&resolve(process.argv[1])===resolve(new URL(import.meta.url).pathname))
+if(process.argv[1]&&resolve(process.argv[1])===resolve(fileURLToPath(import.meta.url)))
  main().catch(error=>{console.error(error.message);process.exitCode=1;});
