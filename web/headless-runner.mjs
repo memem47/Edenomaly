@@ -4,7 +4,7 @@ import {performance} from 'node:perf_hooks';
 import {Ecosystem,organismMorphology,lifeStageScale} from './simulation.js';
 import {observeEcology,ECOLOGY_LOG_FIELDS} from './ecology-log.js';
 
-export const HEADLESS_EVENT_TYPES=['attack','defend','rival','pred','cannibal','carnivoreLearn','eggeaten','waterPlant','shore','acclimate','mate','courtFail','ill','death','hatch','mature','migration','settle'];
+export const HEADLESS_EVENT_TYPES=['birth','attack','defend','rival','pred','cannibal','carnivoreLearn','eggeaten','waterPlant','shore','acclimate','mate','courtFail','ill','death','hatch','mature','migration','settle'];
 export const HEADLESS_COLUMNS=['seed',...ECOLOGY_LOG_FIELDS,
  ...HEADLESS_EVENT_TYPES.map(type=>'event_'+type),'smallBodies','juvenileBodies','largeBodies','giantBodies','p10Radius','medianRadius','p90Radius'];
 const percentile=(sorted,p)=>sorted.length?sorted[Math.floor((sorted.length-1)*p)]:0;
