@@ -619,7 +619,7 @@ export class Ecosystem{
    return;
   }
   this.logs.unshift({type,message,step:this.tick});
-  if(this.logs.length>500)this.logs.pop();
+  if(this.logs.length>4000)this.logs.pop();
   // Only deaths need a world-space notification ring. Mating, egg-laying,
   // migration, decomposition, species discovery and ordinary info remain in
   // the log but no longer fill dense colonies with expanding circles.
