@@ -205,3 +205,16 @@ button:disabled,input:disabled{opacity:.40;cursor:not-allowed}
 .repro-row.repro-head{font-weight:700;color:#b5e8f8;background:#163a58;position:sticky;top:0}
 .repro-row.repro-selected{background:#235d60}
 .repro-low{color:#ffbc9e;font-weight:700}
+
+/* Camera controls affect the displayed viewport, not the simulation world. */
+.zoom-toolbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:8px 0 6px;font-size:12px}
+.zoom-toolbar button{padding:5px 10px;min-width:34px}
+.zoom-toolbar #zoomStatus{min-width:72px;text-align:center;font-variant-numeric:tabular-nums;font-weight:700;color:#b2e6f8}
+.zoom-hint{color:#92abb8;font-size:11px}
+#world.panning{cursor:grab;touch-action:none}
+#world.panning.dragging{cursor:grabbing}
+@media(max-width:900px){
+ .zoom-toolbar{gap:4px;margin:3px 0;font-size:11px}
+ .zoom-toolbar button{padding:3px 7px}
+ .zoom-hint{display:none}
+}
