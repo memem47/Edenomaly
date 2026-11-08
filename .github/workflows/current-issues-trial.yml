@@ -1,0 +1,37 @@
+name: Current ecology trial report
+on:
+  push:
+    paths:
+      - web/current-issues-trial.mjs
+      - .github/workflows/current-issues-trial.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  trial:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run reproducible natural, resource and starting-site trials
+        run: node web/current-issues-trial.mjs
+      - name: Save report in repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add reports/current-issues-trial.md reports/current-issues-trial.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Record multi-seed ecology balance trial results"
+            git push
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: current-issues-trial
+          path: reports/current-issues-trial.*
+          retention-days: 14
