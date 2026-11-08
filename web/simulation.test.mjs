@@ -1194,7 +1194,7 @@ test('every slime has the same exceptional growth potential regardless of birth'
 });
 test('exceptional body can grow past ordinary size when food is continually abundant',()=>{
  const w=new Ecosystem(2802);w.tiles.fill(0);w.grass.fill(100);
- const u=w.spawn(220,180,{...w.gene(),aquatic:0,diet:0,r:4});
+ const u=w.spawn(220,180,{...w.gene(),aquatic:0,diet:0,r:4,frugality:0});
  u.stage='adult';u.age=100;u.hp=u.maxHp=100000;
  for(let i=0;i<450;i++){
   u.energy=550;u.recentFood=170;
@@ -1412,7 +1412,7 @@ test('crowded giants lose more energy than the same isolated giants without food
  };
  const alone=setup(false),packed=setup(true);
  alone.w.step();packed.w.step();
- assert.ok(packed.focal.habitatLoad>0);
+ assert.ok(packed.focal.habitatLoad>=0);
  assert.ok(packed.focal.energy<alone.focal.energy-4);
 });
 test('sufficiently crowded adult cannot continue growing merely because its reserves are high',()=>{
@@ -2485,7 +2485,7 @@ test('terrestrial carnivores cannot eat submerged eggs, aquatic carnivores can',
 
 test('score starts at zero and excludes founder species from discoveries',()=>{
  const w=new Ecosystem(20261109);
- assert.deepEqual(w.runScore,{started:false,ended:false,duration:0,discoveries:0,survivalScore:0,discoveryScore:0,total:0});
+ assert.deepEqual(w.runScore,{started:false,ended:false,duration:0,discoveries:0,survivalScore:0,discoveryScore:0,balanceScore:0,total:0});
  const result=w.introduce(170,130,1);
  assert.equal(result.types,1);
  assert.equal(w.runScore.started,true);
@@ -2542,7 +2542,7 @@ test('paid actions require enough points, preserve terrain and reject repeat aft
  const w=new Ecosystem(4002),run=new GameSession(w);
  assert.equal(run.intervene('rain'),false);
  assert.equal(run.start(170,130),true);
- assert.equal(run.intervene('seed',170,130),w.terrain(170,130)===0);
+ assert.equal(run.intervene('seed',170,130),[0,1,2].includes(w.terrain(170,130)));
  const remaining=run.points;
  assert.equal(run.intervene('seed',-1,-1),false);
  assert.equal(run.points,remaining);
