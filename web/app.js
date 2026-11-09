@@ -318,8 +318,7 @@ function interact(e){
    if(!session.active&&!session.finished&&session.start(x,y)){
     if(ecologyLog.activeId===null)ecologyLog.start(game.initialSeed);
      if(speciesLog.activeId===null)speciesLog.start(game.initialSeed);
-     if(speciesLog.activeId===null)speciesLog.start(game.initialSeed);
-    lastReproductionSample=observeEcology(game);ecologyLog.record(lastReproductionSample,true);ecologyLog.recordIndividuals(game,true);speciesLog.record(game,true);speciesLog.record(game,true);
+    lastReproductionSample=observeEcology(game);ecologyLog.record(lastReproductionSample,true);ecologyLog.recordIndividuals(game,true);speciesLog.record(game,true);
     running=true;mode='inspect';
     document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
    }
@@ -335,7 +334,8 @@ function interact(e){
    const result=game.introduce(x,y,n);
    if(result.individuals>0){
     if(ecologyLog.activeId===null)ecologyLog.start(game.initialSeed);
-    lastReproductionSample=observeEcology(game);ecologyLog.record(lastReproductionSample,true);ecologyLog.recordIndividuals(game,true);running=true;
+    if(speciesLog.activeId===null)speciesLog.start(game.initialSeed);
+    lastReproductionSample=observeEcology(game);ecologyLog.record(lastReproductionSample,true);ecologyLog.recordIndividuals(game,true);speciesLog.record(game,true);running=true;
    }
   }else if(mode==='inspect'){selected=null;let best=500;for(const u of game.units){const d=(u.x-x)**2+(u.y-y)**2;if(d<best){best=d;selected=u;}}}
  }
