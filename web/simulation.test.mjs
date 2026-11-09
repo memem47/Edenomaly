@@ -11,7 +11,7 @@ test('terrain painting changes terrain',()=>{const s=populated();s.paint(100,100
 
 test('morphological genes are inherited and bounded',()=>{const s=populated(42);for(let i=0;i<300;i++)s.step();for(const u of s.units){assert.ok(u.g.elongation>=.65&&u.g.elongation<=3);assert.ok(u.g.eyes>=0&&u.g.eyes<=6);assert.ok(u.g.mouths>=1&&u.g.mouths<=4);assert.equal('legs' in u.g,false);assert.equal('pattern' in u.g,false);}});
 test('more eyes increase sight but cost energy',()=>{const g=populated().gene();assert.ok(morphology({...g,eyes:6}).eyeRange>morphology({...g,eyes:0}).eyeRange);assert.ok(morphology({...g,eyes:6}).upkeep>morphology({...g,eyes:0}).upkeep);});
-test('slime has no vestigial legs or pattern genes',()=>{const g=populated().gene();assert.equal(g.legs,undefined);assert.equal(g.pattern,undefined);});
+test('slime has no vestigial legs but has inherited body pattern',()=>{const g=populated().gene();assert.equal(g.legs,undefined);assert.ok(g.pattern>=0&&g.pattern<=1);});
 test('longer body raises mass and energy consumption',()=>{const g=populated().gene();assert.ok(morphology({...g,elongation:2.8}).bodyMass>morphology({...g,elongation:.8}).bodyMass);assert.ok(morphology({...g,elongation:2.8}).upkeep>morphology({...g,elongation:.8}).upkeep);});
 test('mouth number influences feeding and attack reach',()=>{const g=populated().gene();assert.ok(morphology({...g,mouths:4}).foodGain>morphology({...g,mouths:1}).foodGain);assert.ok(morphology({...g,mouths:4}).biteReach>morphology({...g,mouths:1}).biteReach);});
 
@@ -2015,7 +2015,7 @@ test('genome code is stable, quantized, and changes when a trait crosses a bin',
  const w=new Ecosystem(9114),g=w.gene();
  const code=genomeCode(g);
  assert.equal(code,genomeCode({...g}));
- assert.ok(/^[0-9A-F]{4}(-[0-9A-F]{4}){6}-[0-9A-F]$/.test(code));
+ assert.ok(/^[0-9A-F]{4}(-[0-9A-F]{4}){7}-[0-9A-F]$/.test(code));
  const variant={...g,longevity:2};
  assert.notEqual(genomeCode(variant),code);
  assert.equal(genomeCode({...g,wet:.401}),genomeCode({...g,wet:.402}));
@@ -3424,4 +3424,56 @@ test('jelly shader simplifies distant and dense tiny slimes without allocating g
  const before=calls.bezier;
  jellyPath(ctx,12,10,0.5);
  assert.ok(calls.bezier>before);
+});
+
+test('new appearance genes recombine, mutate and remain bounded',()=>{
+ const w=new Ecosystem(202611096),a=w.gene(),b=w.gene();
+ const keys=['tailLength','hornLength','antennaLength','pattern'];
+ for(const key of keys){
+  assert.ok(a[key]>=0&&a[key]<=1,key);
+  assert.equal(a.alleles[key].length,2);
+  a[key]=.1;b[key]=.9;
+  a.alleles[key]=[.1,.1];b.alleles[key]=[.9,.9];
+ }
+ const child=w.recombine(a,b);
+ for(const key of keys){
+  assert.equal(child[key],.5,key);
+  assert.deepEqual(child.alleles[key],[.1,.9],key);
+ }
+ const mutant=w.mutate(child);
+ for(const key of keys)assert.ok(mutant[key]>=0&&mutant[key]<=1,key);
+});
+test('tail propulsion, horn damage and antenna vision have measured costs',()=>{
+ const w=new Ecosystem(2026110967),g=w.gene();
+ const bare={...g,tailLength:0,hornLength:0,antennaLength:0,pattern:0};
+ const decorated={...bare,tailLength:1,hornLength:1,antennaLength:1,pattern:1};
+ const a=morphology(bare),b=morphology(decorated);
+ assert.ok(b.upkeep>a.upkeep);
+ assert.ok(b.eyeRange>a.eyeRange);
+ assert.ok(b.biteReach>a.biteReach);
+ assert.ok(b.speed<a.speed);
+ assert.ok(typeof a==='object');
+});
+
+test('pattern camouflage depends on local terrain affinity',async()=>{
+ const {camouflageFactor}=await import('./simulation.js');
+ const g={wet:1,dry:0,rock:0,pattern:1};
+ assert.ok(camouflageFactor(g,1)<camouflageFactor(g,2));
+ assert.equal(camouflageFactor({...g,pattern:0},1),1);
+});
+test('new appendage rendering leaves ecology unchanged and renders all four traits',async()=>{
+ const {drawOrnamentsBehind,drawOrnamentsFront}=await import('./slime-ornaments.js');
+ const w=new Ecosystem(2026110968),g={...w.gene(),tailLength:1,hornLength:1,antennaLength:1,pattern:1};
+ const cmds={curves:0,shapes:0};
+ const ctx=new Proxy({bezierCurveTo(){cmds.curves++;},quadraticCurveTo(){cmds.curves++;},
+  ellipse(){cmds.shapes++;}},{
+   get(o,k){return k in o?o[k]:()=>{};},
+   set(o,k,v){o[k]=v;return true;}
+ });
+ const before=w.rng;
+ drawOrnamentsBehind(ctx,g,12,8,12,5);
+ drawOrnamentsFront(ctx,g,12,8,12,5);
+ assert.ok(cmds.curves>=2);
+ assert.ok(cmds.shapes>=3);
+ assert.equal(w.rng,before);
 });
