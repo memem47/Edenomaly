@@ -73,7 +73,10 @@ export function speciesReport(world,{run=1,version='development'}={}){
    if(!values){values=[];entry.set(field,values);}values.push(value);
   }
   // Actual mass uses acquired growth, unlike geneticMass at birth.
-  const mass=u.g.r*u.g.r*u.g.elongation*(u.growthScale??1)**2;
+  const radius=u.g.sizeBaseRadius??u.g.r;
+  const t=Math.max(0,Math.min(1,(radius-10)/5));
+  const mult=1.7*(.5+.5*t*t);
+  const mass=(u.g.r*mult)**2*u.g.elongation*(u.growthScale??1)**2;
   if(numeric(mass)){
    if(!entry.has('actualMass'))entry.set('actualMass',[]);
    entry.get('actualMass').push(mass);
