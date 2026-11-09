@@ -1,6 +1,6 @@
-import {WORLD,TERRAIN_COLORS,dietProfile,vitality,adaptationColor,lifeStageScale,bodySizeMultiplier} from './simulation.js?v=2026.11.09.3';
-import {drawEnhancedTerrain} from './terrain-visuals.js?v=2026.11.09.3';
-import {drawJellyBody} from './jelly-visuals.js?v=2026.11.09.3';
+import {WORLD,TERRAIN_COLORS,dietProfile,vitality,adaptationColor,lifeStageScale,bodySizeMultiplier} from './simulation.js?v=2026.11.09.4';
+import {drawEnhancedTerrain} from './terrain-visuals.js?v=2026.11.09.4';
+import {drawJellyBody} from './jelly-visuals.js?v=2026.11.09.4';
 const TAU=Math.PI*2;
 // Angles are measured around the rim of a top-down oval; +X is forward.
 // Predators look forward, herbivores to either side, and many-eyed slimes all around.
@@ -34,6 +34,30 @@ export function closedEyeTangent(angle,rx,ry){
  const dx=-rx*Math.sin(angle),dy=ry*Math.cos(angle);
  const len=Math.hypot(dx,dy)||1;
  return {x:dx/len,y:dy/len};
+}
+// Curve follows the local body outline. The nearest neighboring eye bounds
+// both lid length and stroke thickness, preventing fused lines in multi-eye slimes.
+export function closedEyeCurve(angle,rx,ry,eyeRadius,angles=[angle]){
+ const {x:ex,y:ey}=slimeEyeLocation(angle,rx,ry);
+ const tangent=closedEyeTangent(angle,rx,ry);
+ let nearest=Infinity;
+ for(const other of angles){
+  if(other===angle)continue;
+  const p=slimeEyeLocation(other,rx,ry);
+  nearest=Math.min(nearest,Math.hypot(ex-p.x,ey-p.y));
+ }
+ const halfLength=Math.min(eyeRadius*.58,nearest*.25);
+ const width=Math.min(Math.max(.35,eyeRadius*.52),nearest*.22);
+ // Outward normal gently traces the convex silhouette rather than a straight lid.
+ const nx=Math.cos(angle)/Math.max(.01,rx),ny=Math.sin(angle)/Math.max(.01,ry);
+ const norm=Math.hypot(nx,ny)||1;
+ const depth=Math.min(eyeRadius*.20,nearest*.10);
+ return {
+  sx:ex-tangent.x*halfLength,sy:ey-tangent.y*halfLength,
+  cx:ex+nx/norm*depth,cy:ey+ny/norm*depth,
+  ex:ex+tangent.x*halfLength,ey:ey+tangent.y*halfLength,
+  lineWidth:width,halfLength
+ };
 }
 // HP is remaining life. Colors start fading below half-life; at zero
 // they match the corpse palette exactly. There are no persistent wound marks.
@@ -331,14 +355,12 @@ export function drawWorld(ctx,s,showEffects=true,selected=null,options={}){
   for(const angle of (dead?[]:eyes)){
    const {x:ex,y:ey}=slimeEyeLocation(angle,rx,ry);
    if(u.dormant){
-    // Closed eyes follow the local body outline: straight, not smile-shaped.
-    // Body rotation is inherited from the surrounding canvas transform.
-    const tangent=closedEyeTangent(angle,rx,ry);
-    ctx.strokeStyle=slimeEyeColor(g);ctx.lineWidth=Math.max(1,eyeRadius*.8);
-    ctx.lineCap='round';
-    ctx.beginPath();
-    ctx.moveTo(ex-tangent.x*eyeRadius,ey-tangent.y*eyeRadius);
-    ctx.lineTo(ex+tangent.x*eyeRadius,ey+tangent.y*eyeRadius);
+    // Short, curved eyelids remain separate even with six adjacent eyes.
+    const lid=closedEyeCurve(angle,rx,ry,eyeRadius,eyes);
+    ctx.strokeStyle=slimeEyeColor(g);ctx.lineWidth=lid.lineWidth;
+    ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.beginPath();ctx.moveTo(lid.sx,lid.sy);
+    ctx.quadraticCurveTo(lid.cx,lid.cy,lid.ex,lid.ey);
     ctx.stroke();
     continue;
    }
