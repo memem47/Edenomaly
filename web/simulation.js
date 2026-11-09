@@ -175,17 +175,19 @@ export const morphology=g=>{
  const width=g.r*bodySizeMultiplier(g),length=width*g.elongation;
  const bodyMass=width*width*g.elongation;
  const metabolicMass=g.r*g.r*g.elongation;
- const eyeRange=20+Math.min(g.eyes,3)*14+Math.max(0,g.eyes-3)*7;
+ const eyeRange=20+Math.min(g.eyes,3)*14+Math.max(0,g.eyes-3)*7+
+  24*clamp(g.antennaLength??0,0,1);
  // Physical shrinking must not make locomotion faster by reducing the mass
  // denominator. Small limbs also cover less ground per simulation step.
  const speed=3.45/(.65+metabolicMass*.017)*(.55+.45*bodySizeMultiplier(g)/1.7)
-  *(1-Math.max(0,g.eyes-3)*.055);
+  *(1-Math.max(0,g.eyes-3)*.055)
+  *(1-.07*clamp(g.hornLength??0,0,1)-.035*clamp(g.antennaLength??0,0,1));
  const turnRate=clamp(.29/(.75+g.elongation*.21),.12,.29);
  const mouths=g.mouths;
- const biteReach=width*(.7+.15*mouths)+g.jaw*1.6;
+ const biteReach=width*(.7+.15*mouths)+g.jaw*1.6+1.2*clamp(g.hornLength??0,0,1);
  const edibleRatio=clamp(.60+.055*mouths+.06*g.jaw,.62,.88);
  const predatory=dietProfile(g).meat>.14&&g.jaw>=.55&&mouths>=1;
- const upkeep=.09+metabolicMass*.008+Math.max(0,metabolicMass-110)**1.2*.002+g.eyes*.045+Math.max(0,g.eyes-3)**2*.06+mouths*.03+g.jaw*.02+Math.abs(g.deception-.5)*.035+(g.resist??.4)*.04;
+ const upkeep=.09+metabolicMass*.008+Math.max(0,metabolicMass-110)**1.2*.002+g.eyes*.045+Math.max(0,g.eyes-3)**2*.06+mouths*.03+g.jaw*.02+Math.abs(g.deception-.5)*.035+(g.resist??.4)*.04+clamp(g.tailLength??0,0,1)*.13+clamp(g.hornLength??0,0,1)*.18+clamp(g.antennaLength??0,0,1)*.12+clamp(g.pattern??0,0,1)*.075;
  const foodGain=1+Math.min(.42,(mouths-1)*.13);
  return {width,length,bodyMass,eyeRange,speed,turnRate,biteReach,edibleRatio,predatory,upkeep,foodGain};
 };
@@ -371,7 +373,7 @@ export const rearPosition=(u,offset=0)=>({
  x:clamp(u.x-Math.cos(u.angle)*(u.g.r*u.g.elongation+5+offset),6,W-6),
  y:clamp(u.y-Math.sin(u.angle)*(u.g.r*u.g.elongation+5+offset),6,H-6)
 });
-const HERITABLE=['repro','idealTemp','tempTolerance','hibernate','longevity','r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic','albino','dispersal','sociability','caution','predatorSense','retaliation','frugality','waterGardening'];
+const HERITABLE=['tailLength','hornLength','antennaLength','pattern','repro','idealTemp','tempTolerance','hibernate','longevity','r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic','albino','dispersal','sociability','caution','predatorSense','retaliation','frugality','waterGardening'];
 // Natural ponds always retain a viable reservoir. Drought reduces excess
 // water depth, but only deliberate terrain painting may remove a water tile.
 export const POND_RESERVE=35;
@@ -386,7 +388,7 @@ export const genomeCode=g=>HERITABLE.map(key=>{
  return step.toString(16).toUpperCase();
 }).join('').match(/.{1,4}/g).join('-');
 
-const LIMITS={repro:[0,2],idealTemp:[-5,40],tempTolerance:[3,18],hibernate:[0,1],longevity:[.6,2],r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1],albino:[0,1],dispersal:[0,1],sociability:[0,1],caution:[0,1],predatorSense:[0,1],retaliation:[0,1],frugality:[0,1],waterGardening:[0,1]};
+const LIMITS={tailLength:[0,1],hornLength:[0,1],antennaLength:[0,1],pattern:[0,1],repro:[0,2],idealTemp:[-5,40],tempTolerance:[3,18],hibernate:[0,1],longevity:[.6,2],r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1],albino:[0,1],dispersal:[0,1],sociability:[0,1],caution:[0,1],predatorSense:[0,1],retaliation:[0,1],frugality:[0,1],waterGardening:[0,1]};
 const alleleExpression=(key,pair)=>{
  // Eyes: more-eye allele is dominant; hidden low-eye alleles can reappear in grandchildren.
  // Other continuous traits use incomplete dominance (mean of the two inherited copies).
@@ -428,6 +430,15 @@ export const retaliationProbability=(prey,attacker)=>{
  return clamp(resolve*clamp(ratio,.25,1.5)*vitality(prey).vigor,0,.95);
 };
 // Shelter changes detection, not invulnerability.
+// Visible spots/stripes blend into the habitat only when pigment reflects
+// local adaptation. On unsuitable terrain the pattern costs energy without
+// providing stealth; predators retain the ability to detect approaching prey.
+export const camouflageFactor=(g,terrain)=>{
+ const pattern=clamp(g.pattern??0,0,1);
+ const affinity=terrain===1?clamp(g.wet??0,0,1):terrain===2?clamp(g.dry??0,0,1):
+  terrain===3?clamp(g.rock??0,0,1):clamp(1-Math.max(g.wet??0,g.dry??0,g.rock??0)*.5,0,1);
+ return 1-.34*pattern*affinity;
+};
 export const coverFactor=(terrain,observerAquatic=false)=>terrain===3?.34:
  terrain===1?(observerAquatic?.80:.06):1;
  // Higher dispersal means lower crowd tolerance; social affinity raises it.
@@ -474,11 +485,17 @@ export class Ecosystem{
    brood:1+Math.floor(this.rand()*8),diet:this.rand(),
    deception:clamp(.5+this.range(-.42,.42),0,1),resist:this.rand(),
    aquatic:this.rand()<.25?1:0,albino:this.rand()<.0015?1:0};
+  // Founders inherit four continuous ornament loci. Seed from the existing
+  // genome without extra draws so the old seed remains reproducible.
+  g.tailLength=clamp((g.wet-.38)*.58+(g.aquatic===1?.22:0),0,1);
+  g.hornLength=clamp((g.jaw-1.15)*.25+(g.guard-.72)*.29,0,1);
+  g.antennaLength=clamp((g.eyes/6-.34)*.38+(g.predatorSense??g.resist-.5)*.12,0,1);
+  g.pattern=clamp((g.deception-.55)*.57+(g.resist-.62)*.23,0,1);
   // Each founding individual carries two genetic copies per locus, including
   // recessive alleles that are not necessarily visible in its phenotype.
   g.alleles={};
   for(const key of HERITABLE){
-   if(key==='hibernate'||key==='dispersal'||key==='sociability'||key==='caution'||key==='predatorSense'||key==='retaliation'||key==='frugality'||key==='waterGardening')continue; // preserve older founder RNG sequence
+   if(['tailLength','hornLength','antennaLength','pattern'].includes(key)||key==='hibernate'||key==='dispersal'||key==='sociability'||key==='caution'||key==='predatorSense'||key==='retaliation'||key==='frugality'||key==='waterGardening')continue; // preserve older founder RNG sequence
    let second=g[key];
    if(key==='repro')second=0;
     else if(key==='idealTemp')second=clamp(g.idealTemp+this.range(-3,3),...LIMITS.idealTemp);
@@ -521,6 +538,8 @@ export class Ecosystem{
    g.waterGardening=clamp(.05+g.wet*.28+g.nesting*.15,0,1);
    g.alleles.frugality=[g.frugality,g.frugality];
    g.alleles.waterGardening=[g.waterGardening,g.waterGardening];
+   for(const key of ['tailLength','hornLength','antennaLength','pattern'])
+    g.alleles[key]=[g[key],g[key]];
   return g;
  }
  mutate(g){
@@ -916,8 +935,10 @@ export class Ecosystem{
  attack(hunter,prey,defensive=false){
   if(hunter===prey||hunter.dead||prey.dead||hunter.bite>0||(!defensive&&effectiveMeatAffinity(hunter)<=0)||(defensive===true&&protectiveDrive(hunter.g)<=.34))return false;
   const mm=organismMorphology(hunter),v=vitality(hunter),def=vitality(prey);
-  const damage=Math.max(2,(4+hunter.g.jaw*7+mm.bodyMass*.065)*(defensive==='rival'?.42:defensive==='retaliation'?.72:defensive?.65+protectiveDrive(hunter.g)*.65:effectiveMeatAffinity(hunter))*v.vigor);
-  const vulnerable=1+.8*metabolicFrugality(prey.g);
+  const damage=Math.max(2,(4+hunter.g.jaw*7+mm.bodyMass*.065+
+   3.2*clamp(hunter.g.hornLength??0,0,1))*(defensive==='rival'?.42:defensive==='retaliation'?.72:defensive?.65+protectiveDrive(hunter.g)*.65:effectiveMeatAffinity(hunter))*v.vigor);
+  const vulnerable=(1+.8*metabolicFrugality(prey.g))*
+   (1-.16*clamp(prey.g.hornLength??0,0,1));
   const actualDamage=damage*vulnerable;
   prey.hp=Math.max(0,prey.hp-actualDamage);
   if(defensive){hunter.energy-=defensive==='rival'?4:2.5;if(defensive!=='retaliation')prey.bite=Math.max(prey.bite,14);}
@@ -1559,7 +1580,8 @@ export class Ecosystem{
      const cannibal=(hungry||famineCannibalism(u))&&v.category===u.category;
      if(v.category===u.category&&!cannibal)continue;
      if(preyMass>m.bodyMass*(cannibal?1.15:m.edibleRatio))continue;
-    const d=distance(u,v)/Math.max(.1,coverFactor(preyTerrain,aquatic))**2;
+    const d=distance(u,v)/Math.max(.1,coverFactor(preyTerrain,aquatic)*
+       camouflageFactor(v.g,preyTerrain))**2;
      if(d<pd){pd=d;prey=v;}
    }
    // Prey usually respond to apparent feeding signals, but juveniles know
@@ -1581,7 +1603,7 @@ export class Ecosystem{
     if(visible<.48||organismMorphology(v).bodyMass<m.bodyMass*.55)continue;
     const directDistance=distance(u,v);
     if(suppressFearSignal(u,v,directDistance,foodWithinReach))continue;
-    const d=directDistance/Math.max(.1,coverFactor(t,aquatic))**2;
+    const d=directDistance/Math.max(.1,coverFactor(t,aquatic)*camouflageFactor(v.g,t))**2;
     if(d>=dangerD)continue;
     // Store the response until the encounter ends. Ignore a signal for the
     // whole encounter when the inherited risk roll says "stand ground".
@@ -1759,6 +1781,8 @@ export class Ecosystem{
    const terrainMove=home.move;
    const courtingMate=u.courtPartner?byId.get(u.courtPartner):null;
    const speed=m.speed*body.vigor*thermal.activity*(u.stage==='juvenile'?.8:1)*terrainMove
+    *(aquatic&&underwater?1+.23*clamp(g.tailLength??0,0,1):
+      1-.09*clamp(g.tailLength??0,0,1))
      *(flight?1.24:courtingMate&&distance(u,courtingMate)<22**2?.20:1)
      *(flight?1:Math.max(.55,1-congestion*.06));
    // Targets are satisfied at contact range. Repeatedly overshooting food
