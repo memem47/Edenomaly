@@ -9,7 +9,7 @@ test('species counts reconcile',()=>{const s=populated();for(let i=0;i<25;i++)s.
 test('death creates a decomposable corpse',()=>{const s=populated();let u=s.units[0];s.die(u,'test');assert.equal(s.corpses.length,1);assert.equal(s.species.get(u.category).current>=0,true);});
 test('terrain painting changes terrain',()=>{const s=populated();s.paint(100,100,3,2);assert.equal(s.terrain(100,100),3);});
 
-test('morphological genes are inherited and bounded',()=>{const s=populated(42);for(let i=0;i<300;i++)s.step();for(const u of s.units){assert.ok(u.g.elongation>=.65&&u.g.elongation<=3);assert.ok(u.g.eyes>=0&&u.g.eyes<=6);assert.ok(u.g.mouths>=1&&u.g.mouths<=4);assert.equal('legs' in u.g,false);assert.equal('pattern' in u.g,false);}});
+test('morphological genes are inherited and bounded',()=>{const s=populated(42);for(let i=0;i<300;i++)s.step();for(const u of s.units){assert.ok(u.g.elongation>=.65&&u.g.elongation<=3);assert.ok(u.g.eyes>=0&&u.g.eyes<=6);assert.ok(u.g.mouths>=1&&u.g.mouths<=4);assert.equal('legs' in u.g,false);assert.ok(u.g.pattern>=0&&u.g.pattern<=1);}});
 test('more eyes increase sight but cost energy',()=>{const g=populated().gene();assert.ok(morphology({...g,eyes:6}).eyeRange>morphology({...g,eyes:0}).eyeRange);assert.ok(morphology({...g,eyes:6}).upkeep>morphology({...g,eyes:0}).upkeep);});
 test('slime has no vestigial legs but has inherited body pattern',()=>{const g=populated().gene();assert.equal(g.legs,undefined);assert.ok(g.pattern>=0&&g.pattern<=1);});
 test('longer body raises mass and energy consumption',()=>{const g=populated().gene();assert.ok(morphology({...g,elongation:2.8}).bodyMass>morphology({...g,elongation:.8}).bodyMass);assert.ok(morphology({...g,elongation:2.8}).upkeep>morphology({...g,elongation:.8}).upkeep);});
@@ -136,7 +136,7 @@ test('brood is bounded and redundant pigmentation genes stay absent after mutati
  for(let i=0;i<100;i++){
   const g=s.mutate(s.gene());
   assert.ok(g.brood>=1&&g.brood<=8&&Number.isInteger(g.brood));
-  assert.equal(g.pattern,undefined);
+  assert.ok(g.pattern>=0&&g.pattern<=1);
   for(const key of ['hue','saturation','lightness']){
    assert.equal(Object.hasOwn(g,key),false);
    assert.equal(Object.hasOwn(g.alleles,key),false);
