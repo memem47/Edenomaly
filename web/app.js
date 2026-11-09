@@ -1,14 +1,14 @@
 import {zipFiles} from './zip-log.js?v=2026.11.07.4';
-import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.09.5';
+import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.09.6';
 import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.08.11';
 import {fitView,screenToWorld,zoomAround,panBy,MAX_ZOOM,ZOOM_STEP} from './viewport.js?v=2026.11.08.12';
-import {drawWorld,drawChart} from './renderer.js?v=2026.11.09.5';
+import {drawWorld,drawChart} from './renderer.js?v=2026.11.09.6';
 import {EcologyLogbook,observeEcology} from './ecology-log.js?v=2026.11.08.13';
 import {performancePolicy,simulationBatch,BROWSER_BACKGROUND_INTERVAL} from './performance-policy.js?v=video-friendly-1';
 const $=id=>document.getElementById(id);
 // Release label is bundled with the running source; comparison uses a
 // separately published manifest from the repository's main branch.
-const BUILD_VERSION='2026.11.09.5';
+const BUILD_VERSION='2026.11.09.6';
 const VERSION_SOURCE='https://raw.githubusercontent.com/memem47/Edenomaly/main/web/version.json';
 $('buildVersion').textContent=BUILD_VERSION;
 async function checkLatestVersion(){
@@ -68,7 +68,7 @@ const canvas=$('world'),ctx=canvas.getContext('2d'),graph=$('chart').getContext(
 let running=false,speed=1,mode='spawn',brush=3,terrainLevel=3,selected=null,selectedSpecies=null,catalogMarkup='',painting=false,last=0,acc=0,uiAt=0,paintAt=0,rafId=null,backgroundTimer=null,logRunOptions='',selectedLogRun=null;
 let view={zoom:1,x:0,y:0},panEnabled=false,panGesture=null;
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const GENE_LABELS={idealTemp:'好みの温度',tempTolerance:'温度耐性',hibernate:'休眠傾向',r:'体の大きさ',elongation:'体の長さ比',eyes:'目の数',mouths:'口の能力',jaw:'顎の能力',wet:'水への適応',dry:'乾燥への適応',rock:'岩場への適応',aquatic:'水生／陸生',shell:'卵殻',guard:'卵の保護',nesting:'産卵場所',brood:'産卵数',diet:'食性',deception:'擬態',resist:'感染抵抗力',longevity:'長寿特性',albino:'白色変異',dispersal:'分散傾向',sociability:'集合傾向',caution:'警戒心',predatorSense:'捕食者識別',retaliation:'反撃性',frugality:'省エネ特性',waterGardening:'水草栽培傾向'};
+const GENE_LABELS={idealTemp:'好みの温度',tempTolerance:'温度耐性',hibernate:'休眠傾向',r:'体の大きさ',elongation:'体の長さ比',eyes:'目の数',mouths:'口の能力',jaw:'顎の能力',wet:'水への適応',dry:'乾燥への適応',rock:'岩場への適応',aquatic:'水生／陸生',shell:'卵殻',guard:'卵の保護',nesting:'産卵場所',brood:'産卵数',diet:'食性',deception:'擬態',resist:'感染抵抗力',longevity:'長寿特性',albino:'白色変異',dispersal:'分散傾向',sociability:'集合傾向',caution:'警戒心',predatorSense:'捕食者識別',retaliation:'反撃性',frugality:'省エネ特性',waterGardening:'水草栽培傾向',tailLength:'しっぽの長さ',hornLength:'角の長さ',antennaLength:'触角の長さ',pattern:'体表模様の強さ'};
 function genomeValue(key,value){return key==='aquatic'?(value===1?'水生':'陸生'):typeof value==='number'?(Number.isInteger(value)?String(value):value.toFixed(3)):String(value);}
 function speciesColor(sp){
  const g=sp.genome;
