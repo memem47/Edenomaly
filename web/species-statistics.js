@@ -57,8 +57,10 @@ const livingValues=u=>({
 });
 const distribution=(values)=>{
  if(!values?.length)return null;
- return {samples:values.length,min:round(Math.min(...values)),
-  median:round(medianOf(values)),max:round(Math.max(...values))};
+ let min=Infinity,max=-Infinity;
+ for(const v of values){if(v<min)min=v;if(v>max)max=v;}
+ return {samples:values.length,min:round(min),
+  median:round(medianOf(values)),max:round(max)};
 };
 export function speciesReport(world,{run=1,version='development'}={}){
  const active=new Map();
@@ -72,7 +74,10 @@ export function speciesReport(world,{run=1,version='development'}={}){
   }
   // Actual mass uses acquired growth, unlike geneticMass at birth.
   const mass=u.g.r*u.g.r*u.g.elongation*(u.growthScale??1)**2;
-  if(numeric(mass))entry.get('actualMass')?.push(mass);
+  if(numeric(mass)){
+   if(!entry.has('actualMass'))entry.set('actualMass',[]);
+   entry.get('actualMass').push(mass);
+  }
  }
  const rows=[];
  for(const [key,species] of world.species){
