@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Edenomaly 種族ステータス分析</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,"Meiryo",sans-serif;background:#0c1823;color:#e5eef5}
+*{box-sizing:border-box}body{margin:0;padding:22px;max-width:1440px;margin-inline:auto}header{display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap}h1{font-size:clamp(20px,3vw,30px);margin:6px 0}h2{font-size:18px;margin:0 0 15px}.sub{color:#a7bbc9;font-size:13px;line-height:1.65}
+main{display:grid;grid-template-columns:minmax(260px,340px) minmax(0,1fr);gap:16px;margin-top:18px}
+.panel{padding:18px;border:1px solid #334c60;border-radius:14px;background:#142736;min-width:0}
+.full{grid-column:1/-1}label{font-size:13px;color:#bbd1dd;display:flex;flex-direction:column;gap:7px;margin:13px 0}
+select,input{background:#0a1c2c;color:#f2f6fa;border:1px solid #526c81;border-radius:8px;padding:10px;font:inherit;max-width:100%}
+input[type=file]{width:100%}button,.link{border:1px solid #527f9c;border-radius:8px;padding:9px 12px;background:#24435a;color:#fff;cursor:pointer;text-decoration:none;font-size:13px}
+a{color:#96dff5}.toolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.row{display:grid;grid-template-columns:minmax(115px,170px) minmax(120px,1fr) minmax(95px,150px);gap:12px;align-items:center;padding:10px 5px;border-bottom:1px solid #2c4051;font-size:13px}
+.row:last-child{border-bottom:0}.bar{position:relative;height:15px;border-radius:6px;background:#253d4e;overflow:hidden}
+.range{position:absolute;top:5px;height:5px;background:#67bddb;border-radius:5px;min-width:2px}.median{position:absolute;top:1px;width:3px;height:13px;background:#f3d78b;border-radius:2px;transform:translateX(-1px)}
+.name{font-weight:600;overflow-wrap:anywhere}.number{text-align:right;font-variant-numeric:tabular-nums;color:#c0dce6;font-size:12px}
+#species{max-height:420px;overflow:auto}#species button{width:100%;display:flex;justify-content:space-between;gap:8px;text-align:left;padding:10px;margin:3px 0}
+#species button.selected{background:#276c73;border-color:#80c9bd}
+#details{max-height:740px;overflow:auto}
+.controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.summary{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}.chip{background:#213a4b;border:1px solid #39576d;padding:8px 11px;border-radius:8px;font-size:12px}
+.notice{color:#f1c785}#comparison{max-height:580px;overflow:auto}
+.legend{font-size:12px;color:#b6cddd;margin:14px 0}.legend i{display:inline-block;width:11px;height:6px;background:#67bddb;margin:0 4px 2px 12px}.legend b{color:#f3d78b}
+@media(max-width:850px){main{grid-template-columns:1fr}.controls{grid-template-columns:1fr}.row{grid-template-columns:100px 1fr 90px;gap:5px}body{padding:10px}.full{grid-column:auto}}
+</style></head><body>
+<header><div><h1>🧬 種族ステータス分析</h1><div class="sub">Edenomaly / 遺伝・能力・現存個体の分布を比較</div></div>
+<a class="link" href="index.html">ゲームへ戻る</a></header>
+<p class="sub">ゲームの「全ログをまとめて保存（ZIP）」から <strong>edenomaly-species-statistics-*.csv</strong> を取り出し、ここで読み込んでください。ファイルはブラウザ内だけで処理され、外部に送信されません。</p>
+<main>
+<section class="panel"><h2>データの読み込み</h2>
+<label>種族CSV<input id="file" type="file" accept=".csv,text/csv"></label>
+<div id="status" class="sub" role="status">CSVを選択してください。</div>
+<label>試行<select id="run" disabled></select></label>
+<label>種族名・分類キーで検索<input id="search" type="search" placeholder="例：アオ、肉食、aquatic" disabled></label>
+<div class="summary" id="totals"></div>
+<h2>種族一覧</h2><div id="species"></div></section>
+<section class="panel"><h2>種族の全ステータス</h2>
+<div id="selectedInfo" class="sub">種族を選択してください。</div>
+<div class="toolbar"><label>項目グループ<select id="scope"><option value="birth">出生時の遺伝・基本能力</option><option value="living">現存個体の状態</option></select></label>
+<label>検索<input id="metricSearch" type="search" placeholder="例：体重、しっぽ、速度"></label></div>
+<div class="legend"><i></i>最小～最大　<b>│</b> 中央値　（各行の棒はその項目の最小～最大を横幅いっぱいに正規化）</div>
+<div id="details" aria-live="polite"></div></section>
+<section class="panel full"><h2>種族間の比較</h2>
+<div class="controls"><label>比較する項目<select id="metric" disabled></select></label>
+<label>範囲<select id="compareScope"><option value="birth">出生時の遺伝・基本能力</option><option value="living">現存個体の状態</option></select></label>
+<label>並べ替え<select id="sort"><option value="median">中央値（高い順）</option><option value="max">最大値（高い順）</option><option value="min">最小値（高い順）</option><option value="name">種族名</option></select></label></div>
+<p class="sub">共通スケール上に各種族の分布を配置。青い帯が最小～最大、金色の線が中央値です。上位20種を表示します。</p>
+<div id="comparison"></div></section>
+</main>
+<script type="module" src="./species-report-viewer.js?v=2026.11.10.1"></script>
+</body></html>
