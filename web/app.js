@@ -1,14 +1,14 @@
 import {zipFiles} from './zip-log.js?v=2026.11.07.4';
-import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.09.2';
+import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.09.3';
 import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.08.11';
 import {fitView,screenToWorld,zoomAround,panBy,MAX_ZOOM,ZOOM_STEP} from './viewport.js?v=2026.11.08.12';
-import {drawWorld,drawChart} from './renderer.js?v=2026.11.09.2';
+import {drawWorld,drawChart} from './renderer.js?v=2026.11.09.3';
 import {EcologyLogbook,observeEcology} from './ecology-log.js?v=2026.11.08.13';
 import {performancePolicy,simulationBatch,BROWSER_BACKGROUND_INTERVAL} from './performance-policy.js?v=video-friendly-1';
 const $=id=>document.getElementById(id);
 // Release label is bundled with the running source; comparison uses a
 // separately published manifest from the repository's main branch.
-const BUILD_VERSION='2026.11.09.2';
+const BUILD_VERSION='2026.11.09.3';
 const VERSION_SOURCE='https://raw.githubusercontent.com/memem47/Edenomaly/main/web/version.json';
 $('buildVersion').textContent=BUILD_VERSION;
 async function checkLatestVersion(){
@@ -42,10 +42,10 @@ const ecologyLog=new EcologyLogbook(localLogStorage,LOG_VERSION);
 let meta=parseMeta(localLogStorage?.getItem(META_KEY));let rewardRecorded=false;
 const GRAPHICS_KEY='edenomaly-graphics-mode-v1';
 const savedGraphics=(()=>{try{return localLogStorage?.getItem(GRAPHICS_KEY);}catch{return null;}})();
-let graphicsMode=savedGraphics==='classic'?'classic':'enhanced';
+let graphicsMode=['classic','enhanced','jelly'].includes(savedGraphics)?savedGraphics:'jelly';
 $('graphicsMode').value=graphicsMode;
 $('graphicsMode').addEventListener('change',e=>{
- graphicsMode=e.target.value==='classic'?'classic':'enhanced';
+ graphicsMode=['classic','enhanced','jelly'].includes(e.target.value)?e.target.value:'jelly';
  try{localLogStorage?.setItem(GRAPHICS_KEY,graphicsMode);}catch{}
  render();
 });
