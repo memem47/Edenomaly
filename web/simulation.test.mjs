@@ -3302,7 +3302,7 @@ test('natural suffixes preserve trait family and distinguish temperature and str
 test('terrain level paint and terrain effect are independent from four biome identities',async()=>{
  const {terrainLevelFitness,TERRAIN_LEVEL_GROWTH,WATER_LEVEL_GROWTH,TERRAIN_LEVEL_NAMES}=await import('./simulation.js');
  const w=new Ecosystem(2026110901);
- assert.equal(w.terrainLevel(100,100),3);
+ assert.ok(w.terrainLevel(100,100)>=1&&w.terrainLevel(100,100)<=5);
  w.paint(100,100,0,1,5);
  assert.equal(w.terrain(100,100),0);
  assert.equal(w.terrainLevel(100,100),5);
@@ -3328,4 +3328,42 @@ test('grass and aquatic plants use distinct regrowth sliders',()=>{
  low.waterweedGrowth=0;high.waterweedGrowth=200;
  for(let i=0;i<6;i++){low.step();high.step();}
  assert.ok(high.waterweed.reduce((a,b)=>a+b,0)>low.waterweed.reduce((a,b)=>a+b,0));
+});
+
+test('generated terrain includes each of five levels from edge to core and is reproducible',()=>{
+ const w=new Ecosystem(2026110920),again=new Ecosystem(2026110920);
+ assert.deepEqual(w.tiles,again.tiles);
+ assert.deepEqual(w.terrainLevels,again.terrainLevels);
+ for(const biome of [0,1,2,3]){
+  const levels=w.terrainLevels.filter((lev,i)=>w.tiles[i]===biome);
+  assert.ok(levels.length>=5,'terrain absent '+biome);
+  assert.equal(Math.min(...levels),1,'no level-one border for '+biome);
+  assert.equal(Math.max(...levels),5,'no level-five core for '+biome);
+ }
+ // Any level-five tile must be away from a directly adjacent different biome.
+ const columns=40;
+ for(let i=0;i<w.tiles.length;i++)if(w.terrainLevels[i]===5){
+  const x=i%columns,y=Math.floor(i/columns);
+  const adj=[x>0?i-1:-1,x<columns-1?i+1:-1,y>0?i-columns:-1,y<22?i+columns:-1].filter(j=>j>=0);
+  assert.ok(adj.every(j=>w.tiles[j]===w.tiles[i]),'level-five tile at border '+i);
+ }
+});
+test('enhanced terrain rendering does not change ecology or seeded RNG',()=>{
+ const w=new Ecosystem(2026110921);
+ const before={rng:w.rng,tiles:[...w.tiles],levels:[...w.terrainLevels],
+  grass:[...w.grass],waterweed:[...w.waterweed]};
+ const methods=[];
+ const ctx=new Proxy({canvas:{width:800,height:460},createRadialGradient(){return {addColorStop(){}};}},{
+  get(o,k){return k in o?o[k]:(...args)=>{methods.push(k);};},
+  set(o,k,v){o[k]=v;return true;}
+ });
+ drawWorld(ctx,w,false,null,{graphicsMode:'enhanced'});
+ assert.ok(methods.includes('quadraticCurveTo'));
+ assert.equal(w.rng,before.rng);
+ assert.deepEqual([...w.tiles],before.tiles);
+ assert.deepEqual([...w.terrainLevels],before.levels);
+ assert.deepEqual([...w.grass],before.grass);
+ assert.deepEqual([...w.waterweed],before.waterweed);
+ // Original rendering path still works as before.
+ drawWorld(ctx,w,false,null,{graphicsMode:'classic'});
 });
