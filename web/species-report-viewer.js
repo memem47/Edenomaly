@@ -80,22 +80,40 @@ function populateMetrics(){
  if(options.has(prev))sel.value=prev;
  else if(options.has('geneticMass'))sel.value='geneticMass';
 }
+function loadRows(parsed,sourceLabel){
+ if(!parsed.length)throw new Error('有効なデータがありません');
+ if(parsed.some(r=>!r.category||!r.species||!r.metric||!Number.isFinite(r.median)||
+  !Number.isFinite(r.min)||!Number.isFinite(r.max)))throw new Error('行の数値または名前が不正です');
+ rows=parsed;
+ const runs=[...new Set(rows.map(r=>key(r)))];
+ const box=clear($('run'));
+ for(const value of runs){const item=node('option','','試行 #'+value);item.value=value;box.append(item);}
+ box.disabled=false;$('search').disabled=false;$('metric').disabled=false;
+ run=runs.at(-1);box.value=run;selected='';
+ $('status').textContent=sourceLabel+' ｜ '+rows.length.toLocaleString()+'項目';
+ populateMetrics();summary();
+}
+const embedded=new URLSearchParams(window.location.search).has('embedded');
+if(embedded){
+ document.documentElement.classList.add('embedded');
+ $('uploadPanel').hidden=true;
+ $('standaloneIntro').hidden=true;
+ window.addEventListener('message',event=>{
+  if(event.source!==window.parent||event.origin!==window.location.origin)return;
+  if(event.data?.type!=='edenomaly:species-report')return;
+  try{
+   loadRows(event.data.rows,'ゲーム内の最新スナップショット / Step '+event.data.step);
+   $('snapshotStatus').textContent='Step '+event.data.step+' ｜ 生まれた全種族（絶滅種を含む）';
+  }catch(error){$('status').textContent='集計エラー: '+error.message;}
+ });
+ window.parent.postMessage({type:'edenomaly:species-report-ready'},window.location.origin);
+}
 $('file').addEventListener('change',async e=>{
  const file=e.target.files?.[0];if(!file)return;
  try{
   if(file.size>50*1024*1024)throw new Error('50MB以上のCSVは読み込めません。');
   const parsed=parseSpeciesCSV(await file.text());
-  if(!parsed.length)throw new Error('有効なデータがありません');
-  if(parsed.some(r=>!r.category||!r.species||!r.metric||!Number.isFinite(r.median)||
-   !Number.isFinite(r.min)||!Number.isFinite(r.max)))throw new Error('行の数値または名前が不正です');
-  rows=parsed;
-  const runs=[...new Set(rows.map(r=>key(r)))];
-  const box=clear($('run'));
-  for(const value of runs){const item=node('option','','試行 #'+value);item.value=value;box.append(item);}
-  box.disabled=false;$('search').disabled=false;$('metric').disabled=false;
-  run=runs.at(-1);box.value=run;selected='';
-  $('status').textContent=file.name+' ｜ '+rows.length.toLocaleString()+'項目を読み込みました。';
-  populateMetrics();summary();
+  loadRows(parsed,file.name+' を読み込みました');
  }catch(err){rows=[];species=[];clear($('species'));clear($('details'));clear($('comparison'));
   $('status').textContent='読み込みエラー: '+err.message;}
 });
