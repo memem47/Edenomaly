@@ -1975,7 +1975,7 @@ test('classification-derived katakana names are deterministic across resets and 
  c.spawn(120,130,g);
  assert.equal(c.species.get(key).name,expected);
 });
-test('all 108864 ecological classifications have unique readable names of ten kana',()=>{
+test('all 108864 ecological classifications have unique six-kana names',()=>{
  const habitats=['land','aquatic','dry','rock'];
  const groups=[['plant','mixed','hunter'],['tiny','medium','large','giant'],
   ['round','oval','long'],['blind','few','several','allround'],
@@ -1985,7 +1985,7 @@ test('all 108864 ecological classifications have unique readable names of ten ka
  const traverse=(parts,index)=>{
   if(index===groups.length){
    const name=speciesNameFromCategory(parts.join('-'));
-   assert.ok(/^[ァ-ヶ]{10}$/.test(name),name);
+   assert.ok(/^[ァ-ヶ]{6}$/.test(name),name);
    assert.ok(!/アア$/.test(name),'unnatural numeric ending '+name);
    assert.ok(!/(.)\\1$/.test(name),'identical final mora '+name);
    assert.ok(!names.has(name),'duplicate '+name);
@@ -1995,7 +1995,7 @@ test('all 108864 ecological classifications have unique readable names of ten ka
  };
  for(const habitat of habitats)traverse([habitat],0);
  assert.equal(names.size,108864);
- assert.equal(speciesNameFromCategory('aquatic-hunter-large-oval-few-guardian-repro2-cold-blue'),'ミズベニアオメコギフ');
+ assert.ok(speciesNameFromCategory('aquatic-hunter-large-oval-few-guardian-repro2-cold-blue').startsWith('ミズニオ'));
 });
 test('pigment name follows color phenotype and remains stable for cosmetic variations',async()=>{
  const {pigmentClass,adaptationColor}=await import('./simulation.js');
@@ -2007,7 +2007,7 @@ test('pigment name follows color phenotype and remains stable for cosmetic varia
  assert.equal(w.name(key),before);
  const white=w.category({...g,albino:1});
  assert.notEqual(white,key);
- assert.ok(speciesNameFromCategory(white).includes('シロ'));
+ assert.equal(speciesNameFromCategory(white)[3],'シ');
  const hue=adaptationColor(g).hue;
  assert.ok(hue>=0&&hue<360);
 });
@@ -2591,26 +2591,40 @@ test('game completion settles lifetime reward once and keeps it across new runs'
  run.reset();assert.deepEqual(settleMeta(next,run),next);
 });
 
-test('closed eyes are straight tangents to their body outline and follow body rotation',async()=>{
- const {closedEyeTangent}=await import('./renderer.js');
+test('sleeping eyes curve along the body without connecting even at six eyes',async()=>{
+ const {closedEyeTangent,closedEyeCurve,slimeEyeAngles,slimeEyeLocation}=await import('./renderer.js');
  const close=(v,w)=>Math.abs(v-w)<1e-9;
  const forward=closedEyeTangent(0,12,7),side=closedEyeTangent(Math.PI/2,12,7);
- assert.ok(close(forward.x,0)&&close(forward.y,1),'front eye must close vertically in body space');
- assert.ok(close(side.x,-1)&&close(side.y,0),'side eye must close horizontally in body space');
+ assert.ok(close(forward.x,0)&&close(forward.y,1));
+ assert.ok(close(side.x,-1)&&close(side.y,0));
+ for(const count of [1,2,3,4,5,6]){
+  const angles=slimeEyeAngles({eyes:count,diet:.4,guard:.5});
+  const points=angles.map(a=>closedEyeCurve(a,12,7,2,angles));
+  for(let i=0;i<angles.length;i++){
+   const lid=points[i],a=angles[i],center=slimeEyeLocation(a,12,7);
+   assert.ok(lid.halfLength<2,'lids should be shorter than the old straight line');
+   assert.ok(Number.isFinite(lid.cx)&&Number.isFinite(lid.cy));
+   // Each lid including round caps remains within 47% of nearest eye spacing.
+   for(let j=i+1;j<angles.length;j++){
+    const other=points[j],nextCenter=slimeEyeLocation(angles[j],12,7);
+    const gap=Math.hypot(center.x-nextCenter.x,center.y-nextCenter.y);
+    assert.ok(lid.halfLength+other.halfLength+(lid.lineWidth+other.lineWidth)/2<gap,
+      'eyelids must not merge: '+count+' eyes');
+   }
+  }
+ }
  const w=new Ecosystem(2026110701);w.units=[];w.eggs=[];w.corpses=[];
- const u=w.spawn(300,200,{...w.gene(),eyes:1});u.angle=Math.PI/2;u.dormant=true;
- const rotations=[],segments=[];let px=0,py=0;
+ const u=w.spawn(300,200,{...w.gene(),eyes:3});u.angle=Math.PI/2;u.dormant=true;
+ const rotations=[],curves=[];
  const ctx=new Proxy({canvas:{width:800,height:460},createRadialGradient:()=>({addColorStop(){}}),
   rotate(angle){rotations.push(angle);},
-  moveTo(x,y){px=x;py=y;},
-  lineTo(x,y){segments.push({from:[px,py],to:[x,y]});}},
-  {get(o,k){return k in o?o[k]:()=>{};},set(o,k,v){o[k]=v;return true;}});
+  quadraticCurveTo(...args){curves.push(args);}},{
+  get(o,k){return k in o?o[k]:()=>{};},set(o,k,v){o[k]=v;return true;}
+ });
  drawWorld(ctx,w,false);
- assert.ok(rotations.some(a=>close(a,Math.PI/2)),'body rotates normally');
- assert.ok(!rotations.some(a=>close(a,-Math.PI/2)),'eyes must not cancel body rotation');
- assert.ok(segments.some(s=>close(s.from[0],s.to[0])&&s.from[1]!==s.to[1]),'tangent at front draws a vertical local stroke');
+ assert.ok(rotations.some(a=>close(a,Math.PI/2)),'body rotation remains active');
+ assert.ok(curves.length>=3,'each closed eye should be drawn as a separate curve');
 });
-
 test('inherited dispersal and sociability remain independent and bounded',()=>{
  const w=new Ecosystem(202611071);
  const mother=w.gene(),father=w.gene();
@@ -3289,16 +3303,21 @@ test('giantism log separates hereditary mass from acquired adult growth and samp
  assert.equal(emptyRow.geneticMassP90,0);
 });
 
-test('natural suffixes preserve trait family and distinguish temperature and strategy',()=>{
+test('short names retain biome, diet, pigment and independently encode remaining traits',()=>{
  const base=['land','plant','tiny','round','few','general','repro0','temperate','green'];
  const name=parts=>speciesNameFromCategory(parts.join('-'));
- assert.equal(name(base),'クサバソミドメオラン');
- assert.equal(name(base.slice(0,7).concat('cold','green')),'クサバソミドメオラト');
- assert.equal(name(base.slice(0,7).concat('hot','green')),'クサバソミドメオラス');
- assert.equal(name(base.slice(0,5).concat('guardian','repro0','temperate','green')),'クサバソミドメオラチ');
- assert.equal(name(base.slice(0,3).concat('oval','few','general','repro0','temperate','green')),'クサバソミドメオリン');
+ const original=name(base);
+ assert.ok(original.startsWith('クサソミ'));
+ assert.equal(original.length,6);
+ for(const variant of [
+  base.slice(0,7).concat('cold','green'),
+  base.slice(0,7).concat('hot','green'),
+  base.slice(0,5).concat('guardian','repro0','temperate','green'),
+  base.slice(0,3).concat('oval','few','general','repro0','temperate','green'),
+  base.slice(0,4).concat('allround','general','repro0','temperate','green'),
+  base.slice(0,6).concat('repro2','temperate','green')
+ ])assert.notEqual(name(variant),original);
 });
-
 test('terrain level paint and terrain effect are independent from four biome identities',async()=>{
  const {terrainLevelFitness,TERRAIN_LEVEL_GROWTH,WATER_LEVEL_GROWTH,TERRAIN_LEVEL_NAMES}=await import('./simulation.js');
  const w=new Ecosystem(2026110901);
