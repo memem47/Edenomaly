@@ -118,6 +118,13 @@ if(embedded){
   if(event.source!==window.parent||event.origin!==window.location.origin)return;
   if(event.data?.type!=='edenomaly:species-report')return;
   try{
+   if(!event.data.rows?.length){
+    rows=[];species=[];selected='';
+    clear($('species'));clear($('details'));clear($('comparison'));clear($('totals'));
+    $('status').textContent='まだ種族が発生していません。ゲームで生命を移入してください。';
+    $('selectedInfo').textContent='種族の発生を待っています。';
+    return;
+   }
    loadRows(event.data.rows,'ゲーム内の最新スナップショット / Step '+event.data.step);
    $('snapshotStatus').textContent='Step '+event.data.step+' ｜ 生まれた全種族（絶滅種を含む）';
   }catch(error){$('status').textContent='集計エラー: '+error.message;}
