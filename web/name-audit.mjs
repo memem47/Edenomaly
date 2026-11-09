@@ -21,7 +21,7 @@ for(let i=0;i<runs;i++){
  for(const [category,species] of world.species){
   const name=speciesNameFromCategory(category);
   if(name!==species.name)throw new Error('Name changed during simulation');
-  if(name.length!==10||/アア$|([ァ-ヶ])\\1$/.test(name))
+  if(name.length!==6||/アア$|([ァ-ヶ])\\1$/.test(name))
    throw new Error('Unnatural generated name: '+name);
   const prior=found.get(category);
   found.set(category,name);
