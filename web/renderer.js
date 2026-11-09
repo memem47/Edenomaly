@@ -1,4 +1,5 @@
-import {WORLD,TERRAIN_COLORS,dietProfile,vitality,adaptationColor,lifeStageScale,bodySizeMultiplier} from './simulation.js?v=2026.11.08.8';
+import {WORLD,TERRAIN_COLORS,dietProfile,vitality,adaptationColor,lifeStageScale,bodySizeMultiplier} from './simulation.js?v=2026.11.09.2';
+import {drawEnhancedTerrain} from './terrain-visuals.js?v=2026.11.09.2';
 const TAU=Math.PI*2;
 // Angles are measured around the rim of a top-down oval; +X is forward.
 // Predators look forward, herbivores to either side, and many-eyed slimes all around.
@@ -71,7 +72,7 @@ export const eggVisualAxes=g=>{
  const rx=Math.max(.7,hatchRadius*(.80+.18*(g.shell??.5)));
  return {rx,ry:rx*1.16};
 };
-export function drawWorld(ctx,s,showEffects=true,selected=null){
+export function drawWorld(ctx,s,showEffects=true,selected=null,options={}){
  const {cell,columns,rows,width,height}=WORLD;
  const season=s.climateEnabled===false?'spring':s.seasonName?.()??'spring';
  const palette=seasonPalette(season);
@@ -170,6 +171,8 @@ export function drawWorld(ctx,s,showEffects=true,selected=null){
    }
   }
  }
+ // Classic rendering stays byte-for-byte identical when this optional layer is off.
+ if(options.graphicsMode==='enhanced')drawEnhancedTerrain(ctx,s,season);
  // Seasonal tint is kept on terrain only; slimes maintain their own color.
  const seasonalTint={summer:'rgba(255,246,185,.10)',autumn:'rgba(231,136,65,.055)',winter:'rgba(224,240,255,.045)'};
  if(seasonalTint[season]){ctx.fillStyle=seasonalTint[season];ctx.fillRect(0,0,width,height);}
