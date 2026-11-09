@@ -44,6 +44,19 @@ function drawSpecies(){
  }
  if(!result.length)div.append(node('p','sub','該当する種族がありません。'));
 }
+const zeroToOneMetrics=new Set([
+ 'hibernate','wet','dry','rock','shell','guard','nesting','diet','deception',
+ 'resist','aquatic','albino','dispersal','sociability','caution','predatorSense',
+ 'retaliation','frugality','waterGardening','tailLength','hornLength',
+ 'antennaLength','pattern','edibleRatio','hpPercent'
+]);
+function metricDomain(scope,metric){
+ if(zeroToOneMetrics.has(metric))return metric==='hpPercent'?[0,100]:[0,1];
+ const comparable=getRows().filter(r=>r.scope===scope&&r.metric===metric);
+ const min=Math.min(...comparable.map(r=>r.min));
+ const max=Math.max(...comparable.map(r=>r.max));
+ return [Math.min(0,min),Math.max(1e-9,max)];
+}
 function drawDetails(){
  const sp=species.find(s=>s.category===selected)||species[0];
  const info=$('selectedInfo'),target=clear($('details'));
@@ -54,7 +67,10 @@ function drawDetails(){
  const selectedRows=getRows().filter(r=>r.category===selected&&r.scope===scope&&
   (!q||String(r.label+' '+r.metric).toLowerCase().includes(q)));
  if(!selectedRows.length){target.append(node('p','sub',scope==='living'?'現存個体がいない、または該当する項目がありません。':'該当する項目がありません。'));return;}
- for(const r of selectedRows)target.append(formatRow(r,r.min,r.max));
+ for(const r of selectedRows){
+  const [min,max]=metricDomain(scope,r.metric);
+  target.append(formatRow(r,min,max));
+ }
 }
 function drawComparison(){
  const target=clear($('comparison'));
