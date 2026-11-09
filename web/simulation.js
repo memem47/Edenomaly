@@ -20,15 +20,15 @@ export const terrainLevelFitness=(base,t,level=3,g={})=>{
  return {...base,move:base.move*(delta>0?1-.06*delta:1+.03*-delta)};
 };
 const GROWTH=TERRAIN_FERTILITY,DECAY=[.026,.038,.006,.003];
-// Six-kana species names: two for biome + one diet + one pigment +
+// Six-kana species names: two for body color + one diet + one biome +
 // two phonetic codes encoding all six remaining categorical traits.
-// Prefixes express recognizable ecology; the last two syllables maintain
+// Color prefixes describe visible phenotype; the last two syllables maintain
 // a collision-free mapping among all 108,864 biological classifications.
 const SPECIES_HABITAT=['land','aquatic','dry','rock'];
-const HABITAT_NAMES=['クサ','ミズ','スナ','イワ'];
+const HABITAT_NAMES=['ク','ミ','ス','イ']; // land / water / dry / rock
 const DIET_NAMES=['ソ','ザ','ニ']; // herbivore, omnivore, carnivore
 const PIGMENT_CLASSES=['red','yellow','green','blue','purple','pink','white'];
-const PIGMENT_NAMES=['ア','キ','ミ','オ','ム','モ','シ']; // red/yellow/green/blue/purple/pink/white
+const PIGMENT_NAMES=['アカ','キイ','ミド','アオ','ムラ','モモ','シロ']; // visible body colors
 const BODY_CLASSES=['tiny','medium','large','giant'];
 const SHAPE_CLASSES=['round','oval','long'];
 const STRATEGY_CLASSES=['general','guardian','egg-hunter'];
@@ -67,7 +67,7 @@ export const speciesNameFromCategory=key=>{
  const repro=['repro0','repro1','repro2'].indexOf(match[7]);
  const thermal=THERMAL_CLASSES.indexOf(match[8]);
  const pigment=PIGMENT_CLASSES.indexOf(match[9]);
- return HABITAT_NAMES[habitat]+DIET_NAMES[diet]+PIGMENT_NAMES[pigment]+
+ return PIGMENT_NAMES[pigment]+DIET_NAMES[diet]+HABITAT_NAMES[habitat]+
   speciesNameCode(body,shape,eyes,strategy,repro,thermal);
 };
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
