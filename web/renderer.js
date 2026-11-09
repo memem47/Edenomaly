@@ -1,6 +1,7 @@
-import {WORLD,TERRAIN_COLORS,dietProfile,vitality,adaptationColor,lifeStageScale,bodySizeMultiplier} from './simulation.js?v=2026.11.09.4';
-import {drawEnhancedTerrain} from './terrain-visuals.js?v=2026.11.09.4';
-import {drawJellyBody} from './jelly-visuals.js?v=2026.11.09.4';
+import {WORLD,TERRAIN_COLORS,dietProfile,vitality,adaptationColor,lifeStageScale,bodySizeMultiplier} from './simulation.js?v=2026.11.09.6';
+import {drawEnhancedTerrain} from './terrain-visuals.js?v=2026.11.09.6';
+import {drawJellyBody} from './jelly-visuals.js?v=2026.11.09.6';
+import {drawOrnamentsBehind,drawOrnamentsFront} from './slime-ornaments.js?v=2026.11.09.6';
 const TAU=Math.PI*2;
 // Angles are measured around the rim of a top-down oval; +X is forward.
 // Predators look forward, herbivores to either side, and many-eyed slimes all around.
@@ -287,6 +288,7 @@ export function drawWorld(ctx,s,showEffects=true,selected=null,options={}){
   const base=livingBodyColor(g,fade);
   const outline=livingBodyColor(g,fade,true);
   const simpleBody=dead||fade>=.995||s.units.length>250&&Math.max(rx,ry)<18&&u!==selected;
+  if(!dead)drawOrnamentsBehind(ctx,g,rx,ry,s.tick,u.id);
   if(jelly){
    // Performance policy: small slimes in crowded colonies use one flat fill.
    drawJellyBody(ctx,g,rx,ry,blobPhase,fade,simpleBody);
@@ -306,6 +308,7 @@ export function drawWorld(ctx,s,showEffects=true,selected=null,options={}){
     ctx.restore();
    }
   }
+  if(!dead)drawOrnamentsFront(ctx,g,rx,ry,s.tick,u.id);
   if(condition.hit){
    ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);
    ctx.fillStyle='rgba(255,92,75,.27)';ctx.fill();
