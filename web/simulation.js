@@ -20,25 +20,29 @@ export const terrainLevelFitness=(base,t,level=3,g={})=>{
  return {...base,move:base.move*(delta>0?1-.06*delta:1+.03*-delta)};
 };
 const GROWTH=TERRAIN_FERTILITY,DECAY=[.026,.038,.006,.003];
-// Readable, stable species names: habitat(3) + diet(1) + pigment(2)
-// + eye count(1) + reproduction(1) + two-kana morphology/strategy suffix.
-// Each ecological classification has exactly one unique 10-kana name.
+// Six-kana species names: two for biome + one diet + one pigment +
+// two phonetic codes encoding all six remaining categorical traits.
+// Prefixes express recognizable ecology; the last two syllables maintain
+// a collision-free mapping among all 108,864 biological classifications.
 const SPECIES_HABITAT=['land','aquatic','dry','rock'];
-const HABITAT_NAMES=['クサバ','ミズベ','カレチ','イワバ'];
-const DIET_NAMES=['ソ','ザ','ニ']; // 草食・雑食・肉食
+const HABITAT_NAMES=['クサ','ミズ','スナ','イワ'];
+const DIET_NAMES=['ソ','ザ','ニ']; // herbivore, omnivore, carnivore
 const PIGMENT_CLASSES=['red','yellow','green','blue','purple','pink','white'];
-const PIGMENT_NAMES=['アカ','キイ','ミド','アオ','ムラ','モモ','シロ'];
-const EYE_NAMES=['ム','メ','タ','ゼ']; // 無眼・少眼・多眼・全方位
-const REPRO_NAMES=['オ','リ','コ']; // 雌雄異体・両性・単為生殖
+const PIGMENT_NAMES=['ア','キ','ミ','オ','ム','モ','シ']; // red/yellow/green/blue/purple/pink/white
 const BODY_CLASSES=['tiny','medium','large','giant'];
 const SHAPE_CLASSES=['round','oval','long'];
 const STRATEGY_CLASSES=['general','guardian','egg-hunter'];
 const THERMAL_CLASSES=['temperate','cold','hot'];
-// The first syllable describes body size and silhouette (4 x 3).
-// The second describes strategy and temperature (3 x 3).
-// Unlike hexadecimal digits, every pair is a pronounceable two-mora ending.
-const MORPH_ENDINGS=['ラ','リ','ル','ナ','ニ','ヌ','ガ','ギ','グ','ド','デ','ダ'];
-const NICHE_ENDINGS=['ン','ト','ス','チ','フ','メ','ヨ','ワ','ズ'];
+// 38 clear, single-kana sounds. A two-syllable word with non-identical
+// sounds has 38*37=1406 possibilities, enough for 4*3*4*3*3*3=1296.
+// 36 possible first sounds are used; each has 37 possible final sounds.
+const NAME_SYLLABLES=[...'カキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモラリルレロワヤユ'];
+export const speciesNameCode=(body,shape,eyes,strategy,repro,thermal)=>{
+ const number=(((((body*3+shape)*4+eyes)*3+strategy)*3+repro)*3+thermal);
+ const first=Math.floor(number/37),slot=number%37;
+ const second=slot>=first?slot+1:slot;
+ return NAME_SYLLABLES[first]+NAME_SYLLABLES[second];
+};
 // Pigment is a derived phenotype, not an additional independent gene.
 // Wide hue ranges prevent every small color mutation from being a new name.
 export const pigmentClass=g=>{
@@ -63,12 +67,8 @@ export const speciesNameFromCategory=key=>{
  const repro=['repro0','repro1','repro2'].indexOf(match[7]);
  const thermal=THERMAL_CLASSES.indexOf(match[8]);
  const pigment=PIGMENT_CLASSES.indexOf(match[9]);
- // The pair is directly readable from the two 12/9-entry dictionaries.
- // This preserves all 108 combinations without producing awkward "アア" tails.
- const morphologyEnding=MORPH_ENDINGS[body*3+shape];
- const nicheEnding=NICHE_ENDINGS[strategy*3+thermal];
  return HABITAT_NAMES[habitat]+DIET_NAMES[diet]+PIGMENT_NAMES[pigment]+
-  EYE_NAMES[eyes]+REPRO_NAMES[repro]+morphologyEnding+nicheEnding;
+  speciesNameCode(body,shape,eyes,strategy,repro,thermal);
 };
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 // Visual color is a derived phenotype, never a separate inherited trait.
