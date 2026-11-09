@@ -45,7 +45,7 @@ a{color:#96dff5}.toolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
 <div id="selectedInfo" class="sub">種族を選択してください。</div>
 <div class="toolbar"><label>項目グループ<select id="scope"><option value="birth">出生時の遺伝・基本能力</option><option value="living">現存個体の状態</option></select></label>
 <label>検索<input id="metricSearch" type="search" placeholder="例：体重、しっぽ、速度"></label></div>
-<div class="legend"><i></i>最小～最大　<b>│</b> 中央値　（各行の棒はその項目の最小～最大を横幅いっぱいに正規化）</div>
+<div class="legend"><i></i>最小～最大　<b>│</b> 中央値　（項目ごとに種族間で同じ目盛りを使用。0～1の遺伝子は固定目盛り）</div>
 <div id="details" aria-live="polite"></div></section>
 <section class="panel full"><h2>種族間の比較</h2>
 <div class="controls"><label>比較する項目<select id="metric" disabled></select></label>
