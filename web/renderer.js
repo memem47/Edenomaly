@@ -1,5 +1,6 @@
-import {WORLD,TERRAIN_COLORS,dietProfile,vitality,adaptationColor,lifeStageScale,bodySizeMultiplier} from './simulation.js?v=2026.11.09.2';
-import {drawEnhancedTerrain} from './terrain-visuals.js?v=2026.11.09.2';
+import {WORLD,TERRAIN_COLORS,dietProfile,vitality,adaptationColor,lifeStageScale,bodySizeMultiplier} from './simulation.js?v=2026.11.09.3';
+import {drawEnhancedTerrain} from './terrain-visuals.js?v=2026.11.09.3';
+import {drawJellyBody} from './jelly-visuals.js?v=2026.11.09.3';
 const TAU=Math.PI*2;
 // Angles are measured around the rim of a top-down oval; +X is forward.
 // Predators look forward, herbivores to either side, and many-eyed slimes all around.
@@ -172,7 +173,7 @@ export function drawWorld(ctx,s,showEffects=true,selected=null,options={}){
   }
  }
  // Classic rendering stays byte-for-byte identical when this optional layer is off.
- if(options.graphicsMode==='enhanced')drawEnhancedTerrain(ctx,s,season);
+ if(options.graphicsMode==='enhanced'||options.graphicsMode==='jelly')drawEnhancedTerrain(ctx,s,season);
  // Seasonal tint is kept on terrain only; slimes maintain their own color.
  const seasonalTint={summer:'rgba(255,246,185,.10)',autumn:'rgba(231,136,65,.055)',winter:'rgba(224,240,255,.045)'};
  if(seasonalTint[season]){ctx.fillStyle=seasonalTint[season];ctx.fillRect(0,0,width,height);}
@@ -230,6 +231,7 @@ export function drawWorld(ctx,s,showEffects=true,selected=null,options={}){
    decayScale:Math.max(.18,Math.sqrt(Math.max(0,c.mass/c.initialMass)))
   })),...s.units]){
   const dead=!!u.corpse;
+  const jelly=!dead&&options.graphicsMode==='jelly';
   const condition=organismVisualState(u);
   const g=u.g,signal=dietProfile(g).signal,life=vitality(u),
    scale=lifeStageScale(u)*(u.growthScale??1)*bodySizeMultiplier(g)*(1-life.old*.12)*(dead?u.decayScale:1),
@@ -246,7 +248,7 @@ export function drawWorld(ctx,s,showEffects=true,selected=null,options={}){
   }
   // Ground shadow gives every slime some separation from the bright terrain.
   if(!dead){
-   ctx.save();ctx.fillStyle='rgba(29,42,75,.075)';ctx.beginPath();
+   ctx.save();ctx.fillStyle=jelly?'rgba(20,37,61,.18)':'rgba(29,42,75,.075)';ctx.beginPath();
    ctx.ellipse(u.x+1.5,u.y+Math.min(halfW*.40,10),Math.max(2,Math.min(halfL*.48,20)),Math.max(1.5,Math.min(halfW*.20,6)),u.angle,0,TAU);
    ctx.fill();ctx.restore();
   }
@@ -261,26 +263,31 @@ export function drawWorld(ctx,s,showEffects=true,selected=null,options={}){
   const base=livingBodyColor(g,fade);
   const outline=livingBodyColor(g,fade,true);
   const simpleBody=dead||fade>=.995||s.units.length>250&&Math.max(rx,ry)<18&&u!==selected;
-  const shine=simpleBody?base:ctx.createRadialGradient(-rx*.38,-ry*.42,0,0,0,Math.max(rx,ry)*1.45);
-  if(!simpleBody){
-   shine.addColorStop(0,`rgba(255,255,255,${.38*(1-fade)})`);
-   shine.addColorStop(.36,base);shine.addColorStop(1,outline);
-  }
-  ctx.fillStyle=dead?'#9e9788':shine;ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.fill();
-  ctx.strokeStyle=dead?'#655f56':outline;ctx.lineWidth=dead?Math.max(.55,Math.min(1.5,ry*.2)):Math.max(.55,Math.min(1.6,ry*.17));ctx.stroke();
-  // Above 250 organisms, radial gradients are too expensive to create for
-  // every tiny slime. A cheap clipped sheen keeps the body glossy instead.
-  if(!dead&&simpleBody&&fade<.98){
-   ctx.save();ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.clip();
-   ctx.fillStyle=`rgba(255,255,255,${(.16*(1-fade)).toFixed(3)})`;
-   ctx.beginPath();ctx.ellipse(-rx*.29,-ry*.36,rx*.70,ry*.53,-.20,0,TAU);ctx.fill();
-   ctx.restore();
+  if(jelly){
+   // Performance policy: small slimes in crowded colonies use one flat fill.
+   drawJellyBody(ctx,g,rx,ry,blobPhase,fade,simpleBody);
+  }else{
+   const shine=simpleBody?base:ctx.createRadialGradient(-rx*.38,-ry*.42,0,0,0,Math.max(rx,ry)*1.45);
+   if(!simpleBody){
+    shine.addColorStop(0,`rgba(255,255,255,${.38*(1-fade)})`);
+    shine.addColorStop(.36,base);shine.addColorStop(1,outline);
+   }
+   ctx.fillStyle=dead?'#9e9788':shine;ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.fill();
+   ctx.strokeStyle=dead?'#655f56':outline;ctx.lineWidth=dead?Math.max(.55,Math.min(1.5,ry*.2)):Math.max(.55,Math.min(1.6,ry*.17));ctx.stroke();
+   // Above 250 organisms, the original renderer skips expensive gradients.
+   if(!dead&&simpleBody&&fade<.98){
+    ctx.save();ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);ctx.clip();
+    ctx.fillStyle=`rgba(255,255,255,${(.16*(1-fade)).toFixed(3)})`;
+    ctx.beginPath();ctx.ellipse(-rx*.29,-ry*.36,rx*.70,ry*.53,-.20,0,TAU);ctx.fill();
+    ctx.restore();
+   }
   }
   if(condition.hit){
+   ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,TAU);
    ctx.fillStyle='rgba(255,92,75,.27)';ctx.fill();
    ctx.strokeStyle='rgba(255,89,65,.85)';ctx.lineWidth=2.4;ctx.stroke();
   }
-  if(!dead&&fade<1){ctx.fillStyle=`rgba(255,255,255,${.36*(1-fade)})`;ctx.beginPath();
+  if(!jelly&&!dead&&fade<1){ctx.fillStyle=`rgba(255,255,255,${.36*(1-fade)})`;ctx.beginPath();
   ctx.ellipse(-rx*.30,-ry*.36,rx*.21,ry*.10,-.35,0,TAU);ctx.fill();}
   // Sickness: muted bruised skin and irregular blotches, not bright
   // green orbiting particles that can be mistaken for a positive buff.
