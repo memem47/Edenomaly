@@ -22,13 +22,20 @@ a{color:#96dff5}.toolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
 .notice{color:#f1c785}#comparison{max-height:580px;overflow:auto}
 .legend{font-size:12px;color:#b6cddd;margin:14px 0}.legend i{display:inline-block;width:11px;height:6px;background:#67bddb;margin:0 4px 2px 12px}.legend b{color:#f3d78b}
 @media(max-width:850px){main{grid-template-columns:1fr}.controls{grid-template-columns:1fr}.row{grid-template-columns:100px 1fr 90px;gap:5px}body{padding:10px}.full{grid-column:auto}}
+.embedded body{padding:9px;max-width:none}
+.embedded header{display:none}
+.embedded .panel{padding:12px}
+.embedded main{margin-top:4px;gap:10px}
+.embedded #uploadPanel{display:none!important}
+#uploadPanel[hidden],#standaloneIntro[hidden]{display:none!important}
+@media(max-width:850px){.embedded main{grid-template-columns:1fr}}
 </style></head><body>
 <header><div><h1>🧬 種族ステータス分析</h1><div class="sub">Edenomaly / 遺伝・能力・現存個体の分布を比較</div></div>
 <a class="link" href="index.html">ゲームへ戻る</a></header>
-<p class="sub">ゲームの「全ログをまとめて保存（ZIP）」から <strong>edenomaly-species-statistics-*.csv</strong> を取り出し、ここで読み込んでください。ファイルはブラウザ内だけで処理され、外部に送信されません。</p>
+<p id="standaloneIntro" class="sub">このページはゲーム内の「種族ステータス一覧」ボタンから直接開けます。単独で利用する場合のみ、全ログZIP内の <strong>edenomaly-species-statistics-*.csv</strong> を選択してください。データはブラウザ内だけで処理されます。</p>
 <main>
 <section class="panel"><h2>データの読み込み</h2>
-<label>種族CSV<input id="file" type="file" accept=".csv,text/csv"></label>
+<div id="uploadPanel"><label>種族CSV（単独利用時のみ）<input id="file" type="file" accept=".csv,text/csv"></label></div><div id="snapshotStatus" class="sub"></div>
 <div id="status" class="sub" role="status">CSVを選択してください。</div>
 <label>試行<select id="run" disabled></select></label>
 <label>種族名・分類キーで検索<input id="search" type="search" placeholder="例：アオ、肉食、aquatic" disabled></label>
@@ -47,5 +54,5 @@ a{color:#96dff5}.toolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
 <p class="sub">共通スケール上に各種族の分布を配置。青い帯が最小～最大、金色の線が中央値です。上位20種を表示します。</p>
 <div id="comparison"></div></section>
 </main>
-<script type="module" src="./species-report-viewer.js?v=2026.11.10.1"></script>
+<script type="module" src="./species-report-viewer.js?v=2026.11.10.2"></script>
 </body></html>
