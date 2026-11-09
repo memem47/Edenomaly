@@ -1,6 +1,6 @@
 // Jelly-quality 2D body shading. Purely visual: never touch ecosystem state or RNG.
 // Run AFTER the organism's translate/rotate, BEFORE eyes and condition effects.
-import {adaptationColor} from './simulation.js?v=2026.11.09.4';
+import {adaptationColor} from './simulation.js?v=2026.11.09.6';
 const TAU=Math.PI*2;
 const bound=(x,min,max)=>Math.max(min,Math.min(max,x));
 const ellipse=(ctx,x,y,rx,ry,angle=0)=>{
