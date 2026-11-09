@@ -68,8 +68,8 @@ test('high-speed ecology generates readable names for actual discovered species'
   for(const sp of world.species.values())names.push(sp.name);
  }
  assert.ok(names.length>0);
- assert.ok(names.every(name=>name.length===10));
+ assert.ok(names.every(name=>name.length===6));
  assert.ok(names.every(name=>!name.endsWith('アア')));
  assert.ok(names.every(name=>!/([ァ-ヶ])\\1$/.test(name)));
- assert.ok(names.some(name=>/^(クサバ|ミズベ|カレチ|イワバ)/.test(name)));
+ assert.ok(names.some(name=>/^(クサ|ミズ|スナ|イワ)/.test(name)));
 });
