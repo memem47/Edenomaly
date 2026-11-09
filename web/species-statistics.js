@@ -33,6 +33,8 @@ export const medianOf=values=>{
 export function appendSpeciesBirth(store,key,g,derived={}){
  let entry=store.get(key);
  if(!entry){entry=new Map();store.set(key,entry);}
+ // Birth quantiles are unchanged until the next birth in this species.
+ entry.birthSummaryCache=null;
  for(const [metric,value] of Object.entries({...g,...derived})){
   if(!numeric(value)||metric==='alleles'||metric==='sizeBaseRadius')continue;
   let values=entry.get(metric);
@@ -87,8 +89,12 @@ export function speciesReport(world,{run=1,version='development'}={}){
   const groups=[['birth',world.speciesSamples?.get(key)],['living',active.get(key)]];
   for(const [scope,metrics] of groups){
    if(!metrics)continue;
-   for(const [metric,values] of metrics){
-    const dist=distribution(values);
+   // Reuse exact birth quantiles across UI updates and 50-step snapshots.
+   // The cache is invalidated only when a new organism of this species is born.
+   const summaries=scope==='birth'?
+    (metrics.birthSummaryCache??=(Array.from(metrics,([metric,values])=>[metric,distribution(values)]))):
+    Array.from(metrics,([metric,values])=>[metric,distribution(values)]);
+   for(const [metric,dist] of summaries){
     if(!dist)continue;
     rows.push({run,version,step:world.tick,species:species.name,category:key,
      firstSeen:species.first,current:species.current,total:species.total,
