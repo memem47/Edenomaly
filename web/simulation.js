@@ -1118,16 +1118,63 @@ export class Ecosystem{
  }
  setupTerrain(){
   this.tiles=new Uint8Array(NX*NY);
+  // Preserve the established map, including its seeded shoreline irregularity.
   const hubs=[{x:10,y:9,t:1,r:6},{x:33,y:18,t:1,r:5},{x:30,y:5,t:2,r:9},{x:7,y:20,t:2,r:5},{x:21,y:17,t:3,r:4},{x:38,y:9,t:3,r:4}];
   for(let y=0;y<NY;y++)for(let x=0;x<NX;x++){
    let t=0;for(const h of hubs)if(Math.hypot(x-h.x,y-h.y)+this.range(-1.4,1.4)<h.r)t=h.t;this.tiles[y*NX+x]=t;
+  }
+  // Every connected biome gets a 1-5 relief gradient. Multi-source BFS
+  // starts at shoreline/biome borders; deep interior cells become level 5.
+  // No additional random draws are used: reproducible seeded ecology remains.
+  const count=this.tiles.length,dist=new Int16Array(count),seen=new Uint8Array(count);
+  const queue=new Int32Array(count),visited=[];
+  this.terrainLevels=new Uint8Array(count);
+  const neighbors=i=>{
+   const x=i%NX,y=Math.floor(i/NX),result=[];
+   if(x>0)result.push(i-1);
+   if(x<NX-1)result.push(i+1);
+   if(y>0)result.push(i-NX);
+   if(y<NY-1)result.push(i+NX);
+   return result;
+  };
+  for(let origin=0;origin<count;origin++){
+   if(seen[origin])continue;
+   const biome=this.tiles[origin];let head=0,tail=1,maxDepth=1;
+   queue[0]=origin;seen[origin]=1;visited.length=0;
+   // Flood-fill the connected component before computing its border.
+   while(head<tail){
+    const i=queue[head++];visited.push(i);
+    for(const j of neighbors(i))if(!seen[j]&&this.tiles[j]===biome){
+     seen[j]=1;queue[tail++]=j;
+    }
+   }
+   const frontier=new Int32Array(visited.length);head=0;tail=0;
+   for(const i of visited){
+    const boundary=neighbors(i).some(j=>this.tiles[j]!==biome);
+    // The map edge itself is not a biome edge; outer grass may be forest.
+    if(boundary){dist[i]=1;frontier[tail++]=i;}
+    else dist[i]=0;
+   }
+   if(!tail){for(const i of visited)this.terrainLevels[i]=3;continue;}
+   while(head<tail){
+    const i=frontier[head++];
+    for(const j of neighbors(i))if(this.tiles[j]===biome&&dist[j]===0){
+     dist[j]=dist[i]+1;maxDepth=Math.max(maxDepth,dist[j]);
+     frontier[tail++]=j;
+    }
+   }
+   for(const i of visited){
+    // The core is 5 even for small islands. Intermediate rings are
+    // distributed along the available depth, never randomly scattered.
+    const rel=(dist[i]-1)/Math.max(1,maxDepth-1);
+    this.terrainLevels[i]=maxDepth===1?1:Math.min(5,1+Math.round(rel*4));
+   }
   }
  }
  reset(){
   this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.runStartTick=null;this.runEndedTick=null;this.founderSpeciesCount=0;this.ecosystemBalance=0;this.deathCauses={};this.courtshipFailures={};this.courtshipStarts=0;this.mateApproachStarts=0;this.mateApproachStalled=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.waterweedGrowth=140;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];this.climateEnabled=true;this.seasonLength=600;
   this._waterRegionTick=null;this._waterRegions=null;
   this.setupTerrain();
-  this.terrainLevels=new Uint8Array(this.tiles.length).fill(3);
   this.grass=new Float32Array(this.tiles.length);
   this.water=new Float32Array(this.tiles.length);
   this.waterbed=new Uint8Array(this.tiles.length);
@@ -1137,10 +1184,16 @@ export class Ecosystem{
   this.waterweed=new Float32Array(this.tiles.length);
   this.seedRainCount=0;this.waterweedSeedCount=0;this.corpseSproutCount=0;this.waterPlantings=0;this.cannibalMeals=0;
   for(let i=0;i<this.tiles.length;i++){
-   if(this.tiles[i]===0)this.grass[i]=65+this.rand()*35;
-   if(this.tiles[i]===2)this.grass[i]=2+this.rand()*5;
-   if(this.tiles[i]===3)this.grass[i]=1+this.rand()*3;
-   if(this.tiles[i]===1){this.water[i]=80+this.rand()*20;this.waterbed[i]=1;this.waterweed[i]=48+this.rand()*30;}
+   const level=this.terrainLevels[i];
+   if(this.tiles[i]===0)this.grass[i]=Math.min(100,[26,44,65,77,87][level-1]+this.rand()*13);
+   if(this.tiles[i]===2)this.grass[i]=[5,4,3,2,1][level-1]+this.rand()*2;
+   if(this.tiles[i]===3)this.grass[i]=[3,2.5,2,1,.5][level-1]+this.rand()*1.5;
+   if(this.tiles[i]===1){
+    this.water[i]=Math.min(100,[45,57,74,87,96][level-1]+this.rand()*5);
+    this.waterbed[i]=1;
+    // Mid-depth zones are productive, while the deepest water has less light.
+    this.waterweed[i]=Math.min(100,[32,49,65,53,39][level-1]+this.rand()*9);
+   }
   }
   this.log('info','生命は未移入。種類数を選んでフィールドへ生命を移入してください');this.snapshot();
  }
