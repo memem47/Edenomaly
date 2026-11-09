@@ -1,4 +1,5 @@
 // Edenomaly simulation: browser-only; no DOM or Canvas dependencies.
+import {appendSpeciesBirth,birthDerived} from './species-statistics.js';
 const W=800,H=460,CELL=20,NX=40,NY=23;
 export const TERRAIN_NAMES=['草地','水辺','乾燥地','岩場'];
 export const TERRAIN_COLORS=['#54c74c','#279cfa','#edb85c','#8980bf'];
@@ -663,6 +664,7 @@ export class Ecosystem{
    const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(u.category),current:0,total:0,diet:dietProfile(g).label,first:this.tick,genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(u.category),u);
   }
   const s=this.species.get(u.category);s.current++;s.total++;
+  appendSpeciesBirth(this.speciesSamples,u.category,g,birthDerived(g,morphology(g)));
   this.log('birth','#'+u.id+' '+(u.stage==='juvenile'?'孵化':'移入')+'（'+s.name+' / 第'+u.generation+'世代）',u);
   return u;
  }
@@ -1193,7 +1195,7 @@ export class Ecosystem{
   }
  }
  reset(){
-  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.runStartTick=null;this.runEndedTick=null;this.founderSpeciesCount=0;this.ecosystemBalance=0;this.deathCauses={};this.courtshipFailures={};this.courtshipStarts=0;this.mateApproachStarts=0;this.mateApproachStalled=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.waterweedGrowth=140;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];this.climateEnabled=true;this.seasonLength=600;
+  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.speciesSamples=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.runStartTick=null;this.runEndedTick=null;this.founderSpeciesCount=0;this.ecosystemBalance=0;this.deathCauses={};this.courtshipFailures={};this.courtshipStarts=0;this.mateApproachStarts=0;this.mateApproachStalled=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.waterweedGrowth=140;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];this.climateEnabled=true;this.seasonLength=600;
   this._waterRegionTick=null;this._waterRegions=null;
   this.setupTerrain();
   this.grass=new Float32Array(this.tiles.length);
