@@ -3367,3 +3367,42 @@ test('enhanced terrain rendering does not change ecology or seeded RNG',()=>{
  // Original rendering path still works as before.
  drawWorld(ctx,w,false,null,{graphicsMode:'classic'});
 });
+
+test('jelly renderer uses fluid bezier outlines and remains ecology-pure',()=>{
+ const w=new Ecosystem(202611093);const u=w.introduce(170,130,1);
+ assert.ok(w.units.length>0);
+ const before={rng:w.rng,grass:[...w.grass],waterweed:[...w.waterweed],
+  energy:w.units.map(u=>u.energy),hp:w.units.map(u=>u.hp)};
+ const calls={bezier:0,radial:0,fill:0};
+ const ctx=new Proxy({canvas:{width:800,height:460},
+  createRadialGradient(){calls.radial++;return {addColorStop(){}};},
+  bezierCurveTo(){calls.bezier++;},fill(){calls.fill++;}
+ },{
+  get(o,k){return k in o?o[k]:()=>{};},
+  set(o,k,v){o[k]=v;return true;}
+ });
+ drawWorld(ctx,w,true,null,{graphicsMode:'jelly'});
+ assert.ok(calls.bezier>=12,'jelly membrane must use curved outline');
+ assert.ok(calls.radial>0,'volume shading must use gradients');
+ assert.ok(calls.fill>0);
+ assert.equal(w.rng,before.rng);
+ assert.deepEqual([...w.grass],before.grass);
+ assert.deepEqual([...w.waterweed],before.waterweed);
+ assert.deepEqual(w.units.map(u=>u.energy),before.energy);
+ assert.deepEqual(w.units.map(u=>u.hp),before.hp);
+});
+test('jelly shader simplifies distant and dense tiny slimes without allocating gradients',async()=>{
+ const {drawJellyBody,jellyPath}=await import('./jelly-visuals.js');
+ const w=new Ecosystem(2026110934),g=w.gene();
+ const calls={radial:0,bezier:0};
+ const ctx=new Proxy({createRadialGradient(){calls.radial++;return {addColorStop(){}};},
+  bezierCurveTo(){calls.bezier++;}},{
+   get(o,k){return k in o?o[k]:()=>{};},
+   set(o,k,v){o[k]=v;return true;}
+ });
+ drawJellyBody(ctx,g,3,3,1,0,true);
+ assert.equal(calls.radial,0);
+ const before=calls.bezier;
+ jellyPath(ctx,12,10,0.5);
+ assert.ok(calls.bezier>before);
+});
