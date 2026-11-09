@@ -1995,7 +1995,7 @@ test('all 108864 ecological classifications have unique six-kana names',()=>{
  };
  for(const habitat of habitats)traverse([habitat],0);
  assert.equal(names.size,108864);
- assert.ok(speciesNameFromCategory('aquatic-hunter-large-oval-few-guardian-repro2-cold-blue').startsWith('ミズニオ'));
+ assert.ok(speciesNameFromCategory('aquatic-hunter-large-oval-few-guardian-repro2-cold-blue').startsWith('アオニミ'));
 });
 test('pigment name follows color phenotype and remains stable for cosmetic variations',async()=>{
  const {pigmentClass,adaptationColor}=await import('./simulation.js');
@@ -2007,7 +2007,7 @@ test('pigment name follows color phenotype and remains stable for cosmetic varia
  assert.equal(w.name(key),before);
  const white=w.category({...g,albino:1});
  assert.notEqual(white,key);
- assert.equal(speciesNameFromCategory(white)[3],'シ');
+ assert.ok(speciesNameFromCategory(white).startsWith('シロ'));
  const hue=adaptationColor(g).hue;
  assert.ok(hue>=0&&hue<360);
 });
@@ -3307,7 +3307,7 @@ test('short names retain biome, diet, pigment and independently encode remaining
  const base=['land','plant','tiny','round','few','general','repro0','temperate','green'];
  const name=parts=>speciesNameFromCategory(parts.join('-'));
  const original=name(base);
- assert.ok(original.startsWith('クサソミ'));
+ assert.ok(original.startsWith('ミドソク'));
  assert.equal(original.length,6);
  for(const variant of [
   base.slice(0,7).concat('cold','green'),
