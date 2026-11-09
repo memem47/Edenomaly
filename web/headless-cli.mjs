@@ -5,6 +5,7 @@ import {mkdir,writeFile,readFile} from 'node:fs/promises';
 import {resolve,join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {runHeadless,headlessCSV} from './headless-runner.mjs';
+import {speciesReport,speciesCSV} from './species-statistics.js';
 
 export function parseArgs(args){
  const opts={seed:72,steps:10000,runs:1,interval:50,founders:1,
@@ -34,7 +35,7 @@ export const USAGE=[
  'npm run headless -- --seed 72 --steps 10000 --runs 4 --interval 50 --founders 1 --out results/headless',
  'Options: --seed N --steps N --runs N --interval N --founders 1..6 --out PATH',
  '         --continue-after-extinction  (normally stops a run if all organisms and eggs die)',
- 'Outputs: ecology-seed-N.csv per run, summary.json (parameter, metrics, execution time)',
+ 'Outputs: ecology-seed-N.csv and species-seed-N.csv per run, summary.json',
  'Reproduction: same commit + seed + options => same ecological trajectories.'
 ].join('\n');
 export async function main(args=process.argv.slice(2)){
@@ -46,8 +47,9 @@ export async function main(args=process.argv.slice(2)){
  const runs=[];
  for(let i=0;i<opts.runs;i++){
   const seed=opts.seed+i;
-  const {summary,rows}=runHeadless({...opts,seed,version});
+  const {summary,rows,world}=runHeadless({...opts,seed,version});
   await writeFile(join(out,'ecology-seed-'+seed+'.csv'),headlessCSV(rows),'utf8');
+  await writeFile(join(out,'species-seed-'+seed+'.csv'),speciesCSV(speciesReport(world,{run:seed,version})),'utf8');
   runs.push(summary);
   console.log(JSON.stringify(summary));
  }
