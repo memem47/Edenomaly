@@ -30,48 +30,54 @@ test('visual size is more readable at low gene expression without changing genot
  assert.equal(JSON.stringify(gene),before);
 });
 
-test('cute round tail and forehead nubs remain visible without sharp curves',()=>{
+test('round tail behind and mirrored horns in front of the body',()=>{
  const {ctx,calls}=recordingCanvas();
  const gene={wet:.8,dry:.2,rock:.2,albino:0,tailLength:.75,
   hornLength:.72,antennaLength:0,pattern:0,guard:.8,eyes:3};
  drawOrnamentsBehind(ctx,gene,8,6,100,4);
- assert.ok(calls.ellipses.length>=7,'bead tail and pair of double nubs');
- assert.ok(calls.ellipses.some(p=>p[0]<-8),'tail reaches rear of body');
- assert.ok(calls.ellipses.some(p=>p[0]>0&&p[1]<-4),'horns stay at forehead');
+ const tails=calls.ellipses.filter(p=>p[0]<-8);
+ assert.ok(tails.length>=2,'visible rear bead tail');
+ const before=calls.ellipses.length;
+ drawOrnamentsFront(ctx,gene,8,6,100,4);
+ const lobes=calls.ellipses.slice(before).filter(p=>p[2]>1&&p[3]>1);
+ assert.ok(lobes.length>=4,'paired double nubs are drawn over body');
+ assert.ok(lobes.some(p=>p[1]>4)&&lobes.some(p=>p[1]<-4));
  assert.equal(calls.curve.length,0,'no triangular points or filaments');
- assert.ok(calls.fill>=7);
 });
-test('horns always form a left-right symmetric pair independent of guard',()=>{
+test('horns always form a mirrored pair even if their guard or eye genes change',()=>{
  for(const guard of [0,.2,.7,1]){
   for(const hornLength of [.1,.4,.85]){
    const {ctx,calls}=recordingCanvas();
    const gene={wet:.3,dry:.2,rock:.3,albino:0,tailLength:0,
     hornLength,antennaLength:0,pattern:0,guard,eyes:3};
-   drawOrnamentsBehind(ctx,gene,10,7,100,4);
-   // Every bead has two calls, base and gleam, so compare the base beads
-   // by matching identical ellipses across the forward (X) axis.
+   drawOrnamentsFront(ctx,gene,10,7,100,4);
    const groups=calls.ellipses.filter(([x,y,rx,ry])=>rx>1&&ry>1);
    assert.ok(groups.some(p=>p[1]<0),'horn on upper side');
    assert.ok(groups.some(p=>p[1]>0),'horn on lower side');
    for(const [x,y,rx,ry] of groups.filter(p=>p[1]<0)){
     assert.ok(groups.some(p=>Math.abs(p[0]-x)<1e-9&&
      Math.abs(p[1]+y)<1e-9&&Math.abs(p[2]-rx)<1e-9&&
-     Math.abs(p[3]-ry)<1e-9),'horn bead has matching mirrored counterpart');
+     Math.abs(p[3]-ry)<1e-9),'matching mirrored horn bead');
    }
-   assert.ok(groups.every(p=>p[0]>0),'both horns attach in the forward half');
+   assert.ok(groups.every(p=>p[0]>0),'both horns attach in forward half');
   }
  }
 });
-test('antennae attach only at the head and use connected spheres',()=>{
- const g={wet:.6,dry:.5,rock:.1,albino:0,tailLength:0,hornLength:0,
-  antennaLength:.8,pattern:0,guard:.3,eyes:4,deception:.2};
- const {ctx,calls}=recordingCanvas();
- drawOrnamentsFront(ctx,g,8,6,24,5);
- assert.equal(calls.curve.length,0,'no long thin or curved antenna lines');
- const centers=calls.ellipses.map(p=>({x:p[0],y:p[1]}));
- assert.ok(centers.length>=4,'rounded antenna segments and tips');
- assert.ok(centers.every(p=>p.x>0),'all feelers remain on the front half');
- assert.ok(centers.every(p=>p.y<0),'all feelers remain on the forehead');
+test('head-only antennae form symmetric short bulb chains',()=>{
+ for(const eyes of [0,1,2,4,6]){
+  const g={wet:.6,dry:.5,rock:.1,albino:0,tailLength:0,hornLength:0,
+   antennaLength:.8,pattern:0,guard:.3,eyes,deception:.2};
+  const {ctx,calls}=recordingCanvas();
+  drawOrnamentsFront(ctx,g,8,6,24,5);
+  assert.equal(calls.curve.length,0,'no filaments');
+  const centers=calls.ellipses.filter(p=>p[2]>.7&&p[3]>.7);
+  assert.ok(centers.length>=4,'short rounded feelers');
+  assert.ok(centers.every(p=>p[0]>0),'all feelers in forward half');
+  assert.ok(centers.some(p=>p[1]>0)&&centers.some(p=>p[1]<0));
+  for(const p of centers.filter(p=>p[1]<0))
+   assert.ok(centers.some(q=>Math.abs(p[0]-q[0])<1e-9&&
+     Math.abs(p[1]+q[1])<1e-9),'matched feelers');
+ }
 });
 test('zero ornaments do not draw and freckles appear as soft ovals',()=>{
  const g={wet:.6,dry:.5,rock:.1,albino:0,tailLength:0,hornLength:0,
