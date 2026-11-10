@@ -1,7 +1,7 @@
 // Soft, readable jelly ornaments made entirely of overlapping round shapes.
 // Drawing only: genes, hitboxes, upkeep, movement and RNG are unchanged.
 // The organism faces +X. The upper-right contour is its forehead.
-import {adaptationColor} from './simulation.js?v=2026.11.11.5';
+import {adaptationColor} from './simulation.js?v=2026.11.11.8';
 const TAU=Math.PI*2;
 const lim=v=>Math.max(0,Math.min(1,v??0));
 export const ornamentTraits=g=>({
@@ -51,25 +51,25 @@ export function drawOrnamentsBehind(ctx,g,rx,ry,tick=0,id=0){
   }
   ctx.restore();
  }
- if(horn>.08){
-  // Bilateral, mirror-symmetric forehead nubs. The organism faces +X:
-  // both nubs share the same forward X coordinate and sit on opposite
-  // sides of the body's longitudinal axis (Y = 0), never just one side.
-  // guard controls defense only; it must not change visual symmetry.
-  const r=Math.max(1.1,Math.min(ry*.35,ry*(.18+.19*horn)));
-  const x=rx*.51;
-  const y=ry*.76;
-  ctx.save();
-  for(const side of [-1,1]){
-   bead(ctx,x,side*y,r*1.18,r*1.12,c);
-   if(horn>.55)bead(ctx,x+r*.08,side*(y+r*.97),r*.83,r*.84,c);
-  }
-  ctx.restore();
- }
+
 }
 export function drawOrnamentsFront(ctx,g,rx,ry,tick=0,id=0){
  const tr=ornamentTraits(g),c=appearance(g);
  const pattern=ornamentVisibility(tr.pattern),antenna=ornamentVisibility(tr.antenna);
+ // Symmetric head lobes are drawn AFTER the membrane so neither side is
+ // hidden behind the slime. Mirror across the forward-facing X axis.
+ if(ornamentVisibility(tr.horn)>.08){
+  const horn=ornamentVisibility(tr.horn);
+  const r=Math.max(1.1,Math.min(ry*.32,ry*(.16+.16*horn)));
+  const x=rx*.48,sideY=ry*.87;
+  ctx.save();
+  for(const side of [-1,1]){
+   bead(ctx,x,side*sideY,r*1.12,r*1.10,c);
+   if(horn>.55)bead(ctx,x+r*.13,side*(sideY+r*.87),r*.78,r*.78,c);
+  }
+  ctx.restore();
+ }
+
  if(pattern>.10){
   // Low-contrast spots, cheeks and oval belly markings. No harsh stripes.
   ctx.save();
@@ -86,26 +86,19 @@ export function drawOrnamentsFront(ctx,g,rx,ry,tick=0,id=0){
   ctx.restore();
  }
  if(antenna>.10){
-  // Only the forehead can host antennae. Round overlapping jelly nodes
-  // replace creepy thin filament strokes; never attach at the torso/rear.
-  const count=(g.eyes??0)>2?2:1;
-  const {x:headX,y:headY}=headAnchor(rx,ry);
-  const r=Math.max(1.05,Math.min(ry*.31,ry*(.16+.11*antenna)));
-  const sway=Math.sin(tick*.095+id*.31)*r*.26*antenna;
+  // ALWAYS a matched pair, one on either side of the face. The two bulb
+  // chains use identical X locations and opposite Y; no upper-only feelers.
+  const r=Math.max(1.05,Math.min(ry*.28,ry*(.16+.10*antenna)));
+  const anchorX=rx*.73,anchorY=ry*.53;
+  const sway=Math.sin(tick*.095+id*.31)*r*.18*antenna;
+  const segments=antenna>.57?2:1;
   ctx.save();
-  for(let k=0;k<count;k++){
-   const dx=count===1?0:(k===0?-rx*.13:rx*.20);
-   const bx=headX+dx;
-   const by=headY+ry*.02;
-   const length=antenna>.57?2:1;
-   // A short plump antenna: 1–2 connected balls and a rounded tip.
-   for(let j=0;j<length;j++){
-    const x=bx+(j+1)*r*.38+sway*(j+1)/length;
-    const y=by-(j+1)*r*.72;
-    bead(ctx,x,y,r*(.97-.10*j),r*(1.08-.09*j),c);
+  for(const side of [-1,1]){
+   for(let j=0;j<=segments;j++){
+    const x=anchorX+(j+1)*r*.38+sway;
+    const y=side*(anchorY+(j+1)*r*.43);
+    bead(ctx,x,y,r*(.94-.07*j),r*(.97-.07*j),c);
    }
-   bead(ctx,bx+(length+1)*r*.37+sway,by-(length+1)*r*.72,
-    r*.96,r*.94,c);
   }
   ctx.restore();
  }
