@@ -1960,13 +1960,21 @@ test('large colonies retain cheap glossy sheen without allocating gradients per 
 });
 
 import {speciesNameFromCategory,genomeCode} from './simulation.js';
-test('classification-derived katakana names are deterministic across resets and discovery order',()=>{
+test('discovered species names combine true visual hue, category code and phenotype',async()=>{
+ const {speciesColorName,speciesFeatureName,speciesEcologyCode}=await import('./simulation.js');
  const a=new Ecosystem(9111),b=new Ecosystem(9112);
- const g=a.gene(),key=a.category(g),expected=speciesNameFromCategory(key);
- assert.equal(a.name(key),expected);
- assert.equal(b.name(key),expected);
+ const g={...a.gene(),hornLength:.82,tailLength:.1,antennaLength:0,pattern:0};
+ const key=a.category(g),expected=speciesNameFromCategory(key,g);
+ assert.ok(expected.endsWith('ホーン'));
+ assert.equal(a.name(key,g),expected);
+ assert.equal(b.name(key,g),expected);
+ assert.equal(a.name(key),speciesNameFromCategory(key));
  a.spawn(120,130,g);
  assert.equal(a.species.get(key).name,expected);
+ assert.equal(a.name(key),expected);
+ const variant={...g,hornLength:0,tailLength:1};
+ a.spawn(125,130,variant);
+ assert.equal(a.species.get(key).name,expected,'species name is stable after later mutations');
  a.reset();
  a.spawn(120,130,g);
  assert.equal(a.species.get(key).name,expected);
@@ -1974,42 +1982,54 @@ test('classification-derived katakana names are deterministic across resets and 
  c.spawn(100,110,{...c.gene(),diet:1,aquatic:1});
  c.spawn(120,130,g);
  assert.equal(c.species.get(key).name,expected);
+ assert.equal(speciesFeatureName({...g,hornLength:.81,tailLength:.80}),'ホーンテール');
+ assert.equal(speciesFeatureName({...g,hornLength:0,tailLength:0}),'ノーマル');
+ assert.equal(speciesFeatureName({...g,hornLength:.08,tailLength:0}),'ノーマル');
+ assert.ok(speciesColorName({...g,albino:1})==='ホワイト');
+ assert.equal(speciesEcologyCode(key).length,5);
 });
-test('all 108864 ecological classifications have unique six-kana names',()=>{
+test('every one of 108864 classifications keeps a unique ecological name code',async()=>{
+ const {speciesEcologyCode}=await import('./simulation.js');
  const habitats=['land','aquatic','dry','rock'];
  const groups=[['plant','mixed','hunter'],['tiny','medium','large','giant'],
   ['round','oval','long'],['blind','few','several','allround'],
   ['general','guardian','egg-hunter'],['repro0','repro1','repro2'],
   ['temperate','cold','hot'],['red','yellow','green','blue','purple','pink','white']];
- const names=new Set();
+ const names=new Set(),codes=new Set();
  const traverse=(parts,index)=>{
   if(index===groups.length){
-   const name=speciesNameFromCategory(parts.join('-'));
-   assert.ok(/^[ァ-ヶ]{6}$/.test(name),name);
-   assert.ok(!/アア$/.test(name),'unnatural numeric ending '+name);
-   assert.ok(!/(.)\\1$/.test(name),'identical final mora '+name);
+   const key=parts.join('-'),name=speciesNameFromCategory(key),code=speciesEcologyCode(key);
+   assert.match(name,/^(レッド|イエロー|グリーン|ブルー|パープル|ピンク|ホワイト)/);
+   assert.ok(name.endsWith('ノーマル'),name);
+   assert.match(code,/^[ァ-ヶ]{5}$/);
+   assert.ok(!codes.has(code),'duplicate code '+code);
    assert.ok(!names.has(name),'duplicate '+name);
-   names.add(name);return;
+   codes.add(code);names.add(name);return;
   }
   for(const category of groups[index])traverse([...parts,category],index+1);
  };
  for(const habitat of habitats)traverse([habitat],0);
- assert.equal(names.size,108864);
- assert.ok(speciesNameFromCategory('aquatic-hunter-large-oval-few-guardian-repro2-cold-blue').startsWith('アオニミ'));
+ assert.equal(codes.size,108864);
 });
-test('pigment name follows color phenotype and remains stable for cosmetic variations',async()=>{
- const {pigmentClass,adaptationColor}=await import('./simulation.js');
+test('color and compound traits come from visible genome rather than naming bin',async()=>{
+ const {pigmentClass,adaptationColor,speciesColorName,speciesFeatureName}=await import('./simulation.js');
  const w=new Ecosystem(9115),g=w.gene();
  assert.equal(pigmentClass({...g,albino:1}),'white');
  const key=w.category(g);
  assert.equal(key.split('-').length,9);
- const before=speciesNameFromCategory(key);
- assert.equal(w.name(key),before);
+ const before=speciesNameFromCategory(key,g);
+ assert.equal(w.name(key,g),before);
  const white=w.category({...g,albino:1});
  assert.notEqual(white,key);
- assert.ok(speciesNameFromCategory(white).startsWith('シロ'));
+ assert.ok(speciesNameFromCategory(white,{...g,albino:1}).startsWith('ホワイト'));
  const hue=adaptationColor(g).hue;
  assert.ok(hue>=0&&hue<360);
+ assert.equal(speciesFeatureName({...g,hornLength:.63,tailLength:.59,antennaLength:.1,pattern:0}),'ホーンテール');
+ // Real adaptation colors are mixed, but synthetic hue probes can exercise
+ // the rare red-purple boundary without changing the biological palette.
+ const purpleRed={...g,albino:0,wet:.0,dry:.25,rock:1};
+ const colored=speciesColorName(purpleRed);
+ assert.ok(colored.length>0);
 });
 test('genome code is stable, quantized, and changes when a trait crosses a bin',()=>{
  const w=new Ecosystem(9114),g=w.gene();
