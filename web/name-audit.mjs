@@ -22,7 +22,7 @@ for(let i=0;i<runs;i++){
   const name=speciesNameFromCategory(category,species.genome);
   if(name!==species.name)throw new Error('Discovery name changed during simulation');
   const code=speciesEcologyCode(category);
-  if(!name.includes(code)||!/(ホーン|テール|アンテナ|スポット|ノーマル)$/.test(name))
+  if(!name.includes(code)||!(/(ホーン|テール|アンテナ|スポット)$/.test(name)||name.endsWith(code)))
    throw new Error('Unexpected species name: '+name);
   if(categoryByCode.has(code)&&categoryByCode.get(code)!==category)
    throw new Error('Two categories share one code: '+code);
