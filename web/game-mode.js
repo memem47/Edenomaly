@@ -47,6 +47,16 @@ export class GameSession{
   // Only after ecosystem has actually lived that long, not on free reset/idle.
   for(let n=300;n<=score.duration;n+=300)this.grant('survive:'+n,5,n+'ステップ生存');
   for(let n=1;n<=score.discoveries;n++)this.grant('discovery:'+n,10,'新種 '+n+'種');
+  // Separate discovery from ecological success. A new category is not
+  // established until it has both three generations and a 12-body peak.
+  for(const [category,sp] of w.species){
+   if(sp.establishedByGeneration)
+    this.grant('generation:'+category,5,'3世代継続：'+sp.name);
+   if(sp.establishedByPopulation)
+    this.grant('population:'+category,5,'12体到達：'+sp.name);
+   if(sp.establishedByGeneration&&sp.establishedByPopulation)
+    this.grant('established:'+category,15,'定着成功：'+sp.name);
+  }
   const highest=w.units.reduce((n,u)=>Math.max(n,u.generation),this.maxGeneration);
   for(let n=this.maxGeneration+1;n<=highest;n++)this.grant('generation:'+n,3,'第'+n+'世代');
   this.maxGeneration=highest;
