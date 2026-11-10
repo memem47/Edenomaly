@@ -1354,8 +1354,8 @@ export class Ecosystem{
     // grazed-off patches remain empty until spores reach them.
     if((this.tiles[i]===2||this.tiles[i]===3)&&this.grass[i]>0){
      const wetness=clamp((this.soilWater[i]??0)/70,0,1);
-     next[i]=Math.min(this.tiles[i]===2?13:15,
-      this.grass[i]+(this.tiles[i]===2?.19:.43)*(.25+wetness)*
+     next[i]=Math.min(this.tiles[i]===2?13:20,
+      this.grass[i]+(this.tiles[i]===2?.19:.70)*(.25+wetness)*
       this.growth/70/(1+this.grazingPressure[i]));
     }
     if(this.grass[i]<=0&&this.tiles[i]!==1&&this.tiles[i]!==3){
@@ -1849,6 +1849,26 @@ export class Ecosystem{
      this.log('meal','#'+u.id+' が水草を食べた',u);}
    }
    if(aquatic&&underwater&&!flight)this.plantWaterweed(u);
+   // Existing wet adaptation also has a functional land/water interface.
+   // A terrestrial wetland specialist can browse shallow aquatic vegetation
+   // from the *shore* without entering inaccessible water or creating food.
+   // No new gene is necessary: the inherited wet locus already encodes this.
+   if(!flight&&!aquatic&&t===0&&(g.wet??0)>.45&&diet.plant>.2&&u.energy<150){
+    const coastWeed=this.nearestWaterweed(u.x,u.y,18);
+    if(coastWeed&&distance(u,coastWeed)<15*15){
+     const eaten=this.consumeWaterweed(coastWeed.x,coastWeed.y,
+      Math.min(1.15,m.foodGain*(g.wet-.35)*1.35));
+     if(eaten>0){
+      const calories=eaten*5.7*effectivePlantAffinity(u)*clamp(g.wet,0,1);
+      u.energy+=calories;
+      u.recentFood=(u.recentFood??0)+eaten*4;
+      if(u.stage==='juvenile')u.juvenileFood+=calories;
+      u.forageSuccess++;
+      if((this.tick+u.id)%9===0)this.addVisualEffect('waterweed',u,{fromX:coastWeed.x,fromY:coastWeed.y});
+      this.log('meal','#'+u.id+' が岸辺から水草を採食した',u);
+     }
+    }
+   }
    if(!flight&&(!aquatic||onLand)&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+13)**2){
     const forageTerrain=this.terrain(nearest.x,nearest.y);
     const forageLimit=forageTerrain===0?4.8:forageTerrain===2?1.3:1.2;
