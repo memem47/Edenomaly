@@ -433,8 +433,9 @@ $('downloadAllLogs').onclick=()=>{
  }
  // Export a standalone current snapshot even if persisted time-series is empty.
  const currentSnapshot={run:ecologyLog.activeId??0,version:LOG_VERSION,...observeEcology(game)};
- const snapshotCSV='\\ufeff'+ECOLOGY_LOG_FIELDS.join(',')+'\\r\\n'+
-  ECOLOGY_LOG_FIELDS.map(k=>csvCell(currentSnapshot[k])).join(',')+'\\r\\n';
+ const newline=String.fromCharCode(13,10);
+ const snapshotCSV=String.fromCharCode(65279)+ECOLOGY_LOG_FIELDS.join(',')+newline+
+  ECOLOGY_LOG_FIELDS.map(k=>csvCell(currentSnapshot[k])).join(',')+newline;
  const archive=zipFiles([
   ['edenomaly-ecology-'+LOG_VERSION+'.csv',ecologyLog.toCSV()],
   ['edenomaly-current-ecology-'+LOG_VERSION+'.csv',snapshotCSV],
