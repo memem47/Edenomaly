@@ -379,6 +379,12 @@ export const rearPosition=(u,offset=0)=>({
  x:clamp(u.x-Math.cos(u.angle)*(u.g.r*u.g.elongation+5+offset),6,W-6),
  y:clamp(u.y-Math.sin(u.angle)*(u.g.r*u.g.elongation+5+offset),6,H-6)
 });
+// These founders are deterministically derived from existing traits after
+// base allele initialization. Keeping the group centralized prevents dead
+// branches, duplicate random draws and silent genetic initialization drift.
+const DERIVED_FOUNDER_LOCI=new Set(['tailLength','hornLength','antennaLength','pattern',
+ 'hibernate','dispersal','sociability','caution','predatorSense','retaliation',
+ 'frugality','waterGardening']);
 const HERITABLE=['tailLength','hornLength','antennaLength','pattern','repro','idealTemp','tempTolerance','hibernate','longevity','r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic','albino','dispersal','sociability','caution','predatorSense','retaliation','frugality','waterGardening'];
 // Natural ponds always retain a viable reservoir. Drought reduces excess
 // water depth, but only deliberate terrain painting may remove a water tile.
@@ -501,7 +507,7 @@ export class Ecosystem{
   // recessive alleles that are not necessarily visible in its phenotype.
   g.alleles={};
   for(const key of HERITABLE){
-   if(['tailLength','hornLength','antennaLength','pattern'].includes(key)||key==='hibernate'||key==='dispersal'||key==='sociability'||key==='caution'||key==='predatorSense'||key==='retaliation'||key==='frugality'||key==='waterGardening')continue; // preserve older founder RNG sequence
+   if(DERIVED_FOUNDER_LOCI.has(key))continue; // preserve existing founder RNG
    let second=g[key];
    if(key==='repro')second=0;
     else if(key==='idealTemp')second=clamp(g.idealTemp+this.range(-3,3),...LIMITS.idealTemp);
