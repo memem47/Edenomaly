@@ -61,3 +61,21 @@ test('omnivore enhancement preserves all plant diet endpoints and maintenance ma
  const small=morphology({...g,r:3.2}),large=morphology({...g,r:7});
  assert.ok(large.upkeep>small.upkeep);
 });
+
+test('rock lichen can be restored with game-mode seed and rainfall without changing terrain',()=>{
+ const w=new Ecosystem(202611115),session=new GameSession(w);
+ assert.ok(session.start(170,130));
+ const i=w.tiles.findIndex(v=>v===3);
+ assert.ok(i>=0);
+ const x=(i%40+.5)*20,y=(Math.floor(i/40)+.5)*20;
+ assert.equal(w.tiles[i],3);
+ w.grass[i]=0;w.soilWater[i]=0;
+ assert.ok(session.canIntervene('seed',x,y));
+ assert.ok(session.intervene('seed',x,y));
+ assert.ok(w.grass[i]>0,'rock should receive lichen spores');
+ assert.equal(w.tiles[i],3,'seeding should not turn rock into grass');
+ assert.ok(session.canIntervene('rain',x,y));
+ assert.ok(session.intervene('rain',x,y));
+ assert.ok(w.soilWater[i]>0,'rocky crevices should retain water');
+ assert.equal(w.tiles[i],3);
+});
