@@ -2502,7 +2502,7 @@ test('terrestrial carnivores cannot eat submerged eggs, aquatic carnivores can',
 
 test('score starts at zero and excludes founder species from discoveries',()=>{
  const w=new Ecosystem(20261109);
- assert.deepEqual(w.runScore,{started:false,ended:false,duration:0,discoveries:0,survivalScore:0,discoveryScore:0,balanceScore:0,total:0});
+ assert.deepEqual(w.runScore,{started:false,ended:false,duration:0,discoveries:0,establishedSpecies:0,sustained:0,expanded:0,survivalScore:0,discoveryScore:0,establishmentScore:0,balanceScore:0,total:0});
  const result=w.introduce(170,130,1);
  assert.equal(result.types,1);
  assert.equal(w.runScore.started,true);
