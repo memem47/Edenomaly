@@ -48,7 +48,14 @@ const SPECIES_CATEGORY_PATTERN=/^(land|aquatic|dry|rock)-(plant|mixed|hunter)-(t
 const NAME_COLORS={
  red:'レッド',yellow:'イエロー',green:'グリーン',blue:'ブルー',
  purple:'パープル',pink:'ピンク',white:'ホワイト',
- red_purple:'レッドパープル'
+ red_purple:'レッドパープル',
+ red_yellow:'レッドイエロー',red_green:'レッドグリーン',
+ red_blue:'レッドブルー',red_pink:'レッドピンク',
+ yellow_green:'イエローグリーン',yellow_blue:'イエローブルー',
+ yellow_purple:'イエローパープル',yellow_pink:'イエローピンク',
+ green_blue:'グリーンブルー',green_purple:'グリーンパープル',
+ green_pink:'グリーンピンク',blue_purple:'ブルーパープル',
+ blue_pink:'ブルーピンク',purple_pink:'パープルピンク'
 };
 const NAME_FEATURES={
  normal:'',horn:'ホーン',tail:'テール',antenna:'アンテナ',spot:'スポット',
