@@ -664,6 +664,11 @@ export class Ecosystem{
    const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(u.category),current:0,total:0,diet:dietProfile(g).label,first:this.tick,genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(u.category),u);
   }
   const s=this.species.get(u.category);s.current++;s.total++;
+  s.firstGeneration??=u.generation;
+  s.maxGeneration=Math.max(s.maxGeneration??u.generation,u.generation);
+  s.peakCurrent=Math.max(s.peakCurrent??0,s.current);
+  s.establishedByGeneration=(s.maxGeneration-s.firstGeneration>=2);
+  s.establishedByPopulation=(s.peakCurrent>=12);
   appendSpeciesBirth(this.speciesSamples,u.category,g,birthDerived(g,morphology(g)));
   this.log('birth','#'+u.id+' '+(u.stage==='juvenile'?'孵化':'移入')+'（'+s.name+' / 第'+u.generation+'世代）',u);
   return u;
@@ -2171,10 +2176,13 @@ export class Ecosystem{
    const started=this.runStartTick!==null;
    const duration=started?Math.max(0,(this.runEndedTick??this.tick)-this.runStartTick):0;
    const discoveries=started?Math.max(0,this.species.size-this.founderSpeciesCount):0;
+   const establishedSpecies=started?[...this.species.values()].filter(sp=>sp.establishedByGeneration&&sp.establishedByPopulation).length:0;
+   const sustained=started?[...this.species.values()].filter(sp=>sp.establishedByGeneration).length:0;
+   const expanded=started?[...this.species.values()].filter(sp=>sp.establishedByPopulation).length:0;
    const balanceScore=started?(this.ecosystemBalance??0):0;
-   return {started,ended:this.runEndedTick!==null,duration,discoveries,
-    survivalScore:duration,discoveryScore:discoveries*300,balanceScore,
-    total:duration+discoveries*300+balanceScore};
+   return {started,ended:this.runEndedTick!==null,duration,discoveries,establishedSpecies,sustained,expanded,
+    survivalScore:duration,discoveryScore:discoveries*300,establishmentScore:establishedSpecies*450,balanceScore,
+    total:duration+discoveries*300+establishedSpecies*450+balanceScore};
   }
   get livingSpecies(){return [...this.species.values()].filter(s=>s.current>0).length;}
  get recentSpecies(){return this.discoveries.filter(t=>this.tick-t<300).length;}
