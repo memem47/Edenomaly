@@ -6,7 +6,7 @@ import {speciesReport,speciesCSV,parseSpeciesCSV,medianOf} from './species-stati
 
 test('species metrics report every born individual and exact middle values',()=>{
  const w=new Ecosystem(20261110);
- const g=w.gene(),a={...g,tailLength:0},b={...g,tailLength:.2},c={...g,tailLength:.9};
+ const g={...w.gene(),hornLength:1,antennaLength:0,pattern:0},a={...g,tailLength:0},b={...g,tailLength:.2},c={...g,tailLength:.9};
  const ua=w.spawn(160,140,a),ub=w.spawn(165,140,b),uc=w.spawn(170,140,c);
  const key=ua.category;
  assert.equal(ub.category,key);
@@ -27,7 +27,7 @@ test('species metrics report every born individual and exact middle values',()=>
  assert.ok(!extinct.some(r=>r.category===key&&r.scope==='living'));
 });
 test('exact median updates after births and remains stable without new births',()=>{
- const w=new Ecosystem(20261111),g=w.gene();
+ const w=new Ecosystem(20261111),g={...w.gene(),hornLength:1,tailLength:0,antennaLength:0};
  for(const value of [.1,.3,.7,.9])w.spawn(180,140,{...g,pattern:value});
  const get=()=>speciesReport(w).find(r=>r.metric==='pattern'&&r.scope==='birth').median;
  assert.equal(get(),.5);assert.equal(get(),.5);
