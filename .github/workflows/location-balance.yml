@@ -17,10 +17,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Compare six locations over eight seeds without interventions
-        run: node web/location-experiment.mjs 1200 72 8 results/locations-none none
-      - name: Compare the same locations with game-mode resource interventions
-        run: node web/location-experiment.mjs 1200 72 8 results/locations-resource resource
+      - name: Compare six locations over sixteen seeds without interventions
+        run: node web/location-experiment.mjs 1200 72 16 results/locations-none none
+      - name: Compare sixteen seeds with game-mode resource interventions
+        run: node web/location-experiment.mjs 1200 72 16 results/locations-resource resource
       - uses: actions/upload-artifact@v4
         if: always()
         with:
