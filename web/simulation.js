@@ -109,7 +109,7 @@ export const landAcclimationGain=(u,onLand)=>onLand?
 export const terrestrialHydrationDelta=(g,terrain,weather)=>{
  const adapted=terrain===2?clamp(g.dry??0,0,1):
   terrain===3?clamp(g.rock??0,0,1):0;
- const loss=.24*(1-.66*adapted);
+ const loss=.24*(1-(terrain===3?.73:.66)*adapted);
  const collected=weather==='rain'?((terrain===2||terrain===3)?(.24+.13*adapted):.08):0;
  return collected-loss;
 };
@@ -161,7 +161,7 @@ export const famineCannibalism=u=>u.energy<46&&u.stage==='adult'&&
 // scarce. The small bonus peaks for 50/50 omnivores and is zero at endpoints.
 export const effectivePlantAffinity=u=>{
  const d=dietProfile(u.g).diet;
- return clamp((1-d)*(1+.28*4*d*(1-d))*
+ return clamp((1-d)*(1+.10*4*d*(1-d))*
   (1-.65*carnivoryExperience(u)),0,1);
 };
 export const learnCarnivory=(u,consumed)=>{
@@ -193,8 +193,8 @@ export const morphology=g=>{
  const biteReach=width*(.7+.15*mouths)+g.jaw*1.6+1.2*clamp(g.hornLength??0,0,1);
  const edibleRatio=clamp(.60+.055*mouths+.06*g.jaw,.62,.88);
  const predatory=dietProfile(g).meat>.14&&g.jaw>=.55&&mouths>=1;
- const upkeep=.09+metabolicMass*.0077+Math.max(0,metabolicMass-110)**1.2*.002+g.eyes*.045+Math.max(0,g.eyes-3)**2*.06+mouths*.03+g.jaw*.02+Math.abs(g.deception-.5)*.035+(g.resist??.4)*.04+clamp(g.tailLength??0,0,1)*.13+clamp(g.hornLength??0,0,1)*.18+clamp(g.antennaLength??0,0,1)*.12+clamp(g.pattern??0,0,1)*.075;
- const foodGain=1+Math.min(.46,(mouths-1)*.145);
+ const upkeep=.09+metabolicMass*.008+Math.max(0,metabolicMass-110)**1.2*.002+g.eyes*.045+Math.max(0,g.eyes-3)**2*.06+mouths*.03+g.jaw*.02+Math.abs(g.deception-.5)*.035+(g.resist??.4)*.04+clamp(g.tailLength??0,0,1)*.13+clamp(g.hornLength??0,0,1)*.18+clamp(g.antennaLength??0,0,1)*.12+clamp(g.pattern??0,0,1)*.075;
+ const foodGain=1+Math.min(.42,(mouths-1)*.13);
  return {width,length,bodyMass,eyeRange,speed,turnRate,biteReach,edibleRatio,predatory,upkeep,foodGain};
 };
 // Nutrition-derived growth changes physical performance without changing inherited genes.
@@ -1855,7 +1855,7 @@ export class Ecosystem{
     const eaten=this.consumeGrass(nearest.x,nearest.y,
      Math.min(forageLimit,1.05*m.foodGain*feedingCapacity(u)));
     if(eaten>0){
-     const foodYield=forageTerrain===0?10.5:forageTerrain===2?8:8.2;
+     const foodYield=forageTerrain===0?10.5:forageTerrain===2?8:7.4*(1+.44*clamp(g.rock??0,0,1));
      u.energy+=eaten*foodYield*effectivePlantAffinity(u)*home.fitness;
      u.recentFood=(u.recentFood??0)+eaten*4;
      u.forageSuccess++;
@@ -1869,14 +1869,14 @@ export class Ecosystem{
    if(!flight&&(effectiveMeatAffinity(u)>.15||famineCannibalism(u))&&nearestCorpse&&distance(u,nearestCorpse)<(m.biteReach+14)**2&&u.energy<175){
     const eaten=Math.min(nearestCorpse.mass,2.4*m.foodGain*feedingCapacity(u));
     nearestCorpse.mass-=eaten;
-    u.energy+=eaten*6.1*effectiveMeatAffinity(u);
+    u.energy+=eaten*5.8*effectiveMeatAffinity(u);
     if(eaten>0){
      const previous=carnivoryExperience(u);learnCarnivory(u,eaten);
      if(previous<.25&&carnivoryExperience(u)>=.25)
       this.log('carnivoreLearn','#'+u.id+' が肉食に順化し始めた',u);
     }
     u.recentFood=(u.recentFood??0)+eaten*4;
-    if(u.stage==='juvenile')u.juvenileFood+=eaten*6.1*effectiveMeatAffinity(u);
+    if(u.stage==='juvenile')u.juvenileFood+=eaten*5.8*effectiveMeatAffinity(u);
     if(eaten>0){if((this.tick+u.id)%9===0)this.addVisualEffect('scavenge',u,{fromX:nearestCorpse.x,fromY:nearestCorpse.y});this.log('meal','#'+u.id+' が死体を食べた',u);}
    }
    if(!flight&&!defenderTarget&&targetEgg&&!targetEgg.dead&&u.bite===0&&distance(u,targetEgg)<(m.biteReach+4)**2)this.eatEgg(targetEgg,u);
