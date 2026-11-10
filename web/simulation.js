@@ -42,7 +42,30 @@ export const speciesNameCode=(body,shape,eyes,strategy,repro,thermal)=>{
  const second=slot>=first?slot+1:slot;
  return NAME_SYLLABLES[first]+NAME_SYLLABLES[second];
 };
-const SPECIES_CATEGORY_PATTERN=/^(land|aquatic|dry|rock)-(plant|mixed|hunter)-(tiny|medium|large|giant)-(round|oval|long)-(blind|few|several|allround)-(general|guardian|egg-hunter)-(repro[012])-(temperate|cold|hot)-(red|yellow|green|blue|purple|pink|white)$/;
+// Two extra fields encode visible hue and conspicuous ornaments. Optional
+// suffixes support inspection of historical nine-part classification keys.
+const SPECIES_CATEGORY_PATTERN=/^(land|aquatic|dry|rock)-(plant|mixed|hunter)-(tiny|medium|large|giant)-(round|oval|long)-(blind|few|several|allround)-(general|guardian|egg-hunter)-(repro[012])-(temperate|cold|hot)-(red|yellow|green|blue|purple|pink|white)(?:-(c_[a-z_]+)-(f_[a-z_]+))?$/;
+const NAME_COLORS={
+ red:'レッド',yellow:'イエロー',green:'グリーン',blue:'ブルー',
+ purple:'パープル',pink:'ピンク',white:'ホワイト',
+ red_purple:'レッドパープル'
+};
+const NAME_FEATURES={
+ normal:'ノーマル',horn:'ホーン',tail:'テール',antenna:'アンテナ',spot:'スポット',
+ horn_tail:'ホーンテール',horn_antenna:'ホーンアンテナ',
+ horn_spot:'ホーンスポット',tail_antenna:'テールアンテナ',
+ tail_spot:'テールスポット',antenna_spot:'アンテナスポット'
+};
+// Converting from the display label to a token makes category keys safe for
+// logging/CSV and ensures exactly the displayed appearance is classified.
+const colorToken=label=>Object.keys(NAME_COLORS).find(k=>NAME_COLORS[k]===label);
+const featureToken=label=>Object.keys(NAME_FEATURES).find(k=>NAME_FEATURES[k]===label);
+export const speciesAppearanceCategory=g=>{
+ const color=colorToken(speciesColorName(g));
+ const feature=featureToken(speciesFeatureName(g));
+ if(!color||!feature)throw new Error('Unsupported visible phenotype');
+ return 'c_'+color+'-f_'+feature;
+};
 const speciesClassificationParts=key=>{
  const match=SPECIES_CATEGORY_PATTERN.exec(key);
  if(!match)throw new Error('Invalid species classification: '+key);
@@ -55,8 +78,11 @@ const speciesClassificationParts=key=>{
   strategy:STRATEGY_CLASSES.indexOf(match[6]),
   repro:['repro0','repro1','repro2'].indexOf(match[7]),
   thermal:THERMAL_CLASSES.indexOf(match[8]),
-  pigment:PIGMENT_CLASSES.indexOf(match[9])
+  pigment:PIGMENT_CLASSES.indexOf(match[9]),
+  appearanceColor:match[10]?.slice(2)??null,
+  appearanceFeature:match[11]?.slice(2)??null
  };
+
 };
 // The biological classification gives a stable readable identifier, including
 // color class. This avoids two separate categories collapsing to the same name
@@ -109,8 +135,12 @@ export const speciesFeatureName=g=>{
 // A full display name is intentionally not limited to six characters.
 export const speciesNameFromCategory=(key,genome=null)=>{
  const parts=speciesClassificationParts(key);
- return speciesColorName(genome,PIGMENT_CLASSES[parts.pigment])+
-  speciesEcologyCode(key)+speciesFeatureName(genome);
+ const color=parts.appearanceColor===null?
+  speciesColorName(genome,PIGMENT_CLASSES[parts.pigment]):NAME_COLORS[parts.appearanceColor];
+ const feature=parts.appearanceFeature===null?
+  speciesFeatureName(genome):NAME_FEATURES[parts.appearanceFeature];
+ if(!color||!feature)throw new Error('Unsupported species appearance category: '+key);
+ return color+speciesEcologyCode(key)+feature;
 };
 // Pigment is a derived phenotype, not an additional independent gene.
 export const pigmentClass=g=>{
@@ -674,7 +704,7 @@ export class Ecosystem{
  category(g){
   // A species represents a recognizable ecological/morphological strategy.
   // Coarsely categorized pigment is included because players can see color.
-  // Small changes within the same pigment group do not create new species.
+  // Visible color/ornament bins are included; minor changes inside a bin do not make a new species.
   const m=morphology(g),d=dietProfile(g).diet;
   const diet=d<.32?'plant':d>.70?'hunter':'mixed';
   const body=m.bodyMass<45?'tiny':m.bodyMass<105?'medium':m.bodyMass<195?'large':'giant';
@@ -684,7 +714,7 @@ export class Ecosystem{
   // Habitat is a functional trait, not just a difference in appearance.
   const habitat=g.aquatic===1?'aquatic':g.dry>=.70&&g.dry>g.rock+.10?'dry':g.rock>=.70&&g.rock>g.dry+.10?'rock':'land';
   const thermal=g.idealTemp<12?'cold':g.idealTemp>31?'hot':'temperate';
-   return [habitat,diet,body,shape,eyes,strategy,'repro'+reproductiveMode(g),thermal,pigmentClass(g)].join('-');
+   return [habitat,diet,body,shape,eyes,strategy,'repro'+reproductiveMode(g),thermal,pigmentClass(g),speciesAppearanceCategory(g)].join('-');
  }
  name(category,genome=null){return speciesNameFromCategory(category,genome??this.species.get(category)?.genome??null);}
  addVisualEffect(type,point,extra={}){
