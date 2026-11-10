@@ -51,7 +51,7 @@ const NAME_COLORS={
  red_purple:'レッドパープル'
 };
 const NAME_FEATURES={
- normal:'ノーマル',horn:'ホーン',tail:'テール',antenna:'アンテナ',spot:'スポット',
+ normal:'',horn:'ホーン',tail:'テール',antenna:'アンテナ',spot:'スポット',
  horn_tail:'ホーンテール',horn_antenna:'ホーンアンテナ',
  horn_spot:'ホーンスポット',tail_antenna:'テールアンテナ',
  tail_spot:'テールスポット',antenna_spot:'アンテナスポット'
@@ -123,11 +123,11 @@ const ORNAMENT_NAMES=[
 // Only visible, substantial ornaments affect the name. Genes of the same
 // strength are grouped, with horn before tail for "ホーンテール".
 export const speciesFeatureName=g=>{
- if(!g)return 'ノーマル';
+ if(!g)return '';
  const values=ORNAMENT_NAMES.map(([key,label])=>({key,label,value:Math.max(0,Math.min(1,g[key]??0))}))
   .sort((a,b)=>b.value-a.value||ORNAMENT_NAMES.findIndex(t=>t[0]===a.key)-ORNAMENT_NAMES.findIndex(t=>t[0]===b.key));
  const best=values[0];
- if(best.value<.12)return 'ノーマル';
+ if(best.value<.12)return '';
  const comparable=values.filter(v=>v.value>=.12&&best.value-v.value<=.065).slice(0,2);
  return comparable.sort((a,b)=>ORNAMENT_NAMES.findIndex(t=>t[0]===a.key)-ORNAMENT_NAMES.findIndex(t=>t[0]===b.key))
   .map(v=>v.label).join('');
@@ -139,7 +139,7 @@ export const speciesNameFromCategory=(key,genome=null)=>{
   speciesColorName(genome,PIGMENT_CLASSES[parts.pigment]):NAME_COLORS[parts.appearanceColor];
  const feature=parts.appearanceFeature===null?
   speciesFeatureName(genome):NAME_FEATURES[parts.appearanceFeature];
- if(!color||!feature)throw new Error('Unsupported species appearance category: '+key);
+ if(!color||feature===undefined)throw new Error('Unsupported species appearance category: '+key);
  return color+speciesEcologyCode(key)+feature;
 };
 // Pigment is a derived phenotype, not an additional independent gene.
