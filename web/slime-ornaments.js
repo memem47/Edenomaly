@@ -1,74 +1,70 @@
-// Readable, inherited 2D appendages. This module is DRAWING ONLY: it never
-// changes a gene, hitbox, habitat fitness, ecosystem tick, or random state.
-// Organism faces +X after renderer rotation. Amplification is deliberately
-// nonlinear: a 0.10 gene should be visible at ordinary 1x zoom.
-import {adaptationColor} from './simulation.js?v=2026.11.11.4';
+// Soft, readable jelly ornaments made entirely of overlapping round shapes.
+// Drawing only: genes, hitboxes, upkeep, movement and RNG are unchanged.
+// The organism faces +X. The upper-right contour is its forehead.
+import {adaptationColor} from './simulation.js?v=2026.11.11.5';
 const TAU=Math.PI*2;
 const lim=v=>Math.max(0,Math.min(1,v??0));
 export const ornamentTraits=g=>({
  tail:lim(g.tailLength),horn:lim(g.hornLength),
  antenna:lim(g.antennaLength),pattern:lim(g.pattern)
 });
-// No embellishment at zero; continuous, easily visible growth beyond zero.
+// Magnify small expressions visually without changing the underlying trait.
 export const ornamentVisibility=v=>Math.pow(lim(v),.43);
 const appearance=g=>{
  const c=adaptationColor(g),h=c.hue,s=c.saturation,l=c.lightness;
  return {
-  body:`hsla(${h},${s}%,${Math.min(92,l+11)}%,.94)`,
-  rim:`hsla(${h},${Math.min(100,s+6)}%,${Math.max(13,l-29)}%,.92)`,
-  gleam:`hsla(${h},${Math.max(22,s*.5)}%,${Math.min(98,l+34)}%,.69)`,
-  mark:`hsla(${(h+25)%360},${Math.min(100,s+13)}%,${Math.max(10,l-29)}%,.61)`
+  body:`hsla(${h},${s}%,${Math.min(93,l+12)}%,.94)`,
+  rim:`hsla(${h},${Math.min(92,s+4)}%,${Math.max(21,l-23)}%,.7)`,
+  gleam:`hsla(${h},${Math.max(16,s*.48)}%,${Math.min(98,l+33)}%,.62)`,
+  mark:`hsla(${(h+12)%360},${Math.max(28,s*.67)}%,${Math.max(30,l-12)}%,.30)`
  };
 };
-const strokeFill=(ctx,col,stroke,width)=>{
- ctx.fillStyle=col;ctx.strokeStyle=stroke;ctx.lineWidth=width;
- ctx.fill();ctx.stroke();
+const bead=(ctx,x,y,rx,ry,c,outline=true)=>{
+ ctx.beginPath();ctx.ellipse(x,y,Math.max(.45,rx),Math.max(.45,ry),0,0,TAU);
+ ctx.fillStyle=c.body;ctx.fill();
+ if(outline){
+  ctx.strokeStyle=c.rim;ctx.lineWidth=Math.max(.48,Math.min(1.1,Math.min(rx,ry)*.14));ctx.stroke();
+ }
+ // A soft bubble gleam: a distinct small oval, not a sharp line.
+ if(Math.min(rx,ry)>1.25){
+  ctx.beginPath();ctx.ellipse(x-rx*.23,y-ry*.24,rx*.30,ry*.18,-.25,0,TAU);
+  ctx.fillStyle=c.gleam;ctx.fill();
+ }
 };
-// Body and protrusions are drawn in world-space so zoom works naturally.
-// Extent is at most a few body radii to avoid large visual obstruction.
+export const headAnchor=(rx,ry)=>({x:rx*.47,y:-ry*.68});
 export function drawOrnamentsBehind(ctx,g,rx,ry,tick=0,id=0){
- const traits=ornamentTraits(g),c=appearance(g);
- const tail=ornamentVisibility(traits.tail),horn=ornamentVisibility(traits.horn);
+ const tr=ornamentTraits(g),c=appearance(g);
+ const tail=ornamentVisibility(tr.tail),horn=ornamentVisibility(tr.horn);
  if(tail>.08){
-  // Long tapering tail, broad at the base; animated gently in the transverse
-  // direction. It extends behind the slime instead of hiding in its body.
-  const reach=Math.max(3,rx*(.62+1.56*tail));
-  const breadth=Math.max(1.4,ry*(.19+.42*tail));
-  const swish=Math.sin(tick*.12+id*.47)*ry*.31*tail;
+  // A slightly swaying chain of one to three overlapping jelly bubbles.
+  // The first bead starts inside the body, so there is no disconnected tail.
+  const segments=tail<.36?1:tail<.70?2:3;
+  const radius=Math.max(1.3,Math.min(ry*.43,ry*(.25+.14*tail)));
+  const gap=radius*1.55;
+  const sway=Math.sin(tick*.11+id*.37)*radius*.39*tail;
   ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(-rx*.73,-breadth);
-  ctx.bezierCurveTo(-rx-reach*.28,-breadth*1.17,
-   -rx-reach*.69,swish-breadth*.44,-rx-reach,swish);
-  ctx.bezierCurveTo(-rx-reach*.75,swish+breadth*.45,
-   -rx-reach*.23,breadth*1.20,-rx*.73,breadth);
-  ctx.closePath();
-  strokeFill(ctx,c.body,c.rim,Math.max(.8,Math.min(1.9,ry*.15)));
-  ctx.strokeStyle=c.gleam;ctx.lineWidth=Math.max(.65,ry*.09);
-  ctx.beginPath();ctx.moveTo(-rx*.95,-breadth*.52);
-  ctx.quadraticCurveTo(-rx-reach*.43,swish-breadth*.4,-rx-reach*.83,swish);
-  ctx.stroke();ctx.restore();
+  for(let i=0;i<segments;i++){
+   const taper=1-i*.13;
+   const x=-rx*.90-radius*.55-i*gap;
+   const y=(i+1)/segments*sway;
+   bead(ctx,x,y,radius*taper,radius*.89*taper,c);
+  }
+  ctx.restore();
  }
  if(horn>.08){
-  // Two dorsal spikes are offset from the face/eyes and are long enough to
-  // read as horns instead of tiny marks. Low guard genes retain one horn.
-  const count=(g.guard??0)>.57?2:1;
-  const reach=Math.max(3.1,ry*(.70+1.65*horn));
-  const breadth=Math.max(1.45,ry*(.20+.25*horn));
+  // Soft forehead nubs, not spikes. Both stay on the front half of the head.
+  // The whole extension is built from round overlapping beads.
+  const two=(g.guard??0)>.57;
+  const count=two?2:1;
+  const {x:headX,y:headY}=headAnchor(rx,ry);
+  const r=Math.max(1.1,Math.min(ry*.35,ry*(.18+.19*horn)));
   ctx.save();
   for(let k=0;k<count;k++){
-   const bx=count===1?rx*.02:(k===0?-rx*.38:rx*.34);
-   const baseY=-ry*.72;
-   const tipX=bx+(k===0?-.28:.34)*reach;
-   const tipY=-ry-reach;
-   ctx.beginPath();ctx.moveTo(bx-breadth,baseY+.8);
-   ctx.quadraticCurveTo(bx-breadth*.65,baseY-reach*.60,tipX,tipY);
-   ctx.quadraticCurveTo(bx+breadth*.80,baseY-reach*.52,bx+breadth,baseY+.8);
-   ctx.closePath();strokeFill(ctx,c.body,c.rim,Math.max(.8,Math.min(2,ry*.13)));
-   ctx.strokeStyle=c.gleam;ctx.lineWidth=Math.max(.65,ry*.08);
-   ctx.beginPath();ctx.moveTo(bx-breadth*.32,baseY-reach*.20);
-   ctx.quadraticCurveTo(bx-breadth*.38,baseY-reach*.67,tipX,tipY+.8);
-   ctx.stroke();
+   const shift=count===1?0:(k===0?-rx*.18:rx*.22);
+   const x=headX+shift;
+   const y=headY+(k===0?ry*.04:ry*.12);
+   bead(ctx,x,y,r*1.18,r*1.12,c);
+   if(horn>.55)bead(ctx,x+r*.08,y-r*.97,r*.83,r*.84,c);
   }
   ctx.restore();
  }
@@ -77,45 +73,41 @@ export function drawOrnamentsFront(ctx,g,rx,ry,tick=0,id=0){
  const tr=ornamentTraits(g),c=appearance(g);
  const pattern=ornamentVisibility(tr.pattern),antenna=ornamentVisibility(tr.antenna);
  if(pattern>.10){
-  ctx.save();ctx.beginPath();ctx.ellipse(0,0,rx*.94,ry*.92,0,0,TAU);ctx.clip();
+  // Low-contrast spots, cheeks and oval belly markings. No harsh stripes.
+  ctx.save();
+  ctx.beginPath();ctx.ellipse(0,0,rx*.93,ry*.90,0,0,TAU);ctx.clip();
   ctx.fillStyle=c.mark;
-  if((g.deception??.5)>.55){
-   // Wide stripes, three distinct bands, still clipped to the membrane.
-   for(let i=0;i<3;i++){
-    const x=(-.54+i*.54)*rx;
-    ctx.beginPath();ctx.ellipse(x,0,Math.max(1.15,rx*(.10+.055*pattern)),
-     ry*.74,-.17,0,TAU);ctx.fill();
-   }
-  }else{
-   // Eye-safe large spots; stable positions depend on identity, not RNG.
-   const n=3+Math.round(4*pattern);
-   for(let i=0;i<n;i++){
-    const a=i*2.399963+id*.07,rad=Math.sqrt((i+.45)/(n+1))*.64;
-    const x=rx*Math.cos(a)*rad,y=ry*Math.sin(a)*rad;
-    ctx.beginPath();ctx.ellipse(x,y,Math.max(1.1,rx*(.09+.065*pattern)),
-     Math.max(.95,ry*(.08+.06*pattern)),a*.35,0,TAU);ctx.fill();
-   }
+  const freckles=(g.deception??.5)>.55?4:3+Math.round(2*pattern);
+  for(let i=0;i<freckles;i++){
+   const a=2.4*i+.35,rad=.36+.15*((i%3)/2);
+   const x=rx*Math.cos(a)*rad,y=ry*Math.sin(a)*rad;
+   ctx.beginPath();ctx.ellipse(x,y,
+    Math.max(.65,rx*(.075+.035*pattern)),
+    Math.max(.5,ry*(.085+.035*pattern)),0,0,TAU);ctx.fill();
   }
   ctx.restore();
  }
  if(antenna>.10){
-  // Sensory feelers emerge from the upper front edge rather than from the
-  // eye positions; tips are bright and are visible without zoom.
+  // Only the forehead can host antennae. Round overlapping jelly nodes
+  // replace creepy thin filament strokes; never attach at the torso/rear.
   const count=(g.eyes??0)>2?2:1;
-  const reach=Math.max(4,ry*(.85+1.65*antenna));
-  const swish=Math.sin(tick*.11+id*.31)*ry*.15*antenna;
-  ctx.save();ctx.lineCap='round';
+  const {x:headX,y:headY}=headAnchor(rx,ry);
+  const r=Math.max(1.05,Math.min(ry*.31,ry*(.16+.11*antenna)));
+  const sway=Math.sin(tick*.095+id*.31)*r*.26*antenna;
+  ctx.save();
   for(let k=0;k<count;k++){
-   const ox=count===1?rx*.20:(k===0?rx*.0:rx*.52);
-   const oy=-ry*.72;
-   const tx=ox+reach*(k===0?-.33:.48)+swish;
-   const ty=oy-reach*(k===0?.86:.78);
-   ctx.strokeStyle=c.rim;ctx.lineWidth=Math.max(1.05,Math.min(2.5,ry*.17));
-   ctx.beginPath();ctx.moveTo(ox,oy);
-   ctx.quadraticCurveTo(tx+reach*.2,oy-reach*.56,tx,ty);ctx.stroke();
-   ctx.fillStyle=c.gleam;
-   ctx.beginPath();ctx.arc(tx,ty,Math.max(1.25,Math.min(3.5,ry*(.19+.13*antenna))),0,TAU);
-   ctx.fill();
+   const dx=count===1?0:(k===0?-rx*.13:rx*.20);
+   const bx=headX+dx;
+   const by=headY+ry*.02;
+   const length=antenna>.57?2:1;
+   // A short plump antenna: 1–2 connected balls and a rounded tip.
+   for(let j=0;j<length;j++){
+    const x=bx+(j+1)*r*.38+sway*(j+1)/length;
+    const y=by-(j+1)*r*.72;
+    bead(ctx,x,y,r*(.97-.10*j),r*(1.08-.09*j),c);
+   }
+   bead(ctx,bx+(length+1)*r*.37+sway,by-(length+1)*r*.72,
+    r*.96,r*.94,c);
   }
   ctx.restore();
  }
