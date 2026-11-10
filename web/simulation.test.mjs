@@ -1973,8 +1973,11 @@ test('discovered species names combine true visual hue, category code and phenot
  assert.equal(a.species.get(key).name,expected);
  assert.equal(a.name(key),expected);
  const variant={...g,hornLength:0,tailLength:1};
+ const tailKey=a.category(variant);
+ assert.notEqual(tailKey,key,'different dominant ornament defines a new species');
  a.spawn(125,130,variant);
- assert.equal(a.species.get(key).name,expected,'species name is stable after later mutations');
+ assert.equal(a.species.get(key).name,expected,'existing species name remains fixed');
+ assert.ok(a.species.get(tailKey).name.endsWith('テール'));
  a.reset();
  a.spawn(120,130,g);
  assert.equal(a.species.get(key).name,expected);
@@ -1983,8 +1986,8 @@ test('discovered species names combine true visual hue, category code and phenot
  c.spawn(120,130,g);
  assert.equal(c.species.get(key).name,expected);
  assert.equal(speciesFeatureName({...g,hornLength:.81,tailLength:.80}),'ホーンテール');
- assert.equal(speciesFeatureName({...g,hornLength:0,tailLength:0}),'ノーマル');
- assert.equal(speciesFeatureName({...g,hornLength:.08,tailLength:0}),'ノーマル');
+ assert.equal(speciesFeatureName({...g,hornLength:0,tailLength:0}),'');
+ assert.equal(speciesFeatureName({...g,hornLength:.08,tailLength:0}),'');
  assert.ok(speciesColorName({...g,albino:1})==='ホワイト');
  assert.equal(speciesEcologyCode(key).length,5);
 });
@@ -2000,7 +2003,7 @@ test('every one of 108864 classifications keeps a unique ecological name code',a
   if(index===groups.length){
    const key=parts.join('-'),name=speciesNameFromCategory(key),code=speciesEcologyCode(key);
    assert.match(name,/^(レッド|イエロー|グリーン|ブルー|パープル|ピンク|ホワイト)/);
-   assert.ok(name.endsWith('ノーマル'),name);
+   assert.equal(name, name.replace(/ノーマル$/, ''),'no normal suffix');
    assert.match(code,/^[ァ-ヶ]{5}$/);
    assert.ok(!codes.has(code),'duplicate code '+code);
    assert.ok(!names.has(name),'duplicate '+name);
@@ -2016,7 +2019,7 @@ test('color and compound traits come from visible genome rather than naming bin'
  const w=new Ecosystem(9115),g=w.gene();
  assert.equal(pigmentClass({...g,albino:1}),'white');
  const key=w.category(g);
- assert.equal(key.split('-').length,9);
+ assert.equal(key.split('-').length,11);
  const before=speciesNameFromCategory(key,g);
  assert.equal(w.name(key,g),before);
  const white=w.category({...g,albino:1});
@@ -2036,6 +2039,37 @@ test('color and compound traits come from visible genome rather than naming bin'
  assert.equal(speciesFeatureName(rare),'ホーンテール');
  assert.ok(speciesNameFromCategory(w.category(rare),rare).startsWith('レッドパープル'));
  assert.ok(speciesNameFromCategory(w.category(rare),rare).endsWith('ホーンテール'));
+});
+test('visible color and ornaments determine distinct species classifications',async()=>{
+ const {speciesAppearanceCategory,speciesEcologyCode}=await import('./simulation.js');
+ const w=new Ecosystem(202611117),genome=w.gene();
+ const base={...genome,wet:0,dry:.2,rock:.95,albino:0,
+  hornLength:.81,tailLength:.03,antennaLength:0,pattern:0};
+ const horn={...base},tail={...base,hornLength:.03,tailLength:.81};
+ const both={...base,tailLength:.78};
+ const similar={...base,hornLength:.79};
+ const plain={...base,hornLength:0,tailLength:0};
+ assert.equal(w.category(horn),w.category(similar),'minor variations remain same species');
+ assert.notEqual(w.category(horn),w.category(tail),'horn and tail are different species');
+ assert.notEqual(w.category(horn),w.category(both),'dual-trait forms are different species');
+ assert.notEqual(w.category(horn),w.category(plain),'plain and ornamented forms differ');
+ assert.ok(speciesAppearanceCategory(horn).endsWith('f_horn'));
+ assert.ok(speciesAppearanceCategory(tail).endsWith('f_tail'));
+ assert.ok(speciesAppearanceCategory(both).endsWith('f_horn_tail'));
+ assert.ok(speciesAppearanceCategory(plain).endsWith('f_normal'));
+ assert.ok(speciesNameFromCategory(w.category(horn)).endsWith('ホーン'));
+ assert.ok(speciesNameFromCategory(w.category(tail)).endsWith('テール'));
+ assert.ok(speciesNameFromCategory(w.category(both)).endsWith('ホーンテール'));
+ assert.equal(speciesNameFromCategory(w.category(plain)),
+  speciesNameFromCategory(w.category(plain)).replace(/ノーマル$/,''));
+ assert.ok(!speciesNameFromCategory(w.category(plain)).endsWith('ノーマル'));
+ const hueVariant={...horn,wet:0,dry:.5,rock:.7};
+ assert.notEqual(w.category(horn),w.category(hueVariant),'distinct visible hue classes divide species');
+ const h=w.spawn(140,140,horn),t=w.spawn(150,140,tail);
+ assert.notEqual(h.category,t.category);
+ assert.equal(w.species.size,2);
+ assert.notEqual(w.species.get(h.category).name,w.species.get(t.category).name);
+ assert.equal(speciesEcologyCode(w.category(horn)).length,5);
 });
 test('genome code is stable, quantized, and changes when a trait crosses a bin',()=>{
  const w=new Ecosystem(9114),g=w.gene();
@@ -3336,7 +3370,7 @@ test('new color-code-feature names preserve ecological categories and their uniq
  const name=parts=>speciesNameFromCategory(key(parts));
  const original=name(base);
  assert.ok(original.startsWith('グリーンソクミ'));
- assert.ok(original.endsWith('ノーマル'));
+ assert.equal(original,'グリーン'+speciesEcologyCode(key(base)));
  const variants=[
   base.slice(0,7).concat('cold','green'),
   base.slice(0,7).concat('hot','green'),
