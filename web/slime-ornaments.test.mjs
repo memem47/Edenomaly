@@ -4,12 +4,12 @@ import {Ecosystem} from './simulation.js';
 import {ornamentTraits,ornamentVisibility,drawOrnamentsBehind,drawOrnamentsFront} from './slime-ornaments.js';
 
 const recordingCanvas=()=>{
- const calls={move:[],curve:[],ellipse:0,arc:0,strokes:0,fill:0};
+ const calls={move:[],curve:[],ellipses:[],ellipse:0,arc:0,strokes:0,fill:0};
  const ctx=new Proxy({
   moveTo(...args){calls.move.push(args);},
   bezierCurveTo(...args){calls.curve.push(args);},
   quadraticCurveTo(...args){calls.curve.push(args);},
-  ellipse(){calls.ellipse++;},
+  ellipse(...args){calls.ellipse++;calls.ellipses.push(args);},
   arc(){calls.arc++;},
   stroke(){calls.strokes++;},
   fill(){calls.fill++;}
@@ -30,18 +30,29 @@ test('visual size is more readable at low gene expression without changing genot
  assert.equal(JSON.stringify(gene),before);
 });
 
-test('enlarged tail and horns extend beyond silhouette in drawing coordinates',()=>{
+test('cute round tail and forehead nubs remain visible without sharp curves',()=>{
  const {ctx,calls}=recordingCanvas();
- const gene={wet:.8,dry:.2,rock:.2,albino:0,tailLength:.15,
-  hornLength:.18,antennaLength:0,pattern:0,guard:.8,eyes:3};
+ const gene={wet:.8,dry:.2,rock:.2,albino:0,tailLength:.75,
+  hornLength:.72,antennaLength:0,pattern:0,guard:.8,eyes:3};
  drawOrnamentsBehind(ctx,gene,8,6,100,4);
- const points=calls.curve.flatMap(args=>args.reduce((arr,v,i)=>i%2===0?[...arr,{x:v,y:args[i+1]}]:arr,[]));
- assert.ok(points.some(p=>p.x<-12),'tail must extend several pixels behind an 8px-radius slime');
- assert.ok(points.some(p=>p.y<-10),'horns must be above body and readable');
- assert.ok(calls.fill>=3,'tail and both horns are drawn');
+ assert.ok(calls.ellipses.length>=7,'bead tail and pair of double nubs');
+ assert.ok(calls.ellipses.some(p=>p[0]<-8),'tail reaches rear of body');
+ assert.ok(calls.ellipses.some(p=>p[0]>0&&p[1]<-4),'horns stay at forehead');
+ assert.equal(calls.curve.length,0,'no triangular points or filaments');
+ assert.ok(calls.fill>=7);
 });
-
-test('zero ornament genes draw no appendages, visible antennae and pattern do',()=>{
+test('antennae attach only at the head and use connected spheres',()=>{
+ const g={wet:.6,dry:.5,rock:.1,albino:0,tailLength:0,hornLength:0,
+  antennaLength:.8,pattern:0,guard:.3,eyes:4,deception:.2};
+ const {ctx,calls}=recordingCanvas();
+ drawOrnamentsFront(ctx,g,8,6,24,5);
+ assert.equal(calls.curve.length,0,'no long thin or curved antenna lines');
+ const centers=calls.ellipses.map(p=>({x:p[0],y:p[1]}));
+ assert.ok(centers.length>=4,'rounded antenna segments and tips');
+ assert.ok(centers.every(p=>p.x>0),'all feelers remain on the front half');
+ assert.ok(centers.every(p=>p.y<0),'all feelers remain on the forehead');
+});
+test('zero ornaments do not draw and freckles appear as soft ovals',()=>{
  const g={wet:.6,dry:.5,rock:.1,albino:0,tailLength:0,hornLength:0,
   antennaLength:0,pattern:0,guard:.3,eyes:4,deception:.2};
  let {ctx,calls}=recordingCanvas();
@@ -50,10 +61,9 @@ test('zero ornament genes draw no appendages, visible antennae and pattern do',(
  assert.equal(calls.fill,0);
  ({ctx,calls}=recordingCanvas());
  drawOrnamentsFront(ctx,{...g,antennaLength:.08,pattern:.07},8,6,24,5);
- assert.ok(calls.arc>=1,'antenna tip must be rendered');
- assert.ok(calls.ellipse>=2,'membrane and spots must be rendered');
+ assert.ok(calls.ellipse>=4,'soft oval spots and plump feelers');
+ assert.equal(calls.curve.length,0);
 });
-
 test('ornaments never advance the ecosystem RNG',()=>{
  const w=new Ecosystem(202611112),g=w.gene(),prior=w.rng;
  const {ctx}=recordingCanvas();
