@@ -3473,7 +3473,7 @@ test('new appendage rendering leaves ecology unchanged and renders all four trai
  const before=w.rng;
  drawOrnamentsBehind(ctx,g,12,8,12,5);
  drawOrnamentsFront(ctx,g,12,8,12,5);
- assert.ok(cmds.curves>=2);
- assert.ok(cmds.shapes>=3);
+ assert.equal(cmds.curves,0,'round ornaments must not use pointed curves');
+ assert.ok(cmds.shapes>=5,'ornaments are built from overlapping ellipses');
  assert.equal(w.rng,before);
 });
