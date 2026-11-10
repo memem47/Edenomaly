@@ -21,22 +21,20 @@ export const terrainLevelFitness=(base,t,level=3,g={})=>{
  return {...base,move:base.move*(delta>0?1-.06*delta:1+.03*-delta)};
 };
 const GROWTH=TERRAIN_FERTILITY,DECAY=[.026,.038,.006,.003];
-// Six-kana species names: two for body color + one diet + one biome +
-// two phonetic codes encoding all six remaining categorical traits.
-// Color prefixes describe visible phenotype; the last two syllables maintain
-// a collision-free mapping among all 108,864 biological classifications.
+// Species display names: apparent color + ecological code + dominant ornament.
+// Categories remain stable. A species gets its permanent name from the genome
+// of its first discovered individual. In particular, a rare intermediate hue
+// and paired ornaments remain part of its recorded discovery identity.
 const SPECIES_HABITAT=['land','aquatic','dry','rock'];
-const HABITAT_NAMES=['ク','ミ','ス','イ']; // land / water / dry / rock
-const DIET_NAMES=['ソ','ザ','ニ']; // herbivore, omnivore, carnivore
+const HABITAT_NAMES=['ク','ミ','ス','イ'];
+const DIET_NAMES=['ソ','ザ','ニ'];
 const PIGMENT_CLASSES=['red','yellow','green','blue','purple','pink','white'];
-const PIGMENT_NAMES=['アカ','キイ','ミド','アオ','ムラ','モモ','シロ']; // visible body colors
+const PIGMENT_NAMES=['レッド','イエロー','グリーン','ブルー','パープル','ピンク','ホワイト'];
+const PIGMENT_CODES=['ア','キ','ミ','オ','ム','モ','シ'];
 const BODY_CLASSES=['tiny','medium','large','giant'];
 const SHAPE_CLASSES=['round','oval','long'];
 const STRATEGY_CLASSES=['general','guardian','egg-hunter'];
 const THERMAL_CLASSES=['temperate','cold','hot'];
-// 38 clear, single-kana sounds. A two-syllable word with non-identical
-// sounds has 38*37=1406 possibilities, enough for 4*3*4*3*3*3=1296.
-// 36 possible first sounds are used; each has 37 possible final sounds.
 const NAME_SYLLABLES=[...'カキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモラリルレロワヤユ'];
 export const speciesNameCode=(body,shape,eyes,strategy,repro,thermal)=>{
  const number=(((((body*3+shape)*4+eyes)*3+strategy)*3+repro)*3+thermal);
@@ -44,8 +42,77 @@ export const speciesNameCode=(body,shape,eyes,strategy,repro,thermal)=>{
  const second=slot>=first?slot+1:slot;
  return NAME_SYLLABLES[first]+NAME_SYLLABLES[second];
 };
+const SPECIES_CATEGORY_PATTERN=/^(land|aquatic|dry|rock)-(plant|mixed|hunter)-(tiny|medium|large|giant)-(round|oval|long)-(blind|few|several|allround)-(general|guardian|egg-hunter)-(repro[012])-(temperate|cold|hot)-(red|yellow|green|blue|purple|pink|white)$/;
+const speciesClassificationParts=key=>{
+ const match=SPECIES_CATEGORY_PATTERN.exec(key);
+ if(!match)throw new Error('Invalid species classification: '+key);
+ return {
+  habitat:SPECIES_HABITAT.indexOf(match[1]),
+  diet:['plant','mixed','hunter'].indexOf(match[2]),
+  body:BODY_CLASSES.indexOf(match[3]),
+  shape:SHAPE_CLASSES.indexOf(match[4]),
+  eyes:['blind','few','several','allround'].indexOf(match[5]),
+  strategy:STRATEGY_CLASSES.indexOf(match[6]),
+  repro:['repro0','repro1','repro2'].indexOf(match[7]),
+  thermal:THERMAL_CLASSES.indexOf(match[8]),
+  pigment:PIGMENT_CLASSES.indexOf(match[9])
+ };
+};
+// The biological classification gives a stable readable identifier, including
+// color class. This avoids two separate categories collapsing to the same name
+// if an individual happens to have a blended color at the class boundary.
+export const speciesEcologyCode=key=>{
+ const p=speciesClassificationParts(key);
+ return DIET_NAMES[p.diet]+HABITAT_NAMES[p.habitat]+
+  PIGMENT_CODES[p.pigment]+speciesNameCode(p.body,p.shape,p.eyes,p.strategy,p.repro,p.thermal);
+};
+// Real rendered hue decides the name, not just the coarse color bin. Most
+// names use one English loanword. Rare hues within 7 degrees of two neighboring
+// colors get a blended prefix, with "レッドパープル" as a special visually
+// recognizable purple-red midpoint (where the coarse class is often pink).
+const colorAnchors=[
+ {h:0,label:'レッド'}, {h:53,label:'イエロー'},
+ {h:125,label:'グリーン'}, {h:210,label:'ブルー'},
+ {h:285,label:'パープル'}, {h:328,label:'ピンク'}
+];
+const hueDistance=(a,b)=>Math.abs((a-b+540)%360-180);
+export const speciesColorName=(g,fallback='green')=>{
+ if(!g)return PIGMENT_NAMES[Math.max(0,PIGMENT_CLASSES.indexOf(fallback))];
+ if(g.albino===1)return 'ホワイト';
+ const hue=adaptationColor(g).hue;
+ // This pair is uncommon, representing purple with a noticeable red cast.
+ if(hue>=310&&hue<=322)return 'レッドパープル';
+ const ranked=[...colorAnchors].sort((a,b)=>hueDistance(hue,a.h)-hueDistance(hue,b.h));
+ const a=ranked[0],b=ranked[1];
+ if(Math.abs(hueDistance(hue,a.h)-hueDistance(hue,b.h))<=7){
+  const order=colorAnchors.indexOf(a)<colorAnchors.indexOf(b)?[a,b]:[b,a];
+  return order.map(c=>c.label).join('');
+ }
+ return a.label;
+};
+const ORNAMENT_NAMES=[
+ ['hornLength','ホーン'],['tailLength','テール'],
+ ['antennaLength','アンテナ'],['pattern','スポット']
+];
+// Only visible, substantial ornaments affect the name. Genes of the same
+// strength are grouped, with horn before tail for "ホーンテール".
+export const speciesFeatureName=g=>{
+ if(!g)return 'ノーマル';
+ const values=ORNAMENT_NAMES.map(([key,label])=>({key,label,value:Math.max(0,Math.min(1,g[key]??0))}))
+  .sort((a,b)=>b.value-a.value||ORNAMENT_NAMES.findIndex(t=>t[0]===a.key)-ORNAMENT_NAMES.findIndex(t=>t[0]===b.key));
+ const best=values[0];
+ if(best.value<.12)return 'ノーマル';
+ const comparable=values.filter(v=>v.value>=.12&&best.value-v.value<=.065).slice(0,2);
+ return comparable.sort((a,b)=>ORNAMENT_NAMES.findIndex(t=>t[0]===a.key)-ORNAMENT_NAMES.findIndex(t=>t[0]===b.key))
+  .map(v=>v.label).join('');
+};
+// A full display name is intentionally not limited to six characters.
+export const speciesNameFromCategory=(key,genome=null)=>{
+ const parts=speciesClassificationParts(key);
+ return speciesColorName(genome,PIGMENT_CLASSES[parts.pigment])+
+  speciesEcologyCode(key)+speciesFeatureName(genome);
+};
 // Pigment is a derived phenotype, not an additional independent gene.
-// Wide hue ranges prevent every small color mutation from being a new name.
 export const pigmentClass=g=>{
  if(g.albino===1)return 'white';
  const hue=adaptationColor(g).hue;
@@ -55,21 +122,6 @@ export const pigmentClass=g=>{
  if(hue<250)return 'blue';
  if(hue<315)return 'purple';
  return 'pink';
-};
-export const speciesNameFromCategory=key=>{
- const match=/^(land|aquatic|dry|rock)-(plant|mixed|hunter)-(tiny|medium|large|giant)-(round|oval|long)-(blind|few|several|allround)-(general|guardian|egg-hunter)-(repro[012])-(temperate|cold|hot)-(red|yellow|green|blue|purple|pink|white)$/.exec(key);
- if(!match)throw new Error('Invalid species classification: '+key);
- const habitat=SPECIES_HABITAT.indexOf(match[1]);
- const diet=['plant','mixed','hunter'].indexOf(match[2]);
- const body=BODY_CLASSES.indexOf(match[3]);
- const shape=SHAPE_CLASSES.indexOf(match[4]);
- const eyes=['blind','few','several','allround'].indexOf(match[5]);
- const strategy=STRATEGY_CLASSES.indexOf(match[6]);
- const repro=['repro0','repro1','repro2'].indexOf(match[7]);
- const thermal=THERMAL_CLASSES.indexOf(match[8]);
- const pigment=PIGMENT_CLASSES.indexOf(match[9]);
- return PIGMENT_NAMES[pigment]+DIET_NAMES[diet]+HABITAT_NAMES[habitat]+
-  speciesNameCode(body,shape,eyes,strategy,repro,thermal);
 };
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 // Visual color is a derived phenotype, never a separate inherited trait.
@@ -634,7 +686,7 @@ export class Ecosystem{
   const thermal=g.idealTemp<12?'cold':g.idealTemp>31?'hot':'temperate';
    return [habitat,diet,body,shape,eyes,strategy,'repro'+reproductiveMode(g),thermal,pigmentClass(g)].join('-');
  }
- name(category){return speciesNameFromCategory(category);}
+ name(category,genome=null){return speciesNameFromCategory(category,genome??this.species.get(category)?.genome??null);}
  addVisualEffect(type,point,extra={}){
   // Visual effects must never change simulation RNG or ecology. Avoid flooding
   // the renderer with dozens of repeated feeding and drinking events per step.
@@ -671,7 +723,7 @@ export class Ecosystem{
    const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null,socialTarget:null,mateTarget:null,rejectedBy:null,mateApproachFailures:0,behaviorTarget:'idle',waterSeedBank:0,lastWaterPlant:-100,landAcclimation:0,carnivoryExperience:0,landExcursion:false,shoreTarget:null,threatDecisions:new Map(),attackResponse:null,retaliationCooldown:0};
   u.category=this.category(g);u.lineage??=u.id;this.units.push(u);
   if(!this.species.has(u.category)){
-   const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(u.category),current:0,total:0,diet:dietProfile(g).label,first:this.tick,genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(u.category),u);
+   const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(u.category,g),current:0,total:0,diet:dietProfile(g).label,first:this.tick,genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(u.category,g),u);
   }
   const s=this.species.get(u.category);s.current++;s.total++;
   s.firstGeneration??=u.generation;
