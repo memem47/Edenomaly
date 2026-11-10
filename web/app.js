@@ -2,14 +2,14 @@ import {zipFiles} from './zip-log.js?v=2026.11.07.4';
 import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.10.2';
 import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.08.11';
 import {fitView,screenToWorld,zoomAround,panBy,MAX_ZOOM,ZOOM_STEP} from './viewport.js?v=2026.11.08.12';
-import {drawWorld,drawChart} from './renderer.js?v=2026.11.10.2';
-import {EcologyLogbook,observeEcology} from './ecology-log.js?v=2026.11.08.13';
-import {SpeciesLogbook,speciesReport} from './species-statistics.js';
+import {drawWorld,drawChart} from './renderer.js?v=2026.11.11.1';
+import {EcologyLogbook,observeEcology,ECOLOGY_LOG_FIELDS} from './ecology-log.js?v=2026.11.08.13';
+import {SpeciesLogbook,speciesReport,csvCell} from './species-statistics.js';
 import {performancePolicy,simulationBatch,BROWSER_BACKGROUND_INTERVAL} from './performance-policy.js?v=video-friendly-1';
 const $=id=>document.getElementById(id);
 // Release label is bundled with the running source; comparison uses a
 // separately published manifest from the repository's main branch.
-const BUILD_VERSION='2026.11.10.2';
+const BUILD_VERSION='2026.11.11.1';
 const VERSION_SOURCE='https://raw.githubusercontent.com/memem47/Edenomaly/main/web/version.json';
 $('buildVersion').textContent=BUILD_VERSION;
 async function checkLatestVersion(){
@@ -431,8 +431,13 @@ $('downloadAllLogs').onclick=()=>{
   ecologyLog.recordIndividuals(game,true);
   speciesLog.record(game,true);
  }
+ // Export a standalone current snapshot even if persisted time-series is empty.
+ const currentSnapshot={run:ecologyLog.activeId??0,version:LOG_VERSION,...observeEcology(game)};
+ const snapshotCSV='\\ufeff'+ECOLOGY_LOG_FIELDS.join(',')+'\\r\\n'+
+  ECOLOGY_LOG_FIELDS.map(k=>csvCell(currentSnapshot[k])).join(',')+'\\r\\n';
  const archive=zipFiles([
   ['edenomaly-ecology-'+LOG_VERSION+'.csv',ecologyLog.toCSV()],
+  ['edenomaly-current-ecology-'+LOG_VERSION+'.csv',snapshotCSV],
   ['edenomaly-individual-reproduction-'+LOG_VERSION+'.csv',ecologyLog.toIndividualCSV()],
   ['edenomaly-species-statistics-'+LOG_VERSION+'.csv',speciesLog.toCSV()]
  ]);
