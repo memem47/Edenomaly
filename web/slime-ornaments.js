@@ -52,19 +52,17 @@ export function drawOrnamentsBehind(ctx,g,rx,ry,tick=0,id=0){
   ctx.restore();
  }
  if(horn>.08){
-  // Soft forehead nubs, not spikes. Both stay on the front half of the head.
-  // The whole extension is built from round overlapping beads.
-  const two=(g.guard??0)>.57;
-  const count=two?2:1;
-  const {x:headX,y:headY}=headAnchor(rx,ry);
+  // Bilateral, mirror-symmetric forehead nubs. The organism faces +X:
+  // both nubs share the same forward X coordinate and sit on opposite
+  // sides of the body's longitudinal axis (Y = 0), never just one side.
+  // guard controls defense only; it must not change visual symmetry.
   const r=Math.max(1.1,Math.min(ry*.35,ry*(.18+.19*horn)));
+  const x=rx*.51;
+  const y=ry*.76;
   ctx.save();
-  for(let k=0;k<count;k++){
-   const shift=count===1?0:(k===0?-rx*.18:rx*.22);
-   const x=headX+shift;
-   const y=headY+(k===0?ry*.04:ry*.12);
-   bead(ctx,x,y,r*1.18,r*1.12,c);
-   if(horn>.55)bead(ctx,x+r*.08,y-r*.97,r*.83,r*.84,c);
+  for(const side of [-1,1]){
+   bead(ctx,x,side*y,r*1.18,r*1.12,c);
+   if(horn>.55)bead(ctx,x+r*.08,side*(y+r*.97),r*.83,r*.84,c);
   }
   ctx.restore();
  }
