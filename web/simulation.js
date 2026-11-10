@@ -1360,8 +1360,8 @@ export class Ecosystem{
     // grazed-off patches remain empty until spores reach them.
     if((this.tiles[i]===2||this.tiles[i]===3)&&this.grass[i]>0){
      const wetness=clamp((this.soilWater[i]??0)/70,0,1);
-     next[i]=Math.min(this.tiles[i]===2?13:20,
-      this.grass[i]+(this.tiles[i]===2?.19:.70)*(.25+wetness)*
+     next[i]=Math.min(this.tiles[i]===2?13:23,
+      this.grass[i]+(this.tiles[i]===2?.19:1.05)*(.25+wetness)*
       this.growth/70/(1+this.grazingPressure[i]));
     }
     if(this.grass[i]<=0&&this.tiles[i]!==1&&this.tiles[i]!==3){
@@ -1859,9 +1859,9 @@ export class Ecosystem{
    // A terrestrial wetland specialist can browse shallow aquatic vegetation
    // from the *shore* without entering inaccessible water or creating food.
    // No new gene is necessary: the inherited wet locus already encodes this.
-   if(!flight&&!aquatic&&t===0&&(g.wet??0)>.45&&diet.plant>.2&&u.energy<150){
-    const coastWeed=this.nearestWaterweed(u.x,u.y,18);
-    if(coastWeed&&distance(u,coastWeed)<15*15){
+   if(!flight&&!aquatic&&t===0&&(g.wet??0)>.42&&diet.plant>.2&&u.energy<150){
+    const coastWeed=this.nearestWaterweed(u.x,u.y,22);
+    if(coastWeed&&distance(u,coastWeed)<18*18){
      const eaten=this.consumeWaterweed(coastWeed.x,coastWeed.y,
       Math.min(1.15,m.foodGain*(g.wet-.35)*1.35));
      if(eaten>0){
