@@ -13,7 +13,7 @@ const option=(flag,fallback)=>{
 };
 const steps=option('--steps',1200),runs=option('--runs',4),firstSeed=option('--seed',72);
 if(steps>50000||runs>20)throw new RangeError('name-audit bounds exceeded');
-const found=new Map(),categoryByCode=new Map(),totalByName=new Map();
+const found=new Map(),categoryByName=new Map(),totalByName=new Map();
 let peak=0,ever=0;
 for(let i=0;i<runs;i++){
  const {world,summary}=runHeadless({seed:firstSeed+i,steps,interval:steps,founders:3});
@@ -24,9 +24,11 @@ for(let i=0;i<runs;i++){
   const code=speciesEcologyCode(category);
   if(!name.includes(code)||!(/(ホーン|テール|アンテナ|スポット)$/.test(name)||name.endsWith(code)))
    throw new Error('Unexpected species name: '+name);
-  if(categoryByCode.has(code)&&categoryByCode.get(code)!==category)
-   throw new Error('Two categories share one code: '+code);
-  categoryByCode.set(code,category);
+  // The old 5-kana ecological code is intentionally shared by different
+  // appearance-defined species; their full visible names must be unique.
+  if(categoryByName.has(name)&&categoryByName.get(name)!==category)
+   throw new Error('Two different categories share one species name: '+name);
+  categoryByName.set(name,category);
   if(found.has(category)&&found.get(category)!==code)
    throw new Error('Ecology code changed');
   found.set(category,code);
