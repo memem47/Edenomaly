@@ -74,7 +74,7 @@ export class GameSession{
   const w=this.world;
   if(kind==='rain')return true;
   if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||y<0||x>=800||y>=460)return false;
-  if(kind==='seed')return [0,1,2].includes(w.tiles[w.cell(x,y)]);
+  if(kind==='seed')return [0,1,2,3].includes(w.tiles[w.cell(x,y)]);
   if(kind==='fertilize')return w.tiles[w.cell(x,y)]!==3;
   return false;
  }
@@ -97,7 +97,14 @@ export class GameSession{
     const xx=cx+dx,yy=cy+dy;
     if(xx<0||xx>=40||yy<0||yy>=23)continue;
     const i=yy*40+xx;
-    if(w.tiles[i]===3)continue;
+    // High mountain lichen can be reintroduced without changing rock into
+    // grass. Regrowth remains limited by rainfall and grazing pressure.
+    if(w.tiles[i]===3){
+     const old=w.grass[i];
+     w.grass[i]=Math.min(23,Math.max(4,old)+8);
+     if(w.grass[i]>old)improved++;
+     continue;
+    }
     if(w.tiles[i]===1){
      const old=w.waterweed[i];
      w.waterweed[i]=Math.min(100,Math.max(10,old)+25);
@@ -116,6 +123,10 @@ export class GameSession{
    w.replenishWater(24);
    for(let i=0;i<w.tiles.length;i++){
     if(w.tiles[i]===0)w.soilWater[i]=Math.min(100,w.soilWater[i]+15);
+    // Wet crevices let lichen recolonize mountain rock; arid soil
+    // also retains a little water after a rare rain event.
+    if(w.tiles[i]===3)w.soilWater[i]=Math.min(100,w.soilWater[i]+24);
+    if(w.tiles[i]===2)w.soilWater[i]=Math.min(100,w.soilWater[i]+10);
    }
   }else if(kind==='fertilize'){
    if(!w.fertilize(x,y,2))return false;
