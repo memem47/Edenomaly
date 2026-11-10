@@ -2,7 +2,7 @@
 // changes a gene, hitbox, habitat fitness, ecosystem tick, or random state.
 // Organism faces +X after renderer rotation. Amplification is deliberately
 // nonlinear: a 0.10 gene should be visible at ordinary 1x zoom.
-import {adaptationColor} from './simulation.js?v=2026.11.11.1';
+import {adaptationColor} from './simulation.js?v=2026.11.09.6';
 const TAU=Math.PI*2;
 const lim=v=>Math.max(0,Math.min(1,v??0));
 export const ornamentTraits=g=>({
