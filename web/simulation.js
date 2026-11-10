@@ -131,8 +131,8 @@ export const terrainFitness=(g,t)=>{
  const hazard=t===1?(aquatic?0:.7):
    t===2?clamp((.50-g.dry)*1.3,0,.65):
    t===3?clamp((.45-(g.rock??.2))*.28,0,.15):0;
- return {fitness,passable,sight,hazard,move:(t===1?(aquatic?.50+g.wet*.26:.035):t===2?.17+g.dry*.42:t===3?.13+(g.rock??.2)*.36:.58),
-   upkeep:t===0?0:(1-tolerance)*[0,.38,.51,.61][t]+tolerance*.045};
+ return {fitness,passable,sight,hazard,move:(t===1?(aquatic?.50+g.wet*.26:.035):t===2?.17+g.dry*.42:t===3?.19+(g.rock??.2)*.39:.58),
+   upkeep:t===0?0:(1-tolerance)*[0,.38,.51,.52][t]+tolerance*.045};
 };
 // Ephemeral per-step caches avoid recalculating traits for the same agents.
 let stepCache=null;
@@ -501,8 +501,7 @@ export class Ecosystem{
    if(key==='repro')second=0;
     else if(key==='idealTemp')second=clamp(g.idealTemp+this.range(-3,3),...LIMITS.idealTemp);
     else if(key==='tempTolerance')second=clamp(g.tempTolerance+this.range(-2,2),...LIMITS.tempTolerance);
-     else if(key==='hibernate')second=clamp(g.hibernate+this.range(-.14,.14),0,1);
-    else if(key==='longevity')second=clamp(g.longevity+this.range(-.2,.2),...LIMITS.longevity);
+     else if(key==='longevity')second=clamp(g.longevity+this.range(-.2,.2),...LIMITS.longevity);
     else if(key==='elongation')second=clamp(g.elongation+this.range(-.11,.11),...LIMITS.elongation);
     else if(key==='r')second=clamp(g.r+this.range(-.35,.35),...LIMITS.r);
    else if(key==='albino')second=0;
@@ -1215,7 +1214,7 @@ export class Ecosystem{
    const level=this.terrainLevels[i];
    if(this.tiles[i]===0)this.grass[i]=Math.min(100,[26,44,65,77,87][level-1]+this.rand()*13);
    if(this.tiles[i]===2)this.grass[i]=[5,4,3,2,1][level-1]+this.rand()*2;
-   if(this.tiles[i]===3)this.grass[i]=[3,2.5,2,1,.5][level-1]+this.rand()*1.5;
+   if(this.tiles[i]===3)this.grass[i]=[7,6.5,6,5,4][level-1]+this.rand()*2;
    if(this.tiles[i]===1){
     this.water[i]=Math.min(100,[45,57,74,87,96][level-1]+this.rand()*5);
     this.waterbed[i]=1;
@@ -1350,8 +1349,8 @@ export class Ecosystem{
     // grazed-off patches remain empty until spores reach them.
     if((this.tiles[i]===2||this.tiles[i]===3)&&this.grass[i]>0){
      const wetness=clamp((this.soilWater[i]??0)/70,0,1);
-     next[i]=Math.min(this.tiles[i]===2?12:7,
-      this.grass[i]+(this.tiles[i]===2?.17:.09)*(.25+wetness)*
+     next[i]=Math.min(this.tiles[i]===2?13:15,
+      this.grass[i]+(this.tiles[i]===2?.19:.43)*(.25+wetness)*
       this.growth/70/(1+this.grazingPressure[i]));
     }
     if(this.grass[i]<=0&&this.tiles[i]!==1&&this.tiles[i]!==3){
@@ -1847,11 +1846,11 @@ export class Ecosystem{
    if(aquatic&&underwater&&!flight)this.plantWaterweed(u);
    if(!flight&&(!aquatic||onLand)&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+13)**2){
     const forageTerrain=this.terrain(nearest.x,nearest.y);
-    const forageLimit=forageTerrain===0?4.8:forageTerrain===2?1.3:.9;
+    const forageLimit=forageTerrain===0?4.8:forageTerrain===2?1.3:1.2;
     const eaten=this.consumeGrass(nearest.x,nearest.y,
      Math.min(forageLimit,1.05*m.foodGain*feedingCapacity(u)));
     if(eaten>0){
-     const foodYield=forageTerrain===0?10.5:forageTerrain===2?8:7;
+     const foodYield=forageTerrain===0?10.5:forageTerrain===2?8:8.2;
      u.energy+=eaten*foodYield*effectivePlantAffinity(u)*home.fitness;
      u.recentFood=(u.recentFood??0)+eaten*4;
      u.forageSuccess++;
