@@ -2030,6 +2030,12 @@ test('color and compound traits come from visible genome rather than naming bin'
  const purpleRed={...g,albino:0,wet:.0,dry:.25,rock:1};
  const colored=speciesColorName(purpleRed);
  assert.ok(colored.length>0);
+ const rare={...g,albino:0,wet:0,dry:.5,rock:.7,
+  hornLength:.78,tailLength:.76,antennaLength:.2,pattern:0};
+ assert.equal(speciesColorName(rare),'レッドパープル');
+ assert.equal(speciesFeatureName(rare),'ホーンテール');
+ assert.ok(speciesNameFromCategory(w.category(rare),rare).startsWith('レッドパープル'));
+ assert.ok(speciesNameFromCategory(w.category(rare),rare).endsWith('ホーンテール'));
 });
 test('genome code is stable, quantized, and changes when a trait crosses a bin',()=>{
  const w=new Ecosystem(9114),g=w.gene();
