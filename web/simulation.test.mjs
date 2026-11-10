@@ -3323,20 +3323,26 @@ test('giantism log separates hereditary mass from acquired adult growth and samp
  assert.equal(emptyRow.geneticMassP90,0);
 });
 
-test('short names retain biome, diet, pigment and independently encode remaining traits',()=>{
+test('new color-code-feature names preserve ecological categories and their unique codes',async()=>{
+ const {speciesEcologyCode}=await import('./simulation.js');
  const base=['land','plant','tiny','round','few','general','repro0','temperate','green'];
- const name=parts=>speciesNameFromCategory(parts.join('-'));
+ const key=parts=>parts.join('-');
+ const name=parts=>speciesNameFromCategory(key(parts));
  const original=name(base);
- assert.ok(original.startsWith('ミドソク'));
- assert.equal(original.length,6);
- for(const variant of [
+ assert.ok(original.startsWith('グリーンソクミ'));
+ assert.ok(original.endsWith('ノーマル'));
+ const variants=[
   base.slice(0,7).concat('cold','green'),
   base.slice(0,7).concat('hot','green'),
   base.slice(0,5).concat('guardian','repro0','temperate','green'),
   base.slice(0,3).concat('oval','few','general','repro0','temperate','green'),
   base.slice(0,4).concat('allround','general','repro0','temperate','green'),
   base.slice(0,6).concat('repro2','temperate','green')
- ])assert.notEqual(name(variant),original);
+ ];
+ for(const variant of variants){
+  assert.notEqual(name(variant),original);
+  assert.notEqual(speciesEcologyCode(key(variant)),speciesEcologyCode(key(base)));
+ }
 });
 test('terrain level paint and terrain effect are independent from four biome identities',async()=>{
  const {terrainLevelFitness,TERRAIN_LEVEL_GROWTH,WATER_LEVEL_GROWTH,TERRAIN_LEVEL_NAMES}=await import('./simulation.js');
