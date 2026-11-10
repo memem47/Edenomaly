@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Empirical, render-free naming audit using exactly the production Ecosystem rules.
-// npm run name-audit -- --steps 1200 --runs 4
+// Check that each birth-derived name remains stable and uses a unique code
+// even when a phenotypic color name or ornament is shared across categories.
 import {runHeadless} from './headless-runner.mjs';
-import {speciesNameFromCategory} from './simulation.js';
+import {speciesNameFromCategory,speciesEcologyCode} from './simulation.js';
 const args=process.argv.slice(2);
 const option=(flag,fallback)=>{
  const i=args.indexOf(flag);
@@ -13,18 +13,23 @@ const option=(flag,fallback)=>{
 };
 const steps=option('--steps',1200),runs=option('--runs',4),firstSeed=option('--seed',72);
 if(steps>50000||runs>20)throw new RangeError('name-audit bounds exceeded');
-const found=new Map(),totalByName=new Map();
+const found=new Map(),categoryByCode=new Map(),totalByName=new Map();
 let peak=0,ever=0;
 for(let i=0;i<runs;i++){
  const {world,summary}=runHeadless({seed:firstSeed+i,steps,interval:steps,founders:3});
  peak=Math.max(peak,summary.peakPopulation);
  for(const [category,species] of world.species){
-  const name=speciesNameFromCategory(category);
-  if(name!==species.name)throw new Error('Name changed during simulation');
-  if(name.length!==6||/アア$|([ァ-ヶ])\\1$/.test(name))
-   throw new Error('Unnatural generated name: '+name);
-  const prior=found.get(category);
-  found.set(category,name);
+  const name=speciesNameFromCategory(category,species.genome);
+  if(name!==species.name)throw new Error('Discovery name changed during simulation');
+  const code=speciesEcologyCode(category);
+  if(!name.includes(code)||!/(ホーン|テール|アンテナ|スポット|ノーマル)$/.test(name))
+   throw new Error('Unexpected species name: '+name);
+  if(categoryByCode.has(code)&&categoryByCode.get(code)!==category)
+   throw new Error('Two categories share one code: '+code);
+  categoryByCode.set(code,category);
+  if(found.has(category)&&found.get(category)!==code)
+   throw new Error('Ecology code changed');
+  found.set(category,code);
   totalByName.set(name,(totalByName.get(name)??0)+species.total);
   ever++;
  }
