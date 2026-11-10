@@ -1225,7 +1225,7 @@ export class Ecosystem{
    const level=this.terrainLevels[i];
    if(this.tiles[i]===0)this.grass[i]=Math.min(100,[26,44,65,77,87][level-1]+this.rand()*13);
    if(this.tiles[i]===2)this.grass[i]=[5,4,3,2,1][level-1]+this.rand()*2;
-   if(this.tiles[i]===3)this.grass[i]=[7,6.5,6,5,4][level-1]+this.rand()*2;
+   if(this.tiles[i]===3)this.grass[i]=[10,9,8,7,6][level-1]+this.rand()*2;
    if(this.tiles[i]===1){
     this.water[i]=Math.min(100,[45,57,74,87,96][level-1]+this.rand()*5);
     this.waterbed[i]=1;
@@ -1360,8 +1360,8 @@ export class Ecosystem{
     // grazed-off patches remain empty until spores reach them.
     if((this.tiles[i]===2||this.tiles[i]===3)&&this.grass[i]>0){
      const wetness=clamp((this.soilWater[i]??0)/70,0,1);
-     next[i]=Math.min(this.tiles[i]===2?13:23,
-      this.grass[i]+(this.tiles[i]===2?.19:1.05)*(.25+wetness)*
+     next[i]=Math.min(this.tiles[i]===2?13:30,
+      this.grass[i]+(this.tiles[i]===2?.19:1.8)*(.25+wetness)*
       this.growth/70/(1+this.grazingPressure[i]));
     }
     if(this.grass[i]<=0&&this.tiles[i]!==1&&this.tiles[i]!==3){
