@@ -1,0 +1,27 @@
+name: Gameplay progression review
+on:
+  push:
+    paths:
+      - web/gameplay-review.mjs
+      - .github/workflows/gameplay-review.yml
+  workflow_dispatch:
+jobs:
+  simulated-playthrough:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run multiple camera-aware gameplay trials
+        run: node web/gameplay-review.mjs 5 1200 > gameplay-results.log
+      - name: Show per-policy summary
+        if: always()
+        run: grep 'GAMEPLAY_AGGREGATE' gameplay-results.log || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gameplay-trials
+          path: gameplay-results.log
+          retention-days: 14
