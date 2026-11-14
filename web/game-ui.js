@@ -6,10 +6,20 @@ const $=id=>document.getElementById(id);
 export function mountGameUI({game,session,getMeta,setMeta,getView,setView,
  refresh,render,resetGame,getPlayMode,width=800,height=460}){
  const tracker=new ObservationTracker();
- let following=false,origin=null,founder=null,scanned=-1,finishedShown=false;
+ let following=false,origin=null,founder=null,scanned=-1,finishedShown=false,lastEarned=0;
  const currentCenter=()=>{
   const active=game.units.filter(u=>!u.dead&&u.category===founder);
-  if(!active.length)return origin;
+  if(!active.length){
+   // Original category can go extinct while descendants survive as new species.
+   // Follow the nearest remaining local group instead of snapping to a
+   // permanently empty birthplace.
+   if(!game.units.length)return origin;
+   const anchor=origin??{x:width/2,y:height/2};
+   const nearest=[...game.units].filter(u=>!u.dead)
+    .sort((a,b)=>((a.x-anchor.x)**2+(a.y-anchor.y)**2)-
+                 ((b.x-anchor.x)**2+(b.y-anchor.y)**2))[0];
+   return nearest?{x:nearest.x,y:nearest.y}:origin;
+  }
   return {x:active.reduce((v,u)=>v+u.x,0)/active.length,
    y:active.reduce((v,u)=>v+u.y,0)/active.length};
  };
@@ -66,12 +76,18 @@ export function mountGameUI({game,session,getMeta,setMeta,getView,setView,
  const start=(x,y)=>{
   origin={x,y};founder=game.units[0]?.category??null;following=false;
   tracker.start(game);tracker.add('discovery',game.tick,'最初の生命を移入しました。観察を始めましょう',x,y);
-  scanned=-1;finishedShown=false;
+  scanned=-1;finishedShown=false;lastEarned=session.earned;
   setView(centerOn({zoom:2.8,x:0,y:0},x,y,width,height));
   showEvents();update();
  };
  const step=()=>{
   if(!session.active||getPlayMode()!=='game')return;
+  if(session.earned>lastEarned){
+   const delta=session.earned-lastEarned;
+   lastEarned=session.earned;
+   tracker.add('reward',game.tick,'介入ポイント +'+delta+'pt を獲得！');
+   showEvents();
+  }
   if(following&&game.tick%5===0){
    const p=currentCenter();
    if(p)setView(centerOn(getView(),p.x,p.y,width,height),false);
@@ -106,7 +122,7 @@ export function mountGameUI({game,session,getMeta,setMeta,getView,setView,
   $('gameStartDialog').showModal();
  };
  const reset=()=>{
-  origin=null;founder=null;following=false;scanned=-1;finishedShown=false;
+  origin=null;founder=null;following=false;scanned=-1;finishedShown=false;lastEarned=0;
   tracker.reset();showEvents();update();
  };
  const manualCamera=()=>{following=false;update();};
