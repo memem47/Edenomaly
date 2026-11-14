@@ -184,7 +184,7 @@ function update(){
  $('dietStats').textContent=`栄養食 ${dietCounts[0]} ／ 雑食 ${dietCounts[1]} ／ 肉食 ${dietCounts[2]}`;
  $('startHint').textContent=game.introducedCount===0?'移入する生命の種類数を選び、フィールドをクリックして生態系を開始してください。':'生命を移入しました。追加の移入も可能です。';
  const infected=game.units.filter(u=>u.infection>0).length;
- $('diseaseInfo').textContent='感染個体 '+infected+'体';
+ $('diseaseInfo').textContent='感染個体 '+infected+'体'+(playMode==='game'&&infected?' ｜ 🩺 防疫（9pt）で感染の拡大を防ぐ':'');
  const averageFitness=game.units.length?game.units.reduce((total,u)=>total+terrainFitness(u.g,game.terrain(u.x,u.y)).fitness,0)/game.units.length:0;
  const descendants=game.units.filter(u=>u.generation>0);
  const averageCrowding=game.units.length?game.units.reduce((sum,u)=>sum+(u.habitatLoad??0),0)/game.units.length:0;
@@ -229,19 +229,25 @@ function update(){
  gameUI.update();
  $('bestGameScore').textContent=meta.best.toLocaleString('ja-JP');
  $('runReward').textContent=playMode==='game'&&session.finished?'今回 +'+session.reward+'pt':'1000スコアごとに恒久報酬1pt。次の試行の機能解放に使用できます。';
+ $('gameLogHelp').textContent=playMode==='game'?
+  '50ステップごとに自動記録。終了時に分析ZIPを作成。'+
+  (lastGameExportOk===false?'自動保存できなかった場合は終了画面の保存ボタンを使ってください。':
+  'ブラウザが自動ダウンロードをブロックする場合は終了画面から保存できます。'):
+  'ゲームモードのログは自動記録されます。';
  const impact=session.lastImpact;
   const impactText=impact?'直近の介入後100ステップ：周辺食料 '+(impact.deltaFood>=0?'+':'')+impact.deltaFood.toFixed(0)+
    ' / 個体数 '+(impact.deltaPopulation>=0?'+':'')+impact.deltaPopulation+' / 新規誕生 '+impact.births+
    '（相関であり介入による効果とは限りません）':
    session.pendingImpact?'介入後100ステップの結果を計測中':'';
   $('interventionHelp').textContent=playMode==='game'?
-   '生存・新種発見・世代交代・多様性維持でポイント獲得。草地・乾燥地・池への種まき、雨、土壌改良で支援。'+impactText:
+   '感染は同系統の密集で拡大します。🩺 防疫（9pt）で感染した群れをクリックすると、周辺を処置して110ステップ感染を予防します。'+impactText:
    'テストモードでは従来どおり自由に操作できます。';
  for(const button of document.querySelectorAll('[data-mode]')){
   const kind=button.dataset.mode;
-  button.disabled=playMode==='game'&&(session.finished||!['spawn','inspect','food','fertilize'].includes(kind)||(kind==='spawn'&&session.active)||(kind==='food'&&(!session.active||session.points<5))||(kind==='fertilize'&&(!session.active||session.points<10)));
+  button.disabled=playMode==='game'&&(session.finished||!['spawn','inspect','food','fertilize','clinic'].includes(kind)||(kind==='spawn'&&session.active)||(kind==='food'&&(!session.active||session.points<5))||(kind==='fertilize'&&(!session.active||session.points<10))||(kind==='clinic'&&(!session.active||session.points<9)));
   if(kind==='food')button.textContent=playMode==='game'?'🌱 草・水草の種（5pt）':'草を補充';
   if(kind==='fertilize')button.textContent=playMode==='game'?'🌿 土壌改良（10pt）':'🌱 土壌改良';
+  if(kind==='clinic')button.textContent=playMode==='game'?'🩺 防疫・隔離（9pt）':'🩺 防疫（ゲーム専用）';
  }
  $('rain').textContent=playMode==='game'?'🌧 降雨（8pt）':'降雨';
  $('rain').disabled=playMode==='game'&&(!session.active||session.finished||session.points<8);
@@ -393,9 +399,11 @@ function interact(e){
    }
   }else if(mode==='food')session.intervene('seed',x,y);
   else if(mode==='fertilize')session.intervene('fertilize',x,y);
+  else if(mode==='clinic')session.intervene('clinic',x,y);
   else if(mode==='inspect'){selected=null;let best=500;for(const u of game.units){const d=(u.x-x)**2+(u.y-y)**2;if(d<best){best=d;selected=u;}}}
  }else{
   if(['0','1','2','3'].includes(mode))game.paint(x,y,Number(mode),brush,terrainLevel);
+  else if(mode==='clinic')game.log('info','防疫はゲームモード専用');
   else if(mode==='food'){game.paint(x,y,0,brush);game.log('info','プレイヤーが草を補充');}
   else if(mode==='fertilize')game.fertilize(x,y,brush);
   else if(mode==='spawn'){
