@@ -1759,8 +1759,7 @@ export class Ecosystem{
    u.habitatLoad=habitatLoad;
    const pressure=(rivals+stronger*.7)/(1+GROWTH[t]*5)+congestion*.6+habitatLoad*.55;
    const dispersal=clamp(g.dispersal??.45,0,1),sociability=clamp(g.sociability??.45,0,1);
-   // Kin-specific contact disease is more likely in dense founder lineages.
-   // A new mutation is not instantly immune: lineage persists across offspring.
+   // Environmental spillover occurs only after establishment; contact spreads it.
    let relatives=0,infectious=0;
    for(const v of near)if(v!==u&&!v.dead&&v.lineage===u.lineage&&distance(u,v)<38**2){
     relatives++;if(v.infection>0)infectious++;
@@ -1768,13 +1767,23 @@ export class Ecosystem{
    const crowd=Math.max(0,relatives-2)+congestion*.65;
    if(u.infection>0){
     u.infection--;
-    u.hp-=(.19+crowd*.055)*(1-(g.resist??.4)*.7);
-    if(u.infection===0&&u.hp>0)this.infectionRecoveries++;
-   }else if(crowd>0&&this.tick>=(u.infectionProtectionUntil??0)&&
-    this.rand()<Math.min(.065,crowd*.00135+infectious*.009)*(1-(g.resist??.4)*.9)){
-    u.infection=Math.max(25,70+Math.floor(this.rand()*55)-Math.round((g.resist??.4)*40));
-    this.infectionCases++;
-    this.log('ill','#'+u.id+' が密集地で感染',u);
+    u.hp-=(.13+crowd*.035)*(1-(g.resist??.4)*.7);
+    if(u.infection===0&&u.hp>0){
+     this.infectionRecoveries++;
+     u.infectionProtectionUntil=Math.max(u.infectionProtectionUntil??0,this.tick+180);
+    }
+   }else if(this.tick>=(u.infectionProtectionUntil??0)){
+    const established=this.tick>=240&&this.units.length>=14;
+    const contactRisk=infectious>0?Math.min(.045,infectious*.006*(1+Math.min(3,crowd)*.1)):0;
+    const introductionRisk=established&&relatives>=5?.00012:0;
+    const resistance=1-(g.resist??.4)*.9;
+    const roll=this.rand();
+    if(roll<(contactRisk+introductionRisk)*resistance){
+     u.infection=Math.max(25,60+Math.floor(this.rand()*45)-Math.round((g.resist??.4)*30));
+     this.infectionCases++;
+     if(roll>=contactRisk*resistance)this.infectionIntroductions++;
+     this.log('ill','#'+u.id+(roll<contactRisk*resistance?' が接触感染':' に環境由来の感染が発生'),u);
+    }
    }
    // Crowded colonies consume more energy and stop producing offspring as easily.
    u.energy-=Math.min(.85,Math.max(0,rivals-3)*.075)+congestion*.11;
