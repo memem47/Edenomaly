@@ -150,9 +150,13 @@ export class EcologyLogbook{
   this.data={version,runs:[],nextId:1};
   try{
    const previous=JSON.parse(storage?.getItem(ECOLOGY_LOG_KEY)??'null');
-   if(previous?.version===version&&Array.isArray(previous.runs)){
-    this.data={version,runs:previous.runs,nextId:previous.nextId??1};
-   }else this.save(); // Version change overwrites obsolete logs.
+   if(Array.isArray(previous?.runs)){
+    // Keep completed logs from older releases. Each sample already stores its
+    // originating version and run number; never silently delete player trials.
+    this.data={version,runs:previous.runs,
+     nextId:Math.max(previous.nextId??1,...previous.runs.map(r=>(r.id??0)+1))};
+    this.save();
+   }else this.save();
   }catch{this.data={version,runs:[],nextId:1};this.save();}
  }
  save(){
