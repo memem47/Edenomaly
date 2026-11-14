@@ -5,16 +5,30 @@ export const INTERVENTIONS=Object.freeze({
  fertilize:{cost:10,label:'土壌を肥やす'}
 });
 const integer=n=>Number.isFinite(Number(n))?Math.max(0,Math.floor(Number(n))):0;
+// Persistent unlocks are one-time purchases using the existing earned bank.
+// No passive automation, no purchases that charge the user real money.
+export const GAME_UPGRADES=Object.freeze({
+ radar:Object.freeze({cost:3,label:'遠方の生命反応',description:'視野外の新種・移住の兆候を知らせ、現地へ移動できる'}),
+ reserve:Object.freeze({cost:4,label:'初期支援ポイント＋5',description:'次の試行以降の介入ポイントを15→20に増やす'})
+});
+export const hasUpgrade=(meta,key)=>meta?.upgrades?.[key]===true;
+export const buyGameUpgrade=(meta,key)=>{
+ const item=GAME_UPGRADES[key];
+ if(!item||hasUpgrade(meta,key)||integer(meta?.bank)<item.cost)return null;
+ return {...meta,bank:integer(meta.bank)-item.cost,
+  upgrades:{...meta.upgrades,[key]:true}};
+};
+
 export class GameSession{
  constructor(world){this.world=world;this.reset();}
  reset(){this.active=false;this.finished=false;this.points=0;this.earned=0;this.spent=0;this.milestones=new Set();this.maxGeneration=0;this.lastDiscoveries=0;this.lastMigrations=0;this.finalScore=0;this.reward=0;this.interventionHistory=[];this.pendingImpact=null;this.lastImpact=null;}
- start(x,y){
+ start(x,y,options={}){
   if(this.active||this.finished||this.world.introducedCount>0)return false;
   const result=this.world.introduce(x,y,1);
   if(result.types!==1||result.individuals<=0)return false;
-  this.active=true;this.points=15;
+  this.active=true;this.points=15+(options.reserve===true?5:0);
   this.maxGeneration=0;this.lastDiscoveries=this.world.runScore.discoveries;this.lastMigrations=this.world.migrations;
-  this.world.log('info','ゲーム開始：介入ポイント15');
+  this.world.log('info','ゲーム開始：介入ポイント'+this.points);
   return true;
  }
  grant(key,amount,label){
@@ -147,8 +161,9 @@ export class GameSession{
 export const parseMeta=raw=>{
  try{
   const obj=typeof raw==='string'?JSON.parse(raw):raw;
-  return {bank:integer(obj?.bank),best:integer(obj?.best),runs:integer(obj?.runs)};
- }catch{return {bank:0,best:0,runs:0};}
+  return {bank:integer(obj?.bank),best:integer(obj?.best),runs:integer(obj?.runs),
+   upgrades:{radar:obj?.upgrades?.radar===true,reserve:obj?.upgrades?.reserve===true}};
+ }catch{return {bank:0,best:0,runs:0,upgrades:{radar:false,reserve:false}};}
 };
 export const settleMeta=(meta,session)=>session.finished&&session.active?
  {bank:integer(meta.bank)+integer(session.reward),best:Math.max(integer(meta.best),integer(session.finalScore)),runs:integer(meta.runs)+1}:meta;
