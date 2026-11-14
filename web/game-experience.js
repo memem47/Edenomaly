@@ -65,6 +65,15 @@ export class ObservationTracker{
      pos?.x??null,pos?.y??null,{remote}));
    }
   }
+  const infected=world.units.filter(u=>!u.dead&&u.infection>0&&visibleInView(view,u.x,u.y));
+  if(infected.length&&world.tick-(this.cooldown.get('infection')??-999)>=75){
+   this.cooldown.set('infection',world.tick);
+   const p={x:infected.reduce((n,u)=>n+u.x,0)/infected.length,
+    y:infected.reduce((n,u)=>n+u.y,0)/infected.length};
+   added.push(this.add('infection',world.tick,
+    '感染中 '+infected.length+'体。密集すると広がります。🩺 防疫・隔離（9pt）で周辺を処置できます',
+    p.x,p.y));
+  }
   const summary=cameraSummary(world,view);
   if(summary.visible>0&&summary.threatened/summary.visible>=.5
    &&world.tick-(this.cooldown.get('hunger')??-999)>=120){
