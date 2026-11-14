@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
+import {execFileSync} from 'node:child_process';
 import {Ecosystem} from './simulation.js';
 import {GameSession,parseMeta,buyGameUpgrade,hasUpgrade,settleMeta} from './game-mode.js';
 import {ObservationTracker,cameraSummary,centerOn,visibleInView,gameOverSummary} from './game-experience.js';
@@ -89,7 +90,7 @@ test('game screen connects start, reward, end, observation, and camera controls'
  const ui=await readFile(new URL('./game-ui.js',import.meta.url),'utf8');
  for(const id of ['gameStartDialog','gameOverDialog','gameOverSummary','buyRadar',
   'buyReserve','observationStrip','gameEventFeed','followGroup','returnToGroup',
-  'gameRetry','startGameConfirm']){
+  'gameRetry','startGameConfirm','startBuyRadar','startBuyReserve']){
   assert.ok(html.includes('id="'+id+'"'),id);
  }
  assert.ok(app.includes('gameUI.start(x,y)'));
@@ -97,4 +98,11 @@ test('game screen connects start, reward, end, observation, and camera controls'
  assert.ok(app.includes('gameUI.showOver()'));
  assert.ok(app.includes('gameUI.step()'));
  assert.ok(ui.includes("setView(centerOn({zoom:2.8"));
+});
+
+test('all browser game flow modules parse as valid JavaScript',()=>{
+ for(const name of ['app.js','game-ui.js','game-experience.js','game-mode.js']){
+  const file=new URL('./'+name,import.meta.url).pathname;
+  assert.doesNotThrow(()=>execFileSync(process.execPath,['--check',file],{stdio:'pipe'}),name);
+ }
 });
