@@ -70,6 +70,9 @@ function observeGame(){
    const stored=saveGameRunReport(localLogStorage,lastGameReport);
    ecologyLog.end(final);speciesLog.end(game);
    lastGameExportOk=exportAllLogs(true);
+   $('gameLogStatus').textContent=stored&&lastGameExportOk?
+    '記録はブラウザ内に保存済み。分析ZIPのダウンロードを開始しました。ファイルが見当たらない場合は下のボタンで再保存してください。':
+    '一部のログ保存に失敗しました。下のボタンからZIPのダウンロードをお試しください。';
    if(!stored||!lastGameExportOk)
     game.log('info','ログの自動保存に失敗。ゲーム終了画面からZIPを保存してください');
    meta=settleMeta(meta,session);
@@ -236,7 +239,7 @@ function update(){
   'ゲームモードのログは自動記録されます。';
  const impact=session.lastImpact;
   const impactText=impact?'直近の介入後100ステップ：周辺食料 '+(impact.deltaFood>=0?'+':'')+impact.deltaFood.toFixed(0)+
-   ' / 個体数 '+(impact.deltaPopulation>=0?'+':'')+impact.deltaPopulation+' / 新規誕生 '+impact.births+
+   ' / 個体数 '+(impact.deltaPopulation>=0?'+':'')+impact.deltaPopulation+' / 感染者数 '+(impact.deltaInfected>=0?'+':'')+impact.deltaInfected+' / 新規誕生 '+impact.births+
    '（相関であり介入による効果とは限りません）':
    session.pendingImpact?'介入後100ステップの結果を計測中':'';
   $('interventionHelp').textContent=playMode==='game'?
