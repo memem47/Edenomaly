@@ -71,7 +71,7 @@ export class ObservationTracker{
    const p={x:infected.reduce((n,u)=>n+u.x,0)/infected.length,
     y:infected.reduce((n,u)=>n+u.y,0)/infected.length};
    added.push(this.add('infection',world.tick,
-    '感染中 '+infected.length+'体。密集すると広がります。🩺 防疫・隔離（9pt）で周辺を処置できます',
+    '感染中 '+infected.length+'体。密集すると広がります。🩺 防疫・治療（9pt）で周辺を処置できます',
     p.x,p.y));
   }
   const summary=cameraSummary(world,view);
