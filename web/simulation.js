@@ -1768,7 +1768,7 @@ export class Ecosystem{
    if(u.infection>0){
     u.infection--;
     u.hp-=(.19+crowd*.055)*(1-(g.resist??.4)*.7);
-    if(u.infection===0)this.infectionRecoveries++;
+    if(u.infection===0&&u.hp>0)this.infectionRecoveries++;
    }else if(crowd>0&&this.tick>=(u.infectionProtectionUntil??0)&&
     this.rand()<Math.min(.065,crowd*.00135+infectious*.009)*(1-(g.resist??.4)*.9)){
     u.infection=Math.max(25,70+Math.floor(this.rand()*55)-Math.round((g.resist??.4)*40));
