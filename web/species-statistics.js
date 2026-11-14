@@ -150,7 +150,11 @@ export class SpeciesLogbook{
   this.data={version,nextId:1,runs:[]};
   try{
    const saved=JSON.parse(storage?.getItem('edenomaly:species-statistics')??'null');
-   if(saved?.version===version&&Array.isArray(saved.runs))this.data=saved;
+   if(Array.isArray(saved?.runs)){
+    this.data={version,runs:saved.runs,
+     nextId:Math.max(saved.nextId??1,...saved.runs.map(r=>(r.id??0)+1))};
+    this.save();
+   }
    else this.save();
   }catch{this.save();}
  }
