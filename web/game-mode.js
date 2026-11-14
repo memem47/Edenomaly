@@ -21,7 +21,7 @@ export const buyGameUpgrade=(meta,key)=>{
 
 export class GameSession{
  constructor(world){this.world=world;this.reset();}
- reset(){this.active=false;this.finished=false;this.points=0;this.earned=0;this.spent=0;this.milestones=new Set();this.maxGeneration=0;this.lastDiscoveries=0;this.lastMigrations=0;this.finalScore=0;this.reward=0;this.interventionHistory=[];this.pendingImpact=null;this.lastImpact=null;}
+ reset(){this.rewardClaimed=false;this.active=false;this.finished=false;this.points=0;this.earned=0;this.spent=0;this.milestones=new Set();this.maxGeneration=0;this.lastDiscoveries=0;this.lastMigrations=0;this.finalScore=0;this.reward=0;this.interventionHistory=[];this.pendingImpact=null;this.lastImpact=null;}
  start(x,y,options={}){
   if(this.active||this.finished||this.world.introducedCount>0)return false;
   const result=this.world.introduce(x,y,1);
@@ -165,5 +165,12 @@ export const parseMeta=raw=>{
    upgrades:{radar:obj?.upgrades?.radar===true,reserve:obj?.upgrades?.reserve===true}};
  }catch{return {bank:0,best:0,runs:0,upgrades:{radar:false,reserve:false}};}
 };
-export const settleMeta=(meta,session)=>session.finished&&session.active?
- {bank:integer(meta.bank)+integer(session.reward),best:Math.max(integer(meta.best),integer(session.finalScore)),runs:integer(meta.runs)+1}:meta;
+// Claim a completed run exactly once. Unlocks are part of persisted meta and
+// must survive reward settlement; the browser also guards recording per run.
+export const settleMeta=(meta,session)=>{
+ if(!session.finished||!session.active||session.rewardClaimed)return meta;
+ session.rewardClaimed=true;
+ return {...meta,bank:integer(meta.bank)+integer(session.reward),
+  best:Math.max(integer(meta.best),integer(session.finalScore)),
+  runs:integer(meta.runs)+1};
+};
