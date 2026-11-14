@@ -1,0 +1,27 @@
+name: Disease control gameplay comparison
+on:
+  push:
+    paths:
+      - web/disease-playtest.mjs
+      - .github/workflows/disease-playtest.yml
+  workflow_dispatch:
+jobs:
+  disease-trials:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Simulate identical seeded games with/without disease interventions
+        run: node web/disease-playtest.mjs 12 1400 > disease-results.log
+      - name: Display results
+        if: always()
+        run: grep 'INFECTION_TRIAL_SUMMARY' disease-results.log || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: disease-playtests
+          path: disease-results.log
+          retention-days: 30
