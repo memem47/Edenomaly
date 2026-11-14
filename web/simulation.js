@@ -1299,7 +1299,7 @@ export class Ecosystem{
   }
  }
  reset(){
-  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.speciesSamples=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.runStartTick=null;this.runEndedTick=null;this.founderSpeciesCount=0;this.ecosystemBalance=0;this.deathCauses={};this.courtshipFailures={};this.courtshipStarts=0;this.mateApproachStarts=0;this.mateApproachStalled=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.waterweedGrowth=140;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];this.climateEnabled=true;this.seasonLength=600;
+  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.speciesSamples=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.runStartTick=null;this.runEndedTick=null;this.founderSpeciesCount=0;this.ecosystemBalance=0;this.deathCauses={};this.infectionCases=0;this.infectionRecoveries=0;this.courtshipFailures={};this.courtshipStarts=0;this.mateApproachStarts=0;this.mateApproachStalled=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.waterweedGrowth=140;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];this.climateEnabled=true;this.seasonLength=600;
   this._waterRegionTick=null;this._waterRegions=null;
   this.setupTerrain();
   this.grass=new Float32Array(this.tiles.length);
@@ -1768,9 +1768,11 @@ export class Ecosystem{
    if(u.infection>0){
     u.infection--;
     u.hp-=(.19+crowd*.055)*(1-(g.resist??.4)*.7);
+    if(u.infection===0)this.infectionRecoveries++;
    }else if(crowd>0&&this.tick>=(u.infectionProtectionUntil??0)&&
     this.rand()<Math.min(.065,crowd*.00135+infectious*.009)*(1-(g.resist??.4)*.9)){
     u.infection=Math.max(25,70+Math.floor(this.rand()*55)-Math.round((g.resist??.4)*40));
+    this.infectionCases++;
     this.log('ill','#'+u.id+' が密集地で感染',u);
    }
    // Crowded colonies consume more energy and stop producing offspring as easily.
