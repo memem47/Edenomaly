@@ -3,7 +3,7 @@ export const INTERVENTIONS=Object.freeze({
  seed:{cost:5,label:'草・水草の種をまく'},
  rain:{cost:8,label:'雨を降らせる'},
  fertilize:{cost:10,label:'土壌を肥やす'},
- clinic:{cost:9,label:'防疫・隔離支援'}
+ clinic:{cost:9,label:'防疫・治療支援'}
 });
 const integer=n=>Number.isFinite(Number(n))?Math.max(0,Math.floor(Number(n))):0;
 // Persistent unlocks are one-time purchases using the existing earned bank.
