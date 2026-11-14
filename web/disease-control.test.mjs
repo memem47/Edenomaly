@@ -22,7 +22,9 @@ test('9 point local clinic reduces infections and protects nearby life temporari
  assert.ok(s.interventionHistory.at(-1).infectedBefore>=2);
  assert.equal(s.interventionHistory.at(-1).kind,'clinic');
  assert.equal(s.canIntervene('clinic',650,130),false,'no free empty-area action');
- assert.equal(s.canIntervene('clinic',focus.x,focus.y),true,'can treat residual infection');
+ assert.equal(s.canIntervene('clinic',focus.x,focus.y),false,'cannot treat again without sufficient points');
+ s.points=15;
+ assert.equal(s.canIntervene('clinic',focus.x,focus.y),true,'residual infection remains treatable when funded');
 });
 
 test('local intervention never alters genome or restores HP or creates descendants',()=>{
