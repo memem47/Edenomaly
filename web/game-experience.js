@@ -96,5 +96,7 @@ export function gameOverSummary(world,session){
   species:world.species.size,established:last.establishedSpecies,
   births:[...world.species.values()].reduce((n,sp)=>n+sp.total,0),
   longestGeneration:Math.max(0,...[...world.species.values()].map(sp=>sp.maxGeneration??0)),
+  infectionCases:world.infectionCases??0,infectionRecoveries:world.infectionRecoveries??0,
+  clinicActions:session.interventionHistory.filter(a=>a.kind==='clinic').length,
   mostCommonDeath:causes[0]?.[0]??'記録なし',mostCommonDeathCount:causes[0]?.[1]??0};
 }
