@@ -237,3 +237,30 @@ button:disabled,input:disabled{opacity:.40;cursor:not-allowed}
 .species-statistics-header button{padding:8px 12px}
 #speciesStatisticsFrame{border:0;background:#0c1823;width:100%;flex:1;min-height:0}
 @media(max-width:800px){.species-statistics-dialog{height:96dvh;width:98vw}.species-statistics-header span{display:none}}
+
+/* Game experience: information is local to the user's current observation. */
+.game-upgrade-shop{border-top:1px solid #42606b;margin-top:12px;padding-top:12px}
+.game-upgrade-shop .heading{margin-bottom:8px}
+.game-upgrade-shop button:disabled{opacity:.62;cursor:not-allowed}
+.observation-strip{padding:9px 13px;margin:4px 0 7px;border-radius:9px;
+ background:rgba(20,48,58,.94);color:#d5f1e8;font-size:13px}
+.game-event-panel{margin-bottom:15px}
+.game-event-feed{display:flex;gap:8px;flex-wrap:wrap;min-height:42px}
+.game-event-item{display:flex;align-items:center;gap:8px;border:1px solid #406674;
+ background:#1c3948;border-radius:9px;padding:8px 11px;font-size:13px;max-width:100%}
+.game-event-item small{color:#a7c4ce;white-space:nowrap}
+.game-event-item button{border:1px solid #608998;background:#29546c;border-radius:7px;
+ color:#fff;padding:5px 8px;cursor:pointer}
+.game-event-item.danger{border-color:#b77b54;background:#443527}
+.game-event-item.discovery{border-color:#6b9e92}
+.game-flow-dialog{width:min(520px,94vw);max-width:94vw;max-height:90dvh;overflow:auto;
+ padding:25px;background:#18313e;border:1px solid #648a90;color:#f1fafb;
+ border-radius:17px;box-shadow:0 18px 70px #0009;line-height:1.6}
+.game-flow-dialog::backdrop{background:#071821bd}
+.game-flow-dialog h2{margin:0 0 12px;font-size:22px}
+.game-flow-dialog .buttons{margin-top:16px}
+#gameOverSummary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+#gameOverSummary div{border-radius:10px;padding:10px;background:#214150}
+#gameOverSummary strong{font-size:20px;display:block}
+#gameOverSummary small{color:#aac9d2}
+@media(max-width:650px){.game-flow-dialog{padding:16px}.game-event-item{width:100%}}
