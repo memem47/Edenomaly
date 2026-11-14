@@ -5,12 +5,13 @@ import {mountGameUI} from './game-ui.js?v=2026.11.14.1';
 import {fitView,screenToWorld,zoomAround,panBy,MAX_ZOOM,ZOOM_STEP} from './viewport.js?v=2026.11.08.12';
 import {drawWorld,drawChart} from './renderer.js?v=2026.11.11.8';
 import {EcologyLogbook,observeEcology,ECOLOGY_LOG_FIELDS} from './ecology-log.js?v=2026.11.08.13';
+import {gameRunReport,saveGameRunReport,readGameRunHistory} from './game-run-log.js?v=2026.11.14.2';
 import {SpeciesLogbook,speciesReport,csvCell} from './species-statistics.js';
 import {performancePolicy,simulationBatch,BROWSER_BACKGROUND_INTERVAL} from './performance-policy.js?v=video-friendly-1';
 const $=id=>document.getElementById(id);
 // Release label is bundled with the running source; comparison uses a
 // separately published manifest from the repository's main branch.
-const BUILD_VERSION='2026.11.14.1';
+const BUILD_VERSION='2026.11.14.2';
 const VERSION_SOURCE='https://raw.githubusercontent.com/memem47/Edenomaly/main/web/version.json';
 $('buildVersion').textContent=BUILD_VERSION;
 async function checkLatestVersion(){
@@ -43,6 +44,7 @@ try{localLogStorage=window.localStorage;}catch{}
 const ecologyLog=new EcologyLogbook(localLogStorage,LOG_VERSION);
 const speciesLog=new SpeciesLogbook(localLogStorage,LOG_VERSION);
 let meta=parseMeta(localLogStorage?.getItem(META_KEY));let rewardRecorded=false;
+let currentGameRunId=null,lastGameReport=null,lastGameExportOk=null;
 const GRAPHICS_KEY='edenomaly-graphics-mode-v1';
 const savedGraphics=(()=>{try{return localLogStorage?.getItem(GRAPHICS_KEY);}catch{return null;}})();
 let graphicsMode=['classic','enhanced','jelly'].includes(savedGraphics)?savedGraphics:'jelly';
@@ -58,6 +60,18 @@ function observeGame(){
  if(session.finished){
   running=false;
   if(!rewardRecorded){
+   // Capture the terminal state BEFORE ending either time-series. A game
+   // that goes extinct between 50-step checkpoints must still be analyzable.
+   const final=observeEcology(game);
+   ecologyLog.record(final,true);
+   ecologyLog.recordIndividuals(game,true);
+   speciesLog.record(game,true);
+   lastGameReport=gameRunReport(game,session,ecologyLog,LOG_VERSION,currentGameRunId);
+   const stored=saveGameRunReport(localLogStorage,lastGameReport);
+   ecologyLog.end(final);speciesLog.end(game);
+   lastGameExportOk=exportAllLogs(true);
+   if(!stored||!lastGameExportOk)
+    game.log('info','ログの自動保存に失敗。ゲーム終了画面からZIPを保存してください');
    meta=settleMeta(meta,session);
    try{localLogStorage?.setItem(META_KEY,JSON.stringify(meta));}catch{}
    rewardRecorded=true;
@@ -284,7 +298,8 @@ function render(){
 function reset(){
  ecologyLog.end(ecologyLog.activeId===null?null:observeEcology(game));
  speciesLog.end(game);
- game.reset();session.reset();gameUI.reset();rewardRecorded=false;lastReproductionSample=null;selected=null;selectedSpecies=null;running=false;mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));syncSliders();update();render();}
+ game.reset();session.reset();gameUI.reset();rewardRecorded=false;
+ currentGameRunId=null;lastGameReport=null;lastGameExportOk=null;lastReproductionSample=null;selected=null;selectedSpecies=null;running=false;mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));syncSliders();update();render();}
 function updateTerrainLevelLabel(){
  $('terrainLevelName').textContent=TERRAIN_LEVEL_NAMES[Number(mode)]?.[terrainLevel-1]??'レベル '+terrainLevel;
 }
@@ -368,7 +383,8 @@ function interact(e){
  if(playMode==='game'){
   if(mode==='spawn'){
    if(!session.active&&!session.finished&&session.start(x,y,gameUI.startOptions())){
-    gameUI.start(x,y);
+    currentGameRunId=Date.now().toString(36)+'-'+game.initialSeed.toString(36);
+    lastGameReport=null;lastGameExportOk=null;gameUI.start(x,y);
     if(ecologyLog.activeId===null)ecologyLog.start(game.initialSeed);
      if(speciesLog.activeId===null)speciesLog.start(game.initialSeed);
     lastReproductionSample=observeEcology(game);ecologyLog.record(lastReproductionSample,true);ecologyLog.recordIndividuals(game,true);speciesLog.record(game,true);
@@ -434,31 +450,42 @@ $('catalog').addEventListener('click',e=>{
 });
 $('play').onclick=()=>{if(playMode==='game'&&session.finished)return;if(game.introducedCount===0){mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));return;}running=!running;update();};$('stepOnce').onclick=()=>{if(game.introducedCount===0)return;running=false;game.step();observeGame();if(game.tick%50===0)recordStep();update();render();};$('speed').onclick=()=>{speed=speed===1?3:speed===3?8:1;$('speed').textContent='速度 ×'+speed;};$('reset').onclick=()=>reset();
 $('ecologyRun').onchange=e=>{selectedLogRun=Number(e.target.value);update();};
-$('downloadAllLogs').onclick=()=>{
- // Include the current step even if the 50-step sampling boundary is not due.
- // This creates one diagnostic snapshot, without changing the ecosystem.
- if(ecologyLog.activeId!==null){
-  const sample=observeEcology(game);
-  ecologyLog.record(sample,true);
+function exportAllLogs(auto=false){
+ // Store both historical time-series and a complete current-state snapshot.
+ if(!auto&&ecologyLog.activeId!==null){
+  const observation=observeEcology(game);
+  ecologyLog.record(observation,true);
   ecologyLog.recordIndividuals(game,true);
   speciesLog.record(game,true);
  }
- // Export a standalone current snapshot even if persisted time-series is empty.
  const currentSnapshot={run:ecologyLog.activeId??0,version:LOG_VERSION,...observeEcology(game)};
  const newline=String.fromCharCode(13,10);
  const snapshotCSV=String.fromCharCode(65279)+ECOLOGY_LOG_FIELDS.join(',')+newline+
   ECOLOGY_LOG_FIELDS.map(k=>csvCell(currentSnapshot[k])).join(',')+newline;
- const archive=zipFiles([
+ const csvEvents='step,type,message'+newline+game.logs.slice().reverse().map(e=>
+  [e.step,e.type,e.message].map(csvCell).join(',')).join(newline);
+ const files=[
   ['edenomaly-ecology-'+LOG_VERSION+'.csv',ecologyLog.toCSV()],
   ['edenomaly-current-ecology-'+LOG_VERSION+'.csv',snapshotCSV],
   ['edenomaly-individual-reproduction-'+LOG_VERSION+'.csv',ecologyLog.toIndividualCSV()],
-  ['edenomaly-species-statistics-'+LOG_VERSION+'.csv',speciesLog.toCSV()]
- ]);
- const url=URL.createObjectURL(archive),link=document.createElement('a');
- link.href=url;link.download='edenomaly-all-logs-'+LOG_VERSION+'.zip';
- document.body.appendChild(link);link.click();link.remove();
- URL.revokeObjectURL(url);
-};
+  ['edenomaly-species-statistics-'+LOG_VERSION+'.csv',speciesLog.toCSV()],
+  ['edenomaly-events-'+LOG_VERSION+'.csv',csvEvents],
+  ['edenomaly-game-history.json',JSON.stringify(readGameRunHistory(localLogStorage),null,2)]
+ ];
+ if(lastGameReport)files.push(['edenomaly-game-report.json',JSON.stringify(lastGameReport,null,2)]);
+ try{
+  const url=URL.createObjectURL(zipFiles(files)),link=document.createElement('a');
+  link.href=url;
+  link.download='edenomaly-'+(auto?'game-over':'all-logs')+'-'+LOG_VERSION+
+   (auto?'-'+String(currentGameRunId??game.tick):'')+'.zip';
+  document.body.appendChild(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  return true;
+ }catch{return false;}
+}
+$('downloadAllLogs').onclick=()=>exportAllLogs(false);
+$('downloadGameReport').onclick=()=>exportAllLogs(false);
+
 $('clearEcologyLog').onclick=()=>{
  if(!window.confirm('このバージョンの生態系推移ログをすべて削除しますか？'))return;
  ecologyLog.clear();speciesLog.clear();selectedLogRun=null;logRunOptions='';
