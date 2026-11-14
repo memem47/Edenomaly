@@ -2163,17 +2163,21 @@ test('long-term ecology log stores regular steps, distinct runs and csv columns'
  assert.equal(restored.sampleCount,3);
  assert.equal(restored.data.runs.length,2);
 });
-test('version upgrades discard obsolete ecology logs and never retain stale rows',()=>{
+test('version upgrades preserve older ecology runs without mixing sample versions',()=>{
  const values=new Map();
  const storage={getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v)};
  const first=new EcologyLogbook(storage,'old-code');
  first.start(11);first.record({step:50,population:500},true);
  const upgrade=new EcologyLogbook(storage,'new-code');
- assert.equal(upgrade.sampleCount,0);
- assert.equal(upgrade.data.runs.length,0);
+ assert.equal(upgrade.sampleCount,1,'old gameplay must not vanish on a code update');
+ assert.equal(upgrade.data.runs.length,1);
  assert.equal(JSON.parse(values.get(ECOLOGY_LOG_KEY)).version,'new-code');
  upgrade.start(11);upgrade.record({step:50,population:5},true);
- assert.ok(!upgrade.toCSV().includes('500'));
+ assert.equal(upgrade.sampleCount,2);
+ assert.equal(upgrade.data.runs[0].samples[0].version,'old-code');
+ assert.equal(upgrade.data.runs[1].samples[0].version,'new-code');
+ assert.ok(upgrade.toCSV().includes('500'));
+ assert.ok(upgrade.toCSV().includes('new-code'));
  upgrade.clear();
  assert.equal(new EcologyLogbook(storage,'new-code').sampleCount,0);
 });
