@@ -69,8 +69,8 @@ test('rewards are spent once outside a run and unlocks persist in older stored m
  const ended=settleMeta(reserve,session);
  assert.equal(ended.bank,1+session.reward);
  assert.ok(hasUpgrade(ended,'radar'));
- assert.deepEqual(settleMeta(ended,session),{...ended,bank:ended.bank+session.reward},
-  'settleMeta is controlled by the existing rewardRecorded UI guard');
+ assert.deepEqual(settleMeta(ended,session),ended,
+  'reward cannot be claimed twice even when called again');
 });
 test('game over summary retains reward and causal death summary',()=>{
  const w=new Ecosystem(2026111406),s=new GameSession(w);
