@@ -250,7 +250,7 @@ function update(){
   button.disabled=playMode==='game'&&(session.finished||!['spawn','inspect','food','fertilize','clinic'].includes(kind)||(kind==='spawn'&&session.active)||(kind==='food'&&(!session.active||session.points<5))||(kind==='fertilize'&&(!session.active||session.points<10))||(kind==='clinic'&&(!session.active||session.points<9)));
   if(kind==='food')button.textContent=playMode==='game'?'🌱 草・水草の種（5pt）':'草を補充';
   if(kind==='fertilize')button.textContent=playMode==='game'?'🌿 土壌改良（10pt）':'🌱 土壌改良';
-  if(kind==='clinic')button.textContent=playMode==='game'?'🩺 防疫・隔離（9pt）':'🩺 防疫（ゲーム専用）';
+  if(kind==='clinic')button.textContent=playMode==='game'?'🩺 防疫・治療（9pt）':'🩺 防疫（ゲーム専用）';
  }
  $('rain').textContent=playMode==='game'?'🌧 降雨（8pt）':'降雨';
  $('rain').disabled=playMode==='game'&&(!session.active||session.finished||session.points<8);
