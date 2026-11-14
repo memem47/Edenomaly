@@ -41,11 +41,15 @@ export function mountGameUI({game,session,getMeta,setMeta,getView,setView,
  const refreshShop=()=>{
   const meta=getMeta();
   $('gameUpgradeShop').hidden=getPlayMode()!=='game';
-  for(const [id,key] of [['buyRadar','radar'],['buyReserve','reserve']]){
-   const b=$(id),item=GAME_UPGRADES[key],owned=hasUpgrade(meta,key);
-   b.textContent=owned?'✓ '+item.label+'（解放済み）':item.label+'（'+item.cost+'pt）';
-   b.disabled=owned||meta.bank<item.cost||session.active&&!session.finished;
+  for(const [id,key] of [['buyRadar','radar'],['buyReserve','reserve'],
+   ['startBuyRadar','radar'],['startBuyReserve','reserve']]){
+   const button=$(id),item=GAME_UPGRADES[key],owned=hasUpgrade(meta,key);
+   button.textContent=owned?'✓ '+item.label+'（解放済み）':item.label+'（'+item.cost+'pt）';
+   button.disabled=owned||meta.bank<item.cost||(session.active&&!session.finished);
   }
+  $('startUpgradeStatus').textContent='恒久報酬 '+meta.bank+'pt ／ 遠方探知：'+
+   (hasUpgrade(meta,'radar')?'解放済み':'未解放')+' ／ 初期介入：'+
+   (hasUpgrade(meta,'reserve')?'20':'15')+'pt';
  };
  const update=()=>{
   const status=cameraSummary(game,getView());
@@ -68,7 +72,7 @@ export function mountGameUI({game,session,getMeta,setMeta,getView,setView,
  };
  const step=()=>{
   if(!session.active||getPlayMode()!=='game')return;
-  if(following){
+  if(following&&game.tick%5===0){
    const p=currentCenter();
    if(p)setView(centerOn(getView(),p.x,p.y,width,height),false);
   }
@@ -98,10 +102,7 @@ export function mountGameUI({game,session,getMeta,setMeta,getView,setView,
   $('gameOverDialog').showModal();
  };
  const openStart=()=>{
-  const meta=getMeta();
-  $('startUpgradeStatus').textContent='恒久報酬 '+meta.bank+'pt ／ 遠方探知：'+
-   (hasUpgrade(meta,'radar')?'解放済み':'未解放')+' ／ 初期介入ポイント：'+
-   (hasUpgrade(meta,'reserve')?'20':'15');
+  refreshShop();
   $('gameStartDialog').showModal();
  };
  const reset=()=>{
@@ -123,7 +124,8 @@ export function mountGameUI({game,session,getMeta,setMeta,getView,setView,
  $('gameRetry').onclick=()=>{
   $('gameOverDialog').close();resetGame();openStart();};
  $('gameOverClose').onclick=()=>{$('gameOverDialog').close();};
- for(const [id,key] of [['buyRadar','radar'],['buyReserve','reserve']]){
+ for(const [id,key] of [['buyRadar','radar'],['buyReserve','reserve'],
+  ['startBuyRadar','radar'],['startBuyReserve','reserve']]){
   $(id).onclick=()=>{
    const purchased=buyGameUpgrade(getMeta(),key);
    if(!purchased)return;
