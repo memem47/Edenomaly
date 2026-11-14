@@ -336,6 +336,7 @@ function syncVisibility(){
   if(backgroundTimer!==null){clearTimeout(backgroundTimer);backgroundTimer=null;}
   last=0;acc=0;paintAt=0;uiAt=0;
   if(rafId===null)rafId=requestAnimationFrame(frame);
+  if(playMode==='game'&&session.finished)gameUI.showOver();
  }
 }
 document.addEventListener('visibilitychange',syncVisibility);
