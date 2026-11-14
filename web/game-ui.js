@@ -109,7 +109,9 @@ export function mountGameUI({game,session,getMeta,setMeta,getView,setView,
    ['生存したステップ',end.duration.toLocaleString('ja-JP')],
    ['発見した種',end.species+'種'],
    ['定着した種',end.established+'種'],
-   ['主な死亡原因',end.mostCommonDeath+' '+end.mostCommonDeathCount+'件']
+   ['主な死亡原因',end.mostCommonDeath+' '+end.mostCommonDeathCount+'件'],
+   ['感染発生／自然回復',end.infectionCases+'件 ／ '+end.infectionRecoveries+'件'],
+   ['防疫介入',end.clinicActions+'回']
   ]){
    const div=document.createElement('div'),label=document.createElement('small'),
     number=document.createElement('strong');
