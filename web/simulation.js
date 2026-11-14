@@ -1028,6 +1028,7 @@ export class Ecosystem{
  }
  eatEgg(egg,hunter){
   if(egg.dead||dietProfile(hunter.g).meat===0)return false;
+  if(this.supportZones.some(z=>z.kind==='nursery'&&z.until>this.tick&&(z.x-egg.x)**2+(z.y-egg.y)**2<=55**2)&&this.rand()<.75)return false;
    if(this.terrain(egg.x,egg.y)===1&&hunter.g.aquatic!==1)return false;
   egg.dead=true;
   const nutrients=egg.energy*(.8+eggTraits(egg.g).shell*.12)*dietProfile(hunter.g).meat;
@@ -1299,7 +1300,7 @@ export class Ecosystem{
   }
  }
  reset(){
-  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.speciesSamples=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.runStartTick=null;this.runEndedTick=null;this.founderSpeciesCount=0;this.ecosystemBalance=0;this.deathCauses={};this.infectionCases=0;this.infectionRecoveries=0;this.courtshipFailures={};this.courtshipStarts=0;this.mateApproachStarts=0;this.mateApproachStalled=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.waterweedGrowth=140;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];this.climateEnabled=true;this.seasonLength=600;
+  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.speciesSamples=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.runStartTick=null;this.runEndedTick=null;this.founderSpeciesCount=0;this.ecosystemBalance=0;this.deathCauses={};this.infectionCases=0;this.infectionRecoveries=0;this.infectionIntroductions=0;this.supportZones=[];this.courtshipFailures={};this.courtshipStarts=0;this.mateApproachStarts=0;this.mateApproachStalled=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.waterweedGrowth=140;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];this.climateEnabled=true;this.seasonLength=600;
   this._waterRegionTick=null;this._waterRegions=null;
   this.setupTerrain();
   this.grass=new Float32Array(this.tiles.length);
@@ -1576,7 +1577,8 @@ export class Ecosystem{
   const firstEggByParent=new Map();
   for(const egg of this.eggs)if(!egg.dead&&!firstEggByParent.has(egg.parent))firstEggByParent.set(egg.parent,egg);
   for(const u of batch){
-   if(u.dead)continue;u.age++;u.juvenileFood=0;if(u.bite>0)u.bite--;if(u.woundFlash>0)u.woundFlash--;if(u.attackFlash>0)u.attackFlash--;if(u.defendFlash>0)u.defendFlash--;if(u.mateCooldown>0)u.mateCooldown--;
+   if(u.dead)continue;u.age++;u.juvenileFood=0;
+   if(this.supportZones.some(z=>z.kind==='oasis'&&z.until>this.tick&&(z.x-u.x)**2+(z.y-u.y)**2<=65**2))u.hydration=Math.min(100,u.hydration+.36);if(u.bite>0)u.bite--;if(u.woundFlash>0)u.woundFlash--;if(u.attackFlash>0)u.attackFlash--;if(u.defendFlash>0)u.defendFlash--;if(u.mateCooldown>0)u.mateCooldown--;
    if(u.pregnancy){u.pregnancy.remaining--;if(u.pregnancy.remaining<=0)this.layEgg(u);}
    const g=u.g,t=this.terrain(u.x,u.y),m=organismMorphology(u),diet=dietProfile(g),
     home=terrainLevelFitness(experiencedTerrainFitness(u,t),t,this.terrainLevels?.[this.cell(u.x,u.y)]??3,g);
@@ -1758,8 +1760,7 @@ export class Ecosystem{
    u.habitatLoad=habitatLoad;
    const pressure=(rivals+stronger*.7)/(1+GROWTH[t]*5)+congestion*.6+habitatLoad*.55;
    const dispersal=clamp(g.dispersal??.45,0,1),sociability=clamp(g.sociability??.45,0,1);
-   // Kin-specific contact disease is more likely in dense founder lineages.
-   // A new mutation is not instantly immune: lineage persists across offspring.
+   // Environmental spillover occurs only after establishment; contact spreads it.
    let relatives=0,infectious=0;
    for(const v of near)if(v!==u&&!v.dead&&v.lineage===u.lineage&&distance(u,v)<38**2){
     relatives++;if(v.infection>0)infectious++;
@@ -1767,13 +1768,23 @@ export class Ecosystem{
    const crowd=Math.max(0,relatives-2)+congestion*.65;
    if(u.infection>0){
     u.infection--;
-    u.hp-=(.19+crowd*.055)*(1-(g.resist??.4)*.7);
-    if(u.infection===0&&u.hp>0)this.infectionRecoveries++;
-   }else if(crowd>0&&this.tick>=(u.infectionProtectionUntil??0)&&
-    this.rand()<Math.min(.065,crowd*.00135+infectious*.009)*(1-(g.resist??.4)*.9)){
-    u.infection=Math.max(25,70+Math.floor(this.rand()*55)-Math.round((g.resist??.4)*40));
-    this.infectionCases++;
-    this.log('ill','#'+u.id+' が密集地で感染',u);
+    u.hp-=(.13+crowd*.035)*(1-(g.resist??.4)*.7);
+    if(u.infection===0&&u.hp>0){
+     this.infectionRecoveries++;
+     u.infectionProtectionUntil=Math.max(u.infectionProtectionUntil??0,this.tick+180);
+    }
+   }else if(this.tick>=(u.infectionProtectionUntil??0)){
+    const established=this.tick>=240&&this.units.length>=14;
+    const contactRisk=infectious>0?Math.min(.045,infectious*.006*(1+Math.min(3,crowd)*.1)):0;
+    const introductionRisk=established&&relatives>=5?.00012:0;
+    const resistance=1-(g.resist??.4)*.9;
+    const roll=this.rand();
+    if(roll<(contactRisk+introductionRisk)*resistance){
+     u.infection=Math.max(25,60+Math.floor(this.rand()*45)-Math.round((g.resist??.4)*30));
+     this.infectionCases++;
+     if(roll>=contactRisk*resistance)this.infectionIntroductions++;
+     this.log('ill','#'+u.id+(roll<contactRisk*resistance?' が接触感染':' に環境由来の感染が発生'),u);
+    }
    }
    // Crowded colonies consume more energy and stop producing offspring as easily.
    u.energy-=Math.min(.85,Math.max(0,rivals-3)*.075)+congestion*.11;
@@ -2071,6 +2082,7 @@ export class Ecosystem{
    if(u.energy<0)u.energy=0;
    if(u.hp<=0)this.die(u,u.energy===0?'飢餓':thermal.excess>0?'気温による衰弱':u.infection>0?'感染症':'寿命・衰弱');
   }
+  this.supportZones=this.supportZones.filter(z=>z.until>this.tick);
   this.resolveUnitOverlap();
   this.updateCourtships();
   this.units=this.units.filter(u=>!u.dead);this.eggs=this.eggs.filter(e=>!e.dead);
