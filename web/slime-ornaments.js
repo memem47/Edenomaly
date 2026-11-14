@@ -1,7 +1,7 @@
 // Soft, readable jelly ornaments made entirely of overlapping round shapes.
 // Drawing only: genes, hitboxes, upkeep, movement and RNG are unchanged.
 // The organism faces +X. The upper-right contour is its forehead.
-import {adaptationColor} from './simulation.js?v=2026.11.11.8';
+import {adaptationColor} from './simulation.js?v=2026.11.14.2';
 const TAU=Math.PI*2;
 const lim=v=>Math.max(0,Math.min(1,v??0));
 export const ornamentTraits=g=>({
