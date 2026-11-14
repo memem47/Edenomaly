@@ -3,7 +3,9 @@ export const INTERVENTIONS=Object.freeze({
  seed:{cost:5,label:'草・水草の種をまく'},
  rain:{cost:8,label:'雨を降らせる'},
  fertilize:{cost:10,label:'土壌を肥やす'},
- clinic:{cost:9,label:'防疫・治療支援'}
+ clinic:{cost:9,label:'防疫・治療支援'},
+ nursery:{cost:7,label:'繁殖保護区（260ステップ）'},
+ oasis:{cost:6,label:'給水拠点（200ステップ）'}
 });
 const integer=n=>Number.isFinite(Number(n))?Math.max(0,Math.floor(Number(n))):0;
 // Persistent unlocks are one-time purchases using the existing earned bank.
@@ -90,6 +92,8 @@ export class GameSession{
   const w=this.world;
   if(kind==='rain')return true;
   if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||y<0||x>=800||y>=460)return false;
+  if(kind==='nursery')return w.units.some(u=>!u.dead&&(u.x-x)**2+(u.y-y)**2<=80**2)||w.eggs.some(e=>!e.dead&&(e.x-x)**2+(e.y-y)**2<=80**2);
+  if(kind==='oasis')return w.tiles[w.cell(x,y)]!==3&&w.units.some(u=>!u.dead&&(u.x-x)**2+(u.y-y)**2<=80**2);
   if(kind==='clinic')return w.units.some(u=>!u.dead&&u.infection>0&&(u.x-x)**2+(u.y-y)**2<=65**2);
   if(kind==='seed')return [0,1,2,3].includes(w.tiles[w.cell(x,y)]);
   if(kind==='fertilize')return w.tiles[w.cell(x,y)]!==3;
@@ -148,6 +152,20 @@ export class GameSession{
    }
   }else if(kind==='fertilize'){
    if(!w.fertilize(x,y,2))return false;
+  }else if(kind==='nursery'){
+   w.supportZones??=[];
+   w.supportZones.push({kind,x,y,until:w.tick+260});
+   w.log('info','繁殖保護区：周辺の卵の捕食を75%抑制（260ステップ）');
+  }else if(kind==='oasis'){
+   w.supportZones??=[];
+   w.supportZones.push({kind,x,y,until:w.tick+200});
+   for(const u of w.units)if(!u.dead&&(u.x-x)**2+(u.y-y)**2<=65**2)u.hydration=Math.min(100,u.hydration+30);
+   const cx=Math.floor(x/20),cy=Math.floor(y/20);
+   for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){
+    const xx=cx+dx,yy=cy+dy;if(xx<0||xx>=40||yy<0||yy>=23||dx*dx+dy*dy>4)continue;
+    const i=yy*40+xx;if(w.tiles[i]!==3)w.soilWater[i]=Math.min(100,w.soilWater[i]+35);
+   }
+   w.log('info','給水拠点：周辺の水分を補給（200ステップ）');
   }else if(kind==='clinic'){
    // A bounded area intervention. It is not permanent immunity, HP healing,
    // or a species-wide cure; untreated colonies remain vulnerable.
