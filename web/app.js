@@ -1,6 +1,7 @@
 import {zipFiles} from './zip-log.js?v=2026.11.07.4';
 import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.11.6';
-import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.11.4';
+import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.14.1';
+import {mountGameUI} from './game-ui.js?v=2026.11.14.1';
 import {fitView,screenToWorld,zoomAround,panBy,MAX_ZOOM,ZOOM_STEP} from './viewport.js?v=2026.11.08.12';
 import {drawWorld,drawChart} from './renderer.js?v=2026.11.11.8';
 import {EcologyLogbook,observeEcology,ECOLOGY_LOG_FIELDS} from './ecology-log.js?v=2026.11.08.13';
@@ -9,7 +10,7 @@ import {performancePolicy,simulationBatch,BROWSER_BACKGROUND_INTERVAL} from './p
 const $=id=>document.getElementById(id);
 // Release label is bundled with the running source; comparison uses a
 // separately published manifest from the repository's main branch.
-const BUILD_VERSION='2026.11.11.8';
+const BUILD_VERSION='2026.11.14.1';
 const VERSION_SOURCE='https://raw.githubusercontent.com/memem47/Edenomaly/main/web/version.json';
 $('buildVersion').textContent=BUILD_VERSION;
 async function checkLatestVersion(){
@@ -61,6 +62,7 @@ function observeGame(){
    try{localLogStorage?.setItem(META_KEY,JSON.stringify(meta));}catch{}
    rewardRecorded=true;
   }
+  gameUI.showOver();
  }
 }
 let lastReproductionSample=null;
@@ -69,6 +71,13 @@ const eventVisibility={grassMeal:false};
 const canvas=$('world'),ctx=canvas.getContext('2d'),graph=$('chart').getContext('2d'),longGraph=$('ecologyLongChart').getContext('2d');
 let running=false,speed=1,mode='spawn',brush=3,terrainLevel=3,selected=null,selectedSpecies=null,catalogMarkup='',painting=false,last=0,acc=0,uiAt=0,paintAt=0,rafId=null,backgroundTimer=null,logRunOptions='',selectedLogRun=null;
 let view={zoom:1,x:0,y:0},panEnabled=false,panGesture=null;
+const gameUI=mountGameUI({
+ game,session,getMeta:()=>meta,setMeta:next=>{
+  meta=next;try{localLogStorage?.setItem(META_KEY,JSON.stringify(meta));}catch{}
+ },getView:()=>view,setView:(next)=>{view=next;updateZoomUI();},
+ refresh:()=>update(),render:()=>render(),resetGame:()=>reset(),
+ getPlayMode:()=>playMode,width:WORLD.width,height:WORLD.height
+});
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const speciesDialog=$('speciesStatisticsDialog');
 const speciesFrame=$('speciesStatisticsFrame');
@@ -203,8 +212,9 @@ function update(){
  $('playModeStatus').textContent=playMode==='game'?(session.finished?'絶滅・プレイ終了':session.active?'観察・介入中':'最初の生命を移入'):'自由な環境実験';
  $('interventionPoints').textContent=playMode==='game'?session.points.toLocaleString('ja-JP'):'—';
  $('rewardBank').textContent=meta.bank.toLocaleString('ja-JP');
+ gameUI.update();
  $('bestGameScore').textContent=meta.best.toLocaleString('ja-JP');
- $('runReward').textContent=playMode==='game'&&session.finished?'今回 +'+session.reward+'pt':'1000スコアごとに報酬1pt（将来の初期遺伝子強化用）';
+ $('runReward').textContent=playMode==='game'&&session.finished?'今回 +'+session.reward+'pt':'1000スコアごとに恒久報酬1pt。次の試行の機能解放に使用できます。';
  const impact=session.lastImpact;
   const impactText=impact?'直近の介入後100ステップ：周辺食料 '+(impact.deltaFood>=0?'+':'')+impact.deltaFood.toFixed(0)+
    ' / 個体数 '+(impact.deltaPopulation>=0?'+':'')+impact.deltaPopulation+' / 新規誕生 '+impact.births+
@@ -274,7 +284,7 @@ function render(){
 function reset(){
  ecologyLog.end(ecologyLog.activeId===null?null:observeEcology(game));
  speciesLog.end(game);
- game.reset();session.reset();rewardRecorded=false;lastReproductionSample=null;selected=null;selectedSpecies=null;running=false;mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));syncSliders();update();render();}
+ game.reset();session.reset();gameUI.reset();rewardRecorded=false;lastReproductionSample=null;selected=null;selectedSpecies=null;running=false;mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));syncSliders();update();render();}
 function updateTerrainLevelLabel(){
  $('terrainLevelName').textContent=TERRAIN_LEVEL_NAMES[Number(mode)]?.[terrainLevel-1]??'レベル '+terrainLevel;
 }
@@ -283,7 +293,7 @@ function syncSliders(){$('waterweedGrowth').value=game.waterweedGrowth;$('waterw
 // their own budget, so the renderer cannot monopolize the video decoder/GPU.
 function stepSimulation(){
  if(playMode==='game'&&session.finished)return;
- game.step();observeGame();
+ game.step();observeGame();gameUI.step();
  if(game.tick%50===0)recordStep();
 }
 function frame(time){
@@ -341,7 +351,7 @@ function updateZoomUI(){
 }
 function changeZoom(next,sx=canvas.width/2,sy=canvas.height/2){
  view=zoomAround(view,next,sx,sy,WORLD.width,WORLD.height);
- updateZoomUI();render();
+ gameUI.manualCamera();updateZoomUI();render();
 }
 $('zoomIn').onclick=()=>changeZoom(view.zoom*ZOOM_STEP);
 $('zoomOut').onclick=()=>changeZoom(view.zoom/ZOOM_STEP);
@@ -356,7 +366,8 @@ function interact(e){
  const {x,y}=coords(e);
  if(playMode==='game'){
   if(mode==='spawn'){
-   if(!session.active&&!session.finished&&session.start(x,y)){
+   if(!session.active&&!session.finished&&session.start(x,y,gameUI.startOptions())){
+    gameUI.start(x,y);
     if(ecologyLog.activeId===null)ecologyLog.start(game.initialSeed);
      if(speciesLog.activeId===null)speciesLog.start(game.initialSeed);
     lastReproductionSample=observeEcology(game);ecologyLog.record(lastReproductionSample,true);ecologyLog.recordIndividuals(game,true);speciesLog.record(game,true);
@@ -396,7 +407,7 @@ canvas.addEventListener('pointerdown',e=>{
   if(panGesture&&e.pointerId===panGesture.pointerId){
    const p=screenCoords(e);
    view=panBy(view,p.x-panGesture.x,p.y-panGesture.y,WORLD.width,WORLD.height);
-   panGesture.x=p.x;panGesture.y=p.y;render();return;
+   gameUI.manualCamera();panGesture.x=p.x;panGesture.y=p.y;render();return;
   }
   if(playMode==='lab'&&painting&&['0','1','2','3','fertilize'].includes(mode))interact(e);
  });
@@ -463,5 +474,6 @@ $('epidemic').onclick=()=>{if(playMode==='game')return;game.epidemic();update();
 for(const [id,kind] of [['playModeLab','lab'],['playModeGame','game']])$(id).onclick=()=>{
  if(kind===playMode)return;
  playMode=kind;reset();
+ if(kind==='game')gameUI.openStart();
 };
 reset();syncVisibility();
