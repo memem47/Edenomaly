@@ -55,7 +55,8 @@ export class GameSession{
    this.lastImpact={kind:a.kind,step:a.step,
     deltaFood:Math.round(this.localFood(a.x,a.y)-a.food),
     births:[...this.world.species.values()].reduce((sum,sp)=>sum+sp.total,0)-a.births,
-    deltaPopulation:this.world.units.length-a.population};
+    deltaPopulation:this.world.units.length-a.population,
+    deltaInfected:this.world.units.filter(u=>u.infection>0).length-a.infectedBefore};
    this.pendingImpact=null;
   }
   const w=this.world,score=w.runScore;
@@ -102,6 +103,7 @@ export class GameSession{
      y:Math.min(459,Math.max(0,Number.isFinite(y)?y:230))}:{x,y};
   const before=this.localFood(tracked.x,tracked.y);
   const previousPopulation=w.units.length;
+  const previousInfected=w.units.filter(u=>u.infection>0).length;
   const previousBirths=[...w.species.values()].reduce((sum,sp)=>sum+sp.total,0);
   if(kind==='seed'){
    // Seeds support grass, dry-land restoration and underwater weeds.
@@ -161,7 +163,8 @@ export class GameSession{
   const spec=INTERVENTIONS[kind];
   this.points-=spec.cost;this.spent+=spec.cost;
   const record={kind,step:w.tick,x:tracked.x,y:tracked.y,
-   infectedBefore:w.units.filter(u=>u.infection>0).length,
+   infectedBefore:previousInfected,
+   infectedAfter:w.units.filter(u=>u.infection>0).length,
    food:before,foodAfter:this.localFood(tracked.x,tracked.y),
    population:previousPopulation,births:previousBirths,cost:spec.cost};
   this.interventionHistory.push(record);
