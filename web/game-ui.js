@@ -1,7 +1,7 @@
 // Visual game flow: no simulation mutation except purchasing persistent upgrades
 // and camera movement through the public callbacks.
-import {GAME_UPGRADES,buyGameUpgrade,hasUpgrade} from './game-mode.js';
-import {ObservationTracker,cameraSummary,centerOn,gameOverSummary} from './game-experience.js';
+import {GAME_UPGRADES,buyGameUpgrade,hasUpgrade} from './game-mode.js?v=2026.11.14.2';
+import {ObservationTracker,cameraSummary,centerOn,gameOverSummary} from './game-experience.js?v=2026.11.14.2';
 const $=id=>document.getElementById(id);
 export function mountGameUI({game,session,getMeta,setMeta,getView,setView,
  refresh,render,resetGame,getPlayMode,width=800,height=460}){
