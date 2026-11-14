@@ -2,7 +2,8 @@
 export const INTERVENTIONS=Object.freeze({
  seed:{cost:5,label:'草・水草の種をまく'},
  rain:{cost:8,label:'雨を降らせる'},
- fertilize:{cost:10,label:'土壌を肥やす'}
+ fertilize:{cost:10,label:'土壌を肥やす'},
+ clinic:{cost:9,label:'防疫・隔離支援'}
 });
 const integer=n=>Number.isFinite(Number(n))?Math.max(0,Math.floor(Number(n))):0;
 // Persistent unlocks are one-time purchases using the existing earned bank.
@@ -88,6 +89,7 @@ export class GameSession{
   const w=this.world;
   if(kind==='rain')return true;
   if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||y<0||x>=800||y>=460)return false;
+  if(kind==='clinic')return w.units.some(u=>!u.dead&&u.infection>0&&(u.x-x)**2+(u.y-y)**2<=65**2);
   if(kind==='seed')return [0,1,2,3].includes(w.tiles[w.cell(x,y)]);
   if(kind==='fertilize')return w.tiles[w.cell(x,y)]!==3;
   return false;
@@ -144,10 +146,22 @@ export class GameSession{
    }
   }else if(kind==='fertilize'){
    if(!w.fertilize(x,y,2))return false;
+  }else if(kind==='clinic'){
+   // A bounded area intervention. It is not permanent immunity, HP healing,
+   // or a species-wide cure; untreated colonies remain vulnerable.
+   let treated=0;
+   for(const u of w.units){
+    if(u.dead||(u.x-x)**2+(u.y-y)**2>65**2)continue;
+    if(u.infection>0){u.infection=Math.max(0,u.infection-45);treated++;}
+    u.infectionProtectionUntil=Math.max(u.infectionProtectionUntil??0,w.tick+110);
+   }
+   if(!treated)return false;
+   w.log('info','防疫：'+treated+'体を処置、周囲の接触感染を一時的に抑制');
   }
   const spec=INTERVENTIONS[kind];
   this.points-=spec.cost;this.spent+=spec.cost;
   const record={kind,step:w.tick,x:tracked.x,y:tracked.y,
+   infectedBefore:w.units.filter(u=>u.infection>0).length,
    food:before,foodAfter:this.localFood(tracked.x,tracked.y),
    population:previousPopulation,births:previousBirths,cost:spec.cost};
   this.interventionHistory.push(record);
