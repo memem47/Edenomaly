@@ -1,6 +1,6 @@
 import {zipFiles} from './zip-log.js?v=2026.11.07.4';
-import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.14.2';
-import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.14.2';
+import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.15.1';
+import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.15.1';
 import {mountGameUI} from './game-ui.js?v=2026.11.14.2';
 import {fitView,screenToWorld,zoomAround,panBy,MAX_ZOOM,ZOOM_STEP} from './viewport.js?v=2026.11.08.12';
 import {drawWorld,drawChart} from './renderer.js?v=2026.11.14.2';
@@ -11,7 +11,7 @@ import {performancePolicy,simulationBatch,BROWSER_BACKGROUND_INTERVAL} from './p
 const $=id=>document.getElementById(id);
 // Release label is bundled with the running source; comparison uses a
 // separately published manifest from the repository's main branch.
-const BUILD_VERSION='2026.11.14.2';
+const BUILD_VERSION='2026.11.15.1';
 const VERSION_SOURCE='https://raw.githubusercontent.com/memem47/Edenomaly/main/web/version.json';
 $('buildVersion').textContent=BUILD_VERSION;
 async function checkLatestVersion(){
@@ -243,13 +243,15 @@ function update(){
    '（相関であり介入による効果とは限りません）':
    session.pendingImpact?'介入後100ステップの結果を計測中':'';
   $('interventionHelp').textContent=playMode==='game'?
-   '感染は同系統の密集で拡大します。🩺 防疫（9pt）で感染した群れをクリックすると、周辺を処置して110ステップ感染を予防します。'+impactText:
+   '感染は定着後に稀に発生し、接触で拡大。🪺 保護区（7pt）は卵を守り、💧 給水拠点（6pt）は脱水を防ぎ、🩺 防疫（9pt）は感染者を処置。'+impactText:
    'テストモードでは従来どおり自由に操作できます。';
  for(const button of document.querySelectorAll('[data-mode]')){
   const kind=button.dataset.mode;
-  button.disabled=playMode==='game'&&(session.finished||!['spawn','inspect','food','fertilize','clinic'].includes(kind)||(kind==='spawn'&&session.active)||(kind==='food'&&(!session.active||session.points<5))||(kind==='fertilize'&&(!session.active||session.points<10))||(kind==='clinic'&&(!session.active||session.points<9)));
+  button.disabled=playMode==='game'&&(session.finished||!['spawn','inspect','food','fertilize','clinic','nursery','oasis'].includes(kind)||(kind==='spawn'&&session.active)||(kind==='food'&&(!session.active||session.points<5))||(kind==='fertilize'&&(!session.active||session.points<10))||(kind==='clinic'&&(!session.active||session.points<9))||(kind==='nursery'&&(!session.active||session.points<7))||(kind==='oasis'&&(!session.active||session.points<6)));
   if(kind==='food')button.textContent=playMode==='game'?'🌱 草・水草の種（5pt）':'草を補充';
   if(kind==='fertilize')button.textContent=playMode==='game'?'🌿 土壌改良（10pt）':'🌱 土壌改良';
+  if(kind==='nursery')button.textContent=playMode==='game'?'🪺 繁殖保護区（7pt）':'🪺 繁殖保護区（ゲーム専用）';
+  if(kind==='oasis')button.textContent=playMode==='game'?'💧 給水拠点（6pt）':'💧 給水拠点（ゲーム専用）';
   if(kind==='clinic')button.textContent=playMode==='game'?'🩺 防疫・治療（9pt）':'🩺 防疫（ゲーム専用）';
  }
  $('rain').textContent=playMode==='game'?'🌧 降雨（8pt）':'降雨';
@@ -403,10 +405,12 @@ function interact(e){
   }else if(mode==='food')session.intervene('seed',x,y);
   else if(mode==='fertilize')session.intervene('fertilize',x,y);
   else if(mode==='clinic')session.intervene('clinic',x,y);
+   else if(mode==='nursery')session.intervene('nursery',x,y);
+   else if(mode==='oasis')session.intervene('oasis',x,y);
   else if(mode==='inspect'){selected=null;let best=500;for(const u of game.units){const d=(u.x-x)**2+(u.y-y)**2;if(d<best){best=d;selected=u;}}}
  }else{
   if(['0','1','2','3'].includes(mode))game.paint(x,y,Number(mode),brush,terrainLevel);
-  else if(mode==='clinic')game.log('info','防疫はゲームモード専用');
+  else if(['clinic','nursery','oasis'].includes(mode))game.log('info','この介入はゲームモード専用');
   else if(mode==='food'){game.paint(x,y,0,brush);game.log('info','プレイヤーが草を補充');}
   else if(mode==='fertilize')game.fertilize(x,y,brush);
   else if(mode==='spawn'){
