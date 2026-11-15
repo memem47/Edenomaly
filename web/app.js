@@ -1,6 +1,6 @@
 import {zipFiles} from './zip-log.js?v=2026.11.07.4';
-import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.15.2';
-import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.15.2';
+import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.15.3';
+import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.15.3';
 import {mountGameUI} from './game-ui.js?v=2026.11.14.2';
 import {fitView,screenToWorld,zoomAround,panBy,MAX_ZOOM,ZOOM_STEP} from './viewport.js?v=2026.11.08.12';
 import {drawWorld,drawChart} from './renderer.js?v=2026.11.14.2';
@@ -11,7 +11,7 @@ import {performancePolicy,simulationBatch,BROWSER_BACKGROUND_INTERVAL} from './p
 const $=id=>document.getElementById(id);
 // Release label is bundled with the running source; comparison uses a
 // separately published manifest from the repository's main branch.
-const BUILD_VERSION='2026.11.15.2';
+const BUILD_VERSION='2026.11.15.3';
 const VERSION_SOURCE='https://raw.githubusercontent.com/memem47/Edenomaly/main/web/version.json';
 $('buildVersion').textContent=BUILD_VERSION;
 async function checkLatestVersion(){
@@ -276,7 +276,7 @@ function update(){
  $('catalogCount').textContent=($('showExtinct').checked?'表示':'現存')+' '+catalogRows.length+'種';
  const nextCatalog=catalogRows.map(([key,sp])=>`<button type="button" class="species species-entry${selectedSpecies===key?' selected':''}" data-category="${escapeHTML(key)}" aria-expanded="${selectedSpecies===key}"><span class="dot" style="background:${speciesColor(sp)}"></span><div class="species-info"><b>${escapeHTML(sp.name)}</b><small>#${sp.n} · Step ${sp.first} · ${sp.current?'現存':'絶滅'} · ${(sp.establishedByGeneration&&sp.establishedByPopulation)?'🏆 定着':sp.establishedByGeneration?'🌱 3世代':sp.establishedByPopulation?'🐣 12体到達':'観察中'} · 最大${sp.peakCurrent??sp.current}体 / ${Math.max(1,(sp.maxGeneration??0)-(sp.firstGeneration??0)+1)}世代</small>${speciesAbilityText(speciesRepresentative(key,sp,liveBySpecies))}</div><span>${sp.current}</span><span>${sp.total}</span></button>${selectedSpecies===key?`<div class="genome-panel species-expanded">${speciesGenomeHTML(key)}</div>`:''}`).join('');
  if(nextCatalog!==catalogMarkup){$('catalog').innerHTML=nextCatalog;catalogMarkup=nextCatalog;}
- const eventColors={rest:'#b9dbf4',wake:'#ead49b',birth:'#91f7ac',death:'#ff8290',meal:'#f9d36b',pred:'#be82ec',new:'#ffe486',decay:'#e2b96e',egg:'#eddfbd',hatch:'#a0e8bd',eggeaten:'#f5949c',mature:'#a0d9ff',attack:'#ffb7a1',defend:'#75f0e7',ill:'#ed8bab',migration:'#b4e0ff',settle:'#88debc',mate:'#f5a5ed',court:'#ff91e8',courtFail:'#ff879b',courtReject:'#f6b5a1',laid:'#ffe3a1'};
+ const eventColors={rest:'#b9dbf4',wake:'#ead49b',split:'#98e8f4',birth:'#91f7ac',death:'#ff8290',meal:'#f9d36b',pred:'#be82ec',new:'#ffe486',decay:'#e2b96e',egg:'#eddfbd',hatch:'#a0e8bd',eggeaten:'#f5949c',mature:'#a0d9ff',attack:'#ffb7a1',defend:'#75f0e7',ill:'#ed8bab',migration:'#b4e0ff',settle:'#88debc',mate:'#f5a5ed',court:'#ff91e8',courtFail:'#ff879b',courtReject:'#f6b5a1',laid:'#ffe3a1'};
  $('events').innerHTML=game.logs.filter(e=>{
   if(!eventVisibility.grassMeal&&e.type==='meal'&&e.message.includes('草を食べた')&&!e.message.includes('水草を食べた'))return false;
   return eventVisibility[e.type]!==false;
