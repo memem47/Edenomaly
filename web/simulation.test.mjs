@@ -264,14 +264,14 @@ test('repeated bites eventually cause predation and feeding effect',()=>{
  assert.ok(prey.dead);
  assert.ok(world.effects.some(x=>x.type==='consume'));
 });
-test('injury and old age reduce vigor',()=>{
+test('injury reduces vigor, but old age alone cannot reduce vigor',()=>{
  const world=populated(304),u=world.units[0];
  const young=vitality(u).vigor;
  u.hp=u.maxHp*.4;
  const injured=vitality(u).vigor;
  u.age=1350;
  const old=vitality(u).vigor;
- assert.ok(young>injured&&injured>old);
+ assert.ok(young>injured);assert.equal(injured,old);
 });
 
 test('corpses retain their complete hereditary anatomy and death orientation',()=>{
@@ -1348,8 +1348,8 @@ test('without eggs the same herbivore does not attack harmlessly',()=>{
  const before=predator.hp;
  w.step();
  assert.equal(parent.defendFlash,0);
- // Ordinary time passing still spends life HP, but no defense strike occurred.
- assert.ok(predator.hp<before);
+ // With no attack and adequate resources, HP does not decay with time.
+ assert.ok(predator.hp>=before);
  assert.ok(!w.logs.some(l=>l.type==='defend'));
 });
 
@@ -1657,25 +1657,20 @@ test('body keeps natural pigment until half life, then fades into corpse color',
  assert.equal(livingBodyColor(g,lifeFade(u)),'#9e9788');
  assert.equal(livingBodyColor(g,lifeFade(u),true),'#655f56');
 });
-test('age and attack consume permanent HP, food cannot restore it',()=>{
+test('nutrients repair injuries without passive age damage',()=>{
  const w=new Ecosystem(7162);
  w.tiles.fill(0);w.grass.fill(100);w.water.fill(100);
  const g={...w.gene(),diet:0,aquatic:0,idealTemp:24,tempTolerance:14};
- const u=w.spawn(240,180,g);u.energy=100;u.age=100;u.mateCooldown=10000;
+ const u=w.spawn(240,180,g);u.energy=160;u.age=1900;u.mateCooldown=10000;
  w.temperatureAt=()=>24;
- const hp=u.hp;
- for(let i=0;i<20;i++)w.step();
- assert.ok(u.hp<hp);
- const after=u.hp;
- w.grass.fill(100);
- for(let i=0;i<20;i++)w.step();
- assert.ok(u.hp<after);
- const hunter=w.spawn(u.x+2,u.y+2,{...g,diet:1,jaw:2.5});
- hunter.age=100;hunter.hp=hunter.maxHp=10000;
- u.hp=u.maxHp;
- const before=u.hp;
- assert.ok(w.attack(hunter,u));
- assert.ok(u.hp<before);
+ const max=u.maxHp;
+ for(let i=0;i<20;i++){u.energy=160;w.step();}
+ assert.ok(u.hp>=max,'healthy habitat has no senescence damage');
+ w.applyHpLoss(u,'combat',u.maxHp*.45);
+ const injured=u.hp;
+ w.tick++;w.updateVitalHealth(u);
+ assert.ok(u.hp>injured,'food and water repair injury');
+ assert.ok(u.hp<=u.maxHp);
 });
 test('soil intervention increases local fertility and can revive depleted dry land',()=>{
  const w=new Ecosystem(8661);
@@ -1860,48 +1855,36 @@ test('longevity is heritable, mutable, and not an arbitrary species boundary',()
   assert.ok(m.longevity>=.6&&m.longevity<=2);
  }
 });
-test('nutrition, temperature, terrain and genes determine irreversible lifespan drain',()=>{
- const w=new Ecosystem(8241),g={...w.gene(),idealTemp:22,tempTolerance:9,
-  dry:0,rock:0,longevity:1};
- const u={g,hp:80,maxHp:80,age:120,energy:140};
- const env={temperature:22,terrain:0};
- const ideal=lifeDrain(u,env);
- assert.ok(ideal>0);
- assert.ok(lifeDrain({...u,energy:75},env)>ideal);
- assert.ok(lifeDrain({...u,energy:0},env)>ideal*5);
- assert.ok(lifeDrain(u,{temperature:38,terrain:0})>ideal*1.5);
- assert.ok(lifeDrain(u,{temperature:22,terrain:2})>ideal);
- assert.ok(lifeDrain({...u,g:{...g,longevity:1.9}},env)<ideal*.65);
- assert.ok(lifeDrain({...u,g:{...g,longevity:.7}},env)>ideal);
- assert.ok(longevityUpkeep({...g,longevity:1.9})>longevityUpkeep({...g,longevity:.7}));
+test('only inadequate energy causes starvation HP loss',()=>{
+ const w=new Ecosystem(8241),g=w.gene();
+ const healthy={g,hp:80,maxHp:80,age:12000,energy:140};
+ const starved={...healthy,energy:0};
+ assert.equal(lifeDrain(healthy),0);
+ assert.ok(lifeDrain(starved)>0);
+ assert.equal(lifeDrain({...healthy,age:1}),lifeDrain(healthy));
+ assert.equal(lifeDrain({...healthy,g:{...g,longevity:.6}}),0);
+ assert.equal(longevityUpkeep({...g,longevity:2}),0);
 });
-test('life runs down slowly in a healthy habitat, faster when starved',()=>{
+test('healthy habitat does not drain HP while starvation does',()=>{
  const w=new Ecosystem(8242);
- w.tiles.fill(0);w.grass.fill(100);w.water.fill(100);
- const g={...w.gene(),longevity:1.85,idealTemp:22,tempTolerance:15,diet:0,aquatic:0};
- const u=w.spawn(220,180,g);
- u.energy=180;u.age=100;u.mateCooldown=10000;
- w.temperatureAt=()=>22;
- const before=u.hp;
- w.step();
- const wellFedLoss=before-u.hp;
- assert.ok(wellFedLoss>0&&wellFedLoss<u.maxHp/1000);
- // Compare the pure aging term at equal age to exclude feeding and combat.
- const healthy=lifeDrain({...u,energy:180},{temperature:22,terrain:0});
- const starved=lifeDrain({...u,energy:0},{temperature:22,terrain:0});
- assert.ok(starved>healthy*5);
+ w.tiles.fill(0);w.grass.fill(100);
+ const u=w.spawn(220,180,{...w.gene(),idealTemp:22,tempTolerance:15,diet:0,aquatic:0});
+ u.energy=180;u.age=10000;u.mateCooldown=10000;w.temperatureAt=()=>22;
+ const before=u.hp;w.step();
+ assert.ok(u.hp>=before);
+ const healthy=lifeDrain({...u,energy:180});
+ const starved=lifeDrain({...u,energy:0});
+ assert.equal(healthy,0);assert.ok(starved>0);
 });
-
-test('longevity postpones physiological senescence and has no hard death age',()=>{
+test('old age and historical longevity genes do not lower physiological vigor',()=>{
  const w=new Ecosystem(8243),g=w.gene();
  const short={g:{...g,longevity:.7},age:1000,maxHp:100,hp:100};
  const long={g:{...g,longevity:1.9},age:1000,maxHp:100,hp:100};
- assert.ok(vitality(long).vigor>vitality(short).vigor);
- assert.ok(vitality(long).old<vitality(short).old);
- const oldLong={...long,age:3300};
- assert.ok(lifeDrain(oldLong,{temperature:long.g.idealTemp,terrain:0})>0);
+ assert.equal(vitality(long).vigor,vitality(short).vigor);
+ assert.equal(vitality(long).old,0);
+ assert.equal(vitality({...long,age:3300}).old,0);
+ assert.equal(lifeDrain({...long,energy:150}),0);
 });
-
 test('routine ecological events leave logs without flooding the world with ripples',()=>{
  const w=new Ecosystem(8701);w.effects=[];w.logs=[];
  const at={x:220,y:180};
@@ -2418,7 +2401,7 @@ test('nearby plant target is the accessible edge rather than tile centre',()=>{
  assert.ok(wet);
  assert.ok(Math.hypot(wet.x-219,wet.y-151)<13);
 });
-test('climate-adapted dormancy reduces bad-season expenditure but never restores health',()=>{
+test('climate-adapted dormancy saves energy and does not drain HP by age',()=>{
  const gene={idealTemp:23,tempTolerance:5,hibernate:1,diet:0,aquatic:0};
  const w=new Ecosystem(9983),g={...w.gene(),...gene};
  w.tiles.fill(0);w.grass.fill(90);w.water.fill(95);
@@ -2430,7 +2413,7 @@ test('climate-adapted dormancy reduces bad-season expenditure but never restores
  assert.equal(u.dormant,true);
  assert.equal(u.x,initial.x);assert.equal(u.y,initial.y);
  assert.ok(u.energy<initial.energy);
- assert.ok(u.hp<initial.hp);
+ assert.equal(u.hp,initial.hp);
  assert.ok(w.logs.some(e=>e.type==='rest'));
  w.tick=2490;w.updateTemperature();w.step();
  assert.equal(u.dormant,false);

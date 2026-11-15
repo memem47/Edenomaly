@@ -422,7 +422,7 @@ export const juvenileGrowthIncrement=(u,food,habitatLoad=0,crowdStress=0)=>{
 };
 export const bodyCollisionAxes=u=>{
  if(stepCache){const c=stepCache.axes.get(u);if(c&&c.stage===u.stage&&c.age===u.age&&c.scale===(u.growthScale??1)&&c.juvenileGrowth===(u.juvenileGrowth??0))return c.value;}
- const scale=lifeStageScale(u)*(u.growthScale??1)*(1-clamp(((u.age??0)-420)/900,0,1)*.12);
+ const scale=lifeStageScale(u)*(u.growthScale??1);
  const ry=Math.max(.85,u.g.r*bodySizeMultiplier(u.g)*scale*1.06);
  const value={rx:ry*Math.max(1,Math.min(3,u.g.elongation??1)),ry};
  if(stepCache)stepCache.axes.set(u,{stage:u.stage,age:u.age,scale:u.growthScale??1,juvenileGrowth:u.juvenileGrowth??0,value});
@@ -454,32 +454,18 @@ export class SpatialLookup{
   return found;
  }
 }
-// Health and senescence directly affect movement, fighting and mating.
-// Lifespan evolves independently of body size and maximum HP.
-// Food, appropriate habitat and temperature slow aging, without healing HP.
-export const lifeDrain=(u,{temperature=22,terrain=0}={})=>{
- const g=u.g,longevity=clamp(g.longevity??1,.6,2);
- const energy=u.energy??100,max=Math.max(1,u.maxHp??50);
- const foodFactor=energy>=110?.55:energy>=65?.55+(110-energy)*.45/45:
-   energy>=25?1+(65-energy)*1.35/40:energy>0?2.35+(25-energy)*1.65/25:4;
- const climate=thermalFitness(g,temperature);
- const climateFactor=1+(1-climate.comfort)*.42+climate.excess*.09;
- const habitat=terrainFitness(g,terrain);
- const terrainFactor=1+Math.max(0,1-habitat.fitness)*1.5;
- const ageFactor=1+Math.max(0,(u.age??0)-550)/(1250*longevity);
- return max/1300/longevity*ageFactor*foodFactor*climateFactor*terrainFactor;
+// Age tracks development, never a countdown to death.
+// HP depletion is driven by injury, disease, starvation or dehydration.
+export const lifeDrain=u=>{
+ const energy=Math.max(0,u.energy??100);
+ return energy>=50?0:.035+(50-energy)*.013;
 };
-export const longevityUpkeep=g=>{
- const x=Math.max(0,(g.longevity??1)-.9);
- return .34*x*x;
-};
+// Retain the historical genome field for compatibility without aging upkeep.
+export const longevityUpkeep=()=>0;
 export const vitality=u=>{
  const max=u.maxHp??Math.max(25,Math.round(organismMorphology(u).bodyMass*.48+25));
- const health=clamp((u.hp??max)/max,0,1);
- const longevity=clamp(u.g?.longevity??1,.6,2);
- const old=clamp((u.age-420*longevity)/(900*longevity),0,1);
- const vigor=clamp((.40+.60*health)*(1-.60*old),.12,1);
- return {max,health,old,vigor};
+ const health=clamp((u.hp??max)/Math.max(1,max),0,1);
+ return {max,health,old:0,vigor:clamp(.40+.60*health,.12,1)};
 };
 export const rearPosition=(u,offset=0)=>({
  x:clamp(u.x-Math.cos(u.angle)*(u.g.r*u.g.elongation+5+offset),6,W-6),
@@ -823,11 +809,33 @@ export class Ecosystem{
   this.addVisualEffect('birth',u);
   return child;
  }
+ vitalDeathCause(u){
+  if(u.lastHpLossSource==='combat')return '捕食・攻撃';
+  if(u.lastHpLossSource==='infection'||u.infection>0)return '感染症';
+  if(u.lastHpLossSource==='dehydration'||u.hydration<=12)return '脱水・水分不足';
+  return '飢餓・栄養不足';
+ }
+ updateVitalHealth(u){
+  u.energy=Math.max(0,u.energy);
+  u.hydration=Math.max(0,u.hydration);
+  this.applyHpLoss(u,'starvation',lifeDrain(u));
+  if(u.hydration<30)this.applyHpLoss(u,'dehydration',.03+(30-u.hydration)*.028);
+  if((u.lastHpDamageTick??-1)!==this.tick&&u.energy>=90&&
+     u.hydration>=45&&u.infection<=0&&u.hp>0&&u.hp<u.maxHp){
+   const recovery=Math.min(u.maxHp-u.hp,.09+Math.min(.25,(u.energy-90)*.003),
+    Math.max(0,(u.energy-75)/2));
+   u.hp+=recovery;
+   u.energy-=recovery*2;
+   u.hpRecovered=(u.hpRecovered??0)+recovery;
+  }
+ }
  applyHpLoss(u,source,amount){
   if(!(amount>0))return;
   u.hpLoss??={};
   u.hpLoss[source]=(u.hpLoss[source]??0)+amount;
   u.hp-=amount;
+  u.lastHpDamageTick=this.tick;
+  u.lastHpLossSource=source;
  }
  die(u,cause,consumed=0){
   if(u.dead)return;
@@ -841,7 +849,7 @@ export class Ecosystem{
    cause,energy:+u.energy.toFixed(2),hydration:+u.hydration.toFixed(2),
    hp:+u.hp.toFixed(2),maxHp:u.maxHp,terrain:TERRAIN_NAMES[this.terrain(u.x,u.y)],
    foodSuccess:u.forageSuccess,foodFailure:u.forageFailure,
-   dominantHpLoss:dominant?.[0]??'不明',...Object.fromEntries(Object.entries(losses).map(([k,v])=>['hpLoss_'+k,+v.toFixed(2)]))};
+   totalHpRecovered:+(u.hpRecovered??0).toFixed(2),dominantHpLoss:dominant?.[0]??'不明',...Object.fromEntries(Object.entries(losses).map(([k,v])=>['hpLoss_'+k,+v.toFixed(2)]))};
   this.deathRecords.push(detail);
   if(this.deathRecords.length>10000)this.deathRecords.shift();
   const mass=Math.max(8,organismMorphology(u).bodyMass*1.2+Math.max(0,u.energy)*.4-consumed);
@@ -1672,19 +1680,17 @@ export class Ecosystem{
     if(!u.dormant){u.dormant=true;this.log('rest','#'+u.id+' が休眠に入った',u);}
     // Dormancy is costly and does not restore HP: weak/slim individuals
     // still perish, while well-fed seasonal specialists can overwinter.
-    this.applyHpLoss(u,'natural',lifeDrain(u,{temperature:u.temperature,terrain:t})*.34);
-    this.applyHpLoss(u,'temperature',thermal.damage*.07);
+    // Dormancy conserves food, without any intrinsic aging damage.
     u.energy-=.04+organismMorphology(u).bodyMass*.0009;
     u.hydration=Math.max(0,u.hydration-.028);
-    if(u.hydration<=0||u.energy<=0||u.hp<=0){
-     this.die(u,u.hydration<=0?'脱水':u.energy<=0?'飢餓':'気温による衰弱');
-    }
+    this.updateVitalHealth(u);
+    if(u.hp<=0)this.die(u,this.vitalDeathCause(u));
     continue;
    }
    if(u.dormant){u.dormant=false;this.log('wake','#'+u.id+' が休眠から目覚めた',u);}
    // Maintaining dormancy-capable physiology carries a year-round cost.
-   this.applyHpLoss(u,'natural',lifeDrain(u,{temperature:u.temperature,terrain:t}));
-   this.applyHpLoss(u,'temperature',thermal.damage);u.energy-=thermal.upkeep+(g.hibernate??0)*.075;
+   // Weather changes energy needs and behavior, not a hidden death clock.
+   u.energy-=thermal.upkeep+(g.hibernate??0)*.075;
    u.carnivoryExperience=Math.max(0,(u.carnivoryExperience??0)-.00011);
    u.energy-=carnivoryExperience(u)*.045;
    const near=unitGrid.query(u.x,u.y,Math.max(145,sight*1.6),false);
@@ -1707,10 +1713,11 @@ export class Ecosystem{
       Math.min(100,u.hydration+terrestrialHydrationDelta(g,t,this.weather,this.terrainLevels?.[this.cell(u.x,u.y)]??3,this.grass[this.cell(u.x,u.y)],this.soilWater[this.cell(u.x,u.y)]));
     if(drinking){const consumed=this.drinkNearby(u.x,u.y,.12);if(consumed>0&&(this.tick+u.id)%24===0)this.addVisualEffect('drink',u);}
    }
-   if((aquatic&&u.stranded>95+330*(u.landAcclimation??0))||(!aquatic&&u.submerged>24)||u.hydration<=0){
-    this.die(u,aquatic?'離水':u.submerged>24?'溺水':'脱水');continue;
-   }
-   if(u.hydration<18)this.applyHpLoss(u,'starvation',.06);
+   // Lack of usable water leads to HP loss, not instant death.
+   if(aquatic&&u.stranded>95+330*(u.landAcclimation??0))
+    this.applyHpLoss(u,'dehydration',.8+Math.min(1.5,(u.stranded-95)*.006));
+   if(!aquatic&&u.submerged>24)this.applyHpLoss(u,'dehydration',1.3);
+   if(u.hp<=0){this.die(u,this.vitalDeathCause(u));continue;}
    let nearest=null,df=sight*sight;
    const onLand=aquatic&&!underwater;
    const waterFood=aquatic?this.nearestWaterweed(u.x,u.y,Math.min(95,Math.max(65,sight*1.7))):null;
@@ -2011,11 +2018,12 @@ export class Ecosystem{
     this.log('mateFail','#'+u.id+' が相手 #'+mate.id+' に近づけず探索をやり直す',u);
     u.mateTarget=null;
    }
-   this.applyHpLoss(u,'terrain',home.hazard);
+   // Terrain hazards change energy economy instead of directly draining HP.
+   u.energy-=home.hazard*.7;
    // Terrain-fit offspring retain energy and can reproduce more successfully.
    const adaptationCost=clamp(1.65-home.fitness*.75,.70,1.5)*(1.08-.08*thermal.comfort);
    u.energy-=reproductiveUpkeep(g)*youth;
-    u.energy-=((u.courtPartner?.75:1)*m.upkeep+longevityUpkeep(g))*youth*adaptationCost*(1+body.old*.18)*frugalityMaintenanceFactor(g)+acquiredSizeMaintenance(u)*youth*adaptationCost+(flight?.10:0)+(ownEgg?g.guard*.16:0)+this.stress*.0035+home.upkeep+(g.wet+g.dry+g.rock)*.055;
+    u.energy-=((u.courtPartner?.75:1)*m.upkeep+longevityUpkeep(g))*youth*adaptationCost*frugalityMaintenanceFactor(g)+acquiredSizeMaintenance(u)*youth*adaptationCost+(flight?.10:0)+(ownEgg?g.guard*.16:0)+this.stress*.0035+home.upkeep+(g.wet+g.dry+g.rock)*.055;
    // Efficient physiology is a low-energy, slow-growing niche, not a
    // universal upgrade: sacrificing defense and reproduction speed.
    if(metabolicFrugality(g)>.5)u.energy-=.035*metabolicFrugality(g);
@@ -2114,11 +2122,7 @@ export class Ecosystem{
     u.juvenileGrowth=Math.min(1,(u.juvenileGrowth??0)+increment);
     // Tissue growth uses nutrients that cannot also pay for maintenance.
     u.energy-=increment*38;
-    if(u.energy<38){
-     // Unfed hatchlings remain small and eventually die rather than
-     // growing automatically to adult size.
-     this.applyHpLoss(u,'juvenile',(38-u.energy)*.012*(1+Math.min(2,(u.habitatLoad??0)*.28)));
-    }
+    // Poorly fed hatchlings stop growing; common starvation damage applies.
     if(u.juvenileGrowth>=.999&&u.age>=65&&u.energy>=38){
      u.juvenileGrowth=1;u.stage='adult';
      this.log('mature','#'+u.id+' が成体になった',u);
@@ -2156,12 +2160,13 @@ export class Ecosystem{
     const shrink=.002+.008*hunger+Math.min(.007,maintenance*.00018);
     u.growthScale=Math.max(1,u.growthScale-shrink);
    }
+   // Reconcile hit points with actual body mass, including shrinkage.
+   u.maxHp=Math.max(25,Math.round(organismMorphology(u).bodyMass*.48+25));
+   u.hp=Math.min(u.hp,u.maxHp);
    // Limit stored reserves so immobile giants cannot live on old stockpiles.
    if((u.growthScale??1)>1.05)u.energy=Math.min(u.energy,energyStorageLimit(u));
-   // Zero food no longer kills instantaneously: the accelerated life drain
-   // gives a short but real chance to feed before starvation completes.
-   if(u.energy<0)u.energy=0;
-   if(u.hp<=0)this.die(u,u.energy===0?'飢餓':thermal.excess>0?'気温による衰弱':u.infection>0?'感染症':'寿命・衰弱');
+   this.updateVitalHealth(u);
+   if(u.hp<=0)this.die(u,this.vitalDeathCause(u));
   }
   this.supportZones=this.supportZones.filter(z=>z.until>this.tick);
   this.resolveUnitOverlap();
