@@ -774,7 +774,7 @@ export class Ecosystem{
   if(this.units.length>=2000)return null;
   const mode=reproductiveMode(g);
    const sex=mode===1?'H':mode===2?'F':(this.rand()<.5?'F':'M');
-   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null,socialTarget:null,mateTarget:null,rejectedBy:null,mateApproachFailures:0,behaviorTarget:'idle',waterSeedBank:0,lastWaterPlant:-100,landAcclimation:0,carnivoryExperience:0,landExcursion:false,shoreTarget:null,threatDecisions:new Map(),attackResponse:null,retaliationCooldown:0};
+   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null,socialTarget:null,mateTarget:null,rejectedBy:null,mateApproachFailures:0,behaviorTarget:'idle',waterSeedBank:0,lastWaterPlant:-100,landAcclimation:0,carnivoryExperience:0,landExcursion:false,shoreTarget:null,threatDecisions:new Map(),attackResponse:null,retaliationCooldown:0,isolatedSteps:0,lastEmergencySplit:-100000};
   u.category=this.category(g);u.lineage??=u.id;this.units.push(u);
   if(!this.species.has(u.category)){
    const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(u.category,g),current:0,total:0,diet:dietProfile(g).label,first:this.tick,genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(u.category,g),u);
@@ -788,6 +788,40 @@ export class Ecosystem{
   appendSpeciesBirth(this.speciesSamples,u.category,g,birthDerived(g,morphology(g)));
   this.log('birth','#'+u.id+' '+(u.stage==='juvenile'?'孵化':'移入')+'（'+s.name+' / 第'+u.generation+'世代）',u);
   return u;
+ }
+ // Rescue demands abundant food and an isolated surviving lineage.
+ canEmergencySplit(u){
+  if(!u||u.dead||u.stage!=='adult'||u.dormant||u.pregnancy||u.courtPartner||
+     (u.infection??0)>0||u.energy<145||u.hydration<70||
+     u.hp<u.maxHp*.65||u.age<110||(u.isolatedSteps??0)<180||
+     this.tick-(u.lastEmergencySplit??-100000)<480||
+     thermalFitness(u.g,this.temperatureAt(u.x,u.y)).excess>1||
+     this.units.length>=2000)return false;
+  if(this.units.some(v=>v!==u&&!v.dead&&v.lineage===u.lineage))return false;
+  if(this.eggs.some(e=>!e.dead&&e.lineage===u.lineage))return false;
+  return true;
+ }
+ emergencySplit(u){
+  if(!this.canEmergencySplit(u))return null;
+  const genome=this.rand()<.035?this.mutate(u.g):u.g;
+  const child=this.spawn(clamp(u.x+this.range(-10,10),10,W-10),
+   clamp(u.y+this.range(-10,10),10,H-10),genome,u);
+  if(!child)return null;
+  if(reproductiveMode(genome)===0)child.sex=u.sex==='F'?'M':'F';
+  child.energy=42;
+  child.hydration=Math.max(50,u.hydration-10);
+  child.hp=child.maxHp*.90;
+  u.energy-=105;
+  u.hydration=Math.max(0,u.hydration-12);
+  u.hp*=.86;
+  u.age=Math.floor(u.age*.62);
+  u.mateCooldown=Math.max(u.mateCooldown,110);
+  u.lastEmergencySplit=this.tick;
+  u.isolatedSteps=0;
+  child.lastEmergencySplit=this.tick;
+  this.log('split','#'+u.id+' が孤立状態から分裂して #'+child.id+' が誕生（親は若返った）',u);
+  this.addVisualEffect('birth',u);
+  return child;
  }
  die(u,cause,consumed=0){
   if(u.dead)return;
@@ -1595,6 +1629,7 @@ export class Ecosystem{
   for(const egg of this.eggs)if(!egg.dead&&!firstEggByParent.has(egg.parent))firstEggByParent.set(egg.parent,egg);
   for(const u of batch){
    if(u.dead)continue;u.age++;u.juvenileFood=0;
+   u.isolatedSteps=this.units.some(v=>v!==u&&!v.dead&&v.lineage===u.lineage)?0:(u.isolatedSteps??0)+1;
    if(this.supportZones.some(z=>z.kind==='oasis'&&z.until>this.tick&&(z.x-u.x)**2+(z.y-u.y)**2<=65**2))u.hydration=Math.min(100,u.hydration+.36);if(u.bite>0)u.bite--;if(u.woundFlash>0)u.woundFlash--;if(u.attackFlash>0)u.attackFlash--;if(u.defendFlash>0)u.defendFlash--;if(u.mateCooldown>0)u.mateCooldown--;
    if(u.pregnancy){u.pregnancy.remaining--;if(u.pregnancy.remaining<=0)this.layEgg(u);}
    const g=u.g,t=this.terrain(u.x,u.y),m=organismMorphology(u),diet=dietProfile(g),
@@ -1846,6 +1881,8 @@ export class Ecosystem{
     }else if(this.tick>=u.refugeTarget.until)u.refugeTarget=null;
    }
    const mate=u.courtPartner?(byId.get(u.courtPartner)??null):this.findMate(u,near);
+    // Rescue is rare and expensive; never override a viable natural mate.
+    if((this.tick+u.id)%24===0&&this.canEmergencySplit(u))this.emergencySplit(u);
     // Without an eligible partner, a well-fed parthenogen can repopulate alone.
     if(!mate&&!u.courtPartner&&reproductiveMode(g)===2&&u.sex==='F'&&
        u.energy>120&&(this.tick+u.id)%135===0)this.conceiveSolo(u);
