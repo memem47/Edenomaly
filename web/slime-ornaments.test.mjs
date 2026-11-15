@@ -41,7 +41,9 @@ test('round tail behind and mirrored horns in front of the body',()=>{
  drawOrnamentsFront(ctx,gene,8,6,100,4);
  const lobes=calls.ellipses.slice(before).filter(p=>p[2]>1&&p[3]>1);
  assert.ok(lobes.length>=4,'paired double nubs are drawn over body');
- assert.ok(lobes.some(p=>p[1]>4)&&lobes.some(p=>p[1]<-4));
+ assert.ok(lobes.some(p=>p[1]>1)&&lobes.some(p=>p[1]<-1));
+ assert.ok(lobes.every(([x,y,rx,ry])=>(x+rx)**2/8**2+(Math.abs(y)+ry)**2/6**2<1.5),
+  'forehead ornaments are not detached cheek protrusions');
  assert.equal(calls.curve.length,0,'no triangular points or filaments');
 });
 test('horns always form a mirrored pair even if their guard or eye genes change',()=>{
@@ -73,6 +75,7 @@ test('head-only antennae form symmetric short bulb chains',()=>{
   const centers=calls.ellipses.filter(p=>p[2]>.7&&p[3]>.7);
   assert.ok(centers.length>=4,'short rounded feelers');
   assert.ok(centers.every(p=>p[0]>0),'all feelers in forward half');
+  assert.ok(centers.every(p=>Math.abs(p[1])<4),'antennae stay inward instead of the cheeks');
   assert.ok(centers.some(p=>p[1]>0)&&centers.some(p=>p[1]<0));
   for(const p of centers.filter(p=>p[1]<0))
    assert.ok(centers.some(q=>Math.abs(p[0]-q[0])<1e-9&&
