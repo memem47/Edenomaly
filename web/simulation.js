@@ -178,6 +178,18 @@ export const adaptationColor=g=>{
 };
 export const TERRAIN_TEMPERATURE_OFFSETS=[0,-4,7,-3];
 export const localTemperature=(ambient,terrain)=>ambient+TERRAIN_TEMPERATURE_OFFSETS[terrain];
+// Deep forest buffers both winter frost and summer heat; high rock gives
+// summer shade in crevices. These are microclimates, not biome conversions.
+export const microclimateTemperature=(ambient,terrain,level=3,season='spring')=>{
+ const depth=clamp((level-2)/3,0,1);
+ if(terrain===0){
+  const buffering=season==='winter'?4.5:season==='summer'?-3.5:0;
+  return localTemperature(ambient,terrain)+buffering*depth;
+ }
+ if(terrain===3&&season==='summer')return localTemperature(ambient,terrain)-2*depth;
+ if(terrain===1&&season==='winter')return localTemperature(ambient,terrain)-1.5*depth;
+ return localTemperature(ambient,terrain);
+};
 export const thermalFitness=(g,temp)=>{
  const ideal=clamp(g.idealTemp??22,-5,40),tolerance=clamp(g.tempTolerance??9,3,18);
  const delta=Math.abs(temp-ideal),comfort=clamp(1-delta/tolerance,0,1),excess=Math.max(0,delta-tolerance);
@@ -195,12 +207,17 @@ export const landAcclimationGain=(u,onLand)=>onLand?
  Math.max(0,(u.landAcclimation??0)-.0016);
 // Habitat-specific water economy: arid/rock specialists lose water slowly
 // and can replenish a modest amount from rain, without generating free food.
-export const terrestrialHydrationDelta=(g,terrain,weather)=>{
+export const terrestrialHydrationDelta=(g,terrain,weather,level=3,vegetation=0,soilMoisture=0)=>{
+ // Dew and plant moisture are local renewable inputs, never a direct HP
+ // refill. Dry grass, bare ground and rocks provide almost none.
+ const plants=clamp(vegetation/100,0,1),moist=clamp(soilMoisture/100,0,1);
+ const leafCover=terrain===0?clamp((level-1)/4,0,1):0;
+ const dew=terrain===0?(0.035+0.095*leafCover)*plants*(0.35+0.65*moist):0;
  const adapted=terrain===2?clamp(g.dry??0,0,1):
   terrain===3?clamp(g.rock??0,0,1):0;
  const loss=.24*(1-(terrain===3?.73:.66)*adapted);
  const collected=weather==='rain'?((terrain===2||terrain===3)?(.24+.13*adapted):.08):0;
- return collected-loss;
+ return collected+dew-loss;
 };
 export const experiencedTerrainFitness=(u,t)=>{
  const base=terrainFitness(u.g,t);
@@ -1352,7 +1369,7 @@ export class Ecosystem{
   this.temperature=clamp(seasonal+weather+shorter,-25,55);
   if(this.tick%80===0){this.temperatureHistory.push(this.temperature);if(this.temperatureHistory.length>120)this.temperatureHistory.shift();}
  }
- temperatureAt(x,y){return localTemperature(this.temperature,this.terrain(x,y));}
+ temperatureAt(x,y){const cell=this.cell(x,y);return microclimateTemperature(this.temperature,this.tiles[cell],this.terrainLevels?.[cell]??3,this.climateEnabled?this.seasonName():'spring');}
  updateWeather(){
   // Deterministic climate phases; rain frequency follows the rain slider.
   if(this.tick>=this.weatherUntil){
@@ -1627,7 +1644,7 @@ export class Ecosystem{
     u.submerged=underwater?u.submerged+1:0;
     const drinking=this.nearWater(u.x,u.y,1);
     u.hydration=drinking?Math.min(100,u.hydration+.9):
-      Math.min(100,u.hydration+terrestrialHydrationDelta(g,t,this.weather));
+      Math.min(100,u.hydration+terrestrialHydrationDelta(g,t,this.weather,this.terrainLevels?.[this.cell(u.x,u.y)]??3,this.grass[this.cell(u.x,u.y)],this.soilWater[this.cell(u.x,u.y)]));
     if(drinking){const consumed=this.drinkNearby(u.x,u.y,.12);if(consumed>0&&(this.tick+u.id)%24===0)this.addVisualEffect('drink',u);}
    }
    if((aquatic&&u.stranded>95+330*(u.landAcclimation??0))||(!aquatic&&u.submerged>24)||u.hydration<=0){
@@ -1798,26 +1815,26 @@ export class Ecosystem{
      sexualCompatibility(u,v)&&distance(u,v)<85**2);
    const retreatThreshold=dispersalPressureThreshold(g);
    const crowdEscape=pressure>retreatThreshold||habitatLoad>2.0+(1-dispersal)*1.1;
-   const seekRefuge=!u.courtPartner&&!u.mateTarget&&!u.pregnancy&&!flight&&u.energy>75&&
+   const seekRefuge=!u.courtPartner&&!u.mateTarget&&!u.pregnancy&&!flight&&u.energy>55&&
     (thermal.excess>2||crowdEscape&&(!partnerNearby||pressure>retreatThreshold*1.6));
    if(seekRefuge&&(this.tick+u.id)%14===0){
     let best=null,bestScore=-Infinity;
     for(let i=0;i<12;i++){
-     const x=clamp(u.x+this.range(-65,65),8,W-8),y=clamp(u.y+this.range(-65,65),8,H-8);
+     const x=clamp(u.x+this.range(-90,90),8,W-8),y=clamp(u.y+this.range(-90,90),8,H-8);
      const terrain=this.terrain(x,y);
      let competitors=0;
      for(const v of unitGrid.query(x,y,48,false))if(v!==u&&!v.dead&&dietProfile(v.g).plant>.25)competitors++;
      const habitat=terrainFitness(g,terrain);
      if(!habitat.passable)continue;
      const fit=habitat.fitness;
-     const thermalBenefit=thermalFitness(g,localTemperature(this.temperature,terrain));
-      const score=fit*.85+GROWTH[terrain]*.6+thermalBenefit.comfort*.30-thermalBenefit.excess*.06-competitors*.37+
+     const thermalBenefit=thermalFitness(g,this.temperatureAt(x,y));
+      const score=fit*.85+GROWTH[terrain]*.6+thermalBenefit.comfort*(thermal.excess>2?1.6:.30)-thermalBenefit.excess*(thermal.excess>2?.5:.06)-competitors*.37+
        (terrain===1&&aquatic?.9:0)+this.range(-.12,.12);
      if(score>bestScore){bestScore=score;best={x,y,terrain};}
     }
-    if(best&&bestScore>home.fitness*.85+GROWTH[t]*.6+thermal.comfort*.30-thermal.excess*.06-pressure*.26){
-     u.refugeTarget={x:best.x,y:best.y,until:this.tick+85};
-     this.log('migration','#'+u.id+' が競争を避けて'+TERRAIN_NAMES[best.terrain]+'へ移動を開始',u);
+    if(best&&bestScore>home.fitness*.85+GROWTH[t]*.6+thermal.comfort*(thermal.excess>2?1.6:.30)-thermal.excess*(thermal.excess>2?.5:.06)-pressure*.26){
+     u.refugeTarget={x:best.x,y:best.y,until:this.tick+110,climate:thermal.excess>2};
+     this.log('migration','#'+u.id+' が'+(thermal.excess>2?'暑さ寒さ':'競争')+'を避けて'+TERRAIN_NAMES[best.terrain]+'へ移動を開始',u);
     }
    }
    if(u.refugeTarget){
@@ -1849,7 +1866,7 @@ export class Ecosystem{
    if(targetEgg&&ed<Math.min(df,pd)*1.15)target=targetEgg;
    if(defenderTarget&&!u.courtPartner)target=defenderTarget;
     if(rival&&!mate&&!defenderTarget&&!flight)target=rival;
-   if(u.refugeTarget&&!flight&&!u.courtPartner&&!mate&&u.energy>=85)target=u.refugeTarget;
+   if(u.refugeTarget&&!flight&&!u.courtPartner&&!mate&&(u.energy>=85||u.refugeTarget.climate&&u.energy>=55))target=u.refugeTarget;
    // Social attraction is gentle: no swarm into a dense pile, and never
    // override escape, courtship, urgent hunger, or migration.
    if(!flight&&!mate&&!u.courtPartner&&!u.pregnancy&&!u.refugeTarget&&
