@@ -774,7 +774,7 @@ export class Ecosystem{
   if(this.units.length>=2000)return null;
   const mode=reproductiveMode(g);
    const sex=mode===1?'H':mode===2?'F':(this.rand()<.5?'F':'M');
-   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null,socialTarget:null,mateTarget:null,rejectedBy:null,mateApproachFailures:0,behaviorTarget:'idle',waterSeedBank:0,lastWaterPlant:-100,landAcclimation:0,carnivoryExperience:0,landExcursion:false,shoreTarget:null,threatDecisions:new Map(),attackResponse:null,retaliationCooldown:0,isolatedSteps:0,lastEmergencySplit:-100000};
+   const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null,socialTarget:null,mateTarget:null,rejectedBy:null,mateApproachFailures:0,behaviorTarget:'idle',waterSeedBank:0,lastWaterPlant:-100,landAcclimation:0,carnivoryExperience:0,landExcursion:false,shoreTarget:null,threatDecisions:new Map(),attackResponse:null,retaliationCooldown:0,isolatedSteps:0,lastEmergencySplit:-100000,bornTick:this.tick,hpLoss:{natural:0,temperature:0,terrain:0,starvation:0,juvenile:0,infection:0,combat:0}};
   u.category=this.category(g);u.lineage??=u.id;this.units.push(u);
   if(!this.species.has(u.category)){
    const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(u.category,g),current:0,total:0,diet:dietProfile(g).label,first:this.tick,genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(u.category,g),u);
@@ -823,13 +823,34 @@ export class Ecosystem{
   this.addVisualEffect('birth',u);
   return child;
  }
+ applyHpLoss(u,source,amount){
+  if(!(amount>0))return;
+  u.hpLoss??={};
+  u.hpLoss[source]=(u.hpLoss[source]??0)+amount;
+  u.hp-=amount;
+ }
  die(u,cause,consumed=0){
   if(u.dead)return;
   u.dead=true;u.courtPartner=null;this.species.get(u.category).current--;
   this.deathCauses[cause]=(this.deathCauses[cause]??0)+1;
+  this.deathRecords??=[];
+  const losses=u.hpLoss??{};
+  const dominant=Object.entries(losses).sort((a,b)=>b[1]-a[1])[0];
+  const detail={step:this.tick,id:u.id,parent:u.parent,lineage:u.lineage,
+   generation:u.generation,stage:u.stage,age:u.age,stepsAlive:this.tick-(u.bornTick??this.tick),
+   cause,energy:+u.energy.toFixed(2),hydration:+u.hydration.toFixed(2),
+   hp:+u.hp.toFixed(2),maxHp:u.maxHp,terrain:TERRAIN_NAMES[this.terrain(u.x,u.y)],
+   foodSuccess:u.forageSuccess,foodFailure:u.forageFailure,
+   dominantHpLoss:dominant?.[0]??'不明',...Object.fromEntries(Object.entries(losses).map(([k,v])=>['hpLoss_'+k,+v.toFixed(2)]))};
+  this.deathRecords.push(detail);
+  if(this.deathRecords.length>10000)this.deathRecords.shift();
   const mass=Math.max(8,organismMorphology(u).bodyMass*1.2+Math.max(0,u.energy)*.4-consumed);
   this.corpses.push({x:u.x,y:u.y,angle:u.angle,g:{...u.g},growthScale:u.growthScale??1,stage:u.stage,deathAge:u.age,mass,initialMass:mass,reserve:0,age:0,cause,seedBank:u.seedBank??0,seedPlanted:false});
-  this.log('death','#'+u.id+' 死亡：'+cause,u);
+  this.log('death','#'+u.id+' 死亡：'+cause+
+   ' [段階 '+u.stage+', 生存 '+detail.stepsAlive+'step, 栄養 '+detail.energy+
+   ', HP '+detail.hp+'/'+detail.maxHp+', 水分 '+detail.hydration+
+   ', 摂食成功 '+detail.foodSuccess+', 摂食失敗 '+detail.foodFailure+
+   ', 主HP損失 '+detail.dominantHpLoss+']',u);
   if(this.species.get(u.category).current===0)this.log('info',this.species.get(u.category).name+' が絶滅');
  }
  chooseNest(u){
@@ -967,7 +988,7 @@ export class Ecosystem{
   // Whichever organism can lay eggs becomes the gestating parent.
   if(parent.sex==='M'&&partner.sex!=='M')return this.conceive(partner,parent);
   // An inherited brood-size trait trades clutch size against parental energy.
-  const desired=clamp(Math.round((parent.g.brood+partner.g.brood)/2)*2+2,4,18);
+  const desired=clamp(Math.round((parent.g.brood+partner.g.brood)/2)*2+2,3,8);
   const largeParentCost=Math.max(0,organismMorphology(parent).bodyMass-100)*.18;
   const affordable=clamp(Math.floor((Math.min(parent.energy,220)-55-largeParentCost)/7),1,18);
   const count=Math.min(desired,affordable,2500-this.eggs.length);
@@ -1098,7 +1119,8 @@ export class Ecosystem{
   const vulnerable=(1+.8*metabolicFrugality(prey.g))*
    (1-.16*clamp(prey.g.hornLength??0,0,1));
   const actualDamage=damage*vulnerable;
-  prey.hp=Math.max(0,prey.hp-actualDamage);
+  this.applyHpLoss(prey,'combat',actualDamage);
+  prey.hp=Math.max(0,prey.hp);
   if(defensive){hunter.energy-=defensive==='rival'?4:2.5;if(defensive!=='retaliation')prey.bite=Math.max(prey.bite,14);}
   // Retaliation choice is made on impact, and has a limited validity window.
   // Cooldown prevents unbounded retaliation loops.
@@ -1351,7 +1373,7 @@ export class Ecosystem{
   }
  }
  reset(){
-  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.speciesSamples=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.runStartTick=null;this.runEndedTick=null;this.founderSpeciesCount=0;this.ecosystemBalance=0;this.deathCauses={};this.infectionCases=0;this.infectionRecoveries=0;this.infectionIntroductions=0;this.supportZones=[];this.courtshipFailures={};this.courtshipStarts=0;this.mateApproachStarts=0;this.mateApproachStalled=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.waterweedGrowth=140;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];this.climateEnabled=true;this.seasonLength=600;
+  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.speciesSamples=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.runStartTick=null;this.runEndedTick=null;this.founderSpeciesCount=0;this.ecosystemBalance=0;this.deathCauses={};this.deathRecords=[];this.infectionCases=0;this.infectionRecoveries=0;this.infectionIntroductions=0;this.supportZones=[];this.courtshipFailures={};this.courtshipStarts=0;this.mateApproachStarts=0;this.mateApproachStalled=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.waterweedGrowth=140;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];this.climateEnabled=true;this.seasonLength=600;
   this._waterRegionTick=null;this._waterRegions=null;
   this.setupTerrain();
   this.grass=new Float32Array(this.tiles.length);
@@ -1618,7 +1640,7 @@ export class Ecosystem{
     const hatchSite=egg.g.aquatic!==1&&this.terrain(egg.x,egg.y)===1?
       this.shoreEggSite(egg.x,egg.y,egg.g):{x:egg.x,y:egg.y};
      const child=this.spawn(hatchSite.x,hatchSite.y,egg.g,{id:egg.parent,otherParent:egg.otherParent,generation:egg.generation-1,lineage:egg.lineage});
-    if(child){child.energy=egg.energy+35;child.stage='juvenile';this.log('hatch','卵 #'+egg.id+' から #'+child.id+' が孵化',egg);}
+    if(child){child.energy=egg.energy+52;child.stage='juvenile';this.log('hatch','卵 #'+egg.id+' から #'+child.id+' が孵化（初期栄養 '+child.energy.toFixed(1)+'）',egg);}
    }
   }
   this.eggs=this.eggs.filter(e=>!e.dead);
@@ -1650,7 +1672,8 @@ export class Ecosystem{
     if(!u.dormant){u.dormant=true;this.log('rest','#'+u.id+' が休眠に入った',u);}
     // Dormancy is costly and does not restore HP: weak/slim individuals
     // still perish, while well-fed seasonal specialists can overwinter.
-    u.hp-=lifeDrain(u,{temperature:u.temperature,terrain:t})*.34+thermal.damage*.07;
+    this.applyHpLoss(u,'natural',lifeDrain(u,{temperature:u.temperature,terrain:t})*.34);
+    this.applyHpLoss(u,'temperature',thermal.damage*.07);
     u.energy-=.04+organismMorphology(u).bodyMass*.0009;
     u.hydration=Math.max(0,u.hydration-.028);
     if(u.hydration<=0||u.energy<=0||u.hp<=0){
@@ -1660,8 +1683,8 @@ export class Ecosystem{
    }
    if(u.dormant){u.dormant=false;this.log('wake','#'+u.id+' が休眠から目覚めた',u);}
    // Maintaining dormancy-capable physiology carries a year-round cost.
-   u.hp-=lifeDrain(u,{temperature:u.temperature,terrain:t});
-   u.hp-=thermal.damage;u.energy-=thermal.upkeep+(g.hibernate??0)*.075;
+   this.applyHpLoss(u,'natural',lifeDrain(u,{temperature:u.temperature,terrain:t}));
+   this.applyHpLoss(u,'temperature',thermal.damage);u.energy-=thermal.upkeep+(g.hibernate??0)*.075;
    u.carnivoryExperience=Math.max(0,(u.carnivoryExperience??0)-.00011);
    u.energy-=carnivoryExperience(u)*.045;
    const near=unitGrid.query(u.x,u.y,Math.max(145,sight*1.6),false);
@@ -1687,7 +1710,7 @@ export class Ecosystem{
    if((aquatic&&u.stranded>95+330*(u.landAcclimation??0))||(!aquatic&&u.submerged>24)||u.hydration<=0){
     this.die(u,aquatic?'離水':u.submerged>24?'溺水':'脱水');continue;
    }
-   if(u.hydration<18)u.hp-=.06;
+   if(u.hydration<18)this.applyHpLoss(u,'starvation',.06);
    let nearest=null,df=sight*sight;
    const onLand=aquatic&&!underwater;
    const waterFood=aquatic?this.nearestWaterweed(u.x,u.y,Math.min(95,Math.max(65,sight*1.7))):null;
@@ -1733,6 +1756,8 @@ export class Ecosystem{
   let prey=null,pd=sight*sight;
    if((m.predatory||famineCannibalism(u)||carnivoryExperience(u)>.25)&&u.bite===0)for(const v of near){
     if(v===u||v.dead||v.id===u.courtPartner)continue;
+     // Newborn relatives are not food, even when mutations alter their category.
+     if(u.stage==='juvenile'&&u.age<65&&v.stage==='juvenile'&&v.lineage===u.lineage)continue;
       const preyTerrain=this.terrain(v.x,v.y);
       if(preyTerrain===1&&!aquatic)continue;
       const preyMass=organismMorphology(v).bodyMass;
@@ -1822,7 +1847,7 @@ export class Ecosystem{
    const crowd=Math.max(0,relatives-2)+congestion*.65;
    if(u.infection>0){
     u.infection--;
-    u.hp-=(.13+crowd*.035)*(1-(g.resist??.4)*.7);
+    this.applyHpLoss(u,'infection',(.13+crowd*.035)*(1-(g.resist??.4)*.7));
     if(u.infection===0&&u.hp>0){
      this.infectionRecoveries++;
      u.infectionProtectionUntil=Math.max(u.infectionProtectionUntil??0,this.tick+180);
@@ -1986,7 +2011,7 @@ export class Ecosystem{
     this.log('mateFail','#'+u.id+' が相手 #'+mate.id+' に近づけず探索をやり直す',u);
     u.mateTarget=null;
    }
-   u.hp-=home.hazard;
+   this.applyHpLoss(u,'terrain',home.hazard);
    // Terrain-fit offspring retain energy and can reproduce more successfully.
    const adaptationCost=clamp(1.65-home.fitness*.75,.70,1.5)*(1.08-.08*thermal.comfort);
    u.energy-=reproductiveUpkeep(g)*youth;
@@ -2088,11 +2113,11 @@ export class Ecosystem{
     const increment=juvenileGrowthIncrement(u,u.juvenileFood,u.habitatLoad,u.crowdStress);
     u.juvenileGrowth=Math.min(1,(u.juvenileGrowth??0)+increment);
     // Tissue growth uses nutrients that cannot also pay for maintenance.
-    u.energy-=increment*46;
+    u.energy-=increment*30;
     if(u.energy<38){
      // Unfed hatchlings remain small and eventually die rather than
      // growing automatically to adult size.
-     u.hp-=(38-u.energy)*.012*(1+Math.min(2,(u.habitatLoad??0)*.28));
+     this.applyHpLoss(u,'juvenile',(38-u.energy)*.0045*(1+Math.min(2,(u.habitatLoad??0)*.28)));
     }
     if(u.juvenileGrowth>=.999&&u.age>=65&&u.energy>=38){
      u.juvenileGrowth=1;u.stage='adult';
