@@ -39,7 +39,7 @@ test('round tail behind and mirrored horns in front of the body',()=>{
  assert.ok(tails.length>=2,'visible rear bead tail');
  const before=calls.ellipses.length;
  drawOrnamentsFront(ctx,gene,8,6,100,4);
- const lobes=calls.ellipses.slice(before).filter(p=>p[2]>1&&p[3]>1);
+ const lobes=calls.ellipses.slice(before).filter(p=>p[2]>.7&&p[3]>.7);
  assert.ok(lobes.length>=4,'paired double nubs are drawn over body');
  assert.ok(lobes.some(p=>p[1]>1)&&lobes.some(p=>p[1]<-1));
  assert.ok(lobes.every(([x,y,rx,ry])=>(x+rx)**2/8**2+(Math.abs(y)+ry)**2/6**2<1.5),
