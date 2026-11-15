@@ -479,7 +479,7 @@ function exportAllLogs(auto=false){
   ECOLOGY_LOG_FIELDS.map(k=>csvCell(currentSnapshot[k])).join(',')+newline;
  const csvEvents='step,type,message'+newline+game.logs.slice().reverse().map(e=>
   [e.step,e.type,e.message].map(csvCell).join(',')).join(newline);
- const deathFields=['step','id','parent','lineage','generation','stage','age','stepsAlive','cause','energy','hydration','hp','maxHp','terrain','foodSuccess','foodFailure','dominantHpLoss','hpLoss_natural','hpLoss_temperature','hpLoss_terrain','hpLoss_starvation','hpLoss_juvenile','hpLoss_infection','hpLoss_combat'];
+ const deathFields=['step','id','parent','lineage','generation','stage','age','stepsAlive','cause','energy','hydration','hp','maxHp','terrain','foodSuccess','foodFailure','totalHpRecovered','dominantHpLoss','hpLoss_natural','hpLoss_temperature','hpLoss_terrain','hpLoss_starvation','hpLoss_juvenile','hpLoss_infection','hpLoss_combat'];
  const deathCSV=String.fromCharCode(65279)+deathFields.join(',')+newline+
   (game.deathRecords??[]).map(record=>deathFields.map(key=>csvCell(record[key]??'')).join(',')).join(newline);
  const files=[
