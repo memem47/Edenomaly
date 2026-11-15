@@ -1,6 +1,6 @@
 import {zipFiles} from './zip-log.js?v=2026.11.07.4';
-import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.15.3';
-import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.15.3';
+import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.15.4';
+import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.15.4';
 import {mountGameUI} from './game-ui.js?v=2026.11.14.2';
 import {fitView,screenToWorld,zoomAround,panBy,MAX_ZOOM,ZOOM_STEP} from './viewport.js?v=2026.11.08.12';
 import {drawWorld,drawChart} from './renderer.js?v=2026.11.14.2';
@@ -11,7 +11,7 @@ import {performancePolicy,simulationBatch,BROWSER_BACKGROUND_INTERVAL} from './p
 const $=id=>document.getElementById(id);
 // Release label is bundled with the running source; comparison uses a
 // separately published manifest from the repository's main branch.
-const BUILD_VERSION='2026.11.15.3';
+const BUILD_VERSION='2026.11.15.4';
 const VERSION_SOURCE='https://raw.githubusercontent.com/memem47/Edenomaly/main/web/version.json';
 $('buildVersion').textContent=BUILD_VERSION;
 async function checkLatestVersion(){
@@ -479,7 +479,11 @@ function exportAllLogs(auto=false){
   ECOLOGY_LOG_FIELDS.map(k=>csvCell(currentSnapshot[k])).join(',')+newline;
  const csvEvents='step,type,message'+newline+game.logs.slice().reverse().map(e=>
   [e.step,e.type,e.message].map(csvCell).join(',')).join(newline);
+ const deathFields=['step','id','parent','lineage','generation','stage','age','stepsAlive','cause','energy','hydration','hp','maxHp','terrain','foodSuccess','foodFailure','dominantHpLoss','hpLoss_natural','hpLoss_temperature','hpLoss_terrain','hpLoss_starvation','hpLoss_juvenile','hpLoss_infection','hpLoss_combat'];
+ const deathCSV=String.fromCharCode(65279)+deathFields.join(',')+newline+
+  (game.deathRecords??[]).map(record=>deathFields.map(key=>csvCell(record[key]??'')).join(',')).join(newline);
  const files=[
+  ['edenomaly-death-diagnostics-'+LOG_VERSION+'.csv',deathCSV],
   ['edenomaly-ecology-'+LOG_VERSION+'.csv',ecologyLog.toCSV()],
   ['edenomaly-current-ecology-'+LOG_VERSION+'.csv',snapshotCSV],
   ['edenomaly-individual-reproduction-'+LOG_VERSION+'.csv',ecologyLog.toIndividualCSV()],
