@@ -988,7 +988,7 @@ export class Ecosystem{
   // Whichever organism can lay eggs becomes the gestating parent.
   if(parent.sex==='M'&&partner.sex!=='M')return this.conceive(partner,parent);
   // An inherited brood-size trait trades clutch size against parental energy.
-  const desired=clamp(Math.round((parent.g.brood+partner.g.brood)/2)*2+2,3,8);
+  const desired=clamp(Math.round((parent.g.brood+partner.g.brood)/2)*2+2,4,18);
   const largeParentCost=Math.max(0,organismMorphology(parent).bodyMass-100)*.18;
   const affordable=clamp(Math.floor((Math.min(parent.energy,220)-55-largeParentCost)/7),1,18);
   const count=Math.min(desired,affordable,2500-this.eggs.length);
@@ -2113,11 +2113,11 @@ export class Ecosystem{
     const increment=juvenileGrowthIncrement(u,u.juvenileFood,u.habitatLoad,u.crowdStress);
     u.juvenileGrowth=Math.min(1,(u.juvenileGrowth??0)+increment);
     // Tissue growth uses nutrients that cannot also pay for maintenance.
-    u.energy-=increment*30;
+    u.energy-=increment*38;
     if(u.energy<38){
      // Unfed hatchlings remain small and eventually die rather than
      // growing automatically to adult size.
-     this.applyHpLoss(u,'juvenile',(38-u.energy)*.0045*(1+Math.min(2,(u.habitatLoad??0)*.28)));
+     this.applyHpLoss(u,'juvenile',(38-u.energy)*.012*(1+Math.min(2,(u.habitatLoad??0)*.28)));
     }
     if(u.juvenileGrowth>=.999&&u.age>=65&&u.energy>=38){
      u.juvenileGrowth=1;u.stage='adult';
