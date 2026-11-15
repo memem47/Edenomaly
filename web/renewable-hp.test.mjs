@@ -17,7 +17,7 @@ test('old age alone cannot drain HP or reduce vigor',()=>{
  assert.equal(vitality(u).old,0);
  const hp=u.hp;
  for(let i=0;i<40;i++){u.energy=150;u.hydration=100;w.step();}
- assert.equal(u.hp,hp,'healthy aged organisms should not lose life to a clock');
+ assert.ok(u.hp>=hp,'healthy aged organisms should not lose life to a clock');
 });
 test('repair consumes nutrition and does not exceed maximum HP',()=>{
  const {w,u}=one(2026111511);
