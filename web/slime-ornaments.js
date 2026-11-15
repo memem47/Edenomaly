@@ -56,16 +56,16 @@ export function drawOrnamentsBehind(ctx,g,rx,ry,tick=0,id=0){
 export function drawOrnamentsFront(ctx,g,rx,ry,tick=0,id=0){
  const tr=ornamentTraits(g),c=appearance(g);
  const pattern=ornamentVisibility(tr.pattern),antenna=ornamentVisibility(tr.antenna);
- // Symmetric head lobes are drawn AFTER the membrane so neither side is
- // hidden behind the slime. Mirror across the forward-facing X axis.
+ // Low, rounded forehead horns remain inside the body outline, above the eyes.
+ // Mirror across the forward-facing X axis.
  if(ornamentVisibility(tr.horn)>.08){
   const horn=ornamentVisibility(tr.horn);
-  const r=Math.max(1.1,Math.min(ry*.32,ry*(.16+.16*horn)));
-  const x=rx*.48,sideY=ry*.87;
+  const r=Math.max(1.1,Math.min(ry*.23,ry*(.10+.12*horn)));
+  const x=rx*.43,sideY=ry*.36;
   ctx.save();
   for(const side of [-1,1]){
    bead(ctx,x,side*sideY,r*1.12,r*1.10,c);
-   if(horn>.55)bead(ctx,x+r*.13,side*(sideY+r*.87),r*.78,r*.78,c);
+   if(horn>.55)bead(ctx,x+r*.13,side*(sideY+r*.32),r*.78,r*.78,c);
   }
   ctx.restore();
  }
@@ -86,17 +86,16 @@ export function drawOrnamentsFront(ctx,g,rx,ry,tick=0,id=0){
   ctx.restore();
  }
  if(antenna>.10){
-  // ALWAYS a matched pair, one on either side of the face. The two bulb
-  // chains use identical X locations and opposite Y; no upper-only feelers.
-  const r=Math.max(1.05,Math.min(ry*.28,ry*(.16+.10*antenna)));
-  const anchorX=rx*.73,anchorY=ry*.53;
+  // Small paired internal facial nubs: no protruding cheek spheres.
+  const r=Math.max(1.05,Math.min(ry*.14,ry*(.075+.06*antenna)));
+  const anchorX=rx*.40,anchorY=ry*.24;
   const sway=Math.sin(tick*.095+id*.31)*r*.18*antenna;
   const segments=antenna>.57?2:1;
   ctx.save();
   for(const side of [-1,1]){
    for(let j=0;j<=segments;j++){
-    const x=anchorX+(j+1)*r*.38+sway;
-    const y=side*(anchorY+(j+1)*r*.43);
+    const x=anchorX+(j+1)*r*.23+sway;
+    const y=side*(anchorY+(j+1)*r*.24);
     bead(ctx,x,y,r*(.94-.07*j),r*(.97-.07*j),c);
    }
   }
