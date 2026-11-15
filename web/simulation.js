@@ -1623,13 +1623,15 @@ export class Ecosystem{
   }
   this.eggs=this.eggs.filter(e=>!e.dead);
   const batch=this.units.slice();
+  const lineageCounts=new Map();
+  for(const v of batch)if(!v.dead)lineageCounts.set(v.lineage,(lineageCounts.get(v.lineage)??0)+1);
   const unitGrid=new SpatialLookup(batch),eggGrid=new SpatialLookup(this.eggs),corpseGrid=new SpatialLookup(this.corpses);
   const byId=new Map(batch.map(u=>[u.id,u]));
   const firstEggByParent=new Map();
   for(const egg of this.eggs)if(!egg.dead&&!firstEggByParent.has(egg.parent))firstEggByParent.set(egg.parent,egg);
   for(const u of batch){
    if(u.dead)continue;u.age++;u.juvenileFood=0;
-   u.isolatedSteps=this.units.some(v=>v!==u&&!v.dead&&v.lineage===u.lineage)?0:(u.isolatedSteps??0)+1;
+   u.isolatedSteps=(lineageCounts.get(u.lineage)??0)>1?0:(u.isolatedSteps??0)+1;
    if(this.supportZones.some(z=>z.kind==='oasis'&&z.until>this.tick&&(z.x-u.x)**2+(z.y-u.y)**2<=65**2))u.hydration=Math.min(100,u.hydration+.36);if(u.bite>0)u.bite--;if(u.woundFlash>0)u.woundFlash--;if(u.attackFlash>0)u.attackFlash--;if(u.defendFlash>0)u.defendFlash--;if(u.mateCooldown>0)u.mateCooldown--;
    if(u.pregnancy){u.pregnancy.remaining--;if(u.pregnancy.remaining<=0)this.layEgg(u);}
    const g=u.g,t=this.terrain(u.x,u.y),m=organismMorphology(u),diet=dietProfile(g),
