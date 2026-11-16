@@ -1396,7 +1396,8 @@ export class Ecosystem{
    const level=this.terrainLevels[i];
    if(this.tiles[i]===0)this.grass[i]=Math.min(100,[26,44,65,77,87][level-1]+this.rand()*13);
    if(this.tiles[i]===2)this.grass[i]=[5,4,3,2,1][level-1]+this.rand()*2;
-   // Bare rock is shelter, not edible grass or hidden permanent lichen.
+   // Preserve the seeded RNG sequence when converting rocky food to bare refuge.
+   if(this.tiles[i]===3)this.rand();
    if(this.tiles[i]===1){
     this.water[i]=Math.min(100,[45,57,74,87,96][level-1]+this.rand()*5);
     this.waterbed[i]=1;
