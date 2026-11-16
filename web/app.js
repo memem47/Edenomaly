@@ -267,7 +267,7 @@ function update(){
  $('discoveryScore').textContent=score.discoveries.toLocaleString('ja-JP')+'種 / 新種 +'+score.discoveryScore.toLocaleString('ja-JP')+
    '点 ／ 定着 '+score.establishedSpecies+'種 +'+score.establishmentScore.toLocaleString('ja-JP')+'点 ／ 多様性維持 +'+score.balanceScore.toLocaleString('ja-JP')+'点';
  $('runScoreStatus').textContent=!score.started?'移入待ち':score.ended?'絶滅・スコア確定':'生存中・計測中';
- $('seasonStatus').textContent=game.climateEnabled?({spring:'🌸 春',summer:'☀️ 夏',autumn:'🍂 秋',winter:'❄️ 冬'}[game.seasonName()]):'季節変動 OFF';
+ $('seasonStatus').textContent=game.climateEnabled?({spring:'🌸 春・🌱 芽吹き',summer:'☀️ 夏・🌿 水分依存',autumn:'🍂 秋・🌿 成長鈍化',winter:'❄️ 冬・🌱 休眠'}[game.seasonName()]):'季節変動 OFF';
  $('temperatureStatus').textContent='🌡 '+game.temperature.toFixed(1)+'℃';
  $('weatherStatus').textContent=game.climateEnabled&&game.seasonName()==='winter'&&game.weather==='rain'?'❄ 雪':({sunny:'☀ 晴れ',cloudy:'☁ 曇り',rain:'🌧 雨'}[game.weather]||'☀ 晴れ');
  $('stepCount').textContent=game.tick.toLocaleString('ja-JP');$('status').textContent=game.introducedCount===0?'移入待ち':running?'実行中':'停止中';$('play').textContent=running?'Ⅱ 停止':'▶ 再生';$('play').classList.toggle('active',running);
