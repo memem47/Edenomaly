@@ -74,6 +74,7 @@ test('desperate cannibal offspring pays a baseline metabolic price',()=>{
  const w=new Ecosystem(2026111706),g={...w.gene(),juvenileCannibalism:1};
  const child=w.spawn(210,160,g,{id:111,generation:0,lineage:11});
  child.age=15;child.energy=5;
+ w.tiles.fill(3);w.grass.fill(0);w.waterweed.fill(0);
  const before=child.energy;
  w.step();
  assert.ok(child.energy<before);
