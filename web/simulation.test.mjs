@@ -3255,18 +3255,37 @@ test('founding sexual population has both sexes regardless of spawn seed',()=>{
   }
  }
 });
-test('dry and rock lichen is consumable, sparse, and regrows slowly',()=>{
+test('only dryland contains sparse edible plants; bare rock provides no grass',()=>{
  const w=new Ecosystem(2026110860);
- for(const terrain of [2,3]){
-  const index=w.cell(210,210);
-  w.tiles[index]=terrain;w.grass[index]=3;
-  const food=w.nearestGrass(210,210,25,{...w.gene(),aquatic:0,dry:1,rock:1});
-  assert.ok(food);
-  const eaten=w.consumeGrass(210,210,1);
-  assert.equal(eaten,1);
-  assert.equal(w.tiles[index],terrain);
-  assert.equal(w.grass[index],2);
- }
+ const i=w.cell(210,210),g={...w.gene(),aquatic:0,dry:1,rock:1};
+ w.tiles.fill(3);w.grass.fill(0);
+ w.grass[i]=15; // stale resource must not be consumable on rock
+ assert.equal(w.nearestGrass(210,210,25,g),null);
+ assert.equal(w.consumeGrass(210,210,1),0);
+ w.growth=100;
+ for(let t=0;t<36;t++)w.step();
+ assert.equal(w.grass[i],0);
+ w.tiles[i]=2;w.grass[i]=3;
+ assert.ok(w.nearestGrass(210,210,25,g));
+ assert.equal(w.consumeGrass(210,210,1),1);
+ assert.equal(w.grass[i],2);
+});
+test('severe starvation and dehydration eventually kill, without death from age',()=>{
+ const w=new Ecosystem(2026111661),g={...w.gene(),aquatic:0,idealTemp:22,tempTolerance:18};
+ const u=w.spawn(200,150,g);u.age=30000;u.stage='adult';
+ w.tiles.fill(2);w.grass.fill(0);w.growth=0;w.climateEnabled=false;
+ w.temperatureAt=()=>22;
+ u.energy=0;u.hydration=0;
+ const initial=u.hp;
+ w.updateVitalHealth(u);
+ assert.ok(u.hp<initial-1);
+ for(let n=0;n<120&&!u.dead;n++){w.tick++;w.updateVitalHealth(u);if(u.hp<=0)w.die(u,w.vitalDeathCause(u));}
+ assert.equal(u.dead,true);
+ assert.ok(w.deathRecords.at(-1).hpLoss_dehydration>0);
+ const healthy=w.spawn(200,150,g);healthy.age=30000;healthy.energy=150;healthy.hydration=100;
+ const hp=healthy.hp;
+ for(let n=0;n<100;n++){w.tick++;w.updateVitalHealth(healthy);}
+ assert.equal(healthy.hp,hp);
 });
 
 test('game mode seeds submerged waterweed and records actual births after intervention',()=>{
