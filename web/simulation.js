@@ -2067,7 +2067,7 @@ export class Ecosystem{
      }
     }
    }
-   if(!flight&&(!aquatic||onLand)&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+13)**2){
+   if(!flight&&t!==3&&(!aquatic||onLand)&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+13)**2){
     const forageTerrain=this.terrain(nearest.x,nearest.y);
     const forageLimit=forageTerrain===0?4.8:forageTerrain===2?1.3:1.2;
     const eaten=this.consumeGrass(nearest.x,nearest.y,
