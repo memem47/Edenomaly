@@ -1173,7 +1173,7 @@ test('rain and greater water depth improve external aquatic seed germination cha
  const sample=(weather,depth)=>{
   const w=new Ecosystem(2704);w.tiles.fill(2);w.water.fill(0);w.waterweed.fill(0);
   const i=w.cell(220,160);w.tiles[i]=1;w.water[i]=depth;
-  w.growth=70;w.waterweedGrowth=70;w.weather=weather;w.weatherUntil=1e6;w.rand=()=>.007;
+  w.growth=70;w.waterweedGrowth=70;w.weather=weather;w.weatherUntil=1e6;w.rand=()=>.012;
   for(let n=0;n<12;n++)w.step();
   return w.waterweed[i];
  };
