@@ -1064,6 +1064,8 @@ export class Ecosystem{
   const genomes=Array.from({length:count},()=>this.recombine(parent.g,partner.g));
   const pregnancy={genomes,parent:parent.id,otherParent:partner.id,lineage:this.rand()<.5?parent.lineage:partner.lineage,generation:Math.max(parent.generation,partner.generation)+1,remaining:25,total:25};
   pregnancy.nestGoal=this.chooseNest(parent);
+  if((parent.g.nestChoice??0)>.5&&distance(parent,pregnancy.nestGoal)>20**2)
+   this.log('nest','#'+parent.id+' が子のための産卵場所を探し始めた',parent);
   parent.pregnancy=pregnancy;
   const dual=reproductiveMode(parent.g)===1||reproductiveMode(partner.g)===1;
   parent.energy-=16+count*5+parent.g.nesting*3+largeParentCost+(dual?4:0);
@@ -1215,7 +1217,7 @@ export class Ecosystem{
    hunter.energy+=gained;
    if(meat>0){
     const old=carnivoryExperience(hunter);learnCarnivory(hunter,tissue);
-    if(prey.category===hunter.category){this.cannibalMeals=(this.cannibalMeals??0)+1;
+    if(prey.category===hunter.category||prey.lineage===hunter.lineage){this.cannibalMeals=(this.cannibalMeals??0)+1;
      this.log('cannibal','#'+hunter.id+' が同種 #'+prey.id+' を共食いした',hunter);}
     if(old<.25&&carnivoryExperience(hunter)>=.25)
      this.log('carnivoreLearn','#'+hunter.id+' が肉の摂取に順化し始めた',hunter);
@@ -1871,7 +1873,7 @@ export class Ecosystem{
      // Under famine, capable predators risk attacking similarly sized
      // conspecifics; successful attacks yield calories, not free biomass.
      const hungry=u.energy<65&&effectiveMeatAffinity(u)>.18;
-     const cannibal=(hungry||famineCannibalism(u)||desperateCannibal)&&v.category===u.category;
+     const cannibal=desperateCannibal||(hungry||famineCannibalism(u))&&v.category===u.category;
      if(v.category===u.category&&!cannibal)continue;
      if(preyMass>m.bodyMass*(cannibal?1.15:m.edibleRatio))continue;
     const d=distance(u,v)/Math.max(.1,coverFactor(preyTerrain,aquatic)*
