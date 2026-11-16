@@ -458,7 +458,7 @@ export class SpatialLookup{
 // HP depletion is driven by injury, disease, starvation or dehydration.
 export const lifeDrain=u=>{
  const energy=Math.max(0,u.energy??100);
- return energy>=50?0:.035+(50-energy)*.013;
+ return energy>=65?0:.08+(65-energy)*.025;
 };
 // Retain the historical genome field for compatibility without aging upkeep.
 export const longevityUpkeep=()=>0;
@@ -819,7 +819,7 @@ export class Ecosystem{
   u.energy=Math.max(0,u.energy);
   u.hydration=Math.max(0,u.hydration);
   this.applyHpLoss(u,'starvation',lifeDrain(u));
-  if(u.hydration<30)this.applyHpLoss(u,'dehydration',.03+(30-u.hydration)*.028);
+  if(u.hydration<40)this.applyHpLoss(u,'dehydration',.04+(40-u.hydration)*.045);
   if((u.lastHpDamageTick??-1)!==this.tick&&u.energy>=90&&
      u.hydration>=45&&u.infection<=0&&u.hp>0&&u.hp<u.maxHp){
    const recovery=Math.min(u.maxHp-u.hp,.09+Math.min(.25,(u.energy-90)*.003),
@@ -1245,7 +1245,7 @@ export class Ecosystem{
  }
  consumeGrass(x,y,amount){
   const i=this.cell(x,y);
-  if(this.tiles[i]!==0&&this.tiles[i]!==2&&this.tiles[i]!==3)return 0;
+  if(this.tiles[i]!==0&&this.tiles[i]!==2)return 0;
   const taken=Math.min(this.grass[i],amount);
   this.grass[i]-=taken;
   if(taken>0)this.grazingPressure[i]+=taken/6;
@@ -1316,7 +1316,7 @@ export class Ecosystem{
   const cx=Math.floor(x/CELL),cy=Math.floor(y/CELL),reach=Math.ceil(radius/CELL)+1;
   for(let yy=Math.max(0,cy-reach);yy<=Math.min(NY-1,cy+reach);yy++)
    for(let xx=Math.max(0,cx-reach);xx<=Math.min(NX-1,cx+reach);xx++){
-    const id=yy*NX+xx;if((this.tiles[id]!==0&&this.tiles[id]!==2&&this.tiles[id]!==3)||this.grass[id]<=.2)continue;
+    const id=yy*NX+xx;if((this.tiles[id]!==0&&this.tiles[id]!==2)||this.grass[id]<=.2)continue;
     if(!terrainFitness(g,this.tiles[id]).passable)continue;
     const a=clamp(x,xx*CELL+2,(xx+1)*CELL-2);
     const b=clamp(y,yy*CELL+2,(yy+1)*CELL-2);
@@ -1396,7 +1396,7 @@ export class Ecosystem{
    const level=this.terrainLevels[i];
    if(this.tiles[i]===0)this.grass[i]=Math.min(100,[26,44,65,77,87][level-1]+this.rand()*13);
    if(this.tiles[i]===2)this.grass[i]=[5,4,3,2,1][level-1]+this.rand()*2;
-   if(this.tiles[i]===3)this.grass[i]=[10,9,8,7,6][level-1]+this.rand()*2;
+   // Bare rock is shelter, not edible grass or hidden permanent lichen.
    if(this.tiles[i]===1){
     this.water[i]=Math.min(100,[45,57,74,87,96][level-1]+this.rand()*5);
     this.waterbed[i]=1;
@@ -1527,14 +1527,14 @@ export class Ecosystem{
        if(next[i]<.2){next[i]=0;this.tiles[i]=2;}
       }
     }
-    // Lichen grows slowly on bare dry/rock terrain. It is not free food:
-    // grazed-off patches remain empty until spores reach them.
-    if((this.tiles[i]===2||this.tiles[i]===3)&&this.grass[i]>0){
+    // Sparse edible dryland plants recover slowly; rocks never grow food.
+    if(this.tiles[i]===2&&this.grass[i]>0){
      const wetness=clamp((this.soilWater[i]??0)/70,0,1);
-     next[i]=Math.min(this.tiles[i]===2?13:30,
-      this.grass[i]+(this.tiles[i]===2?.19:1.8)*(.25+wetness)*
+     next[i]=Math.min(9,
+      this.grass[i]+.10*(.25+wetness)*
       this.growth/70/(1+this.grazingPressure[i]));
     }
+    if(this.tiles[i]===3)next[i]=0;
     if(this.grass[i]<=0&&this.tiles[i]!==1&&this.tiles[i]!==3){
      const x=i%NX,y=Math.floor(i/NX);
      const neighbors=[x>0?i-1:-1,x<NX-1?i+1:-1,y>0?i-NX:-1,y<NY-1?i+NX:-1];
@@ -1613,7 +1613,7 @@ export class Ecosystem{
     if(this.waterweed[id]>0)this.waterweed[id]=Math.min(100,this.waterweed[id]+loss*.3);
    }
    if(this.tiles[id]!==1&&this.tiles[id]!==3){
-    if(this.grass[id]>0)this.grass[id]=Math.min(100,this.grass[id]+loss*.12);
+    if(this.tiles[id]!==3&&this.grass[id]>0)this.grass[id]=Math.min(100,this.grass[id]+loss*.12);
     // Fertilizer alone cannot germinate a grassland with no surviving seeds.
     // Neighboring grass spreads into the fertilized cell in the growth phase.
    }
@@ -2073,13 +2073,13 @@ export class Ecosystem{
     const eaten=this.consumeGrass(nearest.x,nearest.y,
      Math.min(forageLimit,1.05*m.foodGain*feedingCapacity(u)));
     if(eaten>0){
-     const foodYield=forageTerrain===0?10.5:forageTerrain===2?8:7.4*(1+.44*clamp(g.rock??0,0,1));
+     const foodYield=forageTerrain===0?10.5:4.8;
      u.energy+=eaten*foodYield*effectivePlantAffinity(u)*home.fitness;
      u.recentFood=(u.recentFood??0)+eaten*4;
      u.forageSuccess++;
      u.seedBank=Math.min(100,(u.seedBank??0)+eaten*.35);
      if(u.stage==='juvenile')u.juvenileFood+=eaten*foodYield*effectivePlantAffinity(u)*home.fitness;
-     // Grass restores energy reserves, not irreversible life HP.
+     // Plant calories fund metabolism, growth and slow HP recovery.
      if((this.tick+u.id)%9===0)this.addVisualEffect('graze',u,{fromX:nearest.x,fromY:nearest.y});
      this.log('meal','#'+u.id+' が草を食べた',u);}
    }
