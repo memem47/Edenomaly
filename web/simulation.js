@@ -207,6 +207,19 @@ export const landAcclimationGain=(u,onLand)=>onLand?
  Math.max(0,(u.landAcclimation??0)-.0016);
 // Habitat-specific water economy: arid/rock specialists lose water slowly
 // and can replenish a modest amount from rain, without generating free food.
+// Seasonal growth remains relative to the user's plant-growth sliders.
+export const seasonalPlantGrowth=(season,temperature,terrain,soilWater=50,forestLevel=3)=>{
+ const moisture=clamp(soilWater/100,0,1);
+ if(season==='winter')return (terrain===1?.13:.045)+(terrain===0?clamp((forestLevel-2)/3,0,1)*.10:0);
+ if(season==='spring')return terrain===1?1.5:1.8;
+ if(season==='autumn')return terrain===1?.95:.72;
+ if(season==='summer'){
+  if(terrain===1)return 1.25;
+  const heat=clamp((temperature-24)/13,0,1);
+  return clamp(1.12-heat*(.33+.64*(1-moisture)),.12,1.15);
+ }
+ return 1;
+};
 export const terrestrialHydrationDelta=(g,terrain,weather,level=3,vegetation=0,soilMoisture=0)=>{
  // Dew and plant moisture are local renewable inputs, never a direct HP
  // refill. Dry grass, bare ground and rocks provide almost none.
@@ -1394,6 +1407,7 @@ export class Ecosystem{
   this.seedRainCount=0;this.waterweedSeedCount=0;this.corpseSproutCount=0;this.waterPlantings=0;this.cannibalMeals=0;
   for(let i=0;i<this.tiles.length;i++){
    const level=this.terrainLevels[i];
+   this.soilWater[i]=this.tiles[i]===0?52:this.tiles[i]===2?19:this.tiles[i]===1?95:5;
    if(this.tiles[i]===0)this.grass[i]=Math.min(100,[26,44,65,77,87][level-1]+this.rand()*13);
    if(this.tiles[i]===2)this.grass[i]=[5,4,3,2,1][level-1]+this.rand()*2;
    // Preserve the seeded RNG sequence when converting rocky food to bare refuge.
@@ -1507,6 +1521,11 @@ export class Ecosystem{
   this.tick++;
   this.updateWeather();
   this.updateTemperature();
+  const plantSeason=this.climateEnabled?this.seasonName():'none';
+  if(this.climateEnabled&&this.tick>1&&this.tick%this.seasonLength===0){
+   const phase={spring:'春の芽吹きが始まる',summer:'夏の成長期。乾燥に注意',autumn:'秋。草の成長が鈍り始める',winter:'冬。植物は休眠し地上部が減る'};
+   this.log('info','植物：'+phase[plantSeason]);
+  }
   // Regrowth is suppressed by local biomass demand instead of a population threshold.
   if(this.tick%6===0){
    // Track actual plant harvests in consumeGrass/consumeWaterweed.
@@ -1514,14 +1533,28 @@ export class Ecosystem{
   // Map resources are finite. Grass regrows only from living adjacent patches,
   // so complete overgrazing cannot recover without intervention.
   if(this.tick%6===0){
+   // Rain replenishes root-zone moisture, while sunlight evaporates it.
+   for(let i=0;i<this.soilWater.length;i++){
+    const biome=this.tiles[i];
+    if(biome===1){this.soilWater[i]=Math.max(70,this.soilWater[i]);continue;}
+    const rain=this.weather==='rain'?(.8+this.rainfall*.025)*(biome===0?1:biome===2?.72:.35):0;
+    const evaporation=clamp(.14+Math.max(0,this.temperature-22)*.025,0,.85)*(biome===0?.78:biome===2?1.2:.65);
+    this.soilWater[i]=clamp(this.soilWater[i]+rain-evaporation,0,100);
+   }
    const next=this.grass.slice();
    for(let i=0;i<this.tiles.length;i++){
     if(this.tiles[i]===0&&this.grass[i]>0){
      const localGrazing=this.grazingPressure[i];
        const levelScale=TERRAIN_LEVEL_GROWTH[(this.terrainLevels?.[i]??3)-1]??1;
       const productivity=clamp(.28+this.soil[i]/120,.28,1.12);
-      const regen=(1.8+this.soil[i]*.05)*this.growth/70*levelScale*productivity/(1+localGrazing*.52);
+      const seasonGrowth=seasonalPlantGrowth(plantSeason,
+        this.temperatureAt((i%NX+.5)*CELL,(Math.floor(i/NX)+.5)*CELL),
+        0,this.soilWater[i],this.terrainLevels?.[i]??3);
+       const regen=(1.8+this.soil[i]*.05)*this.growth/70*levelScale*productivity*seasonGrowth/(1+localGrazing*.52);
       next[i]=Math.min(100,this.grass[i]+regen);
+      // Winter kills foliage but leaves living roots; autumn slowly thins leaves.
+      if(plantSeason==='winter')next[i]=Math.max(Math.min(this.grass[i],4),next[i]-(this.grass[i]-4)*.018);
+      else if(plantSeason==='autumn')next[i]=Math.max(Math.min(this.grass[i],4),next[i]-(this.grass[i]-4)*.004);
       if(localGrazing>2.5){
        next[i]=Math.max(0,next[i]-Math.min(4.5,(localGrazing-2.5)*.23));
        this.soil[i]=Math.max(0,this.soil[i]-.075*Math.min(10,localGrazing));
@@ -1533,7 +1566,7 @@ export class Ecosystem{
      const wetness=clamp((this.soilWater[i]??0)/70,0,1);
      next[i]=Math.min(9,
       this.grass[i]+.10*(.25+wetness)*
-      this.growth/70/(1+this.grazingPressure[i]));
+      this.growth/70*seasonalPlantGrowth(plantSeason,this.temperature,2,this.soilWater[i])/(1+this.grazingPressure[i]));
     }
     if(this.tiles[i]===3)next[i]=0;
     if(this.grass[i]<=0&&this.tiles[i]!==1&&this.tiles[i]!==3){
@@ -1542,14 +1575,22 @@ export class Ecosystem{
      // A completely bare world contains no propagules.
      // Fertilized patches spread faster, but never create plants without seeds.
      const fertile=clamp(this.soil[i]/55,0,1.5);
-     if(neighbors.some(j=>j>=0&&this.grass[j]>18)&&this.rand()<(.08+.20*fertile)*this.growth/70){
+     const seedSeason=plantSeason==='winter'?.015:plantSeason==='spring'?1.65:plantSeason==='autumn'?.60:1;
+     if(neighbors.some(j=>j>=0&&this.grass[j]>18)&&this.rand()<(.08+.20*fertile)*this.growth/70*seedSeason){
       next[i]=4;this.tiles[i]=0;
      }
     }
     // Waterweed is a separate, edible plant resource: water itself is not food.
-    if(this.tiles[i]===1&&this.water[i]>0&&this.waterweed[i]>0)
-     this.waterweed[i]=Math.min(100,this.waterweed[i]+(.55+this.soil[i]*.024)*this.waterweedGrowth/70*
-       (WATER_LEVEL_GROWTH[(this.terrainLevels?.[i]??3)-1]??1)/(1+this.grazingPressure[i]*.4));
+    if(this.tiles[i]===1&&this.water[i]>0&&this.waterweed[i]>0){
+     const plant=seasonalPlantGrowth(plantSeason,
+      this.temperatureAt((i%NX+.5)*CELL,(Math.floor(i/NX)+.5)*CELL),1,100);
+     const regen=(.55+this.soil[i]*.024)*this.waterweedGrowth/70*
+      (WATER_LEVEL_GROWTH[(this.terrainLevels?.[i]??3)-1]??1)*plant/(1+this.grazingPressure[i]*.4);
+     this.waterweed[i]=Math.min(100,this.waterweed[i]+regen);
+     // Rooted aquatic plants endure winter; above-water food availability falls.
+     if(plantSeason==='winter')this.waterweed[i]=Math.max(
+      Math.min(this.waterweed[i],3),this.waterweed[i]-(this.waterweed[i]-3)*.007);
+    }
     this.soil[i]*=.997;
    }
    this.grass=next;
@@ -1564,7 +1605,7 @@ export class Ecosystem{
     const id=Math.floor(this.rand()*this.tiles.length);
     if(this.tiles[id]!==2||this.grass[id]>0)continue;
     const humidity=this.weather==='rain'?1.8:1;
-    if(this.rand()<(.10+this.soil[id]*.005)*humidity*this.growth/70){
+    if(this.rand()<(.10+this.soil[id]*.005)*humidity*this.growth/70*(plantSeason==='winter'?.01:plantSeason==='spring'?1.8:plantSeason==='autumn'?.65:1)){
      this.tiles[id]=0;this.grass[id]=5+this.rand()*5;
      this.seedRainCount++;
     }
@@ -1578,12 +1619,12 @@ export class Ecosystem{
    for(let i=0;i<this.tiles.length;i++)if(this.tiles[i]===1&&this.water[i]>=12&&this.waterweed[i]<=.001){
     const x=i%NX,y=Math.floor(i/NX);
     const adjacent=[x>0?i-1:-1,x<NX-1?i+1:-1,y>0?i-NX:-1,y<NY-1?i+NX:-1];
-    if(adjacent.some(j=>j>=0&&this.tiles[j]===1&&this.waterweed[j]>15)&&this.rand()<.08*this.waterweedGrowth/70){
+    if(adjacent.some(j=>j>=0&&this.tiles[j]===1&&this.waterweed[j]>15)&&this.rand()<.08*this.waterweedGrowth/70*(plantSeason==='winter'?.08:plantSeason==='spring'?1.5:1)){
      next[i]=3;
     }else{
      const rain=this.weather==='rain'?1.7:1;
      const depth=clamp(this.water[i]/65,.25,1);
-     if(this.rand()<.006*rain*depth*this.waterweedGrowth/70){
+     if(this.rand()<.006*rain*depth*this.waterweedGrowth/70*(plantSeason==='winter'?.05:plantSeason==='spring'?1.7:1)){
       next[i]=4+this.rand()*3;
       this.waterweedSeedCount++;
      }

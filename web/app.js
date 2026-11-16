@@ -1,9 +1,9 @@
 import {zipFiles} from './zip-log.js?v=2026.11.07.4';
-import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.16.1';
-import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.16.1';
+import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.16.2';
+import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.16.2';
 import {mountGameUI} from './game-ui.js?v=2026.11.14.2';
 import {fitView,screenToWorld,zoomAround,panBy,MAX_ZOOM,ZOOM_STEP} from './viewport.js?v=2026.11.08.12';
-import {drawWorld,drawChart} from './renderer.js?v=2026.11.16.1';
+import {drawWorld,drawChart} from './renderer.js?v=2026.11.16.2';
 import {EcologyLogbook,observeEcology,ECOLOGY_LOG_FIELDS} from './ecology-log.js?v=2026.11.14.2';
 import {gameRunReport,saveGameRunReport,readGameRunHistory} from './game-run-log.js?v=2026.11.14.2';
 import {SpeciesLogbook,speciesReport,csvCell} from './species-statistics.js';
@@ -11,7 +11,7 @@ import {performancePolicy,simulationBatch,BROWSER_BACKGROUND_INTERVAL} from './p
 const $=id=>document.getElementById(id);
 // Release label is bundled with the running source; comparison uses a
 // separately published manifest from the repository's main branch.
-const BUILD_VERSION='2026.11.16.1';
+const BUILD_VERSION='2026.11.16.2';
 const VERSION_SOURCE='https://raw.githubusercontent.com/memem47/Edenomaly/main/web/version.json';
 $('buildVersion').textContent=BUILD_VERSION;
 async function checkLatestVersion(){
@@ -267,7 +267,7 @@ function update(){
  $('discoveryScore').textContent=score.discoveries.toLocaleString('ja-JP')+'種 / 新種 +'+score.discoveryScore.toLocaleString('ja-JP')+
    '点 ／ 定着 '+score.establishedSpecies+'種 +'+score.establishmentScore.toLocaleString('ja-JP')+'点 ／ 多様性維持 +'+score.balanceScore.toLocaleString('ja-JP')+'点';
  $('runScoreStatus').textContent=!score.started?'移入待ち':score.ended?'絶滅・スコア確定':'生存中・計測中';
- $('seasonStatus').textContent=game.climateEnabled?({spring:'🌸 春',summer:'☀️ 夏',autumn:'🍂 秋',winter:'❄️ 冬'}[game.seasonName()]):'季節変動 OFF';
+ $('seasonStatus').textContent=game.climateEnabled?({spring:'🌸 春・🌱 芽吹き',summer:'☀️ 夏・🌿 水分依存',autumn:'🍂 秋・🌿 成長鈍化',winter:'❄️ 冬・🌱 休眠'}[game.seasonName()]):'季節変動 OFF';
  $('temperatureStatus').textContent='🌡 '+game.temperature.toFixed(1)+'℃';
  $('weatherStatus').textContent=game.climateEnabled&&game.seasonName()==='winter'&&game.weather==='rain'?'❄ 雪':({sunny:'☀ 晴れ',cloudy:'☁ 曇り',rain:'🌧 雨'}[game.weather]||'☀ 晴れ');
  $('stepCount').textContent=game.tick.toLocaleString('ja-JP');$('status').textContent=game.introducedCount===0?'移入待ち':running?'実行中':'停止中';$('play').textContent=running?'Ⅱ 停止':'▶ 再生';$('play').classList.toggle('active',running);
