@@ -3,7 +3,7 @@ import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,
 import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.16.1';
 import {mountGameUI} from './game-ui.js?v=2026.11.14.2';
 import {fitView,screenToWorld,zoomAround,panBy,MAX_ZOOM,ZOOM_STEP} from './viewport.js?v=2026.11.08.12';
-import {drawWorld,drawChart} from './renderer.js?v=2026.11.14.2';
+import {drawWorld,drawChart} from './renderer.js?v=2026.11.16.1';
 import {EcologyLogbook,observeEcology,ECOLOGY_LOG_FIELDS} from './ecology-log.js?v=2026.11.14.2';
 import {gameRunReport,saveGameRunReport,readGameRunHistory} from './game-run-log.js?v=2026.11.14.2';
 import {SpeciesLogbook,speciesReport,csvCell} from './species-statistics.js';
