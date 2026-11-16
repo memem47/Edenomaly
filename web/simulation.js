@@ -207,6 +207,19 @@ export const landAcclimationGain=(u,onLand)=>onLand?
  Math.max(0,(u.landAcclimation??0)-.0016);
 // Habitat-specific water economy: arid/rock specialists lose water slowly
 // and can replenish a modest amount from rain, without generating free food.
+// Seasonal growth remains relative to the user's plant-growth sliders.
+export const seasonalPlantGrowth=(season,temperature,terrain,soilWater=50,forestLevel=3)=>{
+ const moisture=clamp(soilWater/100,0,1);
+ if(season==='winter')return (terrain===1?.13:.045)+(terrain===0?clamp((forestLevel-2)/3,0,1)*.10:0);
+ if(season==='spring')return terrain===1?1.5:1.8;
+ if(season==='autumn')return terrain===1?.95:.72;
+ if(season==='summer'){
+  if(terrain===1)return 1.25;
+  const heat=clamp((temperature-24)/13,0,1);
+  return clamp(1.12-heat*(.33+.64*(1-moisture)),.12,1.15);
+ }
+ return 1;
+};
 export const terrestrialHydrationDelta=(g,terrain,weather,level=3,vegetation=0,soilMoisture=0)=>{
  // Dew and plant moisture are local renewable inputs, never a direct HP
  // refill. Dry grass, bare ground and rocks provide almost none.
@@ -1394,6 +1407,7 @@ export class Ecosystem{
   this.seedRainCount=0;this.waterweedSeedCount=0;this.corpseSproutCount=0;this.waterPlantings=0;this.cannibalMeals=0;
   for(let i=0;i<this.tiles.length;i++){
    const level=this.terrainLevels[i];
+   this.soilWater[i]=this.tiles[i]===0?52:this.tiles[i]===2?19:this.tiles[i]===1?95:5;
    if(this.tiles[i]===0)this.grass[i]=Math.min(100,[26,44,65,77,87][level-1]+this.rand()*13);
    if(this.tiles[i]===2)this.grass[i]=[5,4,3,2,1][level-1]+this.rand()*2;
    // Preserve the seeded RNG sequence when converting rocky food to bare refuge.
@@ -1507,6 +1521,11 @@ export class Ecosystem{
   this.tick++;
   this.updateWeather();
   this.updateTemperature();
+  const plantSeason=this.climateEnabled?this.seasonName():'none';
+  if(this.climateEnabled&&this.tick>1&&this.tick%this.seasonLength===0){
+   const phase={spring:'春の芽吹きが始まる',summer:'夏の成長期。乾燥に注意',autumn:'秋。草の成長が鈍り始める',winter:'冬。植物は休眠し地上部が減る'};
+   this.log('info','植物：'+phase[plantSeason]);
+  }
   // Regrowth is suppressed by local biomass demand instead of a population threshold.
   if(this.tick%6===0){
    // Track actual plant harvests in consumeGrass/consumeWaterweed.
@@ -1514,6 +1533,14 @@ export class Ecosystem{
   // Map resources are finite. Grass regrows only from living adjacent patches,
   // so complete overgrazing cannot recover without intervention.
   if(this.tick%6===0){
+   // Rain replenishes root-zone moisture, while sunlight evaporates it.
+   for(let i=0;i<this.soilWater.length;i++){
+    const biome=this.tiles[i];
+    if(biome===1){this.soilWater[i]=Math.max(70,this.soilWater[i]);continue;}
+    const rain=this.weather==='rain'?(.8+this.rainfall*.025)*(biome===0?1:biome===2?.72:.35):0;
+    const evaporation=clamp(.14+Math.max(0,this.temperature-22)*.025,0,.85)*(biome===0?.78:biome===2?1.2:.65);
+    this.soilWater[i]=clamp(this.soilWater[i]+rain-evaporation,0,100);
+   }
    const next=this.grass.slice();
    for(let i=0;i<this.tiles.length;i++){
     if(this.tiles[i]===0&&this.grass[i]>0){
