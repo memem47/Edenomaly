@@ -1547,8 +1547,14 @@ export class Ecosystem{
      const localGrazing=this.grazingPressure[i];
        const levelScale=TERRAIN_LEVEL_GROWTH[(this.terrainLevels?.[i]??3)-1]??1;
       const productivity=clamp(.28+this.soil[i]/120,.28,1.12);
-      const regen=(1.8+this.soil[i]*.05)*this.growth/70*levelScale*productivity/(1+localGrazing*.52);
+      const seasonGrowth=seasonalPlantGrowth(plantSeason,
+        this.temperatureAt((i%NX+.5)*CELL,(Math.floor(i/NX)+.5)*CELL),
+        0,this.soilWater[i],this.terrainLevels?.[i]??3);
+       const regen=(1.8+this.soil[i]*.05)*this.growth/70*levelScale*productivity*seasonGrowth/(1+localGrazing*.52);
       next[i]=Math.min(100,this.grass[i]+regen);
+      // Winter kills foliage but leaves living roots; autumn slowly thins leaves.
+      if(plantSeason==='winter')next[i]=Math.max(Math.min(this.grass[i],4),next[i]-(this.grass[i]-4)*.018);
+      else if(plantSeason==='autumn')next[i]=Math.max(Math.min(this.grass[i],4),next[i]-(this.grass[i]-4)*.004);
       if(localGrazing>2.5){
        next[i]=Math.max(0,next[i]-Math.min(4.5,(localGrazing-2.5)*.23));
        this.soil[i]=Math.max(0,this.soil[i]-.075*Math.min(10,localGrazing));
@@ -1560,7 +1566,7 @@ export class Ecosystem{
      const wetness=clamp((this.soilWater[i]??0)/70,0,1);
      next[i]=Math.min(9,
       this.grass[i]+.10*(.25+wetness)*
-      this.growth/70/(1+this.grazingPressure[i]));
+      this.growth/70*seasonalPlantGrowth(plantSeason,this.temperature,2,this.soilWater[i])/(1+this.grazingPressure[i]));
     }
     if(this.tiles[i]===3)next[i]=0;
     if(this.grass[i]<=0&&this.tiles[i]!==1&&this.tiles[i]!==3){
@@ -1569,7 +1575,8 @@ export class Ecosystem{
      // A completely bare world contains no propagules.
      // Fertilized patches spread faster, but never create plants without seeds.
      const fertile=clamp(this.soil[i]/55,0,1.5);
-     if(neighbors.some(j=>j>=0&&this.grass[j]>18)&&this.rand()<(.08+.20*fertile)*this.growth/70){
+     const seedSeason=plantSeason==='winter'?.015:plantSeason==='spring'?1.65:plantSeason==='autumn'?.60:1;
+     if(neighbors.some(j=>j>=0&&this.grass[j]>18)&&this.rand()<(.08+.20*fertile)*this.growth/70*seedSeason){
       next[i]=4;this.tiles[i]=0;
      }
     }
