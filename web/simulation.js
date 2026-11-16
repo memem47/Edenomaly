@@ -489,8 +489,8 @@ export const rearPosition=(u,offset=0)=>({
 // branches, duplicate random draws and silent genetic initialization drift.
 const DERIVED_FOUNDER_LOCI=new Set(['tailLength','hornLength','antennaLength','pattern',
  'hibernate','dispersal','sociability','caution','predatorSense','retaliation',
- 'frugality','waterGardening']);
-const HERITABLE=['tailLength','hornLength','antennaLength','pattern','repro','idealTemp','tempTolerance','hibernate','longevity','r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic','albino','dispersal','sociability','caution','predatorSense','retaliation','frugality','waterGardening'];
+ 'frugality','waterGardening','nestChoice','parentFeeding','yolkReserve','juvenileCannibalism']);
+const HERITABLE=['tailLength','hornLength','antennaLength','pattern','repro','idealTemp','tempTolerance','hibernate','longevity','r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic','albino','dispersal','sociability','caution','predatorSense','retaliation','frugality','waterGardening','nestChoice','parentFeeding','yolkReserve','juvenileCannibalism'];
 // Natural ponds always retain a viable reservoir. Drought reduces excess
 // water depth, but only deliberate terrain painting may remove a water tile.
 export const POND_RESERVE=35;
@@ -505,7 +505,7 @@ export const genomeCode=g=>HERITABLE.map(key=>{
  return step.toString(16).toUpperCase();
 }).join('').match(/.{1,4}/g).join('-');
 
-const LIMITS={tailLength:[0,1],hornLength:[0,1],antennaLength:[0,1],pattern:[0,1],repro:[0,2],idealTemp:[-5,40],tempTolerance:[3,18],hibernate:[0,1],longevity:[.6,2],r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1],albino:[0,1],dispersal:[0,1],sociability:[0,1],caution:[0,1],predatorSense:[0,1],retaliation:[0,1],frugality:[0,1],waterGardening:[0,1]};
+const LIMITS={tailLength:[0,1],hornLength:[0,1],antennaLength:[0,1],pattern:[0,1],repro:[0,2],idealTemp:[-5,40],tempTolerance:[3,18],hibernate:[0,1],longevity:[.6,2],r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1],albino:[0,1],dispersal:[0,1],sociability:[0,1],caution:[0,1],predatorSense:[0,1],retaliation:[0,1],frugality:[0,1],waterGardening:[0,1],nestChoice:[0,1],parentFeeding:[0,1],yolkReserve:[0,1],juvenileCannibalism:[0,1]};
 const alleleExpression=(key,pair)=>{
  // Eyes: more-eye allele is dominant; hidden low-eye alleles can reappear in grandchildren.
  // Other continuous traits use incomplete dominance (mean of the two inherited copies).
@@ -654,6 +654,12 @@ export class Ecosystem{
    g.waterGardening=clamp(.05+g.wet*.28+g.nesting*.15,0,1);
    g.alleles.frugality=[g.frugality,g.frugality];
    g.alleles.waterGardening=[g.waterGardening,g.waterGardening];
+   g.nestChoice=clamp(.04+g.nesting*.63+g.eyes/6*.16,0,1);
+   g.parentFeeding=clamp(.04+g.guard*.39+g.sociability*.34,0,1);
+   g.yolkReserve=clamp(.08+g.shell*.34+g.brood/8*.18,0,1);
+   g.juvenileCannibalism=clamp(.025+g.diet*.43+g.jaw/2.5*.21-g.guard*.13,0,1);
+   for(const key of ['nestChoice','parentFeeding','yolkReserve','juvenileCannibalism'])
+    g.alleles[key]=[g[key],g[key]];
    for(const key of ['tailLength','hornLength','antennaLength','pattern'])
     g.alleles[key]=[g[key],g[key]];
   return g;
@@ -874,17 +880,38 @@ export class Ecosystem{
    ', 主HP損失 '+detail.dominantHpLoss+']',u);
   if(this.species.get(u.category).current===0)this.log('info',this.species.get(u.category).name+' が絶滅');
  }
+ nurseryFoodAt(x,y,g){
+  const i=this.cell(x,y),aquatic=g.aquatic===1;
+  if(aquatic)return this.tiles[i]===1&&this.water[i]>=12?
+   clamp((this.waterweed[i]??0)/85,0,1):0;
+  if(this.tiles[i]===1||this.tiles[i]===3)return 0;
+  return clamp((this.grass[i]??0)/(this.tiles[i]===0?65:90),0,1);
+ }
  chooseNest(u){
-  let best={x:u.x,y:u.y},score=-Infinity;
-  const trait=u.g.nesting;
-  for(let k=0;k<8;k++){
-   const x=clamp(u.x+this.range(-34,34),10,W-10),y=clamp(u.y+this.range(-34,34),10,H-10);
-   let threat=0;for(const v of this.units){if(v!==u&&!v.dead&&organismMorphology(v).predatory&&distance({x,y},v)<45**2)threat++;}
-   const landscape=this.terrain(x,y);
-   const sheltered=landscape===3?.85:landscape===1&&u.g.aquatic===1?1.1:0;
-    const safe=terrainFitness(u.g,landscape).fitness*.9+GROWTH[landscape]*.6+sheltered-threat*2;
-   const s=trait*safe+this.range(-.6,.6)-(1-trait)*Math.hypot(x-u.x,y-u.y)/50;
-   if(s>score){score=s;best={x,y};}
+  const skill=clamp(u.g.nestChoice??u.g.nesting??0,0,1);
+  const radius=20+skill*90;
+  let best={x:u.x,y:u.y},bestScore=-Infinity;
+  const candidates=[{x:u.x,y:u.y}];
+  for(let k=0;k<12;k++)candidates.push({
+   x:clamp(u.x+this.range(-radius,radius),10,W-10),
+   y:clamp(u.y+this.range(-radius,radius),10,H-10)});
+  for(const site of candidates){
+   const t=this.terrain(site.x,site.y);
+   if(!terrainFitness(u.g,t).passable||
+      (u.g.aquatic===1&&t!==1)||(u.g.aquatic!==1&&t===1))continue;
+   const food=this.nurseryFoodAt(site.x,site.y,u.g);
+   let threat=0,crowd=0;
+   for(const v of this.units){
+    if(v===u||v.dead||distance(site,v)>75**2)continue;
+    if(organismMorphology(v).predatory&&v.lineage!==u.lineage)threat++;
+    if(distance(site,v)<40**2)crowd++;
+   }
+   const d=Math.sqrt(distance(u,site));
+   const thermal=thermalFitness(u.g,this.temperatureAt(site.x,site.y));
+   const score=food*(.4+skill*3)+terrainFitness(u.g,t).fitness*.5+
+    (t===0?.18:0)-thermal.excess*.18-threat*(.42+skill*.7)-
+    crowd*skill*.10-d*(.022-skill*.014);
+   if(score>bestScore){bestScore=score;best={x:site.x,y:site.y};}
   }
   return best;
  }
@@ -1016,6 +1043,7 @@ export class Ecosystem{
   if(count<1)return null;
   const genomes=Array.from({length:count},()=>this.recombine(parent.g,partner.g));
   const pregnancy={genomes,parent:parent.id,otherParent:partner.id,lineage:this.rand()<.5?parent.lineage:partner.lineage,generation:Math.max(parent.generation,partner.generation)+1,remaining:25,total:25};
+  pregnancy.nestGoal=this.chooseNest(parent);
   parent.pregnancy=pregnancy;
   const dual=reproductiveMode(parent.g)===1||reproductiveMode(partner.g)===1;
   parent.energy-=16+count*5+parent.g.nesting*3+largeParentCost+(dual?4:0);
@@ -1031,6 +1059,7 @@ export class Ecosystem{
   const count=Math.min(1+Math.floor(parent.g.brood/4),2500-this.eggs.length);
   const genomes=Array.from({length:count},()=>this.rand()<.025?this.mutate(this.recombine(parent.g,parent.g)):this.recombine(parent.g,parent.g));
   const pregnancy={genomes,parent:parent.id,otherParent:null,lineage:parent.lineage,generation:parent.generation+1,remaining:32,total:32};
+  pregnancy.nestGoal=this.chooseNest(parent);
   parent.pregnancy=pregnancy;
   parent.energy-=25+count*11+parent.g.nesting*3;
   parent.mateCooldown=175;
@@ -1065,12 +1094,15 @@ export class Ecosystem{
   const p=parent.pregnancy;
   // Oviposition is anchored behind the parent's actual facing direction.
   const count=Math.min(p.genomes.length,2500-this.eggs.length);
+  const invest=clamp(parent.g.yolkReserve??0,0,1);
+  const yolkPerEgg=Math.min(16*invest,Math.max(0,(parent.energy-35)/Math.max(1,count)));
+  parent.energy-=yolkPerEgg*count;
   if(count===0)return null;
   const laid=[];
   for(let i=0;i<count;i++){
    const g=p.genomes[i],traits=eggTraits(g);
    const rear=rearPosition(parent,3+i*.65);
-   const egg={id:this.nextId++,x:clamp(rear.x+Math.cos(parent.angle+Math.PI/2)*this.range(-3,3),6,W-6),y:clamp(rear.y+Math.sin(parent.angle+Math.PI/2)*this.range(-6,6),6,H-6),g,parent:p.parent,otherParent:p.otherParent,generation:p.generation,lineage:p.lineage,age:0,hatchAt:traits.incubation,energy:traits.eggEnergy,dead:false,bornTick:this.tick,birthX:parent.x-Math.cos(parent.angle)*(parent.g.r*parent.g.elongation+2),birthY:parent.y-Math.sin(parent.angle)*(parent.g.r*parent.g.elongation+2)};
+   const egg={id:this.nextId++,x:clamp(rear.x+Math.cos(parent.angle+Math.PI/2)*this.range(-3,3),6,W-6),y:clamp(rear.y+Math.sin(parent.angle+Math.PI/2)*this.range(-6,6),6,H-6),g,parent:p.parent,otherParent:p.otherParent,generation:p.generation,lineage:p.lineage,age:0,hatchAt:traits.incubation,energy:traits.eggEnergy+yolkPerEgg*.84,dead:false,bornTick:this.tick,birthX:parent.x-Math.cos(parent.angle)*(parent.g.r*parent.g.elongation+2),birthY:parent.y-Math.sin(parent.angle)*(parent.g.r*parent.g.elongation+2)};
    if(g.aquatic!==parent.g.aquatic){
      const site=this.shoreEggSite(egg.x,egg.y,g);
      egg.x=site.x;egg.y=site.y;
@@ -1086,7 +1118,7 @@ export class Ecosystem{
    laid.push(egg);this.eggs.push(egg);
   }
   parent.pregnancy=null;
-  this.log('egg','#'+parent.id+' が '+laid.length+' 個の卵を産んだ（'+(p.otherParent===null?'単為生殖':'相手 #'+p.otherParent)+'）',parent);
+  this.log('egg','#'+parent.id+' が '+laid.length+' 個の卵を産んだ（'+(p.otherParent===null?'単為生殖':'相手 #'+p.otherParent)+'、卵黄投資 '+(yolkPerEgg*count).toFixed(1)+'）',parent);
   return laid[0];
  }
  updateCourtships(){
