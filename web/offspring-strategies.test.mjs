@@ -20,8 +20,9 @@ test('nutrition-sensitive nest seeking favors food while costing finite travel e
  w.tiles.fill(3);w.grass.fill(0);w.climateEnabled=false;
  const parent=w.spawn(220,180,g);
  const near=w.cell(240,180);w.tiles[near]=0;w.grass[near]=100;
- w.rand=()=>.5;
+ let calls=0;w.range=()=>++calls%2?20:0;
  const nest=w.chooseNest(parent);
+ assert.equal(w.cell(nest.x,nest.y),near,'food-rich nursery should win');
  assert.ok(w.nurseryFoodAt(240,180,g)>w.nurseryFoodAt(220,180,g));
  assert.equal(w.nurseryFoodAt(220,180,g),0);
  assert.ok(nest);
