@@ -1581,9 +1581,16 @@ export class Ecosystem{
      }
     }
     // Waterweed is a separate, edible plant resource: water itself is not food.
-    if(this.tiles[i]===1&&this.water[i]>0&&this.waterweed[i]>0)
-     this.waterweed[i]=Math.min(100,this.waterweed[i]+(.55+this.soil[i]*.024)*this.waterweedGrowth/70*
-       (WATER_LEVEL_GROWTH[(this.terrainLevels?.[i]??3)-1]??1)/(1+this.grazingPressure[i]*.4));
+    if(this.tiles[i]===1&&this.water[i]>0&&this.waterweed[i]>0){
+     const plant=seasonalPlantGrowth(plantSeason,
+      this.temperatureAt((i%NX+.5)*CELL,(Math.floor(i/NX)+.5)*CELL),1,100);
+     const regen=(.55+this.soil[i]*.024)*this.waterweedGrowth/70*
+      (WATER_LEVEL_GROWTH[(this.terrainLevels?.[i]??3)-1]??1)*plant/(1+this.grazingPressure[i]*.4);
+     this.waterweed[i]=Math.min(100,this.waterweed[i]+regen);
+     // Rooted aquatic plants endure winter; above-water food availability falls.
+     if(plantSeason==='winter')this.waterweed[i]=Math.max(
+      Math.min(this.waterweed[i],3),this.waterweed[i]-(this.waterweed[i]-3)*.007);
+    }
     this.soil[i]*=.997;
    }
    this.grass=next;
@@ -1598,7 +1605,7 @@ export class Ecosystem{
     const id=Math.floor(this.rand()*this.tiles.length);
     if(this.tiles[id]!==2||this.grass[id]>0)continue;
     const humidity=this.weather==='rain'?1.8:1;
-    if(this.rand()<(.10+this.soil[id]*.005)*humidity*this.growth/70){
+    if(this.rand()<(.10+this.soil[id]*.005)*humidity*this.growth/70*(plantSeason==='winter'?.01:plantSeason==='spring'?1.8:plantSeason==='autumn'?.65:1)){
      this.tiles[id]=0;this.grass[id]=5+this.rand()*5;
      this.seedRainCount++;
     }
@@ -1612,12 +1619,12 @@ export class Ecosystem{
    for(let i=0;i<this.tiles.length;i++)if(this.tiles[i]===1&&this.water[i]>=12&&this.waterweed[i]<=.001){
     const x=i%NX,y=Math.floor(i/NX);
     const adjacent=[x>0?i-1:-1,x<NX-1?i+1:-1,y>0?i-NX:-1,y<NY-1?i+NX:-1];
-    if(adjacent.some(j=>j>=0&&this.tiles[j]===1&&this.waterweed[j]>15)&&this.rand()<.08*this.waterweedGrowth/70){
+    if(adjacent.some(j=>j>=0&&this.tiles[j]===1&&this.waterweed[j]>15)&&this.rand()<.08*this.waterweedGrowth/70*(plantSeason==='winter'?.08:plantSeason==='spring'?1.5:1)){
      next[i]=3;
     }else{
      const rain=this.weather==='rain'?1.7:1;
      const depth=clamp(this.water[i]/65,.25,1);
-     if(this.rand()<.006*rain*depth*this.waterweedGrowth/70){
+     if(this.rand()<.006*rain*depth*this.waterweedGrowth/70*(plantSeason==='winter'?.05:plantSeason==='spring'?1.7:1)){
       next[i]=4+this.rand()*3;
       this.waterweedSeedCount++;
      }
