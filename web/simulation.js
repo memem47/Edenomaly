@@ -915,6 +915,26 @@ export class Ecosystem{
   }
   return best;
  }
+ feedOffspring(parent,near){
+  const trait=clamp(parent.g.parentFeeding??0,0,1);
+  if(parent.stage!=='adult'||parent.dead||parent.energy<105||
+     trait<.35||this.tick%12!==parent.id%12)return null;
+  const offspring=near.filter(v=>v!==parent&&!v.dead&&v.stage==='juvenile'&&
+   (v.parent===parent.id||v.otherParent===parent.id)&&v.energy<78&&
+   distance(parent,v)<(16+trait*29)**2);
+  if(!offspring.length)return null;
+  offspring.sort((a,b)=>a.energy-b.energy);
+  const child=offspring[0];
+  const transfer=Math.min(5+trait*9,78-child.energy,(parent.energy-85)*.68);
+  if(transfer<=0)return null;
+  const cost=transfer/(.66+.17*trait);
+  parent.energy-=cost;child.energy+=transfer;
+  child.juvenileFood=(child.juvenileFood??0)+transfer*.45;
+  parent.parentalCalories=(parent.parentalCalories??0)+cost;
+  child.receivedParentFood=(child.receivedParentFood??0)+transfer;
+  this.log('feed','#'+parent.id+' が幼体 #'+child.id+' に '+transfer.toFixed(1)+' 栄養を分け与えた',child);
+  return child;
+ }
  canMate(a,b){
   if(!sexualCompatibility(a,b)||!this.isReadyToMate(a)||!this.isReadyToMate(b))return false;
   if(a.parent===b.id||b.parent===a.id)return false;
@@ -1835,17 +1855,23 @@ export class Ecosystem{
     d*=risk; if(d<ed){ed=d;targetEgg=egg;}
    }
   let prey=null,pd=sight*sight;
-   if((m.predatory||famineCannibalism(u)||carnivoryExperience(u)>.25)&&u.bite===0)for(const v of near){
+   if((m.predatory||famineCannibalism(u)||carnivoryExperience(u)>.25||
+    u.stage==='juvenile'&&(g.juvenileCannibalism??0)>.68&&u.energy<57)&&u.bite===0)for(const v of near){
     if(v===u||v.dead||v.id===u.courtPartner)continue;
      // Newborn relatives are not food, even when mutations alter their category.
-     if(u.stage==='juvenile'&&u.age<65&&v.stage==='juvenile'&&v.lineage===u.lineage)continue;
+     const siblingJuveniles=u.stage==='juvenile'&&u.age<65&&
+      v.stage==='juvenile'&&v.lineage===u.lineage;
+     const desperateCannibal=siblingJuveniles&&u.age>=12&&u.energy<57&&
+      (g.juvenileCannibalism??0)>.68&&diet.meat>.24&&
+      organismMorphology(v).bodyMass<organismMorphology(u).bodyMass*1.08;
+     if(siblingJuveniles&&!desperateCannibal)continue;
       const preyTerrain=this.terrain(v.x,v.y);
       if(preyTerrain===1&&!aquatic)continue;
       const preyMass=organismMorphology(v).bodyMass;
      // Under famine, capable predators risk attacking similarly sized
      // conspecifics; successful attacks yield calories, not free biomass.
      const hungry=u.energy<65&&effectiveMeatAffinity(u)>.18;
-     const cannibal=(hungry||famineCannibalism(u))&&v.category===u.category;
+     const cannibal=(hungry||famineCannibalism(u)||desperateCannibal)&&v.category===u.category;
      if(v.category===u.category&&!cannibal)continue;
      if(preyMass>m.bodyMass*(cannibal?1.15:m.edibleRatio))continue;
     const d=distance(u,v)/Math.max(.1,coverFactor(preyTerrain,aquatic)*
@@ -1948,6 +1974,7 @@ export class Ecosystem{
    }
    // Crowded colonies consume more energy and stop producing offspring as easily.
    u.energy-=Math.min(.85,Math.max(0,rivals-3)*.075)+congestion*.11;
+   if(u.stage==='juvenile')u.energy-=clamp(g.juvenileCannibalism??0,0,1)*.085;
    // The area burden is especially expensive for large, near-stationary bodies.
    u.energy-=crowdEnergyCost(habitatLoad,u.growthScale??1);
    u.localCrowd=relatives;
@@ -2037,6 +2064,14 @@ export class Ecosystem{
    if((aquatic&&!underwater&&criticalWater||!aquatic&&u.hydration<45&&!this.nearWater(u.x,u.y,1))&&(!nearFood||criticalWater)){
     const water=this.nearestWater(u.x,u.y);if(water)target=water;
    }
+   // Nursery navigation costs energy. Food, dehydration and danger win.
+   if(u.pregnancy?.nestGoal&&!flight&&!criticalWater&&!counterAttack&&
+      u.energy>65&&(!nearest||u.energy>95)){
+    if(distance(u,u.pregnancy.nestGoal)>14**2){
+     target=u.pregnancy.nestGoal;
+     u.energy-=.035+.10*clamp(g.nestChoice??0,0,1);
+    }
+   }
    // Guarding trades feeding opportunities for staying near the offspring.
    const ownEgg=firstEggByParent.get(u.id);
    if(ownEgg&&g.guard>.15&&!flight&&!defenderTarget&&!criticalWater&&u.energy>85){
@@ -2048,7 +2083,7 @@ export class Ecosystem{
    // Danger and critical dehydration remain higher priorities.
    const breedingPriority=!flight&&!criticalWater&&mate&&!mate.dead&&
     (u.courtPartner||this.isReadyToMate(u)&&u.energy>=112);
-   if(breedingPriority&&!u.landExcursion){target=mate;u.refugeTarget=null;u.socialTarget=null;}
+   if(breedingPriority&&!u.pregnancy&&!u.landExcursion){target=mate;u.refugeTarget=null;u.socialTarget=null;}
    // A blocked food/refuge target may be abandoned, but a compatible mate
    // should not be discarded by an unrelated avoidance marker.
    if(target&&!breedingPriority&&u.avoidTarget&&u.avoidTarget.until>this.tick&&
@@ -2157,7 +2192,8 @@ export class Ecosystem{
      if((this.tick+u.id)%9===0)this.addVisualEffect('graze',u,{fromX:nearest.x,fromY:nearest.y});
      this.log('meal','#'+u.id+' が草を食べた',u);}
    }
-   // A carnivore can also scavenge a corpse: deserts cannot support herbivores.
+   this.feedOffspring(u,near);
+    // A carnivore can also scavenge a corpse: deserts cannot support herbivores.
    if(!flight&&(effectiveMeatAffinity(u)>.15||famineCannibalism(u))&&nearestCorpse&&distance(u,nearestCorpse)<(m.biteReach+14)**2&&u.energy<175){
     const eaten=Math.min(nearestCorpse.mass,2.4*m.foodGain*feedingCapacity(u));
     nearestCorpse.mass-=eaten;
