@@ -1,9 +1,10 @@
 import {zipFiles} from './zip-log.js?v=2026.11.07.4';
-import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.17.1';
-import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.17.1';
+import {mountFounderScreens} from './founder-screens.js?v=2026.11.20.1';
+import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.20.1';
+import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.20.1';
 import {mountGameUI} from './game-ui.js?v=2026.11.14.2';
 import {fitView,screenToWorld,zoomAround,panBy,MAX_ZOOM,ZOOM_STEP} from './viewport.js?v=2026.11.08.12';
-import {drawWorld,drawChart} from './renderer.js?v=2026.11.17.1';
+import {drawWorld,drawChart} from './renderer.js?v=2026.11.20.1';
 import {EcologyLogbook,observeEcology,ECOLOGY_LOG_FIELDS} from './ecology-log.js?v=2026.11.14.2';
 import {gameRunReport,saveGameRunReport,readGameRunHistory} from './game-run-log.js?v=2026.11.14.2';
 import {SpeciesLogbook,speciesReport,csvCell} from './species-statistics.js';
@@ -11,7 +12,7 @@ import {performancePolicy,simulationBatch,BROWSER_BACKGROUND_INTERVAL} from './p
 const $=id=>document.getElementById(id);
 // Release label is bundled with the running source; comparison uses a
 // separately published manifest from the repository's main branch.
-const BUILD_VERSION='2026.11.17.1';
+const BUILD_VERSION='2026.11.20.1';
 const VERSION_SOURCE='https://raw.githubusercontent.com/memem47/Edenomaly/main/web/version.json';
 $('buildVersion').textContent=BUILD_VERSION;
 async function checkLatestVersion(){
@@ -95,6 +96,20 @@ const gameUI=mountGameUI({
  refresh:()=>update(),render:()=>render(),resetGame:()=>reset(),
  getPlayMode:()=>playMode,width:WORLD.width,height:WORLD.height
 });
+const screens=mountFounderScreens({
+ game,getMode:()=>playMode,
+ onIntroduce:(point,genome)=>introduceCustom(point.x,point.y,genome),
+ onContinue:resume=>{acc=0;running=resume&&!session.finished;update();render();}
+});
+const knownSpecies=new Set();
+$('openFounderEditor').onclick=()=>{
+ if(game.introducedCount>0&&playMode==='game')return;
+ if($('gameStartDialog').open)$('gameStartDialog').close();
+ running=false;acc=0;screens.showEditor();update();
+};
+$('startEditFounder').onclick=()=>{
+ $('gameStartDialog').close();running=false;screens.showEditor();
+};
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const speciesDialog=$('speciesStatisticsDialog');
 const speciesFrame=$('speciesStatisticsFrame');
@@ -258,6 +273,7 @@ function update(){
  $('rain').disabled=playMode==='game'&&(!session.active||session.finished||session.points<8);
  for(const id of ['drought','epidemic','growth','stress','rainfall','climateEnabled','temperature','brush'])$(id).disabled=playMode==='game';
  $('founderTypes').disabled=playMode==='game';
+ $('openFounderEditor').disabled=playMode==='game'&&(session.active||session.finished);
  if(playMode==='game'){$('founderTypes').value=1;$('founderPreview').textContent='1種類・8体';}
  $('stepOnce').disabled=playMode==='game';
  $('startHint').textContent=playMode==='game'?'ゲームモード：1種類を移入して開始。再移入・直接編集は禁止。絶滅後は初期化して再挑戦。':'テストモード：生命を自由に移入し、生態系を実験できます。';
@@ -309,7 +325,7 @@ function render(){
 function reset(){
  ecologyLog.end(ecologyLog.activeId===null?null:observeEcology(game));
  speciesLog.end(game);
- game.reset();session.reset();gameUI.reset();rewardRecorded=false;
+ game.reset();session.reset();gameUI.reset();screens.clear();knownSpecies.clear();rewardRecorded=false;
  currentGameRunId=null;lastGameReport=null;lastGameExportOk=null;lastReproductionSample=null;selected=null;selectedSpecies=null;running=false;mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));syncSliders();update();render();}
 function updateTerrainLevelLabel(){
  $('terrainLevelName').textContent=TERRAIN_LEVEL_NAMES[Number(mode)]?.[terrainLevel-1]??'レベル '+terrainLevel;
@@ -321,6 +337,13 @@ function stepSimulation(){
  if(playMode==='game'&&session.finished)return;
  game.step();observeGame();gameUI.step();
  if(game.tick%50===0)recordStep();
+ const unseen=[];
+ for(const [category,species] of game.species){
+  if(knownSpecies.has(category))continue;
+  knownSpecies.add(category);unseen.push({category,species,step:game.tick});
+ }
+ if(unseen.length){running=false;acc=0;screens.announce(unseen);}
+
 }
 function frame(time){
  rafId=null;
@@ -332,7 +355,7 @@ function frame(time){
  if(running){
   const batch=simulationBatch(acc,dt,policy,speed);
   acc=batch.carry;
-  for(let i=0;i<batch.steps;i++)stepSimulation();
+  for(let i=0;i<batch.steps&&running;i++)stepSimulation();
  }
  if(time-paintAt>=policy.paintInterval){
   const displayElapsed=paintAt?Math.min(100,time-paintAt):dt;
@@ -389,39 +412,67 @@ canvas.addEventListener('wheel',e=>{
  changeZoom(view.zoom*(e.deltaY<0?ZOOM_STEP:1/ZOOM_STEP),p.x,p.y);
 },{passive:false});
 updateZoomUI();
-function interact(e){
- const {x,y}=coords(e);
+function introduceCustom(x,y,genome){
  if(playMode==='game'){
-  if(mode==='spawn'){
-   if(!session.active&&!session.finished&&session.start(x,y,gameUI.startOptions())){
-    currentGameRunId=Date.now().toString(36)+'-'+game.initialSeed.toString(36);
-    lastGameReport=null;lastGameExportOk=null;gameUI.start(x,y);
-    if(ecologyLog.activeId===null)ecologyLog.start(game.initialSeed);
-     if(speciesLog.activeId===null)speciesLog.start(game.initialSeed);
-    lastReproductionSample=observeEcology(game);ecologyLog.record(lastReproductionSample,true);ecologyLog.recordIndividuals(game,true);speciesLog.record(game,true);
-    running=true;mode='inspect';
-    document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
-   }
-  }else if(mode==='food')session.intervene('seed',x,y);
+  if(!session.active&&!session.finished&&session.start(x,y,{...gameUI.startOptions(),founderGenome:genome})){
+   for(const key of game.species.keys())knownSpecies.add(key);
+   currentGameRunId=Date.now().toString(36)+'-'+game.initialSeed.toString(36);
+   lastGameReport=null;lastGameExportOk=null;gameUI.start(x,y);
+   if(ecologyLog.activeId===null)ecologyLog.start(game.initialSeed);
+   if(speciesLog.activeId===null)speciesLog.start(game.initialSeed);
+   lastReproductionSample=observeEcology(game);
+   ecologyLog.record(lastReproductionSample,true);
+   ecologyLog.recordIndividuals(game,true);speciesLog.record(game,true);
+   running=true;mode='inspect';
+   document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
+  }
+ }else{
+  const n=Math.max(1,Math.min(6,Math.trunc(Number($('founderTypes').value)||1)));
+  $('founderTypes').value=n;
+  const result=game.introduce(x,y,n,genome);
+  if(result.individuals>0){
+   for(const key of game.species.keys())knownSpecies.add(key);
+   if(ecologyLog.activeId===null)ecologyLog.start(game.initialSeed);
+   if(speciesLog.activeId===null)speciesLog.start(game.initialSeed);
+   lastReproductionSample=observeEcology(game);
+   ecologyLog.record(lastReproductionSample,true);
+   ecologyLog.recordIndividuals(game,true);speciesLog.record(game,true);
+   running=true;
+  }
+ }
+ update();render();
+}
+function interact(e){
+ if(screens.isOpen())return;
+ const {x,y}=coords(e);
+ if(mode==='spawn'&&(playMode!=='game'||!session.active&&!session.finished)){
+  running=false;acc=0;screens.showEditor({x,y});update();return;
+ }
+ if(playMode==='game'){
+  if(mode==='food')session.intervene('seed',x,y);
   else if(mode==='fertilize')session.intervene('fertilize',x,y);
   else if(mode==='clinic')session.intervene('clinic',x,y);
-   else if(mode==='nursery')session.intervene('nursery',x,y);
-   else if(mode==='oasis')session.intervene('oasis',x,y);
-  else if(mode==='inspect'){selected=null;let best=500;for(const u of game.units){const d=(u.x-x)**2+(u.y-y)**2;if(d<best){best=d;selected=u;}}}
+  else if(mode==='nursery')session.intervene('nursery',x,y);
+  else if(mode==='oasis')session.intervene('oasis',x,y);
+  else if(mode==='inspect'){
+   selected=null;let best=500;
+   for(const u of game.units){
+    const d=(u.x-x)**2+(u.y-y)**2;
+    if(d<best){best=d;selected=u;}
+   }
+  }
  }else{
   if(['0','1','2','3'].includes(mode))game.paint(x,y,Number(mode),brush,terrainLevel);
   else if(['clinic','nursery','oasis'].includes(mode))game.log('info','この介入はゲームモード専用');
   else if(mode==='food'){game.paint(x,y,0,brush);game.log('info','プレイヤーが草を補充');}
   else if(mode==='fertilize')game.fertilize(x,y,brush);
-  else if(mode==='spawn'){
-   const n=Math.max(1,Math.min(6,Math.trunc(Number($('founderTypes').value)||1)));$('founderTypes').value=n;
-   const result=game.introduce(x,y,n);
-   if(result.individuals>0){
-    if(ecologyLog.activeId===null)ecologyLog.start(game.initialSeed);
-    if(speciesLog.activeId===null)speciesLog.start(game.initialSeed);
-    lastReproductionSample=observeEcology(game);ecologyLog.record(lastReproductionSample,true);ecologyLog.recordIndividuals(game,true);speciesLog.record(game,true);running=true;
+  else if(mode==='inspect'){
+   selected=null;let best=500;
+   for(const u of game.units){
+    const d=(u.x-x)**2+(u.y-y)**2;
+    if(d<best){best=d;selected=u;}
    }
-  }else if(mode==='inspect'){selected=null;let best=500;for(const u of game.units){const d=(u.x-x)**2+(u.y-y)**2;if(d<best){best=d;selected=u;}}}
+  }
  }
  update();render();
 }
@@ -463,7 +514,7 @@ $('catalog').addEventListener('click',e=>{
  const details=$('catalog').querySelector('.species-expanded');
  if(details)details.scrollIntoView({block:'nearest'});
 });
-$('play').onclick=()=>{if(playMode==='game'&&session.finished)return;if(game.introducedCount===0){mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));return;}running=!running;update();};$('stepOnce').onclick=()=>{if(game.introducedCount===0)return;running=false;game.step();observeGame();if(game.tick%50===0)recordStep();update();render();};$('speed').onclick=()=>{speed=speed===1?3:speed===3?8:1;$('speed').textContent='速度 ×'+speed;};$('reset').onclick=()=>reset();
+$('play').onclick=()=>{if(playMode==='game'&&session.finished)return;if(screens.isOpen())return;if(game.introducedCount===0){mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));return;}running=!running;update();};$('stepOnce').onclick=()=>{if(game.introducedCount===0)return;running=false;stepSimulation();update();render();};$('speed').onclick=()=>{speed=speed===1?3:speed===3?8:1;$('speed').textContent='速度 ×'+speed;};$('reset').onclick=()=>reset();
 $('ecologyRun').onchange=e=>{selectedLogRun=Number(e.target.value);update();};
 function exportAllLogs(auto=false){
  // Store both historical time-series and a complete current-state snapshot.

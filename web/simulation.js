@@ -2421,7 +2421,7 @@ export class Ecosystem{
   }
   return {x:clamp(x,10,W-10),y:clamp(y,10,H-10)};
  }
- introduce(x,y,typeCount=1){
+ introduce(x,y,typeCount=1,customFounder=null){
   // Exactly N morphological founder types, 8 independent individuals per type.
   // The founding population is intentionally clustered, enabling sexual reproduction.
   const count=clamp(Math.trunc(Number(typeCount)||1),1,6);
@@ -2429,6 +2429,13 @@ export class Ecosystem{
   for(let k=0;k<count;k++){
    let g,key;
    for(let attempt=0;attempt<60;attempt++){
+    // A user-edited founder is authoritative; it must be exactly the previewed
+    // genome, not a new RNG roll behind the player's back.
+    if(k===0&&customFounder){
+     g={...customFounder,alleles:Object.fromEntries(Object.entries(customFounder.alleles??{}).map(([name,pair])=>[name,[...pair]]))};
+     key=this.category(g);
+     break;
+    }
     g=this.gene();key=this.category(g);
     // A single founder type must be able to use ambient nutrients;
     // later types remain fully random (including predators).
@@ -2440,7 +2447,7 @@ export class Ecosystem{
    // Introduced founders adapt genetically to the terrain actually clicked.
    // Natural offspring still inherit their parents' DNA without this shortcut.
    const placedTerrain=this.terrain(x,y);
-   g=this.adaptFounderToTerrain(g,placedTerrain);
+   if(!(k===0&&customFounder))g=this.adaptFounderToTerrain(g,placedTerrain);
    key=this.category(g);
    if(used.has(key))continue;
    used.add(key);

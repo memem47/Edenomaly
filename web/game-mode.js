@@ -27,7 +27,7 @@ export class GameSession{
  reset(){this.rewardClaimed=false;this.active=false;this.finished=false;this.points=0;this.earned=0;this.spent=0;this.milestones=new Set();this.maxGeneration=0;this.lastDiscoveries=0;this.lastMigrations=0;this.finalScore=0;this.reward=0;this.interventionHistory=[];this.pendingImpact=null;this.lastImpact=null;}
  start(x,y,options={}){
   if(this.active||this.finished||this.world.introducedCount>0)return false;
-  const result=this.world.introduce(x,y,1);
+  const result=this.world.introduce(x,y,1,options.founderGenome??null);
   if(result.types!==1||result.individuals<=0)return false;
   this.active=true;this.points=15+(options.reserve===true?5:0);
   this.maxGeneration=0;this.lastDiscoveries=this.world.runScore.discoveries;this.lastMigrations=this.world.migrations;

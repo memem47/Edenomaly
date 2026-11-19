@@ -264,3 +264,37 @@ button:disabled,input:disabled{opacity:.40;cursor:not-allowed}
 #gameOverSummary strong{font-size:20px;display:block}
 #gameOverSummary small{color:#aac9d2}
 @media(max-width:650px){.game-flow-dialog{padding:16px}.game-event-item{width:100%}}
+
+/* Founder genome editor and interrupting evolutionary discovery screen */
+.genome-dialog{width:min(920px,96vw);max-width:none;max-height:93dvh;padding:0;
+ color:#e9f6f5;background:#112732;border:1px solid #629a9d;border-radius:16px;
+ box-shadow:0 28px 80px #0009}
+.genome-dialog::backdrop{background:#06151bdb}
+.genome-dialog[open]{display:flex;flex-direction:column}
+.genome-dialog-head{padding:16px 20px 9px;border-bottom:1px solid #31535d}
+.genome-dialog-head h2{margin:0;font-size:21px}
+.genome-dialog-body{overflow:auto;padding:16px 20px;min-height:0;flex:1}
+.genome-dialog-foot{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;
+ padding:12px 20px;border-top:1px solid #31535d}
+.genome-dialog-foot button{padding:10px 14px}
+.founder-budget{font-size:16px;font-weight:700;color:#9fe7cb}
+.founder-budget.over-budget{color:#ffaaaa}
+.founder-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;
+ padding:12px;border-radius:12px;background:#1a3a45;margin:10px 0 18px}
+.founder-summary span{display:flex;flex-direction:column;gap:5px}
+.founder-summary small{color:#aac5ce}
+.founder-summary b{font-size:17px}
+.founder-fieldset{border:1px solid #426a74;border-radius:12px;margin:12px 0;padding:12px}
+.founder-fieldset legend{padding:0 7px;font-weight:700;color:#c4f3e2}
+.founder-traits{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 18px}
+.founder-trait{display:flex;flex-direction:column;gap:5px}
+.founder-trait span{display:flex;justify-content:space-between;gap:10px;font-size:13px}
+.founder-trait output{color:#b1efdc;font-weight:700}
+.founder-trait input{width:100%}
+.founder-discovery-genes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:5px 12px;margin:12px 0}
+.founder-discovery-genes div{padding:5px 0;border-bottom:1px solid #33525d;
+ display:flex;justify-content:space-between;gap:10px}
+.founder-discovery-genes span{color:#b6d1d9}
+@media(max-width:580px){.founder-traits,.founder-discovery-genes{grid-template-columns:1fr}
+ .genome-dialog-body{padding:10px}.genome-dialog-head{padding:12px}}
