@@ -273,6 +273,7 @@ function update(){
  $('rain').disabled=playMode==='game'&&(!session.active||session.finished||session.points<8);
  for(const id of ['drought','epidemic','growth','stress','rainfall','climateEnabled','temperature','brush'])$(id).disabled=playMode==='game';
  $('founderTypes').disabled=playMode==='game';
+ $('openFounderEditor').disabled=playMode==='game'&&(session.active||session.finished);
  if(playMode==='game'){$('founderTypes').value=1;$('founderPreview').textContent='1種類・8体';}
  $('stepOnce').disabled=playMode==='game';
  $('startHint').textContent=playMode==='game'?'ゲームモード：1種類を移入して開始。再移入・直接編集は禁止。絶滅後は初期化して再挑戦。':'テストモード：生命を自由に移入し、生態系を実験できます。';
