@@ -402,3 +402,26 @@ button:disabled,input:disabled{opacity:.40;cursor:not-allowed}
 .selected-ability-details summary{cursor:pointer;color:#c6ffe3;font-weight:700;font-size:12px}
 .selected-ability-details>.ability-grid{margin-top:10px}
 .selected-ability-details[hidden]{display:none}
+
+#founderEditorDialog{width:min(1250px,98vw);height:min(850px,96dvh)}
+#founderEditorDialog .genome-dialog-body{padding:8px 12px}
+.compact-founder-top{position:sticky;top:-8px;z-index:4;display:flex;gap:12px;align-items:center;background:#112732;padding:5px 0;border-bottom:1px solid #426a74}
+.compact-founder-top canvas{width:150px;height:110px;flex:none;border-radius:8px}
+.compact-founder-info{flex:1;min-width:0}
+.compact-founder-info .founder-budget{margin:3px 0;font-size:12px}
+.compact-founder-info .founder-summary{grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:4px;padding:5px;margin:3px 0}
+.compact-founder-info .founder-summary b{font-size:12px}
+.compact-founder-info .founder-summary small{font-size:10px}
+.compact-founder-info .founder-summary span{gap:0}
+.compact-founder-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 10px;align-items:start}
+.compact-founder-fields .founder-fieldset{margin:4px 0;padding:6px;min-width:0}
+.compact-founder-fields .founder-traits{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.compact-founder-fields .founder-trait{gap:2px;min-width:0;padding:4px;background:#193a48;border-radius:5px}
+.compact-founder-fields label{font-size:11px;line-height:1.2;min-height:24px}
+.compact-value{display:flex;align-items:center;gap:2px}
+.compact-value button{padding:2px 5px;min-width:23px;font-size:13px}
+.compact-value input{min-width:0;width:100%;padding:2px;font-size:13px;text-align:center;appearance:textfield}
+.compact-value input::-webkit-inner-spin-button,.compact-value input::-webkit-outer-spin-button{appearance:none}
+.compact-founder-fields .ability-track{height:5px}
+@media(max-width:850px){.compact-founder-fields{grid-template-columns:1fr}.compact-founder-fields .founder-traits{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:480px){.compact-founder-top canvas{width:90px;height:66px}.compact-founder-fields .founder-traits{grid-template-columns:repeat(2,minmax(0,1fr))}}
