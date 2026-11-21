@@ -1,12 +1,12 @@
 import {zipFiles} from './zip-log.js?v=2026.11.07.4';
-import {mountFounderScreens} from './founder-screens.js?v=2026.11.21.6';
-import {mountDashboardTabs} from './dashboard-tabs.js?v=2026.11.21.6';
-import {abilityListHTML,phenotypeBarsHTML} from './ability-bars.js?v=2026.11.21.6';
-import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.21.6';
-import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.21.6';
+import {mountFounderScreens} from './founder-screens.js?v=2026.11.21.7';
+import {mountDashboardTabs} from './dashboard-tabs.js?v=2026.11.21.7';
+import {abilityListHTML,phenotypeBarsHTML} from './ability-bars.js?v=2026.11.21.7';
+import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.21.7';
+import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.21.7';
 import {mountGameUI} from './game-ui.js?v=2026.11.14.2';
 import {fitView,screenToWorld,zoomAround,panBy,MAX_ZOOM,ZOOM_STEP} from './viewport.js?v=2026.11.08.12';
-import {drawWorld,drawChart} from './renderer.js?v=2026.11.21.6';
+import {drawWorld,drawChart} from './renderer.js?v=2026.11.21.7';
 import {EcologyLogbook,observeEcology,ECOLOGY_LOG_FIELDS} from './ecology-log.js?v=2026.11.14.2';
 import {gameRunReport,saveGameRunReport,readGameRunHistory} from './game-run-log.js?v=2026.11.14.2';
 import {SpeciesLogbook,speciesReport,csvCell} from './species-statistics.js';
@@ -15,7 +15,7 @@ const $=id=>document.getElementById(id);
 const dashboard=mountDashboardTabs(document);
 // Release label is bundled with the running source; comparison uses a
 // separately published manifest from the repository's main branch.
-const BUILD_VERSION='2026.11.21.6';
+const BUILD_VERSION='2026.11.21.7';
 const VERSION_SOURCE='https://raw.githubusercontent.com/memem47/Edenomaly/main/web/version.json';
 $('buildVersion').textContent=BUILD_VERSION;
 async function checkLatestVersion(){
@@ -103,6 +103,11 @@ const gameUI=mountGameUI({
 const screens=mountFounderScreens({
  game,getMode:()=>playMode,
  onIntroduce:(point,genome)=>introduceCustom(point.x,point.y,genome),
+ onReady:()=>{
+  running=false;acc=0;mode='spawn';
+  document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode==='spawn'));
+  $('startGameConfirm').disabled=false;update();render();
+ },
  onContinue:resume=>{acc=0;running=resume&&!session.finished;update();render();}
 });
 const knownSpecies=new Set();
@@ -215,7 +220,7 @@ function speciesGenomeHTML(key){
 function update(){
  const dietCounts=[0,0,0];for(const u of game.units){const d=dietProfile(u.g).diet;dietCounts[d<.3?0:d>.7?2:1]++;}
  $('dietStats').textContent=`栄養食 ${dietCounts[0]} ／ 雑食 ${dietCounts[1]} ／ 肉食 ${dietCounts[2]}`;
- $('startHint').textContent=game.introducedCount===0?'移入する生命の種類数を選び、フィールドをクリックして生態系を開始してください。':'生命を移入しました。追加の移入も可能です。';
+ $('startHint').textContent=game.introducedCount===0?(screens.hasPrepared()?'② フィールドをクリックして、設定した能力の生命を移入してください。':'①「移入するスライムの能力」を開き、プリセットまたはランダムを選んで能力を確定してください。'):'生命を移入しました。追加の移入も可能です。';
  const infected=game.units.filter(u=>u.infection>0).length;
  $('diseaseInfo').textContent='感染個体 '+infected+'体'+(playMode==='game'&&infected?' ｜ 🩺 防疫（9pt）で感染の拡大を防ぐ':'');
  const averageFitness=game.units.length?game.units.reduce((total,u)=>total+terrainFitness(u.g,game.terrain(u.x,u.y)).fitness,0)/game.units.length:0;
@@ -291,7 +296,10 @@ function update(){
  $('openFounderEditor').disabled=playMode==='game'&&(session.active||session.finished);
  if(playMode==='game'){$('founderTypes').value=1;$('founderPreview').textContent='1種類・8体';}
  $('stepOnce').disabled=playMode==='game';
- $('startHint').textContent=playMode==='game'?'ゲームモード：1種類を移入して開始。再移入・直接編集は禁止。絶滅後は初期化して再挑戦。':'テストモード：生命を自由に移入し、生態系を実験できます。';
+ $('startHint').textContent=game.introducedCount===0?
+  (screens.hasPrepared()?'② 能力は確定しました。フィールドをクリックして移入してください。':'① まず能力を確定してください。プリセット・ランダム生成を利用できます。'):
+  (playMode==='game'?'ゲームモード：再移入は禁止。絶滅後は初期化して再挑戦。':'テストモード：追加の移入も可能です。');
+ $('startGameConfirm').disabled=!screens.hasPrepared();
 
  $('gameScore').textContent=score.total.toLocaleString('ja-JP');
  $('survivalScore').textContent=score.duration.toLocaleString('ja-JP');
@@ -351,6 +359,7 @@ function reset(){
  ecologyLog.end(ecologyLog.activeId===null?null:observeEcology(game));
  speciesLog.end(game);
  game.reset();session.reset();gameUI.reset();screens.clear();knownSpecies.clear();rewardRecorded=false;
+ $('startGameConfirm').disabled=true;
  currentGameRunId=null;lastGameReport=null;lastGameExportOk=null;lastReproductionSample=null;selected=null;selectedSpecies=null;running=false;mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));syncSliders();update();render();}
 function updateTerrainLevelLabel(){
  $('terrainLevelName').textContent=TERRAIN_LEVEL_NAMES[Number(mode)]?.[terrainLevel-1]??'レベル '+terrainLevel;
@@ -471,7 +480,11 @@ function interact(e){
  if(screens.isOpen())return;
  const {x,y}=coords(e);
  if(mode==='spawn'&&(playMode!=='game'||!session.active&&!session.finished)){
-  running=false;acc=0;screens.showEditor({x,y});update();return;
+  running=false;acc=0;
+  if(!screens.hasPrepared()){screens.showEditor();update();return;}
+  const genome=screens.consumePrepared();
+  if(genome)introduceCustom(x,y,genome);
+  return;
  }
  if(playMode==='game'){
   if(mode==='food')session.intervene('seed',x,y);
@@ -539,7 +552,7 @@ $('catalog').addEventListener('click',e=>{
  const details=$('catalog').querySelector('.species-expanded');
  if(details)details.scrollIntoView({block:'nearest'});
 });
-$('play').onclick=()=>{if(playMode==='game'&&session.finished)return;if(screens.isOpen())return;if(game.introducedCount===0){mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));return;}running=!running;update();};$('stepOnce').onclick=()=>{if(game.introducedCount===0)return;running=false;stepSimulation();update();render();};$('speed').onclick=()=>{speed=speed===1?3:speed===3?8:1;$('speed').textContent='速度 ×'+speed;};$('reset').onclick=()=>reset();
+$('play').onclick=()=>{if(playMode==='game'&&session.finished)return;if(screens.isOpen())return;if(game.introducedCount===0){mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));if(!screens.hasPrepared())screens.showEditor();return;}running=!running;update();};$('stepOnce').onclick=()=>{if(game.introducedCount===0)return;running=false;stepSimulation();update();render();};$('speed').onclick=()=>{speed=speed===1?3:speed===3?8:1;$('speed').textContent='速度 ×'+speed;};$('reset').onclick=()=>reset();
 $('ecologyRun').onchange=e=>{selectedLogRun=Number(e.target.value);update();};
 function exportAllLogs(auto=false){
  // Store both historical time-series and a complete current-state snapshot.
