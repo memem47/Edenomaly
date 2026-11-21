@@ -21,7 +21,7 @@ function fakeCanvas(){
 
 test('before-and-after preview renders both genomes with shared world graphics',()=>{
  const world=new Ecosystem(202611211),baseline=world.gene();
- const edited=editFounderGenome(baseline,{eyes:6,r:12,elongation:2.7,hornLength:1,pattern:1});
+ const edited=editFounderGenome(baseline,{predatorSense:1,caution:1,diet:1,guard:1,yolkReserve:1,dispersal:1});
  const initial=JSON.stringify(baseline),after=JSON.stringify(edited);
  const a=fakeCanvas(),b=fakeCanvas();
  drawFounderAppearance(a,baseline,18);
