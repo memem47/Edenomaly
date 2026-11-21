@@ -199,9 +199,18 @@ function speciesGenomeHTML(key){
  if(!genome)return '<p class="muted">この種の遺伝子記録はありません。</p>';
  const origin=representative?'現存する代表個体 #'+representative.id:'発見時に保存した遺伝子';
  const bars=abilityListHTML(genome);
+ const genes=Object.entries(GENE_LABELS)
+  .filter(([name])=>genome[name]!==undefined&&!['tailLength','hornLength','antennaLength','pattern'].includes(name))
+  .map(([name,label])=>{
+   const pair=genome.alleles?.[name];
+   return '<div class="gene"><span>'+escapeHTML(label)+
+    (pair?'<small class="allele-pair">遺伝子型 '+pair.map(v=>escapeHTML(genomeValue(name,v))).join(' / ')+'</small>':'')+
+    '</span><b>'+escapeHTML(genomeValue(name,genome[name]))+'</b></div>';
+  }).join('');
  return '<div class="genome-heading"><strong>'+escapeHTML(species.name)+' の遺伝子</strong><button type="button" data-close-genome="true">閉じる</button></div>'+
   '<p class="muted">'+escapeHTML(origin)+'。各能力バーは最小値～最大値を基準にした相対位置です。見た目の飾りは独立した能力ではなく、他の生存能力から生まれます。</p>'+
-  phenotypeBarsHTML(genome)+'<p class="muted">遺伝子コード：<code>'+genomeCode(genome)+'</code></p>'+bars;
+  phenotypeBarsHTML(genome)+'<p class="muted">遺伝子コード：<code>'+genomeCode(genome)+'</code></p>'+bars+
+  '<details class="gene-alleles"><summary>対立遺伝子の組合せを詳しく見る</summary><div class="genome-grid">'+genes+'</div></details>';
 }
 function update(){
  const dietCounts=[0,0,0];for(const u of game.units){const d=dietProfile(u.g).diet;dietCounts[d<.3?0:d>.7?2:1]++;}
