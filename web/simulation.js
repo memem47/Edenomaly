@@ -123,6 +123,18 @@ export const speciesColorName=(g,fallback='green')=>{
  }
  return a.label;
 };
+// Cosmetic form is a phenotype of functional abilities. Legacy ornament
+// loci are retained for old genome compatibility but never drive the drawing.
+export const functionalOrnaments=g=>{
+ const val=(key,fallback=0)=>clamp(Number(g?.[key]??fallback),0,1);
+ const jaw=clamp((Number(g?.jaw??1)-.2)/2.3,0,1);
+ return {
+  horn:clamp((jaw-.48)*1.37+(val('guard')-.52)*.55,0,1),
+  tail:clamp((val('wet')-.48)*.89+(g?.aquatic===1?.28:0)+(val('dispersal')-.52)*.44,0,1),
+  antenna:clamp((val('predatorSense')-.54)*1.28+Math.max(0,Number(g?.eyes??2)-3)*.10,0,1),
+  pattern:clamp((val('deception')-.53)*1.13+(val('resist')-.65)*.31,0,1)
+ };
+};
 const ORNAMENT_NAMES=[
  ['hornLength','ホーン'],['tailLength','テール'],
  ['antennaLength','アンテナ'],['pattern','スポット']
@@ -131,7 +143,8 @@ const ORNAMENT_NAMES=[
 // strength are grouped, with horn before tail for "ホーンテール".
 export const speciesFeatureName=g=>{
  if(!g)return '';
- const values=ORNAMENT_NAMES.map(([key,label])=>({key,label,value:Math.max(0,Math.min(1,g[key]??0))}))
+ const ornaments=functionalOrnaments(g);
+ const values=ORNAMENT_NAMES.map(([key,label])=>({key,label,value:ornaments[{hornLength:'horn',tailLength:'tail',antennaLength:'antenna',pattern:'pattern'}[key]]}))
   .sort((a,b)=>b.value-a.value||ORNAMENT_NAMES.findIndex(t=>t[0]===a.key)-ORNAMENT_NAMES.findIndex(t=>t[0]===b.key));
  const best=values[0];
  if(best.value<.12)return '';
@@ -300,19 +313,20 @@ export const morphology=g=>{
  const width=g.r*bodySizeMultiplier(g),length=width*g.elongation;
  const bodyMass=width*width*g.elongation;
  const metabolicMass=g.r*g.r*g.elongation;
+ const ornaments=functionalOrnaments(g);
  const eyeRange=20+Math.min(g.eyes,3)*14+Math.max(0,g.eyes-3)*7+
-  24*clamp(g.antennaLength??0,0,1);
+  24*ornaments.antenna;
  // Physical shrinking must not make locomotion faster by reducing the mass
  // denominator. Small limbs also cover less ground per simulation step.
  const speed=3.45/(.65+metabolicMass*.017)*(.55+.45*bodySizeMultiplier(g)/1.7)
   *(1-Math.max(0,g.eyes-3)*.055)
-  *(1-.07*clamp(g.hornLength??0,0,1)-.035*clamp(g.antennaLength??0,0,1));
+  *(1-.07*ornaments.horn-.035*ornaments.antenna);
  const turnRate=clamp(.29/(.75+g.elongation*.21),.12,.29);
  const mouths=g.mouths;
- const biteReach=width*(.7+.15*mouths)+g.jaw*1.6+1.2*clamp(g.hornLength??0,0,1);
+ const biteReach=width*(.7+.15*mouths)+g.jaw*1.6+1.2*ornaments.horn;
  const edibleRatio=clamp(.60+.055*mouths+.06*g.jaw,.62,.88);
  const predatory=dietProfile(g).meat>.14&&g.jaw>=.55&&mouths>=1;
- const upkeep=.09+metabolicMass*.008+Math.max(0,metabolicMass-110)**1.2*.002+g.eyes*.045+Math.max(0,g.eyes-3)**2*.06+mouths*.03+g.jaw*.02+Math.abs(g.deception-.5)*.035+(g.resist??.4)*.04+clamp(g.tailLength??0,0,1)*.13+clamp(g.hornLength??0,0,1)*.18+clamp(g.antennaLength??0,0,1)*.12+clamp(g.pattern??0,0,1)*.075;
+ const upkeep=.09+metabolicMass*.008+Math.max(0,metabolicMass-110)**1.2*.002+g.eyes*.045+Math.max(0,g.eyes-3)**2*.06+mouths*.03+g.jaw*.02+Math.abs(g.deception-.5)*.035+(g.resist??.4)*.04+ornaments.tail*.13+ornaments.horn*.18+ornaments.antenna*.12+ornaments.pattern*.075;
  const foodGain=1+Math.min(.42,(mouths-1)*.13);
  return {width,length,bodyMass,eyeRange,speed,turnRate,biteReach,edibleRatio,predatory,upkeep,foodGain};
 };
@@ -551,7 +565,7 @@ export const retaliationProbability=(prey,attacker)=>{
 // local adaptation. On unsuitable terrain the pattern costs energy without
 // providing stealth; predators retain the ability to detect approaching prey.
 export const camouflageFactor=(g,terrain)=>{
- const pattern=clamp(g.pattern??0,0,1);
+ const pattern=functionalOrnaments(g).pattern;
  const affinity=terrain===1?clamp(g.wet??0,0,1):terrain===2?clamp(g.dry??0,0,1):
   terrain===3?clamp(g.rock??0,0,1):clamp(1-Math.max(g.wet??0,g.dry??0,g.rock??0)*.5,0,1);
  return 1-.34*pattern*affinity;
