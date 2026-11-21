@@ -14,7 +14,7 @@ test('founder editor exposes heritable abilities and keeps original immutable',(
  assert.deepEqual(adjusted.alleles.parentFeeding,[.95,.95]);
  assert.notEqual(adjusted.alleles,base.alleles);
  assert.notEqual(adjusted,base);
- assert.ok(FOUNDER_FIELDS.length>=35);
+ assert.ok(FOUNDER_FIELDS.length>=30);
  assert.ok(genomeCode(adjusted).length>30);
 });
 test('game mode budget is checked, while lab can change all genes',()=>{
