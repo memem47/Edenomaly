@@ -9,7 +9,7 @@ import {DASHBOARD_TABS} from './dashboard-tabs.js';
 test('independent appearance sliders are no longer exposed',()=>{
  for(const key of ['tailLength','hornLength','antennaLength','pattern'])
   assert.equal(FOUNDER_FIELDS.some(([trait])=>trait===key),false,key);
- assert.ok(FOUNDER_FIELDS.some(([key])=>key==='jaw'));
+ assert.ok(!FOUNDER_FIELDS.some(([key])=>key==='jaw'));
  assert.ok(FOUNDER_FIELDS.some(([key])=>key==='predatorSense'));
 });
 test('combat, perception and aquatic ability determine the visible body',()=>{

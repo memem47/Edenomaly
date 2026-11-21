@@ -9,20 +9,20 @@ test('founder editor exposes heritable abilities and keeps original immutable',(
  const changes={eyes:4,brood:6,parentFeeding:.95,nestChoice:.8,
   yolkReserve:.65,juvenileCannibalism:.7,idealTemp:22};
  const adjusted=editFounderGenome(base,changes);
- assert.equal(adjusted.eyes,4);
- assert.deepEqual(adjusted.alleles.eyes,[4,4]);
+ assert.notEqual(adjusted.eyes,undefined);
+ assert.deepEqual(adjusted.alleles.eyes,[adjusted.eyes,adjusted.eyes]);
  assert.deepEqual(adjusted.alleles.parentFeeding,[.95,.95]);
  assert.notEqual(adjusted.alleles,base.alleles);
  assert.notEqual(adjusted,base);
- assert.ok(FOUNDER_FIELDS.length>=30);
+ assert.ok(FOUNDER_FIELDS.length>=25);
  assert.ok(genomeCode(adjusted).length>30);
 });
 test('game mode budget is checked, while lab can change all genes',()=>{
  const w=new Ecosystem(2026112002),g=w.gene();
  const same=editFounderGenome(g,{});
- assert.equal(founderCost(g,same),0);
- assert.ok(canUseFounder(g,same,true));
- const maxChanges=Object.fromEntries(FOUNDER_FIELDS.map(([key,,lo,hi])=>[key,Math.abs(g[key]-lo)<Math.abs(g[key]-hi)?hi:lo]));
+ assert.equal(founderCost(g,same),founderCost(same,same));
+ assert.equal(canUseFounder(g,same,true),founderCost(g,same)<=FOUNDER_BUDGET);
+ const maxChanges=Object.fromEntries(FOUNDER_FIELDS.map(([key,,lo,hi])=>[key,hi]));
  const extreme=editFounderGenome(g,maxChanges);
  assert.ok(founderCost(g,extreme)>FOUNDER_BUDGET);
  assert.equal(canUseFounder(g,extreme,true),false);
@@ -54,4 +54,18 @@ test('browser pauses on discovery and has a confirmation/resume dialog',async()=
  assert.ok(ui.includes('停止したまま閉じる'));
  assert.ok(html.includes('openFounderEditor'));
  assert.ok(html.includes('startEditFounder'));
+});
+
+test('absolute survival budget rewards disadvantages and ignores neutral strategy changes',()=>{
+ const w=new Ecosystem(12),g=w.gene();
+ const weak=editFounderGenome(g,{frugality:0,resist:0,wet:0,dry:0,rock:0});
+ const strong=editFounderGenome(g,{frugality:1,resist:1,wet:1,dry:1,rock:1});
+ assert.ok(founderCost(g,weak)<founderCost(g,strong));
+ assert.equal(founderCost(g,strong),founderCost(weak,strong));
+ assert.equal(founderCost(g,weak),founderCost(g,{...weak,diet:1,idealTemp:40}));
+ const eyes=editFounderGenome(g,{predatorSense:1,caution:1});
+ assert.equal(eyes.eyes,6);
+ assert.equal(w.mutate(eyes).functionalBody,true);
+ assert.equal(w.recombine(eyes,weak).functionalBody,true);
+ for(const key of ['r','elongation','eyes','mouths','jaw'])assert.ok(!FOUNDER_FIELDS.some(([k])=>k===key));
 });

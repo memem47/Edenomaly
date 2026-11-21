@@ -1,7 +1,7 @@
-import {FOUNDER_BUDGET,FOUNDER_TRAITS,FOUNDER_FIELDS,formatTrait,editFounderGenome,founderCost,canUseFounder} from './founder-designer.js';
+import {FOUNDER_BUDGET,FOUNDER_TRAITS,FOUNDER_FIELDS,formatTrait,editFounderGenome,founderCost,founderTraitCost,canUseFounder} from './founder-designer.js';
 import {morphology,dietProfile,terrainFitness,genomeCode} from './simulation.js';
-import {drawFounderAppearance} from './founder-preview.js?v=2026.11.21.3';
-import {phenotypeBarsHTML,abilityListHTML} from './ability-bars.js?v=2026.11.21.3';
+import {drawFounderAppearance} from './founder-preview.js?v=2026.11.21.4';
+import {phenotypeBarsHTML,abilityListHTML} from './ability-bars.js?v=2026.11.21.4';
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format=n=>Number(n).toFixed(1);
 const makeDialog=(id,title)=>{
@@ -34,7 +34,7 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue}){
  const summary=(g)=>{const m=morphology(g),diet=dietProfile(g);
   return '<div class="founder-summary">'+[
    ['食性',diet.label],['生息型',g.aquatic?'水生':'陸生'],
-   ['体格',format(m.bodyMass)],['最大HP',Math.max(25,Math.round(m.bodyMass*.48+25))],
+   ['体格',format(m.bodyMass)],['基本体格',format(g.r)],['長さ比',format(g.elongation)],['目',g.eyes],['口',g.mouths],['顎',format(g.jaw)],['最大HP',Math.max(25,Math.round(m.bodyMass*.48+25))],
    ['移動速度',format(m.speed)],['視界',Math.round(m.eyeRange)],
    ['適温',format(g.idealTemp)+'℃'],['耐性','±'+format(g.tempTolerance)+'℃'],
    ['繁殖方式',formatTrait('repro',g.repro)],['卵の数',String(g.brood)],
@@ -58,11 +58,16 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue}){
  function updateEditorSummary(){
   const g=currentGenome(),cost=founderCost(base,g),isGame=getMode()==='game';
   const line=editorBody.querySelector('#founderCost');
-  const budget=isGame?('遺伝子ポイント '+cost+'/'+FOUNDER_BUDGET+(cost>FOUNDER_BUDGET?'（超過）':'')):'テストモード：自由に調整可能';
+  const budget=isGame?('使用 '+cost+' pt / 上限 '+FOUNDER_BUDGET+' pt ・残り '+(FOUNDER_BUDGET-cost).toFixed(1)+' pt'+(cost>FOUNDER_BUDGET?'（超過）':'')):'テストモード：自由に調整可能';
   line.textContent=budget;
   line.classList.toggle('over-budget',isGame&&cost>FOUNDER_BUDGET);
   editorBody.querySelector('#founderSummary').innerHTML=summary(g);
   
+  for(const item of editorBody.querySelectorAll('[data-point-cost]')){
+   const v=founderTraitCost(item.dataset.pointCost,g[item.dataset.pointCost]);
+   item.textContent=(v>0?'+':'')+v.toFixed(1)+' pt';
+   item.style.color=v<0?'#9fe7cb':v>0?'#ffcf95':'';
+  }
   paintPreview();
   const btn=editorFoot.querySelector('#confirmFounder');
   btn.disabled=!canUseFounder(base,g,isGame);
@@ -75,10 +80,10 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue}){
   const source=defaultGenome();
   base=site?game.adaptFounderToTerrain(source,game.terrain(site.x,site.y)):source;
   editorBody.innerHTML='<section class="compact-founder-top"><canvas id="founderAfterCanvas" width="180" height="132" aria-label="調整後のスライム"></canvas><div class="compact-founder-info"><strong>調整後の外見</strong><small>　能力に応じて体表・口・膜・栄養粒・ひれなどが変化</small> <small id="founderPreviewChanges"></small><p id="founderCost" class="founder-budget"></p><div id="founderSummary"></div></div></section>'+
-   '<div class="compact-founder-fields">'+FOUNDER_TRAITS.map(([section,fields])=>'<fieldset class="founder-fieldset"><legend>'+escape(section)+'</legend><div class="founder-traits">'+
+   '<p class="muted">有利な能力はポイント消費、不利な能力はポイント還元。食性など環境次第の戦略は無料。複数地形への高適応には追加費用。体格・目・口・顎は能力から自動決定。</p><div class="compact-founder-fields">'+FOUNDER_TRAITS.map(([section,fields])=>'<fieldset class="founder-fieldset"><legend>'+escape(section)+'</legend><div class="founder-traits">'+
     fields.map(([key,name,min,max,step])=>{
      const v=currentGenome()[key]??min;
-     return '<div class="founder-trait"><label for="edit-'+key+'">'+escape(name)+'</label>'+
+     return '<div class="founder-trait"><label for="edit-'+key+'">'+escape(name)+' <small data-point-cost="'+key+'"></small></label>'+
       '<div class="compact-value"><button type="button" data-adjust="-1" aria-label="'+escape(name)+'を減らす">−</button>'+
       '<input id="edit-'+key+'" type="number" data-trait="'+key+'" min="'+min+'" max="'+max+'" step="'+step+'" value="'+v.toFixed(2)+'">'+
       '<button type="button" data-adjust="1" aria-label="'+escape(name)+'を増やす">＋</button></div>'+

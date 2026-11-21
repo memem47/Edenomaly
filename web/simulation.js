@@ -508,6 +508,24 @@ const HERITABLE=['tailLength','hornLength','antennaLength','pattern','repro','id
 // Natural ponds always retain a viable reservoir. Drought reduces excess
 // water depth, but only deliberate terrain painting may remove a water tile.
 export const POND_RESERVE=35;
+// Functional body plan for player-designed lineages. Derived traits are
+// recalculated after environmental adaptation, mutation and recombination.
+export function deriveFunctionalBody(g){
+ const n=k=>clamp(g[k]??.5,0,1);
+ const diet=n('diet'),sense=n('predatorSense'),guard=n('guard');
+ const values={
+  r:3+12*Math.pow(.45*diet+.30*n('yolkReserve')+.25*guard,2.7),
+  elongation:.85+2.15*Math.pow(.55*n('dispersal')+.30*n('wet')+.15*n('aquatic'),2.4),
+  eyes:Math.round(6*(.70*sense+.30*n('caution'))),
+  mouths:1+Math.round(3*(.65*diet+.35*n('parentFeeding'))),
+  jaw:.2+2.3*(.65*diet+.35*n('retaliation'))
+ };
+ const out={...g,functionalBody:true,alleles:{...g.alleles}};
+ for(const [key,value] of Object.entries(values)){
+  out[key]=Number(value.toFixed(4));out.alleles[key]=[out[key],out[key]];
+ }
+ return out;
+}
 const INTEGER_GENES=new Set(['eyes','mouths','brood','aquatic','albino','repro']);
 // Detailed phenotype code: one rounded hexadecimal digit per expressed
 // inherited trait, in fixed gene order. Same genome -> same code after reset;
@@ -704,10 +722,10 @@ export class Ecosystem{
    next.alleles[key][index]=clamp(value,lo,hi);
   }
   for(const trait of HERITABLE)next[trait]=alleleExpression(trait,next.alleles[trait]);
-  return next;
+  return next.functionalBody?deriveFunctionalBody(next):next;
  }
  recombine(a,b){
-  const child={alleles:{}};
+  const child={alleles:{},functionalBody:!!(a.functionalBody||b.functionalBody)};
   for(const key of HERITABLE){
    const maternal=allelePair(a,key),paternal=allelePair(b,key);
    const pair=[maternal[this.rand()<.5?0:1],paternal[this.rand()<.5?0:1]];
@@ -742,7 +760,8 @@ export class Ecosystem{
   }
   // Extremely rare stable inherited pigment loss, distinct from damage flash.
   if(this.rand()<.0025){child.albino=1;child.alleles.albino=[1,1];}
-  return this.rand()<.32?this.mutate(child):child;
+  const expressed=child.functionalBody?deriveFunctionalBody(child):child;
+  return this.rand()<.32?this.mutate(expressed):expressed;
  }
  category(g){
   // A species represents a recognizable ecological/morphological strategy.
@@ -2425,7 +2444,7 @@ export class Ecosystem{
   // Grassland founders are terrestrial, and require nearby access to water.
   adapted.alleles=Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]));
   for(const key of ['aquatic','wet','dry','rock','diet','jaw'])if(adapted[key]!==g[key])adapted.alleles[key]=[adapted[key],adapted[key]];
-  return adapted;
+  return adapted.functionalBody?deriveFunctionalBody(adapted):adapted;
  }
  founderSite(x,y,terrain){
   for(let attempt=0;attempt<24;attempt++){
