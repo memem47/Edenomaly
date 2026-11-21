@@ -1,7 +1,7 @@
 import {FOUNDER_BUDGET,FOUNDER_TRAITS,FOUNDER_FIELDS,formatTrait,editFounderGenome,founderCost,founderTraitCost,canUseFounder} from './founder-designer.js';
 import {morphology,dietProfile,terrainFitness,genomeCode} from './simulation.js';
-import {drawFounderAppearance} from './founder-preview.js?v=2026.11.21.4';
-import {phenotypeBarsHTML,abilityListHTML} from './ability-bars.js?v=2026.11.21.4';
+import {drawFounderAppearance} from './founder-preview.js?v=2026.11.21.5';
+import {phenotypeBarsHTML,abilityListHTML} from './ability-bars.js?v=2026.11.21.5';
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format=n=>Number(n).toFixed(1);
 const makeDialog=(id,title)=>{
@@ -133,14 +133,44 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue}){
   if(discovery.open)discovery.close();
   discoveryQueue=[];
  }
+ function comparisonHTML(g,parents){
+  const fields=[...FOUNDER_FIELDS,
+   ['r','基本体格',3,15],['elongation','体の長さ比',.65,3],['eyes','目の数',0,6],
+   ['mouths','口の数',1,4],['jaw','顎・攻撃力',.2,2.5]];
+  const derived=[['bodyMass','体格（質量）'],['eyeRange','視界'],['speed','移動速度'],['upkeep','維持エネルギー'],['biteReach','攻撃範囲'],['maxHp','最大HP']];
+  const stats=g=>{const m=morphology(g);return {...g,...m,maxHp:Math.max(25,Math.round(m.bodyMass*.48+25))};};
+  const current=stats(g),previous=parents.map(p=>stats(p.genome));
+  const fmt=(key,v)=>Number.isFinite(v)?['repro','aquatic'].includes(key)?formatTrait(key,v):Number(v.toFixed(3)).toString():'—';
+  const categorical=new Set(['repro','aquatic']);
+  const rows=[...derived,...fields].map(([key,label])=>{
+   const v=current[key],pv=previous.map(p=>p[key]);
+   const changed=pv.some(x=>Number.isFinite(x)&&Math.abs(v-x)>=.0005);
+   const cells=pv.map(x=>{
+    if(!Number.isFinite(x)||!Number.isFinite(v))return '<td>—</td>';
+    const d=v-x,dir=Math.abs(d)<.0005?'same':d>0?'up':'down';
+    const delta=categorical.has(key)?(dir==='same'?'同じ':'変化'):(dir==='same'?'±0':(d>0?'+':'')+Number(d.toFixed(3)));
+    return '<td>'+escape(fmt(key,x))+' <small class="discovery-delta '+dir+'">'+escape(delta)+'</small></td>';
+   }).join('');
+   return {changed,html:'<tr><th scope="row">'+escape(label)+'</th><td><strong>'+escape(fmt(key,v))+'</strong></td>'+cells+'</tr>'};
+  });
+  const table=rows=>'<div class="discovery-table-wrap"><table class="discovery-table"><thead><tr><th>能力</th><th>新種</th>'+parents.map((p,i)=>'<th>親'+(i+1)+'（新種との差）</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>r.html).join('')+'</tbody></table></div>';
+  if(!parents.length)return '<p class="muted">親の情報がないため比較できません。</p>';
+  return '<h3>親から変化した能力</h3><p class="muted">差分＝新種 − 親。増減は有利・不利を意味しません。成体の基礎能力を比較しています。</p>'+
+   (rows.some(r=>r.changed)?table(rows.filter(r=>r.changed)):'<p>表示精度内では能力値の変化なし。</p>')+
+   '<details><summary>変化のない能力も表示</summary>'+table(rows.filter(r=>!r.changed))+'</details>';
+ }
  function showNextDiscovery(){
   if(!discoveryQueue.length){if(discovery.open)discovery.close();return false;}
   const item=discoveryQueue[0],sp=item.species,g=sp.genome;
+  const parents=(sp.parents??[]).filter(p=>p?.genome);
   discoveryBody.innerHTML='<p class="muted">Step '+item.step+' に発見。確認するまでシミュレーションを停止しています。</p>'+
-   '<h3>'+escape(sp.name)+'</h3>'+summary(g)+phenotypeBarsHTML(g)+
-   '<details open><summary>🧬 遺伝子・能力の詳細</summary><div class="founder-discovery-genes">'+
+   '<div class="discovery-portraits">'+[{name:sp.name,genome:g},...parents].map((p,i)=>'<figure><canvas width="180" height="132" data-discovery-portrait="'+i+'"></canvas><figcaption><strong>'+(i===0?'✨ 新種':'親'+i+' #'+p.id)+'</strong><br>'+escape(p.name)+'</figcaption></figure>').join('')+'</div>'+summary(g)+comparisonHTML(g,parents)+
+   '<details><summary>外見の特徴</summary>'+phenotypeBarsHTML(g)+'</details>'+
+   '<details><summary>🧬 遺伝子・能力の詳細</summary><div class="founder-discovery-genes">'+
    abilityListHTML(g)+
    '</div></details><p class="muted">遺伝子コード '+escape(genomeCode(g))+'</p>';
+  discoveryBody.querySelectorAll('[data-discovery-portrait]').forEach(canvas=>drawFounderAppearance(canvas,[g,...parents.map(p=>p.genome)][Number(canvas.dataset.discoveryPortrait)],0));
+  discoveryBody.scrollTop=0;
   discoveryFoot.innerHTML='<button type="button" id="keepPaused">停止したまま閉じる</button>'+
    '<button type="button" id="continueAfterDiscovery">'+(discoveryQueue.length>1?'次の新種を見る':'確認して再開')+'</button>';
   discoveryFoot.querySelector('#keepPaused').onclick=()=>{
