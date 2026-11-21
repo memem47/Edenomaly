@@ -1,5 +1,6 @@
 import {FOUNDER_BUDGET,FOUNDER_TRAITS,FOUNDER_FIELDS,formatTrait,editFounderGenome,founderCost,canUseFounder} from './founder-designer.js';
 import {morphology,dietProfile,terrainFitness,genomeCode} from './simulation.js';
+import {drawFounderAppearance} from './founder-preview.js?v=2026.11.21.1';
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format=n=>Number(n).toFixed(1);
 const makeDialog=(id,title)=>{
@@ -18,6 +19,7 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue}){
  const discoveryFoot=discovery.querySelector('.genome-dialog-foot');
  // Keep a real default genome rather than reconstructing unrelated sliders.
  let original=null,base=null,changes={},point=null,wasRunning=false,discoveryQueue=[];
+ let previewFrame=null,previewTick=0;
  const defaultGenome=()=>{
   if(original)return original;
   for(let i=0;i<70;i++){
@@ -38,6 +40,22 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue}){
    ['乾燥適応',format(terrainFitness(g,2).fitness)],['岩場適応',format(terrainFitness(g,3).fitness)]
   ].map(([name,value])=>'<span><small>'+escape(name)+'</small><b>'+escape(value)+'</b></span>').join('')+'</div>';
  };
+ const paintPreview=()=>{
+  const initial=editorBody.querySelector('#founderBeforeCanvas');
+  const edited=editorBody.querySelector('#founderAfterCanvas');
+  if(!initial||!edited||!base)return;
+  drawFounderAppearance(initial,base,previewTick);
+  const g=currentGenome();
+  drawFounderAppearance(edited,g,previewTick);
+  const changed=FOUNDER_FIELDS.filter(([key])=>(g[key]??0)!==(base[key]??0)).length;
+  editorBody.querySelector('#founderPreviewChanges').textContent=
+   changed?'変更した能力 '+changed+'項目':'標準の見た目（変更なし）';
+ };
+ const animatePreview=()=>{
+  if(!editor.open||!editor.isConnected){previewFrame=null;return;}
+  if(!document.hidden){previewTick++;paintPreview();}
+  previewFrame=requestAnimationFrame(animatePreview);
+ };
  function updateEditorSummary(){
   const g=currentGenome(),cost=founderCost(base,g),isGame=getMode()==='game';
   const line=editorBody.querySelector('#founderCost');
@@ -45,6 +63,7 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue}){
   line.textContent=budget;
   line.classList.toggle('over-budget',isGame&&cost>FOUNDER_BUDGET);
   editorBody.querySelector('#founderSummary').innerHTML=summary(g);
+  paintPreview();
   const btn=editorFoot.querySelector('#confirmFounder');
   btn.disabled=!canUseFounder(base,g,isGame);
   btn.textContent=point?'この能力で8体を移入':'この能力を保存して配置先を選ぶ';
@@ -59,7 +78,14 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue}){
    ' ゲームモードでは遺伝子ポイントを消費します。テストモードでは自由に編集できます。'+
    ' 選択地点の地形に合わない能力では、移入直後に衰弱する場合があります。'+
    (getMode()==='lab'?' 複数種類を移入する場合、調整するのは最初の1種類です。':'')+'</p>'+
-   '<p id="founderCost" class="founder-budget"></p><div id="founderSummary"></div>'+
+   '<p id="founderCost" class="founder-budget"></p>'+
+   '<section class="founder-preview-section" aria-label="外見のリアルタイム比較">'+
+   '<div class="founder-preview-heading"><strong>✨ スライムの見た目</strong><span id="founderPreviewChanges" aria-live="polite"></span></div>'+
+   '<div class="founder-preview-pair">'+
+   '<figure><canvas id="founderBeforeCanvas" width="320" height="220" aria-label="調整前のスライム"></canvas><figcaption>調整前</figcaption></figure>'+
+   '<figure><canvas id="founderAfterCanvas" width="320" height="220" aria-label="調整後のスライム"></canvas><figcaption>調整後（リアルタイム）</figcaption></figure>'+
+   '</div><p class="muted">体格・縦横比・目の数と配置・角・触角・尾・模様・色を実際の描画処理で反映します。動きはイメージです。生態特性の変更は必ずしも外見を変えません。</p></section>'+
+   '<div id="founderSummary"></div>'+
    FOUNDER_TRAITS.map(([section,fields])=>'<fieldset class="founder-fieldset"><legend>'+escape(section)+'</legend><div class="founder-traits">'+
     fields.map(([key,name,min,max,step])=>{
      const current=currentGenome()[key];
@@ -86,10 +112,12 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue}){
   };
   updateEditorSummary();
   editor.showModal();
+  if(previewFrame===null)previewFrame=requestAnimationFrame(animatePreview);
  };
  editor.addEventListener('cancel',e=>{e.preventDefault();editor.close();});
  function clear(){
   changes={};original=null;base=null;point=null;
+  if(previewFrame!==null){cancelAnimationFrame(previewFrame);previewFrame=null;}
   if(editor.open)editor.close();
   if(discovery.open)discovery.close();
   discoveryQueue=[];
