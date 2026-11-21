@@ -1,8 +1,9 @@
 import {FOUNDER_BUDGET,FOUNDER_TRAITS,FOUNDER_FIELDS,formatTrait,editFounderGenome,founderCost,founderTraitCost,canUseFounder} from './founder-designer.js';
 import {morphology,dietProfile,terrainFitness,genomeCode} from './simulation.js';
-import {drawFounderAppearance} from './founder-preview.js?v=2026.11.21.6';
-import {differenceMagnitude,rankDifferences} from './discovery-diff.js?v=2026.11.21.6';
-import {phenotypeBarsHTML,abilityListHTML} from './ability-bars.js?v=2026.11.21.6';
+import {drawFounderAppearance} from './founder-preview.js?v=2026.11.21.7';
+import {differenceMagnitude,rankDifferences} from './discovery-diff.js?v=2026.11.21.7';
+import {FOUNDER_PRESETS,founderPresetGenome,randomFounderGenome} from './founder-presets.js?v=2026.11.21.7';
+import {phenotypeBarsHTML,abilityListHTML} from './ability-bars.js?v=2026.11.21.7';
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format=n=>Number(n).toFixed(1);
 const makeDialog=(id,title)=>{
@@ -12,7 +13,7 @@ const makeDialog=(id,title)=>{
  document.body.append(dialog);
  return dialog;
 };
-export function mountFounderScreens({game,getMode,onIntroduce,onContinue}){
+export function mountFounderScreens({game,getMode,onIntroduce,onContinue,onReady=()=>{}}){
  const editor=makeDialog('founderEditorDialog','🧬 移入するスライムの能力');
  const discovery=makeDialog('newSpeciesDiscoveryDialog','✨ 新種発見！');
  const editorBody=editor.querySelector('.genome-dialog-body');
@@ -21,6 +22,7 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue}){
  const discoveryFoot=discovery.querySelector('.genome-dialog-foot');
  // Keep a real default genome rather than reconstructing unrelated sliders.
  let original=null,base=null,changes={},point=null,wasRunning=false,discoveryQueue=[];
+ let preparedGenome=null,selectedGenome=null;
  let previewFrame=null,previewTick=0;
  const defaultGenome=()=>{
   if(original)return original;
@@ -72,15 +74,17 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue}){
   paintPreview();
   const btn=editorFoot.querySelector('#confirmFounder');
   btn.disabled=!canUseFounder(base,g,isGame);
-  btn.textContent=point?'この能力で8体を移入':'この能力を保存して配置先を選ぶ';
+  btn.textContent=point?'この能力で8体を移入':'② この能力で移入地点を選ぶ';
  }
  const showEditor=(site=null,playing=false)=>{
   if(editor.open)return;
   point=site;
   wasRunning=playing;
-  const source=defaultGenome();
+  const source=selectedGenome??preparedGenome??defaultGenome();
   base=site?game.adaptFounderToTerrain(source,game.terrain(site.x,site.y)):source;
+  changes={};
   editorBody.innerHTML='<section class="compact-founder-top"><canvas id="founderAfterCanvas" width="180" height="132" aria-label="調整後のスライム"></canvas><div class="compact-founder-info"><strong>調整後の外見</strong><small>　能力に応じて体表・口・膜・栄養粒・ひれなどが変化</small> <small id="founderPreviewChanges"></small><p id="founderCost" class="founder-budget"></p><div id="founderSummary"></div></div></section>'+
+   '<section class="founder-preset-selection"><strong>① 初期能力を選ぶ</strong><p class="muted">プリセットはおすすめの生存戦略です。選択後もすべての能力を編集できます。</p><div class="founder-preset-grid">'+FOUNDER_PRESETS.map(p=>'<button type="button" data-founder-preset="'+p.id+'"><b>'+escape(p.name)+'</b><small>'+escape(p.description)+'</small></button>').join('')+'<button type="button" id="randomFounderPreset"><b>🎲 ランダム生成</b><small>能力を毎回ランダムに選びます。ゲームモードの遺伝子ポイント上限内で生成します。</small></button></div></section>'+
    '<p class="muted">有利な能力はポイント消費、不利な能力はポイント還元。食性など環境次第の戦略は無料。複数地形への高適応には追加費用。体格・目・口・顎は能力から自動決定。</p><div class="compact-founder-fields">'+FOUNDER_TRAITS.map(([section,fields])=>'<fieldset class="founder-fieldset"><legend>'+escape(section)+'</legend><div class="founder-traits">'+
     fields.map(([key,name,min,max,step])=>{
      const v=currentGenome()[key]??min;
@@ -113,14 +117,23 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue}){
    });
   });
   editorFoot.querySelector('#resetFounder').onclick=()=>{
-   changes={};editor.close();showEditor(site,playing);
+   changes={};selectedGenome=null;preparedGenome=null;editor.close();showEditor(null,playing);
   };
-  editorFoot.querySelector('#cancelFounder').onclick=()=>editor.close();
+  editorFoot.querySelector('#cancelFounder').onclick=()=>{selectedGenome=null;editor.close();};
+  editorBody.querySelectorAll('[data-founder-preset]').forEach(btn=>btn.onclick=()=>{
+   selectedGenome=founderPresetGenome(defaultGenome(),btn.dataset.founderPreset);
+   editor.close();showEditor(null,playing);
+  });
+  editorBody.querySelector('#randomFounderPreset').onclick=()=>{
+   selectedGenome=randomFounderGenome(defaultGenome());
+   editor.close();showEditor(null,playing);
+  };
   editorFoot.querySelector('#confirmFounder').onclick=()=>{
    const g=currentGenome();
    if(!canUseFounder(base,g,getMode()==='game'))return;
-   editor.close();
-   if(point)onIntroduce(point,g);
+   editor.close();selectedGenome=null;
+   if(point){onIntroduce(point,g);return;}
+   preparedGenome=g;onReady(g);
   };
   updateEditorSummary();
   editor.showModal();
@@ -128,7 +141,7 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue}){
  };
  editor.addEventListener('cancel',e=>{e.preventDefault();editor.close();});
  function clear(){
-  changes={};original=null;base=null;point=null;
+  changes={};original=null;base=null;point=null;preparedGenome=null;selectedGenome=null;
   if(previewFrame!==null){cancelAnimationFrame(previewFrame);previewFrame=null;}
   if(editor.open)editor.close();
   if(discovery.open)discovery.close();
@@ -191,5 +204,8 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue}){
   for(const item of categories)discoveryQueue.push(item);
   if(categories.length&&!discovery.open)showNextDiscovery();
  }
- return {showEditor,announce,clear,isOpen:()=>editor.open||discovery.open};
+ return {showEditor,announce,clear,
+  hasPrepared:()=>!!preparedGenome,
+  consumePrepared:()=>{const g=preparedGenome;preparedGenome=null;return g;},
+  isOpen:()=>editor.open||discovery.open};
 }
