@@ -427,3 +427,14 @@ button:disabled,input:disabled{opacity:.40;cursor:not-allowed}
 @media(max-width:480px){.compact-founder-top canvas{width:90px;height:66px}.compact-founder-fields .founder-traits{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 .discovery-portraits{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}.discovery-portraits figure{flex:1;min-width:100px;max-width:180px;margin:0;text-align:center;overflow-wrap:anywhere}.discovery-portraits canvas{width:100%;height:auto;display:block;border-radius:8px}.discovery-portraits figcaption{font-size:12px;padding:3px}.discovery-portraits figure:first-child{outline:2px solid #79d5b6;border-radius:8px}.discovery-table-wrap{overflow-x:auto}.discovery-table{width:100%;border-collapse:collapse;font-size:12px}.discovery-table th,.discovery-table td{padding:5px 7px;border-bottom:1px solid #345365;text-align:left}.discovery-table td{font-variant-numeric:tabular-nums}.discovery-delta{display:inline-block;padding:2px 4px;border-radius:4px;margin-left:3px;white-space:nowrap}.discovery-delta.up{color:#a0eccc;background:#21483e}.discovery-delta.down{color:#ffcf9e;background:#553d2a}.discovery-delta.same{color:#acc4d0}.discovery-table th{color:#d7e9ef}.discovery-table td strong{color:#fff}
+
+/* Start with an ecological strategy before choosing the world location. */
+.founder-preset-selection{padding:9px 10px;background:#173743;border:1px solid #476a78;border-radius:10px;margin:8px 0}
+.founder-preset-selection>strong{font-size:14px;color:#c4f3e2}
+.founder-preset-selection>.muted{margin:3px 0 8px;font-size:11px}
+.founder-preset-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:6px}
+.founder-preset-grid button{display:flex;flex-direction:column;align-items:flex-start;gap:4px;white-space:normal;text-align:left;min-height:70px;padding:8px 10px;background:#24495a;border:1px solid #55869a;border-radius:8px;color:#e9f6f5;cursor:pointer}
+.founder-preset-grid button:hover,.founder-preset-grid button:focus-visible{background:#326679;outline:2px solid #97d9c8;outline-offset:-2px}
+.founder-preset-grid button b{font-size:12px}
+.founder-preset-grid button small{font-size:10px;line-height:1.45;color:#c6dfe0}
+@media(max-width:550px){.founder-preset-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.founder-preset-grid button{min-height:96px;padding:7px}}
