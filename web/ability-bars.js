@@ -1,0 +1,32 @@
+import {FOUNDER_FIELDS,formatTrait} from './founder-designer.js';
+import {functionalOrnaments} from './simulation.js';
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+export const abilityPosition=(value,min,max)=>Number.isFinite(value)&&max>min?
+ Math.min(100,Math.max(0,(value-min)/(max-min)*100)):0;
+export const APPEARANCE_DRIVERS=Object.freeze([
+ ['horn','角','顎の強さ＋卵の防御'],
+ ['tail','尾','水辺への適応＋分散能力'],
+ ['antenna','触角','捕食者識別能力＋目の数'],
+ ['pattern','体の模様','擬態能力＋感染抵抗力']
+]);
+export function abilityBarHTML(key,label,value,min,max,{editable=false}={}){
+ const number=Number(value),pct=abilityPosition(number,min,max);
+ const units=key==='idealTemp'||key==='tempTolerance'?'℃':'';
+ const fmt=v=>formatTrait(key,v)+units;
+ return '<div class="ability-bar" data-ability="'+esc(key)+'">'+
+  '<div class="ability-bar-heading"><span>'+esc(label)+'</span><strong>'+esc(fmt(number))+'</strong></div>'+
+  '<div class="ability-track" role="meter" aria-label="'+esc(label)+'" aria-valuemin="'+min+'" aria-valuemax="'+max+'" aria-valuenow="'+number+'">'+
+   '<span class="ability-fill" style="width:'+pct.toFixed(2)+'%"></span></div>'+
+  '<div class="ability-scale"><small>最小 '+esc(fmt(min))+'</small><small>最大 '+esc(fmt(max))+'</small></div>'+
+ '</div>';
+}
+export function abilityListHTML(g){
+ return '<div class="ability-grid">'+FOUNDER_FIELDS.filter(([key])=>Number.isFinite(g[key]))
+  .map(([key,label,min,max])=>abilityBarHTML(key,label,g[key],min,max)).join('')+'</div>';
+}
+export function phenotypeBarsHTML(g){
+ const traits=functionalOrnaments(g);
+ return '<div class="appearance-derivation"><strong>能力から決まる外見</strong><p>飾りは専用遺伝子ではなく、生存能力から自動生成されます。</p>'+
+  APPEARANCE_DRIVERS.map(([key,label,reason])=>
+   abilityBarHTML('phenotype-'+key,label+' — '+reason,traits[key],0,1)).join('')+'</div>';
+}
