@@ -47,3 +47,12 @@ test('preview is wired into initial render, slider changes, and animation',async
  assert.ok(css.includes('.founder-preview-section'));
  assert.ok(css.includes('position:sticky'));
 });
+
+test('every editable ability changes a functional visual channel',async()=>{
+ const {abilityAppearance}=await import('./slime-ornaments.js');
+ const {FOUNDER_FIELDS}=await import('./founder-designer.js');
+ const g=new Ecosystem(202611213).gene();
+ for(const [key,,min,max] of FOUNDER_FIELDS){
+  assert.notDeepEqual(abilityAppearance({...g,[key]:min}),abilityAppearance({...g,[key]:max}),key);
+ }
+});
