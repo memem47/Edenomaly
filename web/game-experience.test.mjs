@@ -22,7 +22,7 @@ test('important events keep unseen species unnamed and gate remote clues behind 
  const view=centerOn({zoom:4,x:0,y:0},120,100);
  const plain=new ObservationTracker(),radar=new ObservationTracker();
  plain.start(w);radar.start(w);
- const variant={...base,hornLength:.8,tailLength:0};
+ const variant={...base,jaw:2.5,guard:1,wet:0,dispersal:0,aquatic:0};
  const remote=w.spawn(700,400,variant);
  assert.notEqual(founder.category,remote.category);
  w.tick=20;
