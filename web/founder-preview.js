@@ -20,7 +20,7 @@ export function drawFounderAppearance(canvas,g,frame=0){
  ctx.fillStyle=background;ctx.fillRect(0,0,w,h);
  const m=morphology(g);
  // Fixed scale preserves visible differences when the body-size slider moves.
- const scale=3.6*bodySizeMultiplier(g);
+ const scale=6.0*bodySizeMultiplier(g);
  const squash=Math.sin(frame*.12)*.025;
  const rx=g.r*scale*1.06*Math.max(1,Math.min(3,g.elongation??1))*(1+squash);
  const ry=g.r*scale*1.06*(1-squash);
@@ -51,5 +51,5 @@ export function drawFounderAppearance(canvas,g,frame=0){
  ctx.font='12px system-ui';
  ctx.fillStyle='rgba(225,246,250,.75)';
  ctx.textAlign='right';
- ctx.fillText('頭の方向 →',w-12,h-12);
+ 
 }
