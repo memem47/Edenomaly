@@ -4,7 +4,7 @@
 import {morphology,bodySizeMultiplier} from './simulation.js';
 import {slimeEyeAngles,slimeEyeColor,slimeEyeLocation} from './renderer.js';
 import {drawJellyBody} from './jelly-visuals.js';
-import {drawOrnamentsBehind,drawOrnamentsFront} from './slime-ornaments.js';
+import {drawOrnamentsBehind,drawOrnamentsFront,drawAbilityDetails} from './slime-ornaments.js';
 
 const TAU=Math.PI*2;
 export function drawFounderAppearance(canvas,g,frame=0){
@@ -37,8 +37,9 @@ export function drawFounderAppearance(canvas,g,frame=0){
  drawOrnamentsBehind(ctx,g,px,py,frame,0);
  drawJellyBody(ctx,g,px,py,phase,0,false);
  drawOrnamentsFront(ctx,g,px,py,frame,0);
+ drawAbilityDetails(ctx,g,px,py);
  const angles=slimeEyeAngles(g);
- const eyeRadius=Math.max(.45,Math.min(3.6,py*.19));
+ const eyeRadius=Math.max(.45,Math.min(8,py*.19));
  ctx.fillStyle=slimeEyeColor(g);
  for(const angle of angles){
   const {x,y}=slimeEyeLocation(angle,px,py);
