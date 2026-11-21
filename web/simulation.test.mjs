@@ -1943,36 +1943,18 @@ test('large colonies retain cheap glossy sheen without allocating gradients per 
 });
 
 import {speciesNameFromCategory,genomeCode} from './simulation.js';
-test('discovered species names combine true visual hue, category code and phenotype',async()=>{
- const {speciesColorName,speciesFeatureName,speciesEcologyCode}=await import('./simulation.js');
- const a=new Ecosystem(9111),b=new Ecosystem(9112);
- const g={...a.gene(),hornLength:.82,tailLength:.1,antennaLength:0,pattern:0};
- const key=a.category(g),expected=speciesNameFromCategory(key,g);
+test('new species names reflect ecology-derived appearance rather than obsolete ornament knobs',()=>{
+ const w=new Ecosystem(9111),base=w.gene();
+ const g={...base,jaw:2.5,guard:1,wet:0,dispersal:0,aquatic:0,
+  predatorSense:0,eyes:2,deception:0,resist:0};
+ const key=w.category(g),expected=speciesNameFromCategory(key,g);
  assert.ok(expected.endsWith('ホーン'));
- assert.equal(a.name(key,g),expected);
- assert.equal(b.name(key,g),expected);
- assert.equal(a.name(key),speciesNameFromCategory(key));
- a.spawn(120,130,g);
- assert.equal(a.species.get(key).name,expected);
- assert.equal(a.name(key),expected);
- const variant={...g,hornLength:0,tailLength:1};
- const tailKey=a.category(variant);
- assert.notEqual(tailKey,key,'different dominant ornament defines a new species');
- a.spawn(125,130,variant);
- assert.equal(a.species.get(key).name,expected,'existing species name remains fixed');
- assert.ok(a.species.get(tailKey).name.endsWith('テール'));
- a.reset();
- a.spawn(120,130,g);
- assert.equal(a.species.get(key).name,expected);
- const c=new Ecosystem(9113);
- c.spawn(100,110,{...c.gene(),diet:1,aquatic:1});
- c.spawn(120,130,g);
- assert.equal(c.species.get(key).name,expected);
- assert.equal(speciesFeatureName({...g,hornLength:.81,tailLength:.80}),'ホーンテール');
- assert.equal(speciesFeatureName({...g,hornLength:0,tailLength:0}),'');
- assert.equal(speciesFeatureName({...g,hornLength:.08,tailLength:0}),'');
- assert.ok(speciesColorName({...g,albino:1})==='ホワイト');
- assert.equal(speciesEcologyCode(key).length,5);
+ w.spawn(120,130,g);
+ assert.equal(w.species.get(key).name,expected);
+ assert.equal(w.category({...g,hornLength:0,tailLength:1,antennaLength:1,pattern:1}),key);
+ const water={...g,jaw:.2,guard:0,wet:1,dispersal:1,aquatic:1};
+ assert.ok(speciesNameFromCategory(w.category(water),water).endsWith('テール'));
+ assert.notEqual(w.category(water),key);
 });
 test('every one of 108864 classifications keeps a unique ecological name code',async()=>{
  const {speciesEcologyCode}=await import('./simulation.js');
@@ -1997,61 +1979,35 @@ test('every one of 108864 classifications keeps a unique ecological name code',a
  for(const habitat of habitats)traverse([habitat],0);
  assert.equal(codes.size,108864);
 });
-test('color and compound traits come from visible genome rather than naming bin',async()=>{
- const {pigmentClass,adaptationColor,speciesColorName,speciesFeatureName}=await import('./simulation.js');
+test('colors and compound ornaments follow inherited ecological fitness',async()=>{
+ const {speciesColorName,speciesFeatureName,pigmentClass,adaptationColor}=await import('./simulation.js');
  const w=new Ecosystem(9115),g=w.gene();
  assert.equal(pigmentClass({...g,albino:1}),'white');
- const key=w.category(g);
- assert.equal(key.split('-').length,11);
- const before=speciesNameFromCategory(key,g);
- assert.equal(w.name(key,g),before);
- const white=w.category({...g,albino:1});
- assert.notEqual(white,key);
- assert.ok(speciesNameFromCategory(white,{...g,albino:1}).startsWith('ホワイト'));
- const hue=adaptationColor(g).hue;
- assert.ok(hue>=0&&hue<360);
- assert.equal(speciesFeatureName({...g,hornLength:.63,tailLength:.59,antennaLength:.1,pattern:0}),'ホーンテール');
- // Real adaptation colors are mixed, but synthetic hue probes can exercise
- // the rare red-purple boundary without changing the biological palette.
- const purpleRed={...g,albino:0,wet:.0,dry:.25,rock:1};
- const colored=speciesColorName(purpleRed);
- assert.ok(colored.length>0);
- const rare={...g,albino:0,wet:0,dry:.5,rock:.7,
-  hornLength:.78,tailLength:.76,antennaLength:.2,pattern:0};
+ assert.equal(w.category(g).split('-').length,11);
+ assert.notEqual(w.category(g),w.category({...g,albino:1}));
+ assert.ok(adaptationColor(g).hue>=0&&adaptationColor(g).hue<360);
+ const both={...g,jaw:2.5,guard:1,wet:1,aquatic:1,dispersal:1,
+  predatorSense:0,eyes:2,deception:0,resist:0};
+ assert.equal(speciesFeatureName(both),'ホーンテール');
+ const rare={...both,wet:0,dry:.5,rock:.7,aquatic:0,dispersal:0};
  assert.equal(speciesColorName(rare),'レッドパープル');
- assert.equal(speciesFeatureName(rare),'ホーンテール');
- assert.ok(speciesNameFromCategory(w.category(rare),rare).startsWith('レッドパープル'));
- assert.ok(speciesNameFromCategory(w.category(rare),rare).endsWith('ホーンテール'));
+ assert.equal(speciesFeatureName(rare),'ホーン');
 });
-test('visible color and ornaments determine distinct species classifications',async()=>{
+test('visible ornaments, not unused cosmetic loci, define classifications',async()=>{
  const {speciesAppearanceCategory,speciesEcologyCode}=await import('./simulation.js');
- const w=new Ecosystem(202611117),genome=w.gene();
- const base={...genome,wet:0,dry:.2,rock:.95,albino:0,
-  hornLength:.81,tailLength:.03,antennaLength:0,pattern:0};
- const horn={...base},tail={...base,hornLength:.03,tailLength:.81};
- const both={...base,tailLength:.78};
- const similar={...base,hornLength:.79};
- const plain={...base,hornLength:0,tailLength:0};
- assert.equal(w.category(horn),w.category(similar),'minor variations remain same species');
- assert.notEqual(w.category(horn),w.category(tail),'horn and tail are different species');
- assert.notEqual(w.category(horn),w.category(both),'dual-trait forms are different species');
- assert.notEqual(w.category(horn),w.category(plain),'plain and ornamented forms differ');
+ const w=new Ecosystem(202611117),g=w.gene();
+ const plain={...g,jaw:.2,guard:0,wet:0,dispersal:0,aquatic:0,
+  predatorSense:0,eyes:2,deception:0,resist:0};
+ const horn={...plain,jaw:2.5,guard:1};
+ const tail={...plain,wet:1,aquatic:1,dispersal:1};
+ const both={...horn,wet:1,aquatic:1,dispersal:1};
+ assert.ok(speciesAppearanceCategory(plain).endsWith('f_normal'));
  assert.ok(speciesAppearanceCategory(horn).endsWith('f_horn'));
  assert.ok(speciesAppearanceCategory(tail).endsWith('f_tail'));
  assert.ok(speciesAppearanceCategory(both).endsWith('f_horn_tail'));
- assert.ok(speciesAppearanceCategory(plain).endsWith('f_normal'));
- assert.ok(speciesNameFromCategory(w.category(horn)).endsWith('ホーン'));
- assert.ok(speciesNameFromCategory(w.category(tail)).endsWith('テール'));
- assert.ok(speciesNameFromCategory(w.category(both)).endsWith('ホーンテール'));
- assert.equal(speciesNameFromCategory(w.category(plain)),
-  speciesNameFromCategory(w.category(plain)).replace(/ノーマル$/,''));
- assert.ok(!speciesNameFromCategory(w.category(plain)).endsWith('ノーマル'));
- const hueVariant={...horn,wet:0,dry:.5,rock:.7};
- assert.notEqual(w.category(horn),w.category(hueVariant),'distinct visible hue classes divide species');
- const h=w.spawn(140,140,horn),t=w.spawn(150,140,tail);
- assert.notEqual(h.category,t.category);
- assert.equal(w.species.size,2);
- assert.notEqual(w.species.get(h.category).name,w.species.get(t.category).name);
+ assert.notEqual(w.category(plain),w.category(horn));
+ assert.notEqual(w.category(horn),w.category(tail));
+ assert.equal(w.category(horn),w.category({...horn,tailLength:1,hornLength:0}));
  assert.equal(speciesEcologyCode(w.category(horn)).length,5);
 });
 test('genome code is stable, quantized, and changes when a trait crosses a bin',()=>{
@@ -3515,27 +3471,28 @@ test('new appearance genes recombine, mutate and remain bounded',()=>{
  const mutant=w.mutate(child);
  for(const key of keys)assert.ok(mutant[key]>=0&&mutant[key]<=1,key);
 });
-test('tail propulsion, horn damage and antenna vision have measured costs',()=>{
+test('functional defense, sensory and swim traits yield physical ornament tradeoffs',()=>{
  const w=new Ecosystem(2026110967),g=w.gene();
- const bare={...g,tailLength:0,hornLength:0,antennaLength:0,pattern:0};
- const decorated={...bare,tailLength:1,hornLength:1,antennaLength:1,pattern:1};
+ const bare={...g,jaw:.2,guard:0,wet:0,dispersal:0,aquatic:0,
+  predatorSense:0,eyes:2,deception:0,resist:0};
+ const decorated={...bare,jaw:2.5,guard:1,wet:1,dispersal:1,aquatic:1,
+  predatorSense:1,eyes:6,deception:1,resist:1};
  const a=morphology(bare),b=morphology(decorated);
  assert.ok(b.upkeep>a.upkeep);
  assert.ok(b.eyeRange>a.eyeRange);
  assert.ok(b.biteReach>a.biteReach);
  assert.ok(b.speed<a.speed);
- assert.ok(typeof a==='object');
 });
-
-test('pattern camouflage depends on local terrain affinity',async()=>{
+test('camouflage effect follows deception and resistance, not cosmetic pattern gene',async()=>{
  const {camouflageFactor}=await import('./simulation.js');
- const g={wet:1,dry:0,rock:0,pattern:1};
+ const g={wet:1,dry:0,rock:0,deception:1,resist:1};
  assert.ok(camouflageFactor(g,1)<camouflageFactor(g,2));
- assert.equal(camouflageFactor({...g,pattern:0},1),1);
+ assert.equal(camouflageFactor({...g,deception:0,resist:0},1),1);
+ assert.equal(camouflageFactor({...g,pattern:0},1),camouflageFactor({...g,pattern:1},1));
 });
 test('new appendage rendering leaves ecology unchanged and renders all four traits',async()=>{
  const {drawOrnamentsBehind,drawOrnamentsFront}=await import('./slime-ornaments.js');
- const w=new Ecosystem(2026110968),g={...w.gene(),tailLength:1,hornLength:1,antennaLength:1,pattern:1};
+ const w=new Ecosystem(2026110968),g={...w.gene(),jaw:2.5,guard:1,wet:1,aquatic:1,dispersal:1,predatorSense:1,eyes:6,deception:1,resist:1};
  const cmds={curves:0,shapes:0};
  const ctx=new Proxy({bezierCurveTo(){cmds.curves++;},quadraticCurveTo(){cmds.curves++;},
   ellipse(){cmds.shapes++;}},{
