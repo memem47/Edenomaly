@@ -1,7 +1,8 @@
 import {FOUNDER_BUDGET,FOUNDER_TRAITS,FOUNDER_FIELDS,formatTrait,editFounderGenome,founderCost,founderTraitCost,canUseFounder} from './founder-designer.js';
 import {morphology,dietProfile,terrainFitness,genomeCode} from './simulation.js';
-import {drawFounderAppearance} from './founder-preview.js?v=2026.11.21.5';
-import {phenotypeBarsHTML,abilityListHTML} from './ability-bars.js?v=2026.11.21.5';
+import {drawFounderAppearance} from './founder-preview.js?v=2026.11.21.6';
+import {differenceMagnitude,rankDifferences} from './discovery-diff.js?v=2026.11.21.6';
+import {phenotypeBarsHTML,abilityListHTML} from './ability-bars.js?v=2026.11.21.6';
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format=n=>Number(n).toFixed(1);
 const makeDialog=(id,title)=>{
@@ -142,7 +143,7 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue}){
   const current=stats(g),previous=parents.map(p=>stats(p.genome));
   const fmt=(key,v)=>Number.isFinite(v)?['repro','aquatic'].includes(key)?formatTrait(key,v):Number(v.toFixed(3)).toString():'—';
   const categorical=new Set(['repro','aquatic']);
-  const rows=[...derived,...fields].map(([key,label])=>{
+  const rows=[...derived,...fields].map(([key,label,min,max],index)=>{
    const v=current[key],pv=previous.map(p=>p[key]);
    const changed=pv.some(x=>Number.isFinite(x)&&Math.abs(v-x)>=.0005);
    const cells=pv.map(x=>{
@@ -151,13 +152,14 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue}){
     const delta=categorical.has(key)?(dir==='same'?'同じ':'変化'):(dir==='same'?'±0':(d>0?'+':'')+Number(d.toFixed(3)));
     return '<td>'+escape(fmt(key,x))+' <small class="discovery-delta '+dir+'">'+escape(delta)+'</small></td>';
    }).join('');
-   return {changed,html:'<tr><th scope="row">'+escape(label)+'</th><td><strong>'+escape(fmt(key,v))+'</strong></td>'+cells+'</tr>'};
+   return {changed,index,score:differenceMagnitude(key,v,pv,min,max),html:'<tr><th scope="row">'+escape(label)+'</th><td><strong>'+escape(fmt(key,v))+'</strong></td>'+cells+'</tr>'};
   });
   const table=rows=>'<div class="discovery-table-wrap"><table class="discovery-table"><thead><tr><th>能力</th><th>新種</th>'+parents.map((p,i)=>'<th>親'+(i+1)+'（新種との差）</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>r.html).join('')+'</tbody></table></div>';
   if(!parents.length)return '<p class="muted">親の情報がないため比較できません。</p>';
-  return '<h3>親から変化した能力</h3><p class="muted">差分＝新種 − 親。増減は有利・不利を意味しません。成体の基礎能力を比較しています。</p>'+
-   (rows.some(r=>r.changed)?table(rows.filter(r=>r.changed)):'<p>表示精度内では能力値の変化なし。</p>')+
-   '<details><summary>変化のない能力も表示</summary>'+table(rows.filter(r=>!r.changed))+'</details>';
+  const ranked=rankDifferences(rows);
+  return '<h3>親から変化した能力</h3><p class="muted">差分＝新種 − 親。両親のうち差が大きい方を採用し、能力の範囲に対する変化率が大きい順に並べています。増減は有利・不利を意味しません。成体の基礎能力を比較しています。</p>'+
+   (ranked.some(r=>r.changed)?table(ranked.filter(r=>r.changed)):'<p>表示精度内では能力値の変化なし。</p>')+
+   '<details><summary>変化のない能力も表示</summary>'+table(ranked.filter(r=>!r.changed))+'</details>';
  }
  function showNextDiscovery(){
   if(!discoveryQueue.length){if(discovery.open)discovery.close();return false;}
