@@ -1,7 +1,7 @@
 // Soft, readable jelly ornaments made entirely of overlapping round shapes.
 // Drawing only: genes, hitboxes, upkeep, movement and RNG are unchanged.
 // The organism faces +X. The upper-right contour is its forehead.
-import {adaptationColor,functionalOrnaments} from './simulation.js?v=2026.11.21.2';
+import {adaptationColor,functionalOrnaments} from './simulation.js?v=2026.11.21.3';
 const TAU=Math.PI*2;
 const lim=v=>Math.max(0,Math.min(1,v??0));
 export const ornamentTraits=g=>functionalOrnaments(g);
@@ -98,4 +98,62 @@ export function drawOrnamentsFront(ctx,g,rx,ry,tick=0,id=0){
   }
   ctx.restore();
  }
+}
+
+// Functional visual cues, shared by the world and the editor. Each editable
+// ability contributes to at least one channel. No extra cosmetic DNA or RNG.
+const n=(g,k,lo=0,hi=1)=>lim(((g[k]??lo)-lo)/(hi-lo));
+export function abilityAppearance(g){
+ return {
+  mouth:n(g,'diet')*.45+n(g,'jaw',.2,2.5)*.3+n(g,'juvenileCannibalism')*.25,
+  mouths:Math.round(g.mouths??1),
+  membrane:n(g,'dry')*.28+n(g,'resist')*.26+n(g,'tempTolerance',3,18)*.26+n(g,'shell')*.20,
+  warmth:n(g,'idealTemp',-5,40),
+  reserve:n(g,'parentFeeding')*.26+n(g,'yolkReserve')*.32+n(g,'brood',1,8)*.22+n(g,'repro',0,2)*.20,
+  leaf:n(g,'waterGardening'),
+  fins:n(g,'aquatic')*.3+n(g,'wet')*.35+n(g,'dispersal')*.35,
+  armor:n(g,'rock')*.34+n(g,'retaliation')*.33+n(g,'guard')*.33,
+  freckles:n(g,'deception')*.45+n(g,'nesting')*.25+n(g,'nestChoice')*.30,
+  glow:n(g,'frugality')*.45+n(g,'hibernate')*.35+n(g,'sociability')*.20,
+  brow:n(g,'caution')*.45+n(g,'predatorSense')*.55,
+  size:n(g,'r',3,15),shape:n(g,'elongation',.65,3),eyes:n(g,'eyes',0,6)
+ };
+}
+export function drawAbilityDetails(ctx,g,rx,ry){
+ const a=abilityAppearance(g);
+ // Avoid expensive fine detail on tiny organisms. Major existing ornaments remain.
+ if(Math.min(rx,ry)<3)return;
+ const c=appearance(g);
+ ctx.save();ctx.beginPath();ctx.ellipse(0,0,rx*.94,ry*.94,0,0,TAU);ctx.clip();
+ // Thin membrane and warm/cool tint; never change the ecological color class.
+ ctx.strokeStyle='rgba(245,255,255,'+(.08+a.membrane*.48)+')';
+ ctx.lineWidth=Math.max(.25,ry*(.025+a.membrane*.055));
+ ctx.beginPath();ctx.ellipse(0,0,rx*.86,ry*.85,0,0,TAU);ctx.stroke();
+ ctx.fillStyle='hsla('+(210-180*a.warmth)+',80%,65%,'+(.035+a.glow*.13)+')';
+ ctx.beginPath();ctx.ellipse(-rx*.16,0,rx*.67,ry*.60,0,0,TAU);ctx.fill();
+ // Internal reserves and camouflage, concentrated away from the eyes.
+ for(let i=0;i<3;i++){
+  const x=-rx*(.24+i*.17),y=ry*(i%2?.28:-.22);
+  ctx.fillStyle='rgba(255,231,166,'+(.08+a.reserve*.42)+')';
+  ctx.beginPath();ctx.ellipse(x,y,rx*(.035+a.reserve*.07),ry*(.04+a.reserve*.09),0,0,TAU);ctx.fill();
+ }
+ if(a.freckles>.38){
+  ctx.fillStyle=c.mark;
+  for(let i=0;i<3;i++){ctx.beginPath();ctx.ellipse(-rx*.48,ry*(i-1)*.32,rx*(.035+a.freckles*.055),ry*.07,0,0,TAU);ctx.fill();}
+ }
+ ctx.fillStyle='rgba(56,42,66,.68)';
+ for(let i=0;i<a.mouths;i++){
+  const y=(i-(a.mouths-1)/2)*ry*.19;
+  ctx.beginPath();ctx.ellipse(rx*.88,y,Math.max(.2,rx*(.025+a.mouth*.035)),Math.max(.2,ry*(.045+a.mouth*.07)),0,0,TAU);ctx.fill();
+ }
+ if(a.armor>.55)for(const side of [-1,1]){
+  bead(ctx,-rx*.16,side*ry*.73,ry*(.07+a.armor*.05),ry*.10,c,false);
+ }
+ if(a.leaf>.65){
+  ctx.fillStyle='rgba(143,230,145,.8)';
+  ctx.beginPath();ctx.ellipse(-rx*.70,-ry*.2,rx*.12,ry*(.10+a.leaf*.12),-.5,0,TAU);ctx.fill();
+ }
+ ctx.restore();
+ // Rounded fins, only when swimming ability justifies the silhouette.
+ if(a.fins>.56){ctx.save();for(const side of [-1,1])bead(ctx,-rx*.37,side*ry*.87,ry*(.10+a.fins*.11),ry*.16,c,false);ctx.restore();}
 }
