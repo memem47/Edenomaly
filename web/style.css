@@ -298,3 +298,20 @@ button:disabled,input:disabled{opacity:.40;cursor:not-allowed}
 .founder-discovery-genes span{color:#b6d1d9}
 @media(max-width:580px){.founder-traits,.founder-discovery-genes{grid-template-columns:1fr}
  .genome-dialog-body{padding:10px}.genome-dialog-head{padding:12px}}
+
+/* Keep the morphology comparison visible while tuning sliders. */
+.founder-preview-section{position:sticky;top:-16px;z-index:3;
+ padding:12px;margin:14px 0;border:1px solid #548e9a;border-radius:12px;
+ background:#132e3b;box-shadow:0 7px 19px #071b25a6}
+.founder-preview-heading{display:flex;justify-content:space-between;gap:12px;
+ margin-bottom:9px;align-items:center;color:#d5f9ee}
+.founder-preview-heading span{color:#a8d8cf;font-size:12px}
+.founder-preview-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.founder-preview-pair figure{margin:0;min-width:0;border:1px solid #375966;
+ overflow:hidden;border-radius:10px;background:#193643}
+.founder-preview-pair canvas{display:block;width:100%;height:auto;aspect-ratio:320/220}
+.founder-preview-pair figcaption{text-align:center;padding:6px 5px;
+ color:#e4f7ee;font-size:13px;font-weight:600;background:#203e4a}
+.founder-preview-section .muted{margin:8px 0 0;font-size:11px}
+@media(max-width:580px){.founder-preview-section{top:-10px;margin:10px 0;padding:7px}
+ .founder-preview-pair{gap:5px}.founder-preview-pair figcaption{font-size:11px}}
