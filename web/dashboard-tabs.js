@@ -20,6 +20,14 @@ export function mountDashboardTabs(doc=document){
   history:[doc.getElementById('gameEventPanel'),source[2],source[6]],
   stats:[doc.querySelector('.shell>.score-strip')]
  };
+ // Individual abilities are secondary to the world view: available on demand.
+ const inspector=doc.getElementById('inspector');
+ if(inspector){
+  const details=doc.createElement('details');details.id='selectedAbilityDetails';
+  details.className='selected-ability-details';
+  details.innerHTML='<summary>🧬 選択中のスライムの能力バーを開く</summary><div id="selectedAbilityBars"></div>';
+  inspector.after(details);
+ }
  const metrics=doc.querySelector('.shell>.metrics');
  const extra=doc.createElement('section');
  extra.className='panel dashboard-extra-metrics';
