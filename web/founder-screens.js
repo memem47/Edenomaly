@@ -1,6 +1,7 @@
 import {FOUNDER_BUDGET,FOUNDER_TRAITS,FOUNDER_FIELDS,formatTrait,editFounderGenome,founderCost,canUseFounder} from './founder-designer.js';
 import {morphology,dietProfile,terrainFitness,genomeCode} from './simulation.js';
-import {drawFounderAppearance} from './founder-preview.js?v=2026.11.21.1';
+import {drawFounderAppearance} from './founder-preview.js?v=2026.11.21.2';
+import {phenotypeBarsHTML,abilityListHTML} from './ability-bars.js?v=2026.11.21.2';
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format=n=>Number(n).toFixed(1);
 const makeDialog=(id,title)=>{
@@ -63,6 +64,7 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue}){
   line.textContent=budget;
   line.classList.toggle('over-budget',isGame&&cost>FOUNDER_BUDGET);
   editorBody.querySelector('#founderSummary').innerHTML=summary(g);
+  editorBody.querySelector('#phenotypeAbilityBars').innerHTML=phenotypeBarsHTML(g);
   paintPreview();
   const btn=editorFoot.querySelector('#confirmFounder');
   btn.disabled=!canUseFounder(base,g,isGame);
@@ -84,19 +86,24 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue}){
    '<div class="founder-preview-pair">'+
    '<figure><canvas id="founderBeforeCanvas" width="320" height="220" aria-label="調整前のスライム"></canvas><figcaption>調整前</figcaption></figure>'+
    '<figure><canvas id="founderAfterCanvas" width="320" height="220" aria-label="調整後のスライム"></canvas><figcaption>調整後（リアルタイム）</figcaption></figure>'+
-   '</div><p class="muted">体格・縦横比・目の数と配置・角・触角・尾・模様・色を実際の描画処理で反映します。動きはイメージです。生態特性の変更は必ずしも外見を変えません。</p></section>'+
-   '<div id="founderSummary"></div>'+
+   '</div><p class="muted">体格・縦横比・目の数と配置・角・触角・尾・模様・色を実際の描画処理で反映します。動きはイメージです。角は攻撃・防衛、触角は感知、尾は水適応、模様は擬態能力から決まります。</p></section>'+
+   '<div id="founderSummary"></div><div id="phenotypeAbilityBars"></div>'+
    FOUNDER_TRAITS.map(([section,fields])=>'<fieldset class="founder-fieldset"><legend>'+escape(section)+'</legend><div class="founder-traits">'+
     fields.map(([key,name,min,max,step])=>{
      const current=currentGenome()[key];
      return '<label class="founder-trait"><span>'+escape(name)+' <output data-trait-value="'+key+'">'+escape(formatTrait(key,current))+'</output></span>'+
-      '<input type="range" data-trait="'+key+'" min="'+min+'" max="'+max+'" step="'+step+'" value="'+current+'"></label>';
+      '<input type="range" data-trait="'+key+'" min="'+min+'" max="'+max+'" step="'+step+'" value="'+current+'">'+
+     '<div class="ability-track" role="meter" aria-label="'+escape(name)+' の範囲" aria-valuemin="'+min+'" aria-valuemax="'+max+'" aria-valuenow="'+current+'"><span class="ability-fill" style="width:'+((current-min)/(max-min)*100).toFixed(1)+'%"></span></div>'+ 
+     '<div class="ability-scale"><small>最小 '+escape(formatTrait(key,min))+'</small><small>最大 '+escape(formatTrait(key,max))+'</small></div></label>';
     }).join('')+'</div></fieldset>').join('');
   editorFoot.innerHTML='<button type="button" id="resetFounder">標準に戻す</button><button type="button" id="cancelFounder">閉じる</button><button type="button" id="confirmFounder">移入</button>';
   editorBody.querySelectorAll('[data-trait]').forEach(input=>{
    input.addEventListener('input',()=>{
     changes[input.dataset.trait]=Number(input.value);
     editorBody.querySelector('[data-trait-value="'+input.dataset.trait+'"]').textContent=formatTrait(input.dataset.trait,Number(input.value));
+    const bar=input.closest('.founder-trait').querySelector('.ability-track');
+    bar.setAttribute('aria-valuenow',String(input.value));
+    bar.querySelector('.ability-fill').style.width=((Number(input.value)-Number(input.min))/(Number(input.max)-Number(input.min))*100)+'%';
     updateEditorSummary();
    });
   });
@@ -126,9 +133,9 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue}){
   if(!discoveryQueue.length){if(discovery.open)discovery.close();return false;}
   const item=discoveryQueue[0],sp=item.species,g=sp.genome;
   discoveryBody.innerHTML='<p class="muted">Step '+item.step+' に発見。確認するまでシミュレーションを停止しています。</p>'+
-   '<h3>'+escape(sp.name)+'</h3>'+summary(g)+
+   '<h3>'+escape(sp.name)+'</h3>'+summary(g)+phenotypeBarsHTML(g)+
    '<details open><summary>🧬 遺伝子・能力の詳細</summary><div class="founder-discovery-genes">'+
-   FOUNDER_FIELDS.map(([key,label])=>'<div><span>'+escape(label)+'</span><strong>'+escape(formatTrait(key,g[key]??0))+'</strong></div>').join('')+
+   abilityListHTML(g)+
    '</div></details><p class="muted">遺伝子コード '+escape(genomeCode(g))+'</p>';
   discoveryFoot.innerHTML='<button type="button" id="keepPaused">停止したまま閉じる</button>'+
    '<button type="button" id="continueAfterDiscovery">'+(discoveryQueue.length>1?'次の新種を見る':'確認して再開')+'</button>';
