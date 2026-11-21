@@ -807,6 +807,13 @@ export class Ecosystem{
   if(source==='corpse')this.recycled++;
  }
 
+ // Store the actual parental genome at conception, rather than relying on
+ // a species average or finding a potentially deceased parent after hatching.
+ parentSnapshot(u){
+  if(!u?.g)return null;
+  return {id:u.id,name:this.name(u.category??this.category(u.g),u.g),
+   genome:{...u.g,alleles:Object.fromEntries(Object.entries(u.g.alleles??{}).map(([k,p])=>[k,[...p]]))}};
+ }
  spawn(x,y,g,parent=null){
   // Safety guard only: far above the intended ecological carrying capacity.
   if(this.units.length>=2000)return null;
@@ -815,7 +822,7 @@ export class Ecosystem{
    const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null,socialTarget:null,mateTarget:null,rejectedBy:null,mateApproachFailures:0,behaviorTarget:'idle',waterSeedBank:0,lastWaterPlant:-100,landAcclimation:0,carnivoryExperience:0,landExcursion:false,shoreTarget:null,threatDecisions:new Map(),attackResponse:null,retaliationCooldown:0,isolatedSteps:0,lastEmergencySplit:-100000,bornTick:this.tick,hpLoss:{natural:0,temperature:0,terrain:0,starvation:0,juvenile:0,infection:0,combat:0}};
   u.category=this.category(g);u.lineage??=u.id;this.units.push(u);
   if(!this.species.has(u.category)){
-   const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(u.category,g),current:0,total:0,diet:dietProfile(g).label,first:this.tick,genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(u.category,g),u);
+   const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(u.category,g),current:0,total:0,diet:dietProfile(g).label,first:this.tick,parents:(parent?.parents??[this.parentSnapshot(parent)]).filter(Boolean),genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(u.category,g),u);
   }
   const s=this.species.get(u.category);s.current++;s.total++;
   s.firstGeneration??=u.generation;
@@ -1095,7 +1102,7 @@ export class Ecosystem{
   const count=Math.min(desired,affordable,2500-this.eggs.length);
   if(count<1)return null;
   const genomes=Array.from({length:count},()=>this.recombine(parent.g,partner.g));
-  const pregnancy={genomes,parent:parent.id,otherParent:partner.id,lineage:this.rand()<.5?parent.lineage:partner.lineage,generation:Math.max(parent.generation,partner.generation)+1,remaining:25,total:25};
+  const pregnancy={genomes,parents:[this.parentSnapshot(parent),this.parentSnapshot(partner)],parent:parent.id,otherParent:partner.id,lineage:this.rand()<.5?parent.lineage:partner.lineage,generation:Math.max(parent.generation,partner.generation)+1,remaining:25,total:25};
   pregnancy.nestGoal=this.chooseNest(parent);
   if((parent.g.nestChoice??0)>.5&&distance(parent,pregnancy.nestGoal)>20**2)
    this.log('nest','#'+parent.id+' が子のための産卵場所を探し始めた',parent);
@@ -1113,7 +1120,7 @@ export class Ecosystem{
   // Few expensive eggs, with reduced recombination and no unrelated genome.
   const count=Math.min(1+Math.floor(parent.g.brood/4),2500-this.eggs.length);
   const genomes=Array.from({length:count},()=>this.rand()<.025?this.mutate(this.recombine(parent.g,parent.g)):this.recombine(parent.g,parent.g));
-  const pregnancy={genomes,parent:parent.id,otherParent:null,lineage:parent.lineage,generation:parent.generation+1,remaining:32,total:32};
+  const pregnancy={genomes,parents:[this.parentSnapshot(parent)],parent:parent.id,otherParent:null,lineage:parent.lineage,generation:parent.generation+1,remaining:32,total:32};
   pregnancy.nestGoal=this.chooseNest(parent);
   parent.pregnancy=pregnancy;
   parent.energy-=25+count*11+parent.g.nesting*3;
@@ -1157,7 +1164,7 @@ export class Ecosystem{
   for(let i=0;i<count;i++){
    const g=p.genomes[i],traits=eggTraits(g);
    const rear=rearPosition(parent,3+i*.65);
-   const egg={id:this.nextId++,x:clamp(rear.x+Math.cos(parent.angle+Math.PI/2)*this.range(-3,3),6,W-6),y:clamp(rear.y+Math.sin(parent.angle+Math.PI/2)*this.range(-6,6),6,H-6),g,parent:p.parent,otherParent:p.otherParent,generation:p.generation,lineage:p.lineage,age:0,hatchAt:traits.incubation,energy:traits.eggEnergy+yolkPerEgg*.84,dead:false,bornTick:this.tick,birthX:parent.x-Math.cos(parent.angle)*(parent.g.r*parent.g.elongation+2),birthY:parent.y-Math.sin(parent.angle)*(parent.g.r*parent.g.elongation+2)};
+   const egg={id:this.nextId++,x:clamp(rear.x+Math.cos(parent.angle+Math.PI/2)*this.range(-3,3),6,W-6),y:clamp(rear.y+Math.sin(parent.angle+Math.PI/2)*this.range(-6,6),6,H-6),g,parents:p.parents??[this.parentSnapshot(parent)],parent:p.parent,otherParent:p.otherParent,generation:p.generation,lineage:p.lineage,age:0,hatchAt:traits.incubation,energy:traits.eggEnergy+yolkPerEgg*.84,dead:false,bornTick:this.tick,birthX:parent.x-Math.cos(parent.angle)*(parent.g.r*parent.g.elongation+2),birthY:parent.y-Math.sin(parent.angle)*(parent.g.r*parent.g.elongation+2)};
    if(g.aquatic!==parent.g.aquatic){
      const site=this.shoreEggSite(egg.x,egg.y,g);
      egg.x=site.x;egg.y=site.y;
@@ -1776,7 +1783,7 @@ export class Ecosystem{
     egg.dead=true;
     const hatchSite=egg.g.aquatic!==1&&this.terrain(egg.x,egg.y)===1?
       this.shoreEggSite(egg.x,egg.y,egg.g):{x:egg.x,y:egg.y};
-     const child=this.spawn(hatchSite.x,hatchSite.y,egg.g,{id:egg.parent,otherParent:egg.otherParent,generation:egg.generation-1,lineage:egg.lineage});
+     const child=this.spawn(hatchSite.x,hatchSite.y,egg.g,{id:egg.parent,otherParent:egg.otherParent,generation:egg.generation-1,lineage:egg.lineage,parents:egg.parents});
     if(child){child.energy=egg.energy+52;child.stage='juvenile';this.log('hatch','卵 #'+egg.id+' から #'+child.id+' が孵化（初期栄養 '+child.energy.toFixed(1)+'）',egg);}
    }
   }
