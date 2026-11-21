@@ -18,7 +18,7 @@ test('camera summary splits observed and offscreen life with non-mutating coordi
 });
 test('important events keep unseen species unnamed and gate remote clues behind a radar',()=>{
  const w=new Ecosystem(2026111402),base=w.gene();
- const founder=w.spawn(120,100,{...base,hornLength:0,tailLength:.8});
+ const founder=w.spawn(120,100,{...base,jaw:.2,guard:0,wet:1,dispersal:1,aquatic:1});
  const view=centerOn({zoom:4,x:0,y:0},120,100);
  const plain=new ObservationTracker(),radar=new ObservationTracker();
  plain.start(w);radar.start(w);
