@@ -396,3 +396,9 @@ button:disabled,input:disabled{opacity:.40;cursor:not-allowed}
  .dashboard-content{padding:6px}
  .ability-grid{grid-template-columns:1fr}
 }
+
+.selected-ability-details{margin:12px 0;padding:10px;border:1px solid #3d7d89;
+ border-radius:10px;background:#15364b}
+.selected-ability-details summary{cursor:pointer;color:#c6ffe3;font-weight:700;font-size:12px}
+.selected-ability-details>.ability-grid{margin-top:10px}
+.selected-ability-details[hidden]{display:none}
