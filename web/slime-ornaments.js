@@ -137,7 +137,7 @@ export function drawAbilityDetails(ctx,g,rx,ry){
   ctx.fillStyle='rgba(255,231,166,'+(.08+a.reserve*.42)+')';
   ctx.beginPath();ctx.ellipse(x,y,rx*(.035+a.reserve*.07),ry*(.04+a.reserve*.09),0,0,TAU);ctx.fill();
  }
- if(a.freckles>.38){
+ if(a.freckles>0){
   ctx.fillStyle=c.mark;
   for(let i=0;i<3;i++){ctx.beginPath();ctx.ellipse(-rx*.48,ry*(i-1)*.32,rx*(.035+a.freckles*.055),ry*.07,0,0,TAU);ctx.fill();}
  }
@@ -146,14 +146,20 @@ export function drawAbilityDetails(ctx,g,rx,ry){
   const y=(i-(a.mouths-1)/2)*ry*.19;
   ctx.beginPath();ctx.ellipse(rx*.88,y,Math.max(.2,rx*(.025+a.mouth*.035)),Math.max(.2,ry*(.045+a.mouth*.07)),0,0,TAU);ctx.fill();
  }
- if(a.armor>.55)for(const side of [-1,1]){
+ if(a.armor>.15)for(const side of [-1,1]){
   bead(ctx,-rx*.16,side*ry*.73,ry*(.07+a.armor*.05),ry*.10,c,false);
  }
- if(a.leaf>.65){
+ if(a.leaf>.15){
   ctx.fillStyle='rgba(143,230,145,.8)';
   ctx.beginPath();ctx.ellipse(-rx*.70,-ry*.2,rx*.12,ry*(.10+a.leaf*.12),-.5,0,TAU);ctx.fill();
  }
+ // Eyebrow-like soft sensory arcs convey alertness without aggressive faces.
+ ctx.strokeStyle='rgba(245,255,255,'+(.08+a.brow*.40)+')';
+ ctx.lineWidth=Math.max(.25,ry*(.02+a.brow*.035));
+ for(const side of [-1,1]){
+  ctx.beginPath();ctx.ellipse(rx*.48,side*ry*.52,rx*.13,ry*.06,side*.25,0,TAU);ctx.stroke();
+ }
  ctx.restore();
  // Rounded fins, only when swimming ability justifies the silhouette.
- if(a.fins>.56){ctx.save();for(const side of [-1,1])bead(ctx,-rx*.37,side*ry*.87,ry*(.10+a.fins*.11),ry*.16,c,false);ctx.restore();}
+ if(a.fins>.15){ctx.save();for(const side of [-1,1])bead(ctx,-rx*.37,side*ry*.87,ry*(.10+a.fins*.11),ry*.16,c,false);ctx.restore();}
 }
