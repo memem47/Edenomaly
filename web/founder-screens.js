@@ -1,7 +1,7 @@
 import {FOUNDER_BUDGET,FOUNDER_TRAITS,FOUNDER_FIELDS,formatTrait,editFounderGenome,founderCost,canUseFounder} from './founder-designer.js';
 import {morphology,dietProfile,terrainFitness,genomeCode} from './simulation.js';
-import {drawFounderAppearance} from './founder-preview.js?v=2026.11.21.2';
-import {phenotypeBarsHTML,abilityListHTML} from './ability-bars.js?v=2026.11.21.2';
+import {drawFounderAppearance} from './founder-preview.js?v=2026.11.21.3';
+import {phenotypeBarsHTML,abilityListHTML} from './ability-bars.js?v=2026.11.21.3';
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format=n=>Number(n).toFixed(1);
 const makeDialog=(id,title)=>{
@@ -42,10 +42,8 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue}){
   ].map(([name,value])=>'<span><small>'+escape(name)+'</small><b>'+escape(value)+'</b></span>').join('')+'</div>';
  };
  const paintPreview=()=>{
-  const initial=editorBody.querySelector('#founderBeforeCanvas');
   const edited=editorBody.querySelector('#founderAfterCanvas');
-  if(!initial||!edited||!base)return;
-  drawFounderAppearance(initial,base,previewTick);
+  if(!edited||!base)return;
   const g=currentGenome();
   drawFounderAppearance(edited,g,previewTick);
   const changed=FOUNDER_FIELDS.filter(([key])=>(g[key]??0)!==(base[key]??0)).length;
@@ -64,7 +62,7 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue}){
   line.textContent=budget;
   line.classList.toggle('over-budget',isGame&&cost>FOUNDER_BUDGET);
   editorBody.querySelector('#founderSummary').innerHTML=summary(g);
-  editorBody.querySelector('#phenotypeAbilityBars').innerHTML=phenotypeBarsHTML(g);
+  
   paintPreview();
   const btn=editorFoot.querySelector('#confirmFounder');
   btn.disabled=!canUseFounder(base,g,isGame);
@@ -76,35 +74,36 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue}){
   wasRunning=playing;
   const source=defaultGenome();
   base=site?game.adaptFounderToTerrain(source,game.terrain(site.x,site.y)):source;
-  editorBody.innerHTML='<p class="muted">'+(site?'選択地点に合わせたデフォルト能力です。調整して確定してください。':'デフォルト能力を表示しています。変更してからフィールドをクリックして配置できます。')+
-   ' ゲームモードでは遺伝子ポイントを消費します。テストモードでは自由に編集できます。'+
-   ' 選択地点の地形に合わない能力では、移入直後に衰弱する場合があります。'+
-   (getMode()==='lab'?' 複数種類を移入する場合、調整するのは最初の1種類です。':'')+'</p>'+
-   '<p id="founderCost" class="founder-budget"></p>'+
-   '<section class="founder-preview-section" aria-label="外見のリアルタイム比較">'+
-   '<div class="founder-preview-heading"><strong>✨ スライムの見た目</strong><span id="founderPreviewChanges" aria-live="polite"></span></div>'+
-   '<div class="founder-preview-pair">'+
-   '<figure><canvas id="founderBeforeCanvas" width="320" height="220" aria-label="調整前のスライム"></canvas><figcaption>調整前</figcaption></figure>'+
-   '<figure><canvas id="founderAfterCanvas" width="320" height="220" aria-label="調整後のスライム"></canvas><figcaption>調整後（リアルタイム）</figcaption></figure>'+
-   '</div><p class="muted">体格・縦横比・目の数と配置・角・触角・尾・模様・色を実際の描画処理で反映します。動きはイメージです。角は攻撃・防衛、触角は感知、尾は水適応、模様は擬態能力から決まります。</p></section>'+
-   '<div id="founderSummary"></div><div id="phenotypeAbilityBars"></div>'+
-   FOUNDER_TRAITS.map(([section,fields])=>'<fieldset class="founder-fieldset"><legend>'+escape(section)+'</legend><div class="founder-traits">'+
+  editorBody.innerHTML='<section class="compact-founder-top"><canvas id="founderAfterCanvas" width="180" height="132" aria-label="調整後のスライム"></canvas><div class="compact-founder-info"><strong>調整後の外見</strong><small>　能力に応じて体表・口・膜・栄養粒・ひれなどが変化</small> <small id="founderPreviewChanges"></small><p id="founderCost" class="founder-budget"></p><div id="founderSummary"></div></div></section>'+
+   '<div class="compact-founder-fields">'+FOUNDER_TRAITS.map(([section,fields])=>'<fieldset class="founder-fieldset"><legend>'+escape(section)+'</legend><div class="founder-traits">'+
     fields.map(([key,name,min,max,step])=>{
-     const current=currentGenome()[key];
-     return '<label class="founder-trait"><span>'+escape(name)+' <output data-trait-value="'+key+'">'+escape(formatTrait(key,current))+'</output></span>'+
-      '<input type="range" data-trait="'+key+'" min="'+min+'" max="'+max+'" step="'+step+'" value="'+current+'">'+
-     '<div class="ability-track" role="meter" aria-label="'+escape(name)+' の範囲" aria-valuemin="'+min+'" aria-valuemax="'+max+'" aria-valuenow="'+current+'"><span class="ability-fill" style="width:'+((current-min)/(max-min)*100).toFixed(1)+'%"></span></div>'+ 
-     '<div class="ability-scale"><small>最小 '+escape(formatTrait(key,min))+'</small><small>最大 '+escape(formatTrait(key,max))+'</small></div></label>';
-    }).join('')+'</div></fieldset>').join('');
+     const v=currentGenome()[key]??min;
+     return '<div class="founder-trait"><label for="edit-'+key+'">'+escape(name)+'</label>'+
+      '<div class="compact-value"><button type="button" data-adjust="-1" aria-label="'+escape(name)+'を減らす">−</button>'+
+      '<input id="edit-'+key+'" type="number" data-trait="'+key+'" min="'+min+'" max="'+max+'" step="'+step+'" value="'+v.toFixed(2)+'">'+
+      '<button type="button" data-adjust="1" aria-label="'+escape(name)+'を増やす">＋</button></div>'+
+      '<div class="ability-track" role="meter" aria-label="'+escape(name)+'" aria-valuemin="'+min+'" aria-valuemax="'+max+'" aria-valuenow="'+v+'"><span class="ability-fill" style="width:'+Math.max(0,Math.min(100,(v-min)/(max-min)*100))+'%"></span></div>'+
+      '<div class="ability-scale"><small>'+min+'</small><small>'+max+'</small></div></div>';
+    }).join('')+'</div></fieldset>').join('')+'</div>';
   editorFoot.innerHTML='<button type="button" id="resetFounder">標準に戻す</button><button type="button" id="cancelFounder">閉じる</button><button type="button" id="confirmFounder">移入</button>';
   editorBody.querySelectorAll('[data-trait]').forEach(input=>{
-   input.addEventListener('input',()=>{
-    changes[input.dataset.trait]=Number(input.value);
-    editorBody.querySelector('[data-trait-value="'+input.dataset.trait+'"]').textContent=formatTrait(input.dataset.trait,Number(input.value));
-    const bar=input.closest('.founder-trait').querySelector('.ability-track');
-    bar.setAttribute('aria-valuenow',String(input.value));
-    bar.querySelector('.ability-fill').style.width=((Number(input.value)-Number(input.min))/(Number(input.max)-Number(input.min))*100)+'%';
+   const row=input.closest('.founder-trait');
+   const apply=(normalize=false)=>{
+    if(input.value===''||!Number.isFinite(Number(input.value)))return;
+    const key=input.dataset.trait,min=Number(input.min),max=Number(input.max),step=Number(input.step);
+    changes[key]=Math.max(min,Math.min(max,Math.round(Number(input.value)/step)*step));
+    const value=currentGenome()[key];
+    if(normalize)input.value=Number(value.toFixed(2));
+    const bar=row.querySelector('.ability-track');
+    bar.setAttribute('aria-valuenow',String(value));
+    bar.querySelector('.ability-fill').style.width=((value-min)/(max-min)*100)+'%';
     updateEditorSummary();
+   };
+   input.addEventListener('input',()=>apply());
+   input.addEventListener('change',()=>apply(true));
+   row.querySelectorAll('[data-adjust]').forEach(btn=>btn.onclick=()=>{
+    input.value=String((currentGenome()[input.dataset.trait]??Number(input.min))+Number(btn.dataset.adjust)*Number(input.step));
+    apply(true);
    });
   });
   editorFoot.querySelector('#resetFounder').onclick=()=>{

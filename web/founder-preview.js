@@ -4,7 +4,7 @@
 import {morphology,bodySizeMultiplier} from './simulation.js';
 import {slimeEyeAngles,slimeEyeColor,slimeEyeLocation} from './renderer.js';
 import {drawJellyBody} from './jelly-visuals.js';
-import {drawOrnamentsBehind,drawOrnamentsFront} from './slime-ornaments.js';
+import {drawOrnamentsBehind,drawOrnamentsFront,drawAbilityDetails} from './slime-ornaments.js';
 
 const TAU=Math.PI*2;
 export function drawFounderAppearance(canvas,g,frame=0){
@@ -20,7 +20,7 @@ export function drawFounderAppearance(canvas,g,frame=0){
  ctx.fillStyle=background;ctx.fillRect(0,0,w,h);
  const m=morphology(g);
  // Fixed scale preserves visible differences when the body-size slider moves.
- const scale=3.6*bodySizeMultiplier(g);
+ const scale=6.0*bodySizeMultiplier(g);
  const squash=Math.sin(frame*.12)*.025;
  const rx=g.r*scale*1.06*Math.max(1,Math.min(3,g.elongation??1))*(1+squash);
  const ry=g.r*scale*1.06*(1-squash);
@@ -37,8 +37,9 @@ export function drawFounderAppearance(canvas,g,frame=0){
  drawOrnamentsBehind(ctx,g,px,py,frame,0);
  drawJellyBody(ctx,g,px,py,phase,0,false);
  drawOrnamentsFront(ctx,g,px,py,frame,0);
+ drawAbilityDetails(ctx,g,px,py);
  const angles=slimeEyeAngles(g);
- const eyeRadius=Math.max(.45,Math.min(3.6,py*.19));
+ const eyeRadius=Math.max(.45,Math.min(8,py*.19));
  ctx.fillStyle=slimeEyeColor(g);
  for(const angle of angles){
   const {x,y}=slimeEyeLocation(angle,px,py);
@@ -51,5 +52,5 @@ export function drawFounderAppearance(canvas,g,frame=0){
  ctx.font='12px system-ui';
  ctx.fillStyle='rgba(225,246,250,.75)';
  ctx.textAlign='right';
- ctx.fillText('頭の方向 →',w-12,h-12);
+ 
 }

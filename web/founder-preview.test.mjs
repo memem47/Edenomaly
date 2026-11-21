@@ -38,12 +38,21 @@ test('before-and-after preview renders both genomes with shared world graphics',
 test('preview is wired into initial render, slider changes, and animation',async()=>{
  const ui=await readFile(new URL('./founder-screens.js',import.meta.url),'utf8');
  const css=await readFile(new URL('./style.css',import.meta.url),'utf8');
- assert.ok(ui.includes('founderBeforeCanvas'));
+ assert.ok(!ui.includes('founderBeforeCanvas'));
  assert.ok(ui.includes('founderAfterCanvas'));
- assert.ok(ui.includes('drawFounderAppearance(initial,base,previewTick)'));
+ assert.ok(ui.includes('type="number" data-trait='));
  assert.ok(ui.includes('drawFounderAppearance(edited,g,previewTick)'));
  assert.ok(ui.includes('updateEditorSummary();'));
  assert.ok(ui.includes('requestAnimationFrame(animatePreview)'));
  assert.ok(css.includes('.founder-preview-section'));
  assert.ok(css.includes('position:sticky'));
+});
+
+test('every editable ability changes a functional visual channel',async()=>{
+ const {abilityAppearance}=await import('./slime-ornaments.js');
+ const {FOUNDER_FIELDS}=await import('./founder-designer.js');
+ const g=new Ecosystem(202611213).gene();
+ for(const [key,,min,max] of FOUNDER_FIELDS){
+  assert.notDeepEqual(abilityAppearance({...g,[key]:min}),abilityAppearance({...g,[key]:max}),key);
+ }
 });
