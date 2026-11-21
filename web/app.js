@@ -1,5 +1,7 @@
 import {zipFiles} from './zip-log.js?v=2026.11.07.4';
-import {mountFounderScreens} from './founder-screens.js?v=2026.11.21.1';
+import {mountFounderScreens} from './founder-screens.js?v=2026.11.21.2';
+import {mountDashboardTabs} from './dashboard-tabs.js?v=2026.11.21.2';
+import {abilityListHTML,phenotypeBarsHTML} from './ability-bars.js?v=2026.11.21.2';
 import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.21.1';
 import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.21.1';
 import {mountGameUI} from './game-ui.js?v=2026.11.14.2';
@@ -10,6 +12,7 @@ import {gameRunReport,saveGameRunReport,readGameRunHistory} from './game-run-log
 import {SpeciesLogbook,speciesReport,csvCell} from './species-statistics.js';
 import {performancePolicy,simulationBatch,BROWSER_BACKGROUND_INTERVAL} from './performance-policy.js?v=video-friendly-1';
 const $=id=>document.getElementById(id);
+const dashboard=mountDashboardTabs(document);
 // Release label is bundled with the running source; comparison uses a
 // separately published manifest from the repository's main branch.
 const BUILD_VERSION='2026.11.21.1';
@@ -194,8 +197,10 @@ function speciesGenomeHTML(key){
  const genome=representative?.g||species.genome;
  if(!genome)return '<p class="muted">この種の遺伝子記録はありません。</p>';
  const origin=representative?'現存する代表個体 #'+representative.id:'発見時に保存した遺伝子';
- const fields=Object.entries(GENE_LABELS).filter(([gene])=>genome[gene]!==undefined).map(([gene,label])=>{const pair=genome.alleles?.[gene];return `<div class="gene"><span>${escapeHTML(label)} <small>${gene}</small>${pair?`<small class="allele-pair">遺伝子型 ${pair.map(v=>escapeHTML(genomeValue(gene,v))).join(' / ')}</small>`:''}</span><b>${escapeHTML(genomeValue(gene,genome[gene]))}</b></div>`;}).join('');
- return `<div class="genome-heading"><strong>${escapeHTML(species.name)} の遺伝子</strong><button type="button" data-close-genome="true">閉じる</button></div><p class="muted">${escapeHTML(origin)}。種名は「見た目の色名＋生態的分類コード＋最も目立つ外見特徴」です。色が中間なら複合色名、角と尾などが拮抗すると複合特徴名になります。初発見個体の姿から決まり、その種では固定されます。分類コードは生息環境・食性・体格・形態・目・生殖・行動・温度・色階級を表します。詳細遺伝子コードは遺伝形質を16段階に丸めたものです。同じ種でも個体ごとに異なる場合があります。</p><p class="muted"><strong>遺伝子コード：<code>${genomeCode(genome)}</code></strong></p><div class="genome-grid">${fields}</div>`;
+ const bars=abilityListHTML(genome);
+ return '<div class="genome-heading"><strong>'+escapeHTML(species.name)+' の遺伝子</strong><button type="button" data-close-genome="true">閉じる</button></div>'+
+  '<p class="muted">'+escapeHTML(origin)+'。各能力バーは最小値～最大値を基準にした相対位置です。見た目の飾りは独立した能力ではなく、他の生存能力から生まれます。</p>'+
+  phenotypeBarsHTML(genome)+'<p class="muted">遺伝子コード：<code>'+genomeCode(genome)+'</code></p>'+bars;
 }
 function update(){
  const dietCounts=[0,0,0];for(const u of game.units){const d=dietProfile(u.g).diet;dietCounts[d<.3?0:d>.7?2:1]++;}
