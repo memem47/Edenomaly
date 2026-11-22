@@ -1,6 +1,11 @@
 // Game-mode progression is independent of Lab mode and browser storage.
+export const TERRAIN_SCULPT_COST=Object.freeze({0:3,1:5,2:2,3:4});
 export const INTERVENTIONS=Object.freeze({
  seed:{cost:5,label:'草・水草の種をまく'},
+ terrain0:{cost:3,label:'草地をひらく（1マス）'},
+ terrain1:{cost:5,label:'水路を掘る（1マス）'},
+ terrain2:{cost:2,label:'乾燥地をつくる（1マス）'},
+ terrain3:{cost:4,label:'岩の防壁をつくる（1マス）'},
  rain:{cost:8,label:'雨を降らせる'},
  fertilize:{cost:10,label:'土壌を肥やす'},
  clinic:{cost:9,label:'防疫・治療支援'},
@@ -92,6 +97,18 @@ export class GameSession{
   const w=this.world;
   if(kind==='rain')return true;
   if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||y<0||x>=800||y>=460)return false;
+  if(/^terrain[0-3]$/.test(kind)){
+   const target=Number(kind.slice(-1)),i=w.cell(x,y),from=w.tiles[i];
+   if(from===target)return false;
+   if(w.units.some(u=>!u.dead&&w.cell(u.x,u.y)===i)||
+      w.eggs.some(e=>!e.dead&&w.cell(e.x,e.y)===i))return false;
+   if(target===1){
+    const cx=i%40,cy=Math.floor(i/40);
+    const n=[cx>0?i-1:-1,cx<39?i+1:-1,cy>0?i-40:-1,cy<22?i+40:-1];
+    if(!n.some(j=>j>=0&&w.tiles[j]===1))return false;
+   }
+   return true;
+  }
   if(kind==='nursery')return w.units.some(u=>!u.dead&&(u.x-x)**2+(u.y-y)**2<=80**2)||w.eggs.some(e=>!e.dead&&(e.x-x)**2+(e.y-y)**2<=80**2);
   if(kind==='oasis')return w.tiles[w.cell(x,y)]!==3&&w.units.some(u=>!u.dead&&(u.x-x)**2+(u.y-y)**2<=80**2);
   if(kind==='clinic')return w.units.some(u=>!u.dead&&u.infection>0&&(u.x-x)**2+(u.y-y)**2<=65**2);
@@ -109,7 +126,9 @@ export class GameSession{
   const previousPopulation=w.units.length;
   const previousInfected=w.units.filter(u=>u.infection>0).length;
   const previousBirths=[...w.species.values()].reduce((sum,sp)=>sum+sp.total,0);
-  if(kind==='seed'){
+  if(/^terrain[0-3]$/.test(kind)){
+   if(!w.reshapeTerrainCell(x,y,Number(kind.slice(-1))))return false;
+  }else if(kind==='seed'){
    // Seeds support grass, dry-land restoration and underwater weeds.
    // Rocks cannot be converted to pasture by a cheap seed action.
    const cx=Math.floor(x/20),cy=Math.floor(y/20);
