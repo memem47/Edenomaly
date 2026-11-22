@@ -19,9 +19,13 @@ jobs:
           node-version: '22'
       - name: Run seeded founder scenarios
         run: node web/founder-balance-experiment.mjs 1100 3 72 results/founder-balance
+      - name: Confirm key scenarios on eight new seeds
+        run: node web/founder-balance-confirm.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: founder-balance-research
-          path: results/founder-balance/
+          path: |
+            results/founder-balance/
+            results/founder-confirm/
           retention-days: 14
