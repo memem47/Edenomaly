@@ -35,14 +35,14 @@ test('legacy cosmetic loci cannot change morphology or species identities',()=>{
  assert.equal(speciesAppearanceCategory(a),speciesAppearanceCategory(b));
  assert.deepEqual(morphology(a),morphology(b));
 });
-test('ability meters include explicit numerical min/max and bounded fill',()=>{
+test('ability meters use a uniform 1–10 scale and bounded fill',()=>{
  assert.equal(abilityPosition(-10,0,1),0);
  assert.equal(abilityPosition(2,0,1),100);
  assert.equal(abilityPosition(.5,0,1),50);
  const g=new Ecosystem(2026112104).gene();
  const html=abilityListHTML(g);
- assert.ok(html.includes('最小 '));
- assert.ok(html.includes('最大 '));
+ assert.ok(html.includes('aria-valuemin="1"'));
+ assert.ok(html.includes('aria-valuemax="10"'));
  assert.ok(html.includes('role="meter"'));
  assert.ok(html.includes('ability-fill'));
  assert.ok(phenotypeBarsHTML(g).includes('能力から決まる外見'));
