@@ -2565,9 +2565,16 @@ export class Ecosystem{
    const sustained=started?[...this.species.values()].filter(sp=>sp.establishedByGeneration).length:0;
    const expanded=started?[...this.species.values()].filter(sp=>sp.establishedByPopulation).length:0;
    const balanceScore=started?(this.ecosystemBalance??0):0;
-   return {started,ended:this.runEndedTick!==null,duration,discoveries,establishedSpecies,sustained,expanded,
-    survivalScore:duration,discoveryScore:discoveries*300,establishmentScore:establishedSpecies*450,balanceScore,
-    total:duration+discoveries*300+establishedSpecies*450+balanceScore};
+   // Reward lineages that survive across generations rather than only creating
+   // many short-lived species. Dead species cannot earn the stability bonus.
+   const stableLiving=started?[...this.species.values()].filter(sp=>
+    sp.current>0&&sp.establishedByGeneration).length:0;
+   const discoveryScore=discoveries*120;
+   const establishmentScore=establishedSpecies*650;
+   const stabilityScore=stableLiving*220;
+   return {started,ended:this.runEndedTick!==null,duration,discoveries,establishedSpecies,sustained,expanded,stableLiving,
+    survivalScore:duration,discoveryScore,establishmentScore,stabilityScore,balanceScore,
+    total:duration+discoveryScore+establishmentScore+stabilityScore+balanceScore};
   }
   get livingSpecies(){return [...this.species.values()].filter(s=>s.current>0).length;}
  get recentSpecies(){return this.discoveries.filter(t=>this.tick-t<300).length;}
