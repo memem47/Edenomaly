@@ -53,5 +53,9 @@ test('game UI exposes a persistent detailed/quick setting and quick mode never p
  assert.ok(screen.includes('drawFounderAppearance(portrait,sp.genome,0)'));
  assert.ok(screen.includes('name.textContent=sp.name'));
  assert.ok(screen.includes('quickQueue.clear()'));
- assert.ok(css.includes('position:fixed;top:14px;left:14px'));
+ assert.ok(html.includes('id="worldMapStage" class="world-map-stage"'));
+ assert.ok(screen.includes("document.getElementById('worldMapStage').append(quick)"));
+ assert.ok(css.includes('position:absolute;top:8px;left:8px'));
+ assert.ok(css.includes('.world-map-stage{position:relative'));
+ assert.ok(!css.includes('position:fixed;top:14px;left:14px'));
 });
