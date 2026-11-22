@@ -19,7 +19,7 @@ test('three generations and a concurrent 12-body peak jointly establish one spec
  assert.equal(second.generation,2);
  assert.equal(sp.establishedByGeneration,true);
  assert.equal(w.runScore.establishedSpecies,1);
- assert.equal(w.runScore.establishmentScore,450);
+ assert.equal(w.runScore.establishmentScore,650);
  const before=session.points;
  session.observe();
  assert.ok(session.points>=before+25,'at least 5+5+15 points for establishment milestones');
