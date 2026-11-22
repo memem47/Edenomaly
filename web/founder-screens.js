@@ -164,23 +164,27 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue,onReady
   const derived=[['bodyMass','体格（質量）'],['eyeRange','視界'],['speed','移動速度'],['upkeep','維持エネルギー'],['biteReach','攻撃範囲'],['maxHp','最大HP']];
   const stats=g=>{const m=morphology(g);return {...g,...m,maxHp:Math.max(25,Math.round(m.bodyMass*.48+25))};};
   const current=stats(g),previous=parents.map(p=>stats(p.genome));
-  const fmt=(key,v)=>Number.isFinite(v)?['repro','aquatic'].includes(key)?formatTrait(key,v):Number(v.toFixed(3)).toString():'—';
-  const categorical=new Set(['repro','aquatic']);
+  const geneKeys=new Set(FOUNDER_FIELDS.map(([key])=>key));
+  const fmt=(key,v)=>!Number.isFinite(v)?'—':geneKeys.has(key)?
+   founderLevel(key,v)+'/10（'+founderLevelMeaning(key,founderLevel(key,v))+'）':
+   Number(v.toFixed(3)).toString();
   const rows=[...derived,...fields].map(([key,label,min,max],index)=>{
    const v=current[key],pv=previous.map(p=>p[key]);
-   const changed=pv.some(x=>Number.isFinite(x)&&Math.abs(v-x)>=.0005);
+   const changed=pv.some(x=>Number.isFinite(x)&&(
+    geneKeys.has(key)?founderLevel(key,v)!==founderLevel(key,x):Math.abs(v-x)>=.0005));
    const cells=pv.map(x=>{
     if(!Number.isFinite(x)||!Number.isFinite(v))return '<td>—</td>';
-    const d=v-x,dir=Math.abs(d)<.0005?'same':d>0?'up':'down';
-    const delta=categorical.has(key)?(dir==='same'?'同じ':'変化'):(dir==='same'?'±0':(d>0?'+':'')+Number(d.toFixed(3)));
+    const d=geneKeys.has(key)?founderLevel(key,v)-founderLevel(key,x):v-x;
+    const dir=Math.abs(d)<.0005?'same':d>0?'up':'down';
+    const delta=dir==='same'?'±0':(d>0?'+':'')+Number(d.toFixed(3));
     return '<td>'+escape(fmt(key,x))+' <small class="discovery-delta '+dir+'">'+escape(delta)+'</small></td>';
    }).join('');
-   return {changed,index,score:differenceMagnitude(key,v,pv,min,max),html:'<tr><th scope="row">'+escape(label)+'</th><td><strong>'+escape(fmt(key,v))+'</strong></td>'+cells+'</tr>'};
+   return {changed,index,score:geneKeys.has(key)?Math.max(0,...pv.map(x=>Number.isFinite(x)?Math.abs(founderLevel(key,v)-founderLevel(key,x))/9:0)):differenceMagnitude(key,v,pv,min,max),html:'<tr><th scope="row">'+escape(label)+'</th><td><strong>'+escape(fmt(key,v))+'</strong></td>'+cells+'</tr>'};
   });
   const table=rows=>'<div class="discovery-table-wrap"><table class="discovery-table"><thead><tr><th>能力</th><th>新種</th>'+parents.map((p,i)=>'<th>親'+(i+1)+'（新種との差）</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>r.html).join('')+'</tbody></table></div>';
   if(!parents.length)return '<p class="muted">親の情報がないため比較できません。</p>';
   const ranked=rankDifferences(rows);
-  return '<h3>親から変化した能力</h3><p class="muted">差分＝新種 − 親。両親のうち差が大きい方を採用し、能力の範囲に対する変化率が大きい順に並べています。増減は有利・不利を意味しません。成体の基礎能力を比較しています。</p>'+
+  return '<h3>親から変化した能力</h3><p class="muted">差分＝新種 − 親。遺伝子は1〜10の段階差で表示し、派生能力は実数値の差で表示。両親のうち差が大きい方を採用し、能力の範囲に対する変化率が大きい順に並べています。増減は有利・不利を意味しません。成体の基礎能力を比較しています。</p>'+
    (ranked.some(r=>r.changed)?table(ranked.filter(r=>r.changed)):'<p>表示精度内では能力値の変化なし。</p>')+
    '<details><summary>変化のない能力も表示</summary>'+table(ranked.filter(r=>!r.changed))+'</details>';
  }
