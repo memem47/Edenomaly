@@ -1948,12 +1948,13 @@ test('new species names reflect ecology-derived appearance rather than obsolete 
  const g={...base,jaw:2.5,guard:1,wet:0,dispersal:0,aquatic:0,
   predatorSense:0,eyes:2,deception:0,resist:0};
  const key=w.category(g),expected=speciesNameFromCategory(key,g);
- assert.ok(expected.endsWith('ホーン'));
+ assert.ok(expected.endsWith('・ホーン'));
+ assert.match(expected,/^[^・]+・[^・]+・[^・]+$/);
  w.spawn(120,130,g);
  assert.equal(w.species.get(key).name,expected);
  assert.equal(w.category({...g,hornLength:0,tailLength:1,antennaLength:1,pattern:1}),key);
  const water={...g,jaw:.2,guard:0,wet:1,dispersal:1,aquatic:1};
- assert.ok(speciesNameFromCategory(w.category(water),water).endsWith('テール'));
+ assert.ok(speciesNameFromCategory(w.category(water),water).endsWith('・テール'));
  assert.notEqual(w.category(water),key);
 });
 test('every one of 108864 classifications keeps a unique ecological name code',async()=>{
@@ -1971,6 +1972,8 @@ test('every one of 108864 classifications keeps a unique ecological name code',a
    assert.equal(name, name.replace(/ノーマル$/, ''),'no normal suffix');
    assert.match(code,/^[ァ-ヶ]{5}$/);
    assert.ok(!codes.has(code),'duplicate code '+code);
+   assert.ok(/^([^・]+・){1,2}[^・]+$/.test(name),'semantic delimiter '+name);
+   assert.ok(!name.endsWith('・'),'no trailing delimiter');
    assert.ok(!names.has(name),'duplicate '+name);
    codes.add(code);names.add(name);return;
   }
@@ -3333,8 +3336,8 @@ test('new color-code-feature names preserve ecological categories and their uniq
  const key=parts=>parts.join('-');
  const name=parts=>speciesNameFromCategory(key(parts));
  const original=name(base);
- assert.ok(original.startsWith('グリーンソクミ'));
- assert.equal(original,'グリーン'+speciesEcologyCode(key(base)));
+ assert.ok(original.startsWith('グリーン・ソクミ'));
+ assert.equal(original,'グリーン・'+speciesEcologyCode(key(base)));
  const variants=[
   base.slice(0,7).concat('cold','green'),
   base.slice(0,7).concat('hot','green'),
