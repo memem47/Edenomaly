@@ -1,4 +1,4 @@
-import {FOUNDER_FIELDS,formatTrait} from './founder-designer.js';
+import {FOUNDER_FIELDS,founderLevel,founderLevelMeaning} from './founder-designer.js';
 import {functionalOrnaments} from './simulation.js';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const abilityPosition=(value,min,max)=>Number.isFinite(value)&&max>min?
@@ -10,14 +10,17 @@ export const APPEARANCE_DRIVERS=Object.freeze([
  ['pattern','体の模様','擬態能力＋感染抵抗力']
 ]);
 export function abilityBarHTML(key,label,value,min,max,{editable=false}={}){
- const number=Number(value),pct=abilityPosition(number,min,max);
- const units=key==='idealTemp'||key==='tempTolerance'?'℃':'';
- const fmt=v=>formatTrait(key,v)+units;
+ const number=Number(value);
+ const gene=FOUNDER_FIELDS.some(([k])=>k===key);
+ const level=gene?founderLevel(key,number):
+  Math.max(1,Math.min(10,Math.round(abilityPosition(number,min,max)*.09)+1));
+ const meaning=gene?founderLevelMeaning(key,level):'';
  return '<div class="ability-bar" data-ability="'+esc(key)+'">'+
-  '<div class="ability-bar-heading"><span>'+esc(label)+'</span><strong>'+esc(fmt(number))+'</strong></div>'+
-  '<div class="ability-track" role="meter" aria-label="'+esc(label)+'" aria-valuemin="'+min+'" aria-valuemax="'+max+'" aria-valuenow="'+number+'">'+
-   '<span class="ability-fill" style="width:'+pct.toFixed(2)+'%"></span></div>'+
-  '<div class="ability-scale"><small>最小 '+esc(fmt(min))+'</small><small>最大 '+esc(fmt(max))+'</small></div>'+
+  '<div class="ability-bar-heading"><span>'+esc(label)+'</span><strong>'+
+   level+'/10'+(meaning?' <small>('+esc(meaning)+')</small>':'')+'</strong></div>'+
+  '<div class="ability-track" role="meter" aria-label="'+esc(label)+'" aria-valuemin="1" aria-valuemax="10" aria-valuenow="'+level+'">'+
+   '<span class="ability-fill" style="width:'+((level-1)/9*100).toFixed(2)+'%"></span></div>'+
+  '<div class="ability-scale"><small>1</small><small>10</small></div>'+
  '</div>';
 }
 export function abilityListHTML(g){

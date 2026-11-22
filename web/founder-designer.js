@@ -21,6 +21,36 @@ export const FOUNDER_TRAITS=Object.freeze([
   ['retaliation','反撃',0,1,.05],['deception','擬態',0,1,.05]]]
 ]);
 export const FOUNDER_FIELDS=FOUNDER_TRAITS.flatMap(([,fields])=>fields);
+// All player-facing DNA controls use the same 1..10 integer scale. Internal
+// gene values (including temperatures and categorical reproductive modes)
+// remain in their original physical/simulation units.
+export const FOUNDER_LEVEL_MIN=1;
+export const FOUNDER_LEVEL_MAX=10;
+export function founderLevel(key,value){
+ const field=FOUNDER_FIELDS.find(([name])=>name===key);
+ if(!field||!Number.isFinite(value))return 1;
+ const [,,lo,hi]=field;
+ return Math.max(1,Math.min(10,Math.round((value-lo)/(hi-lo)*9)+1));
+}
+export function founderValueAtLevel(key,level){
+ const field=FOUNDER_FIELDS.find(([name])=>name===key);
+ if(!field)return undefined;
+ const [,,lo,hi,step]=field;
+ const n=Math.max(1,Math.min(10,Math.round(Number(level)||1)));
+ const raw=lo+(n-1)*(hi-lo)/9;
+ return Number(Math.min(hi,Math.max(lo,Math.round(raw/step)*step)).toFixed(5));
+}
+export function founderLevelMeaning(key,level){
+ const value=founderValueAtLevel(key,level);
+ if(key==='aquatic')return value===1?'水生':'陸生';
+ if(key==='repro')return formatTrait(key,value);
+ if(key==='idealTemp')return value+'℃';
+ if(key==='tempTolerance')return '±'+value+'℃';
+ if(key==='brood')return value+'個';
+ if(key==='diet')return value>=.75?'肉食':value>=.3?'雑食':'草食';
+ return level<=3?'低い':level>=8?'高い':'中程度';
+}
+
 export const formatTrait=(key,v)=>{
  if(key==='aquatic')return v===1?'水生':'陸生';
  if(key==='repro')return ['雌雄異体','雌雄同体','単為生殖'][Math.round(v)]??String(v);
