@@ -908,6 +908,11 @@ export class Ecosystem{
    cause,energy:+u.energy.toFixed(2),hydration:+u.hydration.toFixed(2),
    hp:+u.hp.toFixed(2),maxHp:u.maxHp,terrain:TERRAIN_NAMES[this.terrain(u.x,u.y)],
    foodSuccess:u.forageSuccess,foodFailure:u.forageFailure,
+   diagnosticCause:(u.infection>0||u.lastHpLossSource==='infection')?'感染':
+    (u.hydration<25||u.lastHpLossSource==='dehydration')?'脱水':
+    (u.forageFailure>Math.max(5,u.forageSuccess*2))?'採食失敗・食料探索':
+    ((u.habitatLoad??0)>.65)?'局所過密':
+    (u.energy<60)?'摂取エネルギー不足':'複合的な衰弱',
    totalHpRecovered:+(u.hpRecovered??0).toFixed(2),dominantHpLoss:dominant?.[0]??'不明',...Object.fromEntries(Object.entries(losses).map(([k,v])=>['hpLoss_'+k,+v.toFixed(2)]))};
   this.deathRecords.push(detail);
   if(this.deathRecords.length>10000)this.deathRecords.shift();
