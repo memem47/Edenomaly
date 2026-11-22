@@ -442,3 +442,5 @@ button:disabled,input:disabled{opacity:.40;cursor:not-allowed}
 /* Actionable risk evaluation before founding and live ecological diagnostics. */
 .placement-risk{margin:5px 0 8px;padding:7px 10px;border:1px solid #5b7e8a;border-radius:7px;background:#193e49;color:#e8f0ec;font-size:12px;line-height:1.6}
 .survival-advice{padding:8px 10px;border-left:3px solid #70bd9b;background:#203c43;border-radius:5px;line-height:1.6}
+
+.terrain-sculpt-status{padding:8px 10px;margin:7px 0;background:#183e47;border:1px solid #497989;border-radius:8px;color:#c8e6de;font-size:12px;line-height:1.55}
