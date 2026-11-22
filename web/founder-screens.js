@@ -1,9 +1,9 @@
 import {FOUNDER_BUDGET,FOUNDER_TRAITS,FOUNDER_FIELDS,formatTrait,editFounderGenome,founderCost,founderTraitCost,canUseFounder} from './founder-designer.js';
 import {morphology,dietProfile,terrainFitness,genomeCode} from './simulation.js';
-import {drawFounderAppearance} from './founder-preview.js?v=2026.11.21.7';
-import {differenceMagnitude,rankDifferences} from './discovery-diff.js?v=2026.11.21.7';
-import {FOUNDER_PRESETS,founderPresetGenome,randomFounderGenome} from './founder-presets.js?v=2026.11.21.7';
-import {phenotypeBarsHTML,abilityListHTML} from './ability-bars.js?v=2026.11.21.7';
+import {drawFounderAppearance} from './founder-preview.js?v=2026.11.22.1';
+import {differenceMagnitude,rankDifferences} from './discovery-diff.js?v=2026.11.22.1';
+import {FOUNDER_PRESETS,founderPresetGenome,randomFounderGenome} from './founder-presets.js?v=2026.11.22.1';
+import {phenotypeBarsHTML,abilityListHTML} from './ability-bars.js?v=2026.11.22.1';
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format=n=>Number(n).toFixed(1);
 const makeDialog=(id,title)=>{
@@ -63,6 +63,11 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue,onReady
   const line=editorBody.querySelector('#founderCost');
   const budget=isGame?('使用 '+cost+' pt / 上限 '+FOUNDER_BUDGET+' pt ・残り '+(FOUNDER_BUDGET-cost).toFixed(1)+' pt'+(cost>FOUNDER_BUDGET?'（超過）':'')):'テストモード：自由に調整可能';
   line.textContent=budget;
+  const habitat=editorBody.querySelector('#founderHabitatTip');
+  if(habitat){
+   const advice=g.aquatic===1?'推奨移入地点：池・水辺（水草）':g.rock>.8?'推奨移入地点：岩場・地衣類のある地形':g.dry>.8?'推奨移入地点：乾燥地（植物が少ないため難しめ）':'推奨移入地点：草原・水辺に近い陸地';
+   habitat.textContent=advice+(g.diet>.7?' ｜ 肉食型は初期の獲物不足に注意':'');
+  }
   line.classList.toggle('over-budget',isGame&&cost>FOUNDER_BUDGET);
   editorBody.querySelector('#founderSummary').innerHTML=summary(g);
   
@@ -85,7 +90,7 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue,onReady
   changes={};
   editorBody.innerHTML='<section class="compact-founder-top"><canvas id="founderAfterCanvas" width="180" height="132" aria-label="調整後のスライム"></canvas><div class="compact-founder-info"><strong>調整後の外見</strong><small>　能力に応じて体表・口・膜・栄養粒・ひれなどが変化</small> <small id="founderPreviewChanges"></small><p id="founderCost" class="founder-budget"></p><div id="founderSummary"></div></div></section>'+
    '<section class="founder-preset-selection"><strong>① 初期能力を選ぶ</strong><p class="muted">プリセットはおすすめの生存戦略です。選択後もすべての能力を編集できます。</p><div class="founder-preset-grid">'+FOUNDER_PRESETS.map(p=>'<button type="button" data-founder-preset="'+p.id+'"><b>'+escape(p.name)+'</b><small>'+escape(p.description)+'</small></button>').join('')+'<button type="button" id="randomFounderPreset"><b>🎲 ランダム生成</b><small>能力を毎回ランダムに選びます。ゲームモードの遺伝子ポイント上限内で生成します。</small></button></div></section>'+
-   '<p class="muted">有利な能力はポイント消費、不利な能力はポイント還元。食性など環境次第の戦略は無料。複数地形への高適応には追加費用。体格・目・口・顎は能力から自動決定。</p><div class="compact-founder-fields">'+FOUNDER_TRAITS.map(([section,fields])=>'<fieldset class="founder-fieldset"><legend>'+escape(section)+'</legend><div class="founder-traits">'+
+   '<p class="muted" id="founderHabitatTip"></p><p class="muted">有利な能力はポイント消費、不利な能力はポイント還元。食性など環境次第の戦略は無料。複数地形への高適応には追加費用。体格・目・口・顎は能力から自動決定。</p><div class="compact-founder-fields">'+FOUNDER_TRAITS.map(([section,fields])=>'<fieldset class="founder-fieldset"><legend>'+escape(section)+'</legend><div class="founder-traits">'+
     fields.map(([key,name,min,max,step])=>{
      const v=currentGenome()[key]??min;
      return '<div class="founder-trait"><label for="edit-'+key+'">'+escape(name)+' <small data-point-cost="'+key+'"></small></label>'+
@@ -206,6 +211,7 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue,onReady
  }
  return {showEditor,announce,clear,
   hasPrepared:()=>!!preparedGenome,
+  peekPrepared:()=>preparedGenome,
   consumePrepared:()=>{const g=preparedGenome;preparedGenome=null;return g;},
   isOpen:()=>editor.open||discovery.open};
 }

@@ -25,17 +25,20 @@ export function founderPresetGenome(base,id){
  return editFounderGenome(base,{...BALANCED,...preset.values});
 }
 export function randomFounderGenome(base,random=Math.random){
- // Draw from the entire editor range, then soften expensive advantages so
- // every returned random setup is valid in game mode as well as lab mode.
- for(let attempt=0;attempt<100;attempt++){
-  const values={};
-  for(const [key,,lo,hi,step] of FOUNDER_FIELDS){
-   const value=lo+Math.round(random()*((hi-lo)/step))*step;
-   values[key]=Number(Math.min(hi,Math.max(lo,value)).toFixed(5));
-  }
-  const g=editFounderGenome(base,values);
-  if(founderCost(base,g)<=FOUNDER_BUDGET)return g;
+ // Randomize a coherent ecological strategy, not every independent trait.
+ // Independent 0..1 draws generated mostly unviable initial organisms.
+ // The biome specialization remains clear; 7 other characteristics vary.
+ const preset=FOUNDER_PRESETS[Math.min(FOUNDER_PRESETS.length-1,
+  Math.floor(random()*FOUNDER_PRESETS.length))];
+ const initial=founderPresetGenome(base,preset.id);
+ const changes={};
+ const eligible=FOUNDER_FIELDS.filter(([key])=>!['aquatic','diet','dry','wet','rock','idealTemp','repro'].includes(key));
+ for(let i=0;i<7;i++){
+  const [key,,lo,hi,step]=eligible[Math.floor(random()*eligible.length)];
+  const strength=(random()-.5)*(.30*(hi-lo));
+  changes[key]=Math.min(hi,Math.max(lo,Math.round((initial[key]+strength)/step)*step));
  }
- // Guaranteed valid fallback, not an impossible over-budget configuration.
- return founderPresetGenome(base,'grass');
+ let result=editFounderGenome(initial,changes);
+ if(founderCost(base,result)>FOUNDER_BUDGET)result=initial;
+ return result;
 }

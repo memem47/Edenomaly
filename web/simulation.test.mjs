@@ -2505,7 +2505,7 @@ test('terrestrial carnivores cannot eat submerged eggs, aquatic carnivores can',
 
 test('score starts at zero and excludes founder species from discoveries',()=>{
  const w=new Ecosystem(20261109);
- assert.deepEqual(w.runScore,{started:false,ended:false,duration:0,discoveries:0,establishedSpecies:0,sustained:0,expanded:0,survivalScore:0,discoveryScore:0,establishmentScore:0,balanceScore:0,total:0});
+ assert.deepEqual(w.runScore,{started:false,ended:false,duration:0,discoveries:0,establishedSpecies:0,sustained:0,expanded:0,stableLiving:0,survivalScore:0,discoveryScore:0,establishmentScore:0,stabilityScore:0,balanceScore:0,total:0});
  const result=w.introduce(170,130,1);
  assert.equal(result.types,1);
  assert.equal(w.runScore.started,true);
@@ -2514,7 +2514,7 @@ test('score starts at zero and excludes founder species from discoveries',()=>{
  assert.equal(w.runScore.duration,10);
  assert.equal(w.runScore.survivalScore,10);
 });
-test('score counts genuinely novel post-founder species with a 300 point bonus',()=>{
+test('score counts genuinely novel post-founder species with a limited 120 point bonus',()=>{
  const w=new Ecosystem(20261110);
  w.introduce(170,130,1);
  const founderCount=w.species.size;
@@ -2528,9 +2528,9 @@ test('score counts genuinely novel post-founder species with a 300 point bonus',
  assert.ok(novel);
  w.spawn(180,140,novel,w.units[0]);
  assert.equal(w.species.size,founderCount+1);
- assert.equal(w.runScore.discoveryScore,300);
+ assert.equal(w.runScore.discoveryScore,120);
  w.spawn(185,140,novel,w.units[0]);
- assert.equal(w.runScore.discoveryScore,300);
+ assert.equal(w.runScore.discoveryScore,120);
 });
 test('extinction score freezes only after every egg is lost',()=>{
  const w=new Ecosystem(20261111);w.introduce(170,130,1);
@@ -3211,16 +3211,18 @@ test('founding sexual population has both sexes regardless of spawn seed',()=>{
   }
  }
 });
-test('only dryland contains sparse edible plants; bare rock provides no grass',()=>{
+test('rock supports sparse lichen that remains rock and regrows slowly',()=>{
  const w=new Ecosystem(2026110860);
  const i=w.cell(210,210),g={...w.gene(),aquatic:0,dry:1,rock:1};
  w.tiles.fill(3);w.grass.fill(0);
- w.grass[i]=15; // stale resource must not be consumable on rock
- assert.equal(w.nearestGrass(210,210,25,g),null);
- assert.equal(w.consumeGrass(210,210,1),0);
+ w.grass[i]=15;
+ assert.ok(w.nearestGrass(210,210,25,g));
+ assert.equal(w.consumeGrass(210,210,1),1);
+ assert.equal(w.tiles[i],3);
  w.growth=100;
  for(let t=0;t<36;t++)w.step();
- assert.equal(w.grass[i],0);
+ assert.ok(w.grass[i]>14,'rock lichen should slowly regrow');
+ assert.ok(w.grass[i]<=24);
  w.tiles[i]=2;w.grass[i]=3;
  assert.ok(w.nearestGrass(210,210,25,g));
  assert.equal(w.consumeGrass(210,210,1),1);

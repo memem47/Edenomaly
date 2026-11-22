@@ -908,6 +908,11 @@ export class Ecosystem{
    cause,energy:+u.energy.toFixed(2),hydration:+u.hydration.toFixed(2),
    hp:+u.hp.toFixed(2),maxHp:u.maxHp,terrain:TERRAIN_NAMES[this.terrain(u.x,u.y)],
    foodSuccess:u.forageSuccess,foodFailure:u.forageFailure,
+   diagnosticCause:(u.infection>0||u.lastHpLossSource==='infection')?'感染':
+    (u.hydration<25||u.lastHpLossSource==='dehydration')?'脱水':
+    (u.forageFailure>Math.max(5,u.forageSuccess*2))?'採食失敗・食料探索':
+    ((u.habitatLoad??0)>.65)?'局所過密':
+    (u.energy<60)?'摂取エネルギー不足':'複合的な衰弱',
    totalHpRecovered:+(u.hpRecovered??0).toFixed(2),dominantHpLoss:dominant?.[0]??'不明',...Object.fromEntries(Object.entries(losses).map(([k,v])=>['hpLoss_'+k,+v.toFixed(2)]))};
   this.deathRecords.push(detail);
   if(this.deathRecords.length>10000)this.deathRecords.shift();
@@ -924,8 +929,8 @@ export class Ecosystem{
   const i=this.cell(x,y),aquatic=g.aquatic===1;
   if(aquatic)return this.tiles[i]===1&&this.water[i]>=12?
    clamp((this.waterweed[i]??0)/85,0,1):0;
-  if(this.tiles[i]===1||this.tiles[i]===3)return 0;
-  return clamp((this.grass[i]??0)/(this.tiles[i]===0?65:90),0,1);
+  if(this.tiles[i]===1)return 0;
+  return clamp((this.grass[i]??0)/(this.tiles[i]===0?65:this.tiles[i]===3?23:90),0,1);
  }
  chooseNest(u){
   const skill=clamp(u.g.nestChoice??u.g.nesting??0,0,1);
@@ -1352,7 +1357,7 @@ export class Ecosystem{
  }
  consumeGrass(x,y,amount){
   const i=this.cell(x,y);
-  if(this.tiles[i]!==0&&this.tiles[i]!==2)return 0;
+  if(this.tiles[i]!==0&&this.tiles[i]!==2&&this.tiles[i]!==3)return 0;
   const taken=Math.min(this.grass[i],amount);
   this.grass[i]-=taken;
   if(taken>0)this.grazingPressure[i]+=taken/6;
@@ -1423,7 +1428,7 @@ export class Ecosystem{
   const cx=Math.floor(x/CELL),cy=Math.floor(y/CELL),reach=Math.ceil(radius/CELL)+1;
   for(let yy=Math.max(0,cy-reach);yy<=Math.min(NY-1,cy+reach);yy++)
    for(let xx=Math.max(0,cx-reach);xx<=Math.min(NX-1,cx+reach);xx++){
-    const id=yy*NX+xx;if((this.tiles[id]!==0&&this.tiles[id]!==2)||this.grass[id]<=.2)continue;
+    const id=yy*NX+xx;if((this.tiles[id]!==0&&this.tiles[id]!==2&&this.tiles[id]!==3)||this.grass[id]<=.2)continue;
     if(!terrainFitness(g,this.tiles[id]).passable)continue;
     const a=clamp(x,xx*CELL+2,(xx+1)*CELL-2);
     const b=clamp(y,yy*CELL+2,(yy+1)*CELL-2);
@@ -1505,7 +1510,7 @@ export class Ecosystem{
    if(this.tiles[i]===0)this.grass[i]=Math.min(100,[26,44,65,77,87][level-1]+this.rand()*13);
    if(this.tiles[i]===2)this.grass[i]=[5,4,3,2,1][level-1]+this.rand()*2;
    // Preserve the seeded RNG sequence when converting rocky food to bare refuge.
-   if(this.tiles[i]===3)this.rand();
+   if(this.tiles[i]===3)this.grass[i]=10+this.rand()*10; // edible slow-growing mountain lichen
    if(this.tiles[i]===1){
     this.water[i]=Math.min(100,[45,57,74,87,96][level-1]+this.rand()*5);
     this.waterbed[i]=1;
@@ -1662,7 +1667,13 @@ export class Ecosystem{
       this.grass[i]+.10*(.25+wetness)*
       this.growth/70*seasonalPlantGrowth(plantSeason,this.temperature,2,this.soilWater[i])/(1+this.grazingPressure[i]));
     }
-    if(this.tiles[i]===3)next[i]=0;
+    if(this.tiles[i]===3){
+     // Rock lichen is a persistent but slowly recovering local food source.
+     // High rock adaptation improves collection, not infinite food.
+     const seasonScale=plantSeason==='winter'?.45:plantSeason==='spring'?1.3:1;
+     const moisture=.35+.65*clamp((this.soilWater[i]??0)/60,0,1);
+     next[i]=Math.min(24,this.grass[i]+.85*seasonScale*moisture*this.growth/70/(1+this.grazingPressure[i]*.3));
+    }
     if(this.grass[i]<=0&&this.tiles[i]!==1&&this.tiles[i]!==3){
      const x=i%NX,y=Math.floor(i/NX);
      const neighbors=[x>0?i-1:-1,x<NX-1?i+1:-1,y>0?i-NX:-1,y<NY-1?i+NX:-1];
@@ -2218,18 +2229,18 @@ export class Ecosystem{
      }
     }
    }
-   if(!flight&&t!==3&&(!aquatic||onLand)&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+13)**2){
+   if(!flight&&(!aquatic||onLand)&&diet.plant>0&&nearest&&distance(u,nearest)<(m.biteReach+13)**2){
     const forageTerrain=this.terrain(nearest.x,nearest.y);
-    const forageLimit=forageTerrain===0?4.8:forageTerrain===2?1.3:1.2;
+    const forageLimit=forageTerrain===0?4.8:forageTerrain===2?1.3:forageTerrain===3?1.8:1.2;
     const eaten=this.consumeGrass(nearest.x,nearest.y,
      Math.min(forageLimit,1.05*m.foodGain*feedingCapacity(u)));
     if(eaten>0){
-     const foodYield=forageTerrain===0?10.5:4.8;
-     u.energy+=eaten*foodYield*effectivePlantAffinity(u)*home.fitness;
+     const foodYield=forageTerrain===0?10.5:forageTerrain===3?8.5:4.8;
+     u.energy+=eaten*foodYield*effectivePlantAffinity(u)*home.fitness*(forageTerrain===3?.75+.65*(g.rock??0):1);
      u.recentFood=(u.recentFood??0)+eaten*4;
      u.forageSuccess++;
      u.seedBank=Math.min(100,(u.seedBank??0)+eaten*.35);
-     if(u.stage==='juvenile')u.juvenileFood+=eaten*foodYield*effectivePlantAffinity(u)*home.fitness;
+     if(u.stage==='juvenile')u.juvenileFood+=eaten*foodYield*effectivePlantAffinity(u)*home.fitness*(forageTerrain===3?.75+.65*(g.rock??0):1);
      // Plant calories fund metabolism, growth and slow HP recovery.
      if((this.tick+u.id)%9===0)this.addVisualEffect('graze',u,{fromX:nearest.x,fromY:nearest.y});
      this.log('meal','#'+u.id+' が草を食べた',u);}
@@ -2559,9 +2570,16 @@ export class Ecosystem{
    const sustained=started?[...this.species.values()].filter(sp=>sp.establishedByGeneration).length:0;
    const expanded=started?[...this.species.values()].filter(sp=>sp.establishedByPopulation).length:0;
    const balanceScore=started?(this.ecosystemBalance??0):0;
-   return {started,ended:this.runEndedTick!==null,duration,discoveries,establishedSpecies,sustained,expanded,
-    survivalScore:duration,discoveryScore:discoveries*300,establishmentScore:establishedSpecies*450,balanceScore,
-    total:duration+discoveries*300+establishedSpecies*450+balanceScore};
+   // Reward lineages that survive across generations rather than only creating
+   // many short-lived species. Dead species cannot earn the stability bonus.
+   const stableLiving=started?[...this.species.values()].filter(sp=>
+    sp.current>0&&sp.establishedByGeneration).length:0;
+   const discoveryScore=discoveries*120;
+   const establishmentScore=establishedSpecies*650;
+   const stabilityScore=stableLiving*220;
+   return {started,ended:this.runEndedTick!==null,duration,discoveries,establishedSpecies,sustained,expanded,stableLiving,
+    survivalScore:duration,discoveryScore,establishmentScore,stabilityScore,balanceScore,
+    total:duration+discoveryScore+establishmentScore+stabilityScore+balanceScore};
   }
   get livingSpecies(){return [...this.species.values()].filter(s=>s.current>0).length;}
  get recentSpecies(){return this.discoveries.filter(t=>this.tick-t<300).length;}

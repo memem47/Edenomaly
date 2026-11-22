@@ -1,12 +1,13 @@
 import {zipFiles} from './zip-log.js?v=2026.11.07.4';
-import {mountFounderScreens} from './founder-screens.js?v=2026.11.21.7';
-import {mountDashboardTabs} from './dashboard-tabs.js?v=2026.11.21.7';
-import {abilityListHTML,phenotypeBarsHTML} from './ability-bars.js?v=2026.11.21.7';
-import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.21.7';
-import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.21.7';
+import {mountFounderScreens} from './founder-screens.js?v=2026.11.22.1';
+import {mountDashboardTabs} from './dashboard-tabs.js?v=2026.11.22.1';
+import {abilityListHTML,phenotypeBarsHTML} from './ability-bars.js?v=2026.11.22.1';
+import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.22.1';
+import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.22.1';
 import {mountGameUI} from './game-ui.js?v=2026.11.14.2';
+import {placementAssessment,populationDiagnosis} from './survival-guidance.js?v=2026.11.22.1';
 import {fitView,screenToWorld,zoomAround,panBy,MAX_ZOOM,ZOOM_STEP} from './viewport.js?v=2026.11.08.12';
-import {drawWorld,drawChart} from './renderer.js?v=2026.11.21.7';
+import {drawWorld,drawChart} from './renderer.js?v=2026.11.22.1';
 import {EcologyLogbook,observeEcology,ECOLOGY_LOG_FIELDS} from './ecology-log.js?v=2026.11.14.2';
 import {gameRunReport,saveGameRunReport,readGameRunHistory} from './game-run-log.js?v=2026.11.14.2';
 import {SpeciesLogbook,speciesReport,csvCell} from './species-statistics.js';
@@ -15,7 +16,7 @@ const $=id=>document.getElementById(id);
 const dashboard=mountDashboardTabs(document);
 // Release label is bundled with the running source; comparison uses a
 // separately published manifest from the repository's main branch.
-const BUILD_VERSION='2026.11.21.7';
+const BUILD_VERSION='2026.11.22.1';
 const VERSION_SOURCE='https://raw.githubusercontent.com/memem47/Edenomaly/main/web/version.json';
 $('buildVersion').textContent=BUILD_VERSION;
 async function checkLatestVersion(){
@@ -219,6 +220,15 @@ function speciesGenomeHTML(key){
 }
 function update(){
  const dietCounts=[0,0,0];for(const u of game.units){const d=dietProfile(u.g).diet;dietCounts[d<.3?0:d>.7?2:1]++;}
+ const populationHealth=populationDiagnosis(game);
+ const recentDeaths=(game.deathRecords??[]).slice(-20);
+ const breakdown={};
+ for(const item of recentDeaths)breakdown[item.diagnosticCause??item.cause]=(breakdown[item.diagnosticCause??item.cause]??0)+1;
+ const deathHint=recentDeaths.length?' ｜ 最近の死亡要因：'+Object.entries(breakdown)
+  .sort((a,b)=>b[1]-a[1]).slice(0,2).map(([name,count])=>name+count+'件').join('・'):'';
+ $('survivalAdvice').textContent=game.introducedCount>0?
+  '🔎 '+populationHealth.summary+' ｜ 推奨：'+populationHealth.recommendation+deathHint:
+  '能力を決めて地点を選択すると、移入前の危険と推奨環境を確認できます。';
  $('dietStats').textContent=`栄養食 ${dietCounts[0]} ／ 雑食 ${dietCounts[1]} ／ 肉食 ${dietCounts[2]}`;
  $('startHint').textContent=game.introducedCount===0?(screens.hasPrepared()?'② フィールドをクリックして、設定した能力の生命を移入してください。':'①「移入するスライムの能力」を開き、プリセットまたはランダムを選んで能力を確定してください。'):'生命を移入しました。追加の移入も可能です。';
  const infected=game.units.filter(u=>u.infection>0).length;
@@ -304,7 +314,7 @@ function update(){
  $('gameScore').textContent=score.total.toLocaleString('ja-JP');
  $('survivalScore').textContent=score.duration.toLocaleString('ja-JP');
  $('discoveryScore').textContent=score.discoveries.toLocaleString('ja-JP')+'種 / 新種 +'+score.discoveryScore.toLocaleString('ja-JP')+
-   '点 ／ 定着 '+score.establishedSpecies+'種 +'+score.establishmentScore.toLocaleString('ja-JP')+'点 ／ 多様性維持 +'+score.balanceScore.toLocaleString('ja-JP')+'点';
+   '点 ／ 定着 '+score.establishedSpecies+'種 +'+score.establishmentScore.toLocaleString('ja-JP')+'点 ／ 長期維持 +'+score.stabilityScore.toLocaleString('ja-JP')+'点 ／ 多様性維持 +'+score.balanceScore.toLocaleString('ja-JP')+'点';
  $('runScoreStatus').textContent=!score.started?'移入待ち':score.ended?'絶滅・スコア確定':'生存中・計測中';
  $('seasonStatus').textContent=game.climateEnabled?({spring:'🌸 春・🌱 芽吹き',summer:'☀️ 夏・🌿 水分依存',autumn:'🍂 秋・🌿 成長鈍化',winter:'❄️ 冬・🌱 休眠'}[game.seasonName()]):'季節変動 OFF';
  $('temperatureStatus').textContent='🌡 '+game.temperature.toFixed(1)+'℃';
@@ -482,6 +492,14 @@ function interact(e){
  if(mode==='spawn'&&(playMode!=='game'||!session.active&&!session.finished)){
   running=false;acc=0;
   if(!screens.hasPrepared()){screens.showEditor();update();return;}
+  const candidate=screens.peekPrepared();
+  if(candidate&&playMode==='game'){
+   const assessment=placementAssessment(game,candidate,x,y);
+   if(assessment.severe&&!window.confirm('⚠ この移入地点は危険です（適合度 '+assessment.suitability+'点）。\n'+assessment.warning+'\nそのまま移入しますか？')){
+    $('placementRisk').textContent='地点を変更してください：'+assessment.warning;
+    return;
+   }
+  }
   const genome=screens.consumePrepared();
   if(genome)introduceCustom(x,y,genome);
   return;
@@ -530,6 +548,12 @@ canvas.addEventListener('pointerdown',e=>{
    view=panBy(view,p.x-panGesture.x,p.y-panGesture.y,WORLD.width,WORLD.height);
    gameUI.manualCamera();panGesture.x=p.x;panGesture.y=p.y;render();return;
   }
+  if(mode==='spawn'&&!painting&&!panEnabled&&screens.peekPrepared()){
+   const {x,y}=coords(e),assessment=placementAssessment(game,screens.peekPrepared(),x,y);
+   $('placementRisk').textContent=(assessment.severe?'⚠ 高リスク':'📍 移入候補')+
+    ' ｜ 生息適合度 '+assessment.suitability+'/100 ｜ '+assessment.warning+
+    ' ｜ 植物量 '+assessment.food+' ｜ '+assessment.advice;
+  }
   if(playMode==='lab'&&painting&&['0','1','2','3','fertilize'].includes(mode))interact(e);
  });
  function endPointer(e){if(panGesture?.pointerId===e.pointerId){panGesture=null;canvas.classList.remove('dragging');}painting=false;}
@@ -568,7 +592,7 @@ function exportAllLogs(auto=false){
   ECOLOGY_LOG_FIELDS.map(k=>csvCell(currentSnapshot[k])).join(',')+newline;
  const csvEvents='step,type,message'+newline+game.logs.slice().reverse().map(e=>
   [e.step,e.type,e.message].map(csvCell).join(',')).join(newline);
- const deathFields=['step','id','parent','lineage','generation','stage','age','stepsAlive','cause','energy','hydration','hp','maxHp','terrain','foodSuccess','foodFailure','totalHpRecovered','dominantHpLoss','hpLoss_natural','hpLoss_temperature','hpLoss_terrain','hpLoss_starvation','hpLoss_juvenile','hpLoss_infection','hpLoss_combat'];
+ const deathFields=['step','id','parent','lineage','generation','stage','age','stepsAlive','cause','energy','hydration','hp','maxHp','terrain','foodSuccess','foodFailure','diagnosticCause','totalHpRecovered','dominantHpLoss','hpLoss_natural','hpLoss_temperature','hpLoss_terrain','hpLoss_starvation','hpLoss_juvenile','hpLoss_infection','hpLoss_combat'];
  const deathCSV=String.fromCharCode(65279)+deathFields.join(',')+newline+
   (game.deathRecords??[]).map(record=>deathFields.map(key=>csvCell(record[key]??'')).join(',')).join(newline);
  const files=[
