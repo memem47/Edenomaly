@@ -46,7 +46,10 @@ const PRICE=Object.freeze({wet:8,dry:8,rock:8,tempTolerance:12,hibernate:4,resis
 export function founderTraitCost(key,value){
  if(!Number.isFinite(value))return 0;
  if(key==='tempTolerance')return PRICE[key]*(Math.max(3,Math.min(18,value))-10.5)/15;
- if(key==='repro')return [0,3,8][Math.round(value)]??0;
+ if(key==='repro')return [0,3,1][Math.round(value)]??0;
+ // High brood sizes gain many simultaneous offspring: price the advantage
+ // non-linearly, while low brood sizes refund points for the tradeoff.
+ if(key==='brood')return value<=3?(value-3)*1.5:1.35*Math.pow(value-3,1.35);
  if(!Object.hasOwn(PRICE,key))return 0; // alternative strategies have no universal advantage
  return PRICE[key]*(Math.max(0,Math.min(1,value))-.5);
 }
