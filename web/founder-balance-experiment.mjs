@@ -36,7 +36,7 @@ function baseGenome(w){
 }
 const finite=n=>Number.isFinite(n)?n:0;
 const nround=(n,d=1)=>Number(finite(n).toFixed(d));
-function trial({seed,site,preset,variant='standard',changes={},steps=1100,policy='none'}){
+export function trial({seed,site,preset,variant='standard',changes={},steps=1100,policy='none'}){
  const w=new Ecosystem(seed);w.headless=true;w.headlessEventCounts={};
  const point=selectSite(w,site),base=baseGenome(w);
  let g;
@@ -81,7 +81,7 @@ function trial({seed,site,preset,variant='standard',changes={},steps=1100,policy
   deaths:w.deathRecords?.length??0,topCause:ordered[0]?.[0]??'none',
   topCauseCount:ordered[0]?.[1]??0,causes};
 }
-function aggregate(items){
+export function aggregate(items){
  const keys=['duration','extinct','peak','population','pop300','pop600','pop900',
   'eggs','births','matings','discoveries','score','deaths','interventions','cost'];
  const out={tests:items.length};
