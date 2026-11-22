@@ -1,0 +1,27 @@
+name: Founder game-mode balance research
+on:
+  pull_request:
+    paths:
+      - web/founder-balance-experiment.mjs
+      - web/founder-presets.js
+      - web/founder-designer.js
+      - web/game-mode.js
+      - web/simulation.js
+      - .github/workflows/founder-research.yml
+jobs:
+  scenario-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run seeded founder scenarios
+        run: node web/founder-balance-experiment.mjs 1100 3 72 results/founder-balance
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: founder-balance-research
+          path: results/founder-balance/
+          retention-days: 14
