@@ -160,7 +160,7 @@ export const speciesNameFromCategory=(key,genome=null)=>{
  const feature=parts.appearanceFeature===null?
   speciesFeatureName(genome):NAME_FEATURES[parts.appearanceFeature];
  if(!color||feature===undefined)throw new Error('Unsupported species appearance category: '+key);
- return color+speciesEcologyCode(key)+feature;
+ return [color,speciesEcologyCode(key),feature].filter(Boolean).join('・');
 };
 // Pigment is a derived phenotype, not an additional independent gene.
 export const pigmentClass=g=>{
