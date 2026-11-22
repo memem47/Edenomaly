@@ -220,14 +220,14 @@ function speciesGenomeHTML(key){
 }
 function update(){
  const dietCounts=[0,0,0];for(const u of game.units){const d=dietProfile(u.g).diet;dietCounts[d<.3?0:d>.7?2:1]++;}
- const diagnosis=populationDiagnosis(game);
+ const populationHealth=populationDiagnosis(game);
  const recentDeaths=(game.deathRecords??[]).slice(-20);
  const breakdown={};
  for(const item of recentDeaths)breakdown[item.diagnosticCause??item.cause]=(breakdown[item.diagnosticCause??item.cause]??0)+1;
  const deathHint=recentDeaths.length?' ｜ 最近の死亡要因：'+Object.entries(breakdown)
   .sort((a,b)=>b[1]-a[1]).slice(0,2).map(([name,count])=>name+count+'件').join('・'):'';
  $('survivalAdvice').textContent=game.introducedCount>0?
-  '🔎 '+diagnosis.summary+' ｜ 推奨：'+diagnosis.recommendation+deathHint:
+  '🔎 '+populationHealth.summary+' ｜ 推奨：'+populationHealth.recommendation+deathHint:
   '能力を決めて地点を選択すると、移入前の危険と推奨環境を確認できます。';
  $('dietStats').textContent=`栄養食 ${dietCounts[0]} ／ 雑食 ${dietCounts[1]} ／ 肉食 ${dietCounts[2]}`;
  $('startHint').textContent=game.introducedCount===0?(screens.hasPrepared()?'② フィールドをクリックして、設定した能力の生命を移入してください。':'①「移入するスライムの能力」を開き、プリセットまたはランダムを選んで能力を確定してください。'):'生命を移入しました。追加の移入も可能です。';
