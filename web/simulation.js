@@ -2453,6 +2453,8 @@ export class Ecosystem{
   this.water[i]=target===1?60:0;
   this.waterweed[i]=target===1?30:0;
   this.soilWater[i]=target===0?48:target===1?90:target===2?20:8;
+  // Fertile soil is not conjured at full strength by changing the terrain.
+  this.soil[i]=Math.min(this.soil[i],target===0?55:target===1?30:target===2?20:10);
   this.grazingPressure[i]=0;
   this._waterRegionTick=null;
   this._waterRegions=null;
