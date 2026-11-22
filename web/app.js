@@ -1,13 +1,13 @@
 import {zipFiles} from './zip-log.js?v=2026.11.07.4';
-import {mountFounderScreens} from './founder-screens.js?v=2026.11.22.2';
-import {mountDashboardTabs} from './dashboard-tabs.js?v=2026.11.22.2';
-import {abilityListHTML,phenotypeBarsHTML} from './ability-bars.js?v=2026.11.22.2';
-import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.22.2';
-import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.22.2';
+import {mountFounderScreens} from './founder-screens.js?v=2026.11.22.3';
+import {mountDashboardTabs} from './dashboard-tabs.js?v=2026.11.22.3';
+import {abilityListHTML,phenotypeBarsHTML} from './ability-bars.js?v=2026.11.22.3';
+import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.22.3';
+import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.22.3';
 import {mountGameUI} from './game-ui.js?v=2026.11.14.2';
-import {placementAssessment,populationDiagnosis} from './survival-guidance.js?v=2026.11.22.2';
+import {placementAssessment,populationDiagnosis} from './survival-guidance.js?v=2026.11.22.3';
 import {fitView,screenToWorld,zoomAround,panBy,MAX_ZOOM,ZOOM_STEP} from './viewport.js?v=2026.11.08.12';
-import {drawWorld,drawChart} from './renderer.js?v=2026.11.22.2';
+import {drawWorld,drawChart} from './renderer.js?v=2026.11.22.3';
 import {EcologyLogbook,observeEcology,ECOLOGY_LOG_FIELDS} from './ecology-log.js?v=2026.11.14.2';
 import {gameRunReport,saveGameRunReport,readGameRunHistory} from './game-run-log.js?v=2026.11.14.2';
 import {SpeciesLogbook,speciesReport,csvCell} from './species-statistics.js';
@@ -16,7 +16,7 @@ const $=id=>document.getElementById(id);
 const dashboard=mountDashboardTabs(document);
 // Release label is bundled with the running source; comparison uses a
 // separately published manifest from the repository's main branch.
-const BUILD_VERSION='2026.11.22.2';
+const BUILD_VERSION='2026.11.22.3';
 const VERSION_SOURCE='https://raw.githubusercontent.com/memem47/Edenomaly/main/web/version.json';
 $('buildVersion').textContent=BUILD_VERSION;
 async function checkLatestVersion(){
@@ -370,6 +370,7 @@ function reset(){
  speciesLog.end(game);
  game.reset();session.reset();gameUI.reset();screens.clear();knownSpecies.clear();rewardRecorded=false;
  $('startGameConfirm').disabled=true;
+ $('terrainEditStatus').textContent='ゲームモードでは土地を1マスずつ改変できます。開始後に地形を選んでください。';
  currentGameRunId=null;lastGameReport=null;lastGameExportOk=null;lastReproductionSample=null;selected=null;selectedSpecies=null;running=false;mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));syncSliders();update();render();}
 function updateTerrainLevelLabel(){
  $('terrainLevelName').textContent=TERRAIN_LEVEL_NAMES[Number(mode)]?.[terrainLevel-1]??'レベル '+terrainLevel;
@@ -505,7 +506,16 @@ function interact(e){
   return;
  }
  if(playMode==='game'){
-  if(mode==='food')session.intervene('seed',x,y);
+  if(['0','1','2','3'].includes(mode)){
+   const kind='terrain'+mode;
+   const success=session.intervene(kind,x,y);
+   const cost={0:3,1:5,2:2,3:4}[mode];
+   const label=TERRAIN_NAMES[Number(mode)];
+   $('terrainEditStatus').textContent=success?
+    '✓ '+label+'を1マス作成（-'+cost+'pt）。残り '+session.points+'pt':
+    '変更できません：ポイント不足・既に同じ地形・生命や卵がいるマス・水辺が繋がっていない可能性があります。';
+  }
+  else if(mode==='food')session.intervene('seed',x,y);
   else if(mode==='fertilize')session.intervene('fertilize',x,y);
   else if(mode==='clinic')session.intervene('clinic',x,y);
   else if(mode==='nursery')session.intervene('nursery',x,y);
@@ -554,12 +564,24 @@ canvas.addEventListener('pointerdown',e=>{
     ' ｜ 生息適合度 '+assessment.suitability+'/100 ｜ '+assessment.warning+
     ' ｜ 植物量 '+assessment.food+' ｜ '+assessment.advice;
   }
-  if(playMode==='lab'&&painting&&['0','1','2','3','fertilize'].includes(mode))interact(e);
+  // Painting one distinct tile per pointer move spends the normal game
+  // intervention cost. Failed edits never spend points.
+  if(painting&&!panEnabled&&
+   ((playMode==='lab'&&['0','1','2','3','fertilize'].includes(mode))||
+    (playMode==='game'&&['0','1','2','3'].includes(mode))))interact(e);
  });
  function endPointer(e){if(panGesture?.pointerId===e.pointerId){panGesture=null;canvas.classList.remove('dragging');}painting=false;}
  canvas.addEventListener('pointerup',endPointer);canvas.addEventListener('pointercancel',endPointer);
  canvas.addEventListener('lostpointercapture',endPointer);
-document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{if(b.disabled)return;mode=b.dataset.mode;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x===b));updateTerrainLevelLabel();}));
+document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{
+ if(b.disabled)return;
+ mode=b.dataset.mode;
+ document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x===b));
+ updateTerrainLevelLabel();
+ if(['0','1','2','3'].includes(mode)&&playMode==='game')
+  $('terrainEditStatus').textContent='選択中：'+TERRAIN_NAMES[Number(mode)]+
+   '｜1マスずつ操作。クリック・ドラッグで地形を変化させ、介入ポイントを消費します。';
+}));
 updateTerrainLevelLabel();
 document.querySelectorAll('[data-event-type]').forEach(input=>{
  const type=input.dataset.eventType;
