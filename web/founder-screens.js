@@ -94,7 +94,7 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue,onReady
   changes={};
   editorBody.innerHTML='<section class="compact-founder-top"><canvas id="founderAfterCanvas" width="180" height="132" aria-label="調整後のスライム"></canvas><div class="compact-founder-info"><strong>調整後の外見</strong><small>　能力に応じて体表・口・膜・栄養粒・ひれなどが変化</small> <small id="founderPreviewChanges"></small><p id="founderCost" class="founder-budget"></p><div id="founderSummary"></div></div></section>'+
    '<section class="founder-preset-selection"><strong>① 初期能力を選ぶ</strong><p class="muted">プリセットはおすすめの生存戦略です。選択後もすべての能力を編集できます。</p><div class="founder-preset-grid">'+FOUNDER_PRESETS.map(p=>'<button type="button" data-founder-preset="'+p.id+'"><b>'+escape(p.name)+'</b><small>'+escape(p.description)+'</small></button>').join('')+'<button type="button" id="randomFounderPreset"><b>🎲 ランダム生成</b><small>能力を毎回ランダムに選びます。ゲームモードの遺伝子ポイント上限内で生成します。</small></button></div></section>'+
-   '<p class="muted" id="founderHabitatTip"></p><p class="muted">全遺伝子を1〜10の10段階で調整します。適温・産卵数・繁殖方式・生息型は数値の横に実際の意味を表示します。内部では従来の値に変換して計算します。</p><p class="muted">有利な能力はポイント消費、不利な能力はポイント還元。食性など環境次第の戦略は無料。複数地形への高適応には追加費用。体格・目・口・顎は能力から自動決定。</p><div class="compact-founder-fields">'+FOUNDER_TRAITS.map(([section,fields])=>'<fieldset class="founder-fieldset"><legend>'+escape(section)+'</legend><div class="founder-traits">'+
+   '<p class="muted" id="founderHabitatTip"></p><p class="muted">全遺伝子を1〜10の10段階で調整します。適温・産卵数・繁殖方式・生息型は数値の横に実際の意味を表示します。二択・三択の特徴は1/10や1/6/10など有効なレベルに切り替わります。内部では従来の値に変換して計算します。</p><p class="muted">有利な能力はポイント消費、不利な能力はポイント還元。食性など環境次第の戦略は無料。複数地形への高適応には追加費用。体格・目・口・顎は能力から自動決定。</p><div class="compact-founder-fields">'+FOUNDER_TRAITS.map(([section,fields])=>'<fieldset class="founder-fieldset"><legend>'+escape(section)+'</legend><div class="founder-traits">'+
     fields.map(([key,name,min,max,step])=>{
      const level=founderLevel(key,currentGenome()[key]??min);
      return '<div class="founder-trait"><label for="edit-'+key+'">'+escape(name)+' <small data-point-cost="'+key+'"></small></label>'+
@@ -113,7 +113,7 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue,onReady
     const key=input.dataset.trait;
     const level=Math.max(1,Math.min(10,Math.round(Number(input.value))));
     changes[key]=founderValueAtLevel(key,level);
-    if(normalize)input.value=String(level);
+    if(normalize)input.value=String(founderLevel(key,currentGenome()[key]));
     const bar=row.querySelector('.ability-track');
     bar.setAttribute('aria-valuenow',String(level));
     bar.querySelector('.ability-fill').style.width=((level-1)/9*100)+'%';
@@ -122,7 +122,12 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue,onReady
    input.addEventListener('input',()=>apply());
    input.addEventListener('change',()=>apply(true));
    row.querySelectorAll('[data-adjust]').forEach(btn=>btn.onclick=()=>{
-    input.value=String(Math.max(1,Math.min(10,founderLevel(input.dataset.trait,currentGenome()[input.dataset.trait])+Number(btn.dataset.adjust))));
+    const key=input.dataset.trait,direction=Number(btn.dataset.adjust);
+    const now=founderLevel(key,currentGenome()[key]);
+    const next=key==='aquatic'?(direction>0?10:1):
+     key==='repro'?(direction>0?now<6?6:10:now>6?6:1):
+     Math.max(1,Math.min(10,now+direction));
+    input.value=String(next);
     apply(true);
    });
   });
