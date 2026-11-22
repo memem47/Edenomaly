@@ -1,9 +1,10 @@
 import {FOUNDER_BUDGET,FOUNDER_TRAITS,FOUNDER_FIELDS,formatTrait,editFounderGenome,founderCost,founderTraitCost,canUseFounder,founderLevel,founderValueAtLevel,founderLevelMeaning} from './founder-designer.js';
 import {morphology,dietProfile,terrainFitness,genomeCode} from './simulation.js';
-import {drawFounderAppearance} from './founder-preview.js?v=2026.11.22.2';
-import {differenceMagnitude,rankDifferences} from './discovery-diff.js?v=2026.11.22.2';
-import {FOUNDER_PRESETS,founderPresetGenome,randomFounderGenome} from './founder-presets.js?v=2026.11.22.2';
-import {phenotypeBarsHTML,abilityListHTML} from './ability-bars.js?v=2026.11.22.2';
+import {drawFounderAppearance} from './founder-preview.js?v=2026.11.22.4';
+import {createDiscoveryToastQueue} from './discovery-toast-queue.js?v=2026.11.22.4';
+import {differenceMagnitude,rankDifferences} from './discovery-diff.js?v=2026.11.22.4';
+import {FOUNDER_PRESETS,founderPresetGenome,randomFounderGenome} from './founder-presets.js?v=2026.11.22.4';
+import {phenotypeBarsHTML,abilityListHTML} from './ability-bars.js?v=2026.11.22.4';
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format=n=>Number(n).toFixed(1);
 const makeDialog=(id,title)=>{
@@ -13,13 +14,39 @@ const makeDialog=(id,title)=>{
  document.body.append(dialog);
  return dialog;
 };
-export function mountFounderScreens({game,getMode,onIntroduce,onContinue,onReady=()=>{}}){
+export function mountFounderScreens({game,getMode,getDiscoveryMode=()=> 'detailed',onIntroduce,onContinue,onReady=()=>{}}){
  const editor=makeDialog('founderEditorDialog','🧬 移入するスライムの能力');
  const discovery=makeDialog('newSpeciesDiscoveryDialog','✨ 新種発見！');
  const editorBody=editor.querySelector('.genome-dialog-body');
  const editorFoot=editor.querySelector('.genome-dialog-foot');
  const discoveryBody=discovery.querySelector('.genome-dialog-body');
  const discoveryFoot=discovery.querySelector('.genome-dialog-foot');
+ const quick=document.createElement('aside');
+ quick.id='quickSpeciesDiscovery';
+ quick.className='discovery-quick-notification';
+ quick.setAttribute('role','status');
+ quick.setAttribute('aria-live','polite');
+ quick.hidden=true;
+ document.body.append(quick);
+ const quickQueue=createDiscoveryToastQueue({
+  show(item){
+   const sp=item.species;
+   quick.replaceChildren();
+   const card=document.createElement('div');
+   card.className='discovery-quick-card';
+   const portrait=document.createElement('canvas');
+   portrait.width=140;portrait.height=104;
+   portrait.setAttribute('aria-hidden','true');
+   const name=document.createElement('strong');
+   name.textContent=sp.name;
+   card.append(portrait,name);
+   quick.append(card);
+   quick.hidden=false;
+   drawFounderAppearance(portrait,sp.genome,0);
+  },
+  hide(){quick.hidden=true;quick.replaceChildren();}
+ });
+
  // Keep a real default genome rather than reconstructing unrelated sliders.
  let original=null,base=null,changes={},point=null,wasRunning=false,discoveryQueue=[];
  let preparedGenome=null,selectedGenome=null;
@@ -156,6 +183,7 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue,onReady
  };
  editor.addEventListener('cancel',e=>{e.preventDefault();editor.close();});
  function clear(){
+  quickQueue.clear();
   changes={};original=null;base=null;point=null;preparedGenome=null;selectedGenome=null;
   if(previewFrame!==null){cancelAnimationFrame(previewFrame);previewFrame=null;}
   if(editor.open)editor.close();
@@ -220,8 +248,14 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue,onReady
  }
  discovery.addEventListener('cancel',e=>{e.preventDefault();discoveryFoot.querySelector('#keepPaused').click();});
  function announce(categories){
+  if(!categories.length)return false;
+  if(getDiscoveryMode()==='quick'){
+   quickQueue.push(categories);
+   return false; // Never stop game time or interrupt the current action.
+  }
   for(const item of categories)discoveryQueue.push(item);
-  if(categories.length&&!discovery.open)showNextDiscovery();
+  if(!discovery.open)showNextDiscovery();
+  return true; // Pause game simulation until all detailed notices are read.
  }
  return {showEditor,announce,clear,
   hasPrepared:()=>!!preparedGenome,

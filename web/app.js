@@ -1,13 +1,13 @@
 import {zipFiles} from './zip-log.js?v=2026.11.07.4';
-import {mountFounderScreens} from './founder-screens.js?v=2026.11.22.3';
-import {mountDashboardTabs} from './dashboard-tabs.js?v=2026.11.22.3';
-import {abilityListHTML,phenotypeBarsHTML} from './ability-bars.js?v=2026.11.22.3';
-import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.22.3';
-import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.22.3';
+import {mountFounderScreens} from './founder-screens.js?v=2026.11.22.4';
+import {mountDashboardTabs} from './dashboard-tabs.js?v=2026.11.22.4';
+import {abilityListHTML,phenotypeBarsHTML} from './ability-bars.js?v=2026.11.22.4';
+import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.22.4';
+import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.22.4';
 import {mountGameUI} from './game-ui.js?v=2026.11.14.2';
-import {placementAssessment,populationDiagnosis} from './survival-guidance.js?v=2026.11.22.3';
+import {placementAssessment,populationDiagnosis} from './survival-guidance.js?v=2026.11.22.4';
 import {fitView,screenToWorld,zoomAround,panBy,MAX_ZOOM,ZOOM_STEP} from './viewport.js?v=2026.11.08.12';
-import {drawWorld,drawChart} from './renderer.js?v=2026.11.22.3';
+import {drawWorld,drawChart} from './renderer.js?v=2026.11.22.4';
 import {EcologyLogbook,observeEcology,ECOLOGY_LOG_FIELDS} from './ecology-log.js?v=2026.11.14.2';
 import {gameRunReport,saveGameRunReport,readGameRunHistory} from './game-run-log.js?v=2026.11.14.2';
 import {SpeciesLogbook,speciesReport,csvCell} from './species-statistics.js';
@@ -16,7 +16,7 @@ const $=id=>document.getElementById(id);
 const dashboard=mountDashboardTabs(document);
 // Release label is bundled with the running source; comparison uses a
 // separately published manifest from the repository's main branch.
-const BUILD_VERSION='2026.11.22.3';
+const BUILD_VERSION='2026.11.22.4';
 const VERSION_SOURCE='https://raw.githubusercontent.com/memem47/Edenomaly/main/web/version.json';
 $('buildVersion').textContent=BUILD_VERSION;
 async function checkLatestVersion(){
@@ -101,8 +101,16 @@ const gameUI=mountGameUI({
  refresh:()=>update(),render:()=>render(),resetGame:()=>reset(),
  getPlayMode:()=>playMode,width:WORLD.width,height:WORLD.height
 });
+const discoveryModeSelect=$('discoveryDisplayMode');
+try{
+ const saved=localStorage.getItem('edenomaly.discoveryDisplayMode');
+ if(saved==='quick'||saved==='detailed')discoveryModeSelect.value=saved;
+}catch{}
+discoveryModeSelect.addEventListener('change',()=>{
+ try{localStorage.setItem('edenomaly.discoveryDisplayMode',discoveryModeSelect.value);}catch{}
+});
 const screens=mountFounderScreens({
- game,getMode:()=>playMode,
+ game,getMode:()=>playMode,getDiscoveryMode:()=>discoveryModeSelect.value,
  onIntroduce:(point,genome)=>introduceCustom(point.x,point.y,genome),
  onReady:()=>{
   running=false;acc=0;mode='spawn';
@@ -387,7 +395,7 @@ function stepSimulation(){
   if(knownSpecies.has(category))continue;
   knownSpecies.add(category);unseen.push({category,species,step:game.tick});
  }
- if(unseen.length){running=false;acc=0;screens.announce(unseen);}
+ if(unseen.length&&screens.announce(unseen)){running=false;acc=0;}
 
 }
 function frame(time){
