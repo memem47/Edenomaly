@@ -2429,6 +2429,37 @@ export class Ecosystem{
   // Painting may run many times during a drag; avoid flooding the event log.
   return treated;
  }
+ // Game-mode landscape sculpting: exactly one 20px tile per purchase.
+ // Unlike lab paint(), no free bulk biomass, random state or arbitrary brush.
+ reshapeTerrainCell(x,y,target){
+  if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||y<0||x>=W||y>=H||
+     !Number.isInteger(target)||target<0||target>3)return false;
+  const i=this.cell(x,y),from=this.tiles[i];
+  if(from===target)return false;
+  // Never overwrite occupied habitat, eggs or corpses; preserve existing lives.
+  if(this.units.some(u=>!u.dead&&this.cell(u.x,u.y)===i)||
+     this.eggs.some(e=>!e.dead&&this.cell(e.x,e.y)===i))return false;
+  // Ponds must connect to existing ponds: a channel or shoreline, not
+  // cheap isolated infinite water sources.
+  if(target===1){
+   const cx=i%NX,cy=Math.floor(i/NX);
+   const neighbors=[cx>0?i-1:-1,cx<NX-1?i+1:-1,cy>0?i-NX:-1,cy<NY-1?i+NX:-1];
+   if(!neighbors.some(j=>j>=0&&this.tiles[j]===1))return false;
+  }
+  this.tiles[i]=target;
+  this.terrainLevels[i]=3;
+  this.grass[i]=target===0?28:target===2?3:target===3?12:0;
+  this.waterbed[i]=target===1?1:0;
+  this.water[i]=target===1?60:0;
+  this.waterweed[i]=target===1?30:0;
+  this.soilWater[i]=target===0?48:target===1?90:target===2?20:8;
+  // Fertile soil is not conjured at full strength by changing the terrain.
+  this.soil[i]=Math.min(this.soil[i],target===0?55:target===1?30:target===2?20:10);
+  this.grazingPressure[i]=0;
+  this._waterRegionTick=null;
+  this._waterRegions=null;
+  return true;
+ }
  paint(x,y,type,radius,level=3){
   this._waterRegionTick=null; // terrain paint can join/split a pond within a paused tick
   const cx=Math.floor(x/CELL),cy=Math.floor(y/CELL);
