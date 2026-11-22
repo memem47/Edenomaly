@@ -21,7 +21,7 @@ test('discovery renders portraits and compares real parental values',async()=>{
  const sim=await readFile(new URL('./simulation.js',import.meta.url),'utf8');
  assert.ok(ui.includes('data-discovery-portrait'));
  assert.ok(ui.includes('comparisonHTML(g,parents)'));
- assert.ok(ui.includes('const d=v-x'));
+ assert.ok(ui.includes('const d=geneKeys.has(key)?founderLevel(key,v)-founderLevel(key,x):v-x'));
  assert.ok(sim.includes('parents:egg.parents'));
  assert.ok(sim.includes('parents:[this.parentSnapshot(parent),this.parentSnapshot(partner)]'));
 });
