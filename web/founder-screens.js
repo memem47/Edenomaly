@@ -1,9 +1,9 @@
-import {FOUNDER_BUDGET,FOUNDER_TRAITS,FOUNDER_FIELDS,formatTrait,editFounderGenome,founderCost,founderTraitCost,canUseFounder} from './founder-designer.js';
+import {FOUNDER_BUDGET,FOUNDER_TRAITS,FOUNDER_FIELDS,formatTrait,editFounderGenome,founderCost,founderTraitCost,canUseFounder,founderLevel,founderValueAtLevel,founderLevelMeaning} from './founder-designer.js';
 import {morphology,dietProfile,terrainFitness,genomeCode} from './simulation.js';
-import {drawFounderAppearance} from './founder-preview.js?v=2026.11.22.1';
-import {differenceMagnitude,rankDifferences} from './discovery-diff.js?v=2026.11.22.1';
-import {FOUNDER_PRESETS,founderPresetGenome,randomFounderGenome} from './founder-presets.js?v=2026.11.22.1';
-import {phenotypeBarsHTML,abilityListHTML} from './ability-bars.js?v=2026.11.22.1';
+import {drawFounderAppearance} from './founder-preview.js?v=2026.11.22.2';
+import {differenceMagnitude,rankDifferences} from './discovery-diff.js?v=2026.11.22.2';
+import {FOUNDER_PRESETS,founderPresetGenome,randomFounderGenome} from './founder-presets.js?v=2026.11.22.2';
+import {phenotypeBarsHTML,abilityListHTML} from './ability-bars.js?v=2026.11.22.2';
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format=n=>Number(n).toFixed(1);
 const makeDialog=(id,title)=>{
@@ -76,6 +76,10 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue,onReady
    item.textContent=(v>0?'+':'')+v.toFixed(1)+' pt';
    item.style.color=v<0?'#9fe7cb':v>0?'#ffcf95':'';
   }
+  for(const item of editorBody.querySelectorAll('[data-trait-meaning]')){
+   const key=item.dataset.traitMeaning,level=founderLevel(key,g[key]);
+   item.textContent=founderLevelMeaning(key,level);
+  }
   paintPreview();
   const btn=editorFoot.querySelector('#confirmFounder');
   btn.disabled=!canUseFounder(base,g,isGame);
@@ -90,34 +94,35 @@ export function mountFounderScreens({game,getMode,onIntroduce,onContinue,onReady
   changes={};
   editorBody.innerHTML='<section class="compact-founder-top"><canvas id="founderAfterCanvas" width="180" height="132" aria-label="調整後のスライム"></canvas><div class="compact-founder-info"><strong>調整後の外見</strong><small>　能力に応じて体表・口・膜・栄養粒・ひれなどが変化</small> <small id="founderPreviewChanges"></small><p id="founderCost" class="founder-budget"></p><div id="founderSummary"></div></div></section>'+
    '<section class="founder-preset-selection"><strong>① 初期能力を選ぶ</strong><p class="muted">プリセットはおすすめの生存戦略です。選択後もすべての能力を編集できます。</p><div class="founder-preset-grid">'+FOUNDER_PRESETS.map(p=>'<button type="button" data-founder-preset="'+p.id+'"><b>'+escape(p.name)+'</b><small>'+escape(p.description)+'</small></button>').join('')+'<button type="button" id="randomFounderPreset"><b>🎲 ランダム生成</b><small>能力を毎回ランダムに選びます。ゲームモードの遺伝子ポイント上限内で生成します。</small></button></div></section>'+
-   '<p class="muted" id="founderHabitatTip"></p><p class="muted">有利な能力はポイント消費、不利な能力はポイント還元。食性など環境次第の戦略は無料。複数地形への高適応には追加費用。体格・目・口・顎は能力から自動決定。</p><div class="compact-founder-fields">'+FOUNDER_TRAITS.map(([section,fields])=>'<fieldset class="founder-fieldset"><legend>'+escape(section)+'</legend><div class="founder-traits">'+
+   '<p class="muted" id="founderHabitatTip"></p><p class="muted">全遺伝子を1〜10の10段階で調整します。適温・産卵数・繁殖方式・生息型は数値の横に実際の意味を表示します。内部では従来の値に変換して計算します。</p><p class="muted">有利な能力はポイント消費、不利な能力はポイント還元。食性など環境次第の戦略は無料。複数地形への高適応には追加費用。体格・目・口・顎は能力から自動決定。</p><div class="compact-founder-fields">'+FOUNDER_TRAITS.map(([section,fields])=>'<fieldset class="founder-fieldset"><legend>'+escape(section)+'</legend><div class="founder-traits">'+
     fields.map(([key,name,min,max,step])=>{
-     const v=currentGenome()[key]??min;
+     const level=founderLevel(key,currentGenome()[key]??min);
      return '<div class="founder-trait"><label for="edit-'+key+'">'+escape(name)+' <small data-point-cost="'+key+'"></small></label>'+
       '<div class="compact-value"><button type="button" data-adjust="-1" aria-label="'+escape(name)+'を減らす">−</button>'+
-      '<input id="edit-'+key+'" type="number" data-trait="'+key+'" min="'+min+'" max="'+max+'" step="'+step+'" value="'+v.toFixed(2)+'">'+
+      '<input id="edit-'+key+'" type="number" data-trait="'+key+'" min="1" max="10" step="1" value="'+level+'">'+
       '<button type="button" data-adjust="1" aria-label="'+escape(name)+'を増やす">＋</button></div>'+
-      '<div class="ability-track" role="meter" aria-label="'+escape(name)+'" aria-valuemin="'+min+'" aria-valuemax="'+max+'" aria-valuenow="'+v+'"><span class="ability-fill" style="width:'+Math.max(0,Math.min(100,(v-min)/(max-min)*100))+'%"></span></div>'+
-      '<div class="ability-scale"><small>'+min+'</small><small>'+max+'</small></div></div>';
+      '<small class="founder-level-meaning" data-trait-meaning="'+key+'">'+escape(founderLevelMeaning(key,level))+'</small>'+
+      '<div class="ability-track" role="meter" aria-label="'+escape(name)+'" aria-valuemin="1" aria-valuemax="10" aria-valuenow="'+level+'"><span class="ability-fill" style="width:'+((level-1)/9*100)+'%"></span></div>'+
+      '<div class="ability-scale"><small>1</small><small>10</small></div></div>';
     }).join('')+'</div></fieldset>').join('')+'</div>';
   editorFoot.innerHTML='<button type="button" id="resetFounder">標準に戻す</button><button type="button" id="cancelFounder">閉じる</button><button type="button" id="confirmFounder">移入</button>';
   editorBody.querySelectorAll('[data-trait]').forEach(input=>{
    const row=input.closest('.founder-trait');
    const apply=(normalize=false)=>{
     if(input.value===''||!Number.isFinite(Number(input.value)))return;
-    const key=input.dataset.trait,min=Number(input.min),max=Number(input.max),step=Number(input.step);
-    changes[key]=Math.max(min,Math.min(max,Math.round(Number(input.value)/step)*step));
-    const value=currentGenome()[key];
-    if(normalize)input.value=Number(value.toFixed(2));
+    const key=input.dataset.trait;
+    const level=Math.max(1,Math.min(10,Math.round(Number(input.value))));
+    changes[key]=founderValueAtLevel(key,level);
+    if(normalize)input.value=String(level);
     const bar=row.querySelector('.ability-track');
-    bar.setAttribute('aria-valuenow',String(value));
-    bar.querySelector('.ability-fill').style.width=((value-min)/(max-min)*100)+'%';
+    bar.setAttribute('aria-valuenow',String(level));
+    bar.querySelector('.ability-fill').style.width=((level-1)/9*100)+'%';
     updateEditorSummary();
    };
    input.addEventListener('input',()=>apply());
    input.addEventListener('change',()=>apply(true));
    row.querySelectorAll('[data-adjust]').forEach(btn=>btn.onclick=()=>{
-    input.value=String((currentGenome()[input.dataset.trait]??Number(input.min))+Number(btn.dataset.adjust)*Number(input.step));
+    input.value=String(Math.max(1,Math.min(10,founderLevel(input.dataset.trait,currentGenome()[input.dataset.trait])+Number(btn.dataset.adjust))));
     apply(true);
    });
   });
