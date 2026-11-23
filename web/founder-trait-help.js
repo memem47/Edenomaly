@@ -36,7 +36,7 @@ export const FOUNDER_TRAIT_HELP=Object.freeze({
  antennaLength:'触角の発達度。顔の前側の触角が目立ちます。触角は視界の広さにも関係します。',
  pattern:'体表の斑点模様。模様は保護色として捕食者からの発見にも関係します。',
  albino:'色素を失う白化の形質。1は通常色、10は白い体色です。自然発生は希少です。',
- longevity:'基礎的な生命維持の効率。高いほど日常的なエネルギー負担が小さくなります。寿命による突然死は復活させません。'
+ longevity:'旧寿命遺伝子。現在の生態系では寿命で死亡する仕様を廃止しているため、体内の光る輪の強さとして表現されます。生存能力には影響せず、ポイント消費もありません。'
 });
 export const FOUNDER_ADVANCED_TRAITS=new Set([
  'waterGardening','nestChoice','parentFeeding','yolkReserve','juvenileCannibalism',
