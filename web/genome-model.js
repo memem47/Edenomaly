@@ -1,4 +1,4 @@
-// Canonical DNA v2: six core stats, six inheritable skills and seven strategies.
+// Canonical DNA: six core stats, inherited skills and seven survival strategies.
 // The 37 former ecology/appearance fields are *derived phenotype caches*,
 // never independent inherited loci for v2 organisms.
 export const CORE_KEYS=Object.freeze(['power','agility','stamina','intellect','adaptation','fertility']);
@@ -8,7 +8,10 @@ export const SKILLS=Object.freeze([
  {key:'skillParentFeeding',label:'親の給餌',effect:'parentFeeding'},
  {key:'skillNestChoice',label:'産卵地選択',effect:'nestChoice'},
  {key:'skillRetaliation',label:'反撃',effect:'retaliation'},
- {key:'skillCannibalism',label:'幼体共食い',effect:'juvenileCannibalism'}
+ {key:'skillCannibalism',label:'幼体共食い',effect:'juvenileCannibalism'},
+ {key:'skillSprint',label:'瞬発ダッシュ',effect:'sprint'},
+ {key:'skillAmbush',label:'奇襲',effect:'ambush'},
+ {key:'skillRegenerate',label:'自己再生',effect:'regeneration'}
 ]);
 export const STRATEGY_FIELDS=Object.freeze([
  {key:'diet',label:'食性',min:0,max:1},
@@ -55,6 +58,7 @@ export function legacyToDNA(g={}){
   skillNestChoice:n('nestChoice')>.52?1:0,
   skillRetaliation:n('retaliation')>.58?1:0,
   skillCannibalism:n('juvenileCannibalism')>.67?1:0,
+  skillSprint:0,skillAmbush:0,skillRegenerate:0,
   diet:n('diet',.2),aquatic:Math.round(n('aquatic',0)),repro:Math.round(n('repro',0)),
   biome:n('aquatic',0)>=1?1:n('dry')>.72?2:n('rock')>.72?3:0,
   thermal:clamp((n('idealTemp',22)+5)/45),
@@ -71,9 +75,10 @@ export function expressDNA(source){
  const power=q('power'),agility=q('agility'),stamina=q('stamina'),
   intellect=q('intellect'),adaptation=q('adaptation'),fertility=q('fertility');
  const biome=dna.biome;
- const wet=clamp(.18+.50*adaptation+(biome===1?.53:0));
- const dry=clamp(.16+.55*adaptation+(biome===2?.57:0));
- const rock=clamp(.16+.53*adaptation+(biome===3?.57:0));
+ // Terrain specialization is a strategy, not a generic adaptation bonus.
+ const wet=clamp(.22+(biome===1?.70:0));
+ const dry=clamp(.22+(biome===2?.72:0));
+ const rock=clamp(.22+(biome===3?.72:0));
  const guard=clamp((.10+.79*power)*(1-.65*dna.diet));
  const retaliation=s('skillRetaliation')?clamp(.35+.60*power):0;
  const nestChoice=s('skillNestChoice')?clamp(.20+.75*intellect):0;
@@ -85,7 +90,7 @@ export function expressDNA(source){
   wet,dry,rock,idealTemp:-5+45*dna.thermal,
   tempTolerance:3+15*stamina,hibernate:s('skillHibernate')?clamp(.28+.72*adaptation):0,
   resist:clamp(.09+.87*stamina),frugality:clamp(.12+.82*stamina),
-  longevity:.6+1.4*stamina,
+  longevity:.6+1.4*fertility,
   waterGardening:s('skillWaterGardening')?clamp(.35+.65*adaptation):0,
   shell:clamp(.08+.84*fertility),guard,
   nesting:clamp(.14+.57*fertility+.20*intellect),
@@ -98,11 +103,11 @@ export function expressDNA(source){
   tailLength:clamp(.13+.56*wet+.18*agility),
   hornLength:clamp(.08+.56*power+.27*retaliation),
   antennaLength:clamp(.07+.67*intellect+.20*agility),
-  pattern:clamp(.10+.39*intellect+.28*stamina),
-  r:3+12*Math.pow(.38*dna.diet+.32*fertility+.30*power,2.7),
-  elongation:.85+2.15*Math.pow(.60*agility+.25*wet+.15*dna.aquatic,2.4),
+  pattern:clamp(.08+.79*adaptation),
+  r:3+12*Math.pow(.27*dna.diet+.24*fertility+.24*power+.25*stamina,2.7),
+  elongation:.85+2.15*Math.pow(.42*agility+.24*stamina+.19*wet+.15*dna.aquatic,2.4),
   eyes:Math.round(6*(.70*intellect+.30*agility)),
-  mouths:1+Math.round(3*(.64*dna.diet+.36*fertility)),
+  mouths:1+Math.round(3*(.47*dna.diet+.29*stamina+.24*fertility)),
   jaw:.2+2.3*(.63*dna.diet+.37*power)
  };
  const alleles={};
