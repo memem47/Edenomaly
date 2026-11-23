@@ -9,18 +9,18 @@ import {GENOME_DERIVATION_FORMULAS,founderFormulaHTML} from './founder-formulas.
 import {FOUNDER_TRAIT_HELP} from './founder-trait-help.js';
 import {speciesReport} from './species-statistics.js';
 
-test('genome has only six core, six skills and seven strategies',()=>{
- assert.equal(CORE_KEYS.length,6);assert.equal(SKILLS.length,9);assert.equal(STRATEGY_FIELDS.length,7);
- assert.equal(DNA_KEYS.length,22);
+test('genome has only six core, fourteen skills and seven strategies',()=>{
+ assert.equal(CORE_KEYS.length,6);assert.equal(SKILLS.length,14);assert.equal(STRATEGY_FIELDS.length,7);
+ assert.equal(DNA_KEYS.length,27);
  assert.deepEqual([...DNA_KEYS].sort(),FOUNDER_FIELDS.map(f=>f[0]).sort());
  assert.deepEqual([...DNA_KEYS].sort(),Object.keys(FOUNDER_TRAIT_HELP).sort());
  assert.deepEqual(GENOME_DERIVATION_FORMULAS.map(f=>f[0]).sort(),Object.keys(GENETIC_LOCUS_LIMITS).sort());
 });
 
-test('each simulated founder inherits only 22 loci; 37 ecology values are computed, not alleles',()=>{
+test('each simulated founder inherits only 27 loci; 37 ecology values are computed, not alleles',()=>{
  const w=new Ecosystem(2026112308),g=w.gene();
  assert.equal(g.genomeModel,2);
- assert.equal(Object.keys(g.dna).length,22);
+ assert.equal(Object.keys(g.dna).length,27);
  assert.deepEqual(Object.keys(g.alleles).sort(),[...DNA_KEYS].sort());
  for(const key of DNA_KEYS){
   assert.deepEqual(g.alleles[key],[g.dna[key],g.dna[key]]);
@@ -49,7 +49,7 @@ test('six direct core stats persist through editing, mutation and recombination'
  const b=editFounderGenome(g,{power:9,fertility:7,biome:3});
  const child=world.recombine(b,edited),mutant=world.mutate(child);
  for(const member of [child,mutant]){
-  assert.equal(Object.keys(member.alleles).length,22);
+  assert.equal(Object.keys(member.alleles).length,27);
   assert.equal(member.genomeModel,2);
   for(const k of DNA_KEYS)assert.ok(Number.isFinite(member.dna[k]),k);
  }
@@ -85,9 +85,9 @@ test('strategies independently determine diet habitat reproductive mode and ther
  assert.equal(a.idealTemp,-5);assert.equal(b.idealTemp,40);
 });
 
-test('founder only formula index explains 22 DNA and 37 derived physiology fields',async()=>{
+test('founder only formula index explains 27 DNA and 37 derived physiology fields',async()=>{
  const html=founderFormulaHTML(),ui=await readFile(new URL('./founder-screens.js',import.meta.url),'utf8');
- assert.match(html,/22遺伝子/);
+ assert.match(html,/27遺伝子/);
  assert.match(html,/37応用パラメータ/);
  assert.equal((html.match(/<tr>/g)||[]).length>=40,true);
  assert.match(ui,/founderFormulaHTML\(\)/);
@@ -102,7 +102,7 @@ test('high-speed headless ecology executes with canonical genetics',()=>{
  for(let i=0;i<75;i++)w.step();
  for(const u of w.units){
   assert.equal(u.g.genomeModel,2);
-  assert.equal(Object.keys(u.g.dna).length,22);
+  assert.equal(Object.keys(u.g.dna).length,27);
  }
  const rows=speciesReport(w);
  assert.ok(rows.some(row=>row.metric==='stat_power'));
