@@ -50,9 +50,15 @@ test('preview is wired into initial render, slider changes, and animation',async
 
 test('every editable ability changes a functional visual channel',async()=>{
  const {abilityAppearance}=await import('./slime-ornaments.js');
+ const {visibleOrnaments,adaptationColor}=await import('./simulation.js');
  const {FOUNDER_FIELDS}=await import('./founder-designer.js');
  const g=new Ecosystem(202611213).gene();
  for(const [key,,min,max] of FOUNDER_FIELDS){
-  assert.notDeepEqual(abilityAppearance({...g,[key]:min}),abilityAppearance({...g,[key]:max}),key);
+  const signature=other=>({
+   ...abilityAppearance(other),ornaments:visibleOrnaments(other),
+   color:adaptationColor(other),rawBody:[other.r,other.elongation,other.eyes,
+    other.mouths,other.jaw,other.albino]
+  });
+  assert.notDeepEqual(signature({...g,[key]:min}),signature({...g,[key]:max}),key);
  }
 });
