@@ -703,7 +703,7 @@ export class Ecosystem{
   };
   // Rare physically large founder is a correlated stat/strategy package,
   // not a hidden independently inherited radius gene.
-  if(this.rand()<.014){dna.power=10;dna.fertility=9;dna.diet=Math.max(.79,dna.diet);}
+  if(this.rand()<.006){dna.power=10;dna.fertility=9;dna.diet=Math.max(.79,dna.diet);}
   // Two alleles per canonical locus. Derived morphology is recomputed from
   // the expressed DNA, so neither random shape nor old cached DNA survives.
   const alleles=Object.fromEntries(DNA_KEYS.map(key=>[key,[dna[key],dna[key]]]));
