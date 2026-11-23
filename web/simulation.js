@@ -1,6 +1,6 @@
 // Edenomaly simulation: browser-only; no DOM or Canvas dependencies.
 import {appendSpeciesBirth,birthDerived} from './species-statistics.js';
-import {DNA_KEYS,DNA_LIMITS,canonicalDNA,legacyToDNA,expressDNA} from './genome-model.js';
+import {DNA_KEYS,DNA_LIMITS,canonicalDNA,legacyToDNA,expressDNA,expressAllelePair} from './genome-model.js';
 const W=800,H=460,CELL=20,NX=40,NY=23;
 export const TERRAIN_NAMES=['草地','水辺','乾燥地','岩場'];
 export const TERRAIN_COLORS=['#54c74c','#279cfa','#edb85c','#8980bf'];
@@ -742,12 +742,7 @@ export class Ecosystem{
   return expressDNA({dna:next,alleles});
  }
  expressGeneticPair(key,pair){
-  const [lo,hi]=DNA_LIMITS[key];
-  const val=key==='aquatic'?pair[0]:key==='albino'||key==='repro'?
-   Math.max(...pair):(pair[0]+pair[1])/2;
-  const discrete=DNA_KEYS.slice(0,6).includes(key)||key.startsWith('skill')||
-   ['aquatic','repro','biome','albino'].includes(key);
-  return discrete?Math.round(clamp(val,lo,hi)):clamp(val,lo,hi);
+  return expressAllelePair(key,pair);
  }
  recombine(a,b){
   if(a.genomeModel!==2||b.genomeModel!==2)return this.recombineLegacy(a,b);
