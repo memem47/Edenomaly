@@ -1,7 +1,7 @@
 // Founder-only reference for the canonical inherited model.
-// Six core stats + nine binary skills + seven strategies = 22 inherited loci.
+// Six core stats + fourteen binary skills + seven strategies = 27 inherited loci.
 // The old 37 ecology and morphology properties are derived, never inherited.
-import {CORE_KEYS,SKILLS,STRATEGY_FIELDS,DNA_KEYS} from './genome-model.js';
+import {CORE_KEYS,SKILLS,STRATEGY_FIELDS,DNA_KEYS,INHERITANCE_RULES} from './genome-model.js';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const GENOME_DERIVATION_FORMULAS=Object.freeze([
  ['diet','食性','diet = strategy.diet'],
@@ -60,13 +60,19 @@ export function founderFormulaHTML(){
  rows.map(row=>'<tr>'+row.map((cell,i)=>'<'+(i?'td':'th')+'>'+esc(cell)+'</'+(i?'td':'th')+'>').join('')+'</tr>').join('')+'</tbody></table></div>';
  return '<details id="founderFormulaReference" class="founder-formula-reference"><summary>📐 27遺伝子から37応用パラメータへの変換式</summary>'+
  '<p>遺伝子 = 基本ステータス6項目＋保有スキル14項目＋生存戦略7項目。応用パラメータ37項目は独立して遺伝しません。水／乾燥／岩場の得意分野は生存戦略で決まり、てきおうは不得意な場所での負担を軽減します。各基本値 x の正規化 xN=(x−1)/9。clamp は0〜1に制限。値は子孫の遺伝子から毎回再計算します。</p>'+
- '<h4>① 遺伝子本体（19項目）</h4>'+
+ '<h4>① 遺伝子本体（27項目・各2コピー）</h4>'+
  table(['種類','遺伝子'],[
   ['基本ステータス（各1〜10）',CORE_KEYS.join('、')],
   ['スキル（各0/1）',SKILLS.map(s=>s.key).join('、')],
   ['戦略',STRATEGY_FIELDS.map(s=>s.key).join('、')]
  ])+
- '<h4>② 全37応用パラメータの算出式</h4>'+table(['応用値','変換式'],GENOME_DERIVATION_FORMULAS.map(([,label,formula])=>[label,formula]))+
- '<h4>③ 物理量・行動の計算</h4>'+table(['派生量','式','備考'],FOUNDER_DERIVED_FORMULAS)+
+ '<h4>② 対立遺伝子の発現ルール</h4>'+
+ '<p>各子は父母の対立遺伝子から1コピーずつ受け取り、2コピーを保持します。劣性の保因者（1/0）は外見・行動に現れなくても子に伝えられます。</p>'+
+ table(['遺伝子座','遺伝形式'],DNA_KEYS.map(key=>[SKILLS.find(s=>s.key===key)?.label??key,
+  ({recessive:'劣性：1/1のみ発現',dominant:'優性：1/0でも発現',
+   additive:'中間・加算：2コピーの平均',intermediate:'中間遺伝：2コピーの平均',
+   'ordered-dominant':'複対立：大きい値を優先'})[INHERITANCE_RULES[key]]]))+
+ '<h4>③ 全37応用パラメータの算出式</h4>'+table(['応用値','変換式'],GENOME_DERIVATION_FORMULAS.map(([,label,formula])=>[label,formula]))+
+ '<h4>④ 物理量・行動の計算</h4>'+table(['派生量','式','備考'],FOUNDER_DERIVED_FORMULAS)+
  '<p>スキルはDNAとして継承されますが、発動には空腹・地形・相手などの追加条件が必要です。細かな端数や例外処理は genome-model.js / simulation.js が正です。</p></details>';
 }
