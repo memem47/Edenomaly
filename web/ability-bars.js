@@ -1,5 +1,5 @@
 import {FOUNDER_FIELDS,founderLevel,founderLevelMeaning} from './founder-designer.js';
-import {functionalOrnaments} from './simulation.js';
+import {visibleOrnaments} from './simulation.js';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const abilityPosition=(value,min,max)=>Number.isFinite(value)&&max>min?
  Math.min(100,Math.max(0,(value-min)/(max-min)*100)):0;
@@ -28,8 +28,8 @@ export function abilityListHTML(g){
   .map(([key,label,min,max])=>abilityBarHTML(key,label,g[key],min,max)).join('')+'</div>';
 }
 export function phenotypeBarsHTML(g){
- const traits=functionalOrnaments(g);
- return '<div class="appearance-derivation"><strong>能力から決まる外見</strong><p>飾りは専用遺伝子ではなく、生存能力から自動生成されます。</p>'+
+ const traits=visibleOrnaments(g);
+ return '<div class="appearance-derivation"><strong>能力から決まる外見</strong><p>飾りは生存能力と、遺伝する尾・角・触角・模様の専用遺伝子から決まります。</p>'+
   APPEARANCE_DRIVERS.map(([key,label,reason])=>
    abilityBarHTML('phenotype-'+key,label+' — '+reason,traits[key],0,1)).join('')+'</div>';
 }
