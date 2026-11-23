@@ -5,16 +5,18 @@ import {Ecosystem} from './simulation.js';
 import {speciesReport,speciesCSV,parseSpeciesCSV,medianOf} from './species-statistics.js';
 
 test('species metrics report every born individual and exact middle values',()=>{
- const w=new Ecosystem(20261110);
- const g={...w.gene(),hornLength:1,antennaLength:0,pattern:0},a={...g,tailLength:0},b={...g,tailLength:.2},c={...g,tailLength:.9};
+ const w=new Ecosystem(20261110),g=w.gene();
+ // Constitution remains a continuous per-species locus and is not a species
+ // identity boundary; cosmetic feature changes may create new species.
+ const a={...g,longevity:.6},b={...g,longevity:1.1},c={...g,longevity:1.9};
  const ua=w.spawn(160,140,a),ub=w.spawn(165,140,b),uc=w.spawn(170,140,c);
  const key=ua.category;
  assert.equal(ub.category,key);
  assert.equal(uc.category,key);
  const rows=speciesReport(w);
- const tail=rows.find(r=>r.category===key&&r.metric==='tailLength'&&r.scope==='birth');
- assert.deepEqual([tail.min,tail.median,tail.max,tail.samples],[0,.2,.9,3]);
- assert.equal(tail.species,w.species.get(key).name);
+ const trait=rows.find(r=>r.category===key&&r.metric==='longevity'&&r.scope==='birth');
+ assert.deepEqual([trait.min,trait.median,trait.max,trait.samples],[.6,1.1,1.9,3]);
+ assert.equal(trait.species,w.species.get(key).name);
  assert.ok(rows.some(r=>r.scope==='birth'&&r.metric==='geneticMass'));
  assert.ok(rows.some(r=>r.scope==='living'&&r.metric==='energy'));
  assert.ok(rows.some(r=>r.scope==='living'&&r.metric==='actualMass'));
@@ -23,16 +25,16 @@ test('species metrics report every born individual and exact middle values',()=>
  w.die(ua,'test');w.die(ub,'test');w.die(uc,'test');
  const extinct=speciesReport(w);
  assert.equal(w.species.get(key).current,0);
- assert.equal(extinct.find(r=>r.category===key&&r.scope==='birth'&&r.metric==='tailLength').samples,3);
+ assert.equal(extinct.find(r=>r.category===key&&r.scope==='birth'&&r.metric==='longevity').samples,3);
  assert.ok(!extinct.some(r=>r.category===key&&r.scope==='living'));
 });
 test('exact median updates after births and remains stable without new births',()=>{
- const w=new Ecosystem(20261111),g={...w.gene(),hornLength:1,tailLength:0,antennaLength:0};
- for(const value of [.1,.3,.7,.9])w.spawn(180,140,{...g,pattern:value});
- const get=()=>speciesReport(w).find(r=>r.metric==='pattern'&&r.scope==='birth').median;
- assert.equal(get(),.5);assert.equal(get(),.5);
- w.spawn(180,140,{...g,pattern:.8});
- assert.equal(get(),.7,'birth should invalidate median cache');
+ const w=new Ecosystem(20261111),g=w.gene();
+ for(const value of [.7,1.1,1.5,1.9])w.spawn(180,140,{...g,longevity:value});
+ const get=()=>speciesReport(w).find(r=>r.metric==='longevity'&&r.scope==='birth').median;
+ assert.equal(get(),1.3);assert.equal(get(),1.3);
+ w.spawn(180,140,{...g,longevity:1.7});
+ assert.equal(get(),1.5,'birth should invalidate median cache');
  assert.equal(medianOf([9,1,4,7]),5.5);
 });
 test('species reports can still be exported as CSV and reopened',()=>{
