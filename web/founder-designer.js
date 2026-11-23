@@ -25,7 +25,7 @@ export const FOUNDER_TRAITS=Object.freeze([
  ['体表・遺伝（詳細）',[
   ['tailLength','尾の発達',0,1,.05],['hornLength','角の発達',0,1,.05],
   ['antennaLength','触角の発達',0,1,.05],['pattern','斑点・模様',0,1,.05],
-  ['albino','白化（色素喪失）',0,1,1],['longevity','生命維持の効率',.6,2,.05]]]
+  ['albino','白化（色素喪失）',0,1,1],['longevity','体内光沢（旧寿命遺伝子）',.6,2,.05]]]
 ]);
 export const FOUNDER_FIELDS=FOUNDER_TRAITS.flatMap(([,fields])=>fields);
 // All player-facing DNA controls use the same 1..10 integer scale. Internal
@@ -61,7 +61,7 @@ export function founderLevelMeaning(key,level){
  if(key==='r')return '半径 '+value;
  if(key==='elongation')return '長さ比 '+value;
  if(key==='jaw')return '顎 '+value;
- if(key==='longevity')return '維持係数 '+value;
+ if(key==='longevity')return '光沢 '+value;
  return level<=3?'低い':level>=8?'高い':'中程度';
 }
 
@@ -93,7 +93,7 @@ const PRICE=Object.freeze({wet:8,dry:8,rock:8,tempTolerance:12,hibernate:4,resis
 export function founderTraitCost(key,value){
  if(!Number.isFinite(value))return 0;
  if(key==='tempTolerance')return PRICE[key]*(Math.max(3,Math.min(18,value))-10.5)/15;
- if(key==='longevity')return 4*(value-1.2)/.8;
+ if(key==='longevity')return 0; // legacy lifespan no longer affects survival; visual expression only
  if(key==='repro')return [0,3,1][Math.round(value)]??0;
  // High brood sizes gain many simultaneous offspring: price the advantage
  // non-linearly, while low brood sizes refund points for the tradeoff.
