@@ -1,11 +1,11 @@
 import {FOUNDER_BUDGET,FOUNDER_TRAITS,FOUNDER_FIELDS,formatTrait,editFounderGenome,founderCost,founderTraitCost,canUseFounder,founderLevel,founderValueAtLevel,founderLevelMeaning} from './founder-designer.js';
 import {founderTraitHelp,FOUNDER_ADVANCED_TRAITS} from './founder-trait-help.js';
 import {morphology,dietProfile,terrainFitness,genomeCode} from './simulation.js';
-import {drawFounderAppearance} from './founder-preview.js?v=2026.11.23.1';
-import {createDiscoveryToastQueue} from './discovery-toast-queue.js?v=2026.11.23.1';
-import {differenceMagnitude,rankDifferences} from './discovery-diff.js?v=2026.11.23.1';
-import {FOUNDER_PRESETS,founderPresetGenome,randomFounderGenome} from './founder-presets.js?v=2026.11.23.1';
-import {phenotypeBarsHTML,abilityListHTML} from './ability-bars.js?v=2026.11.23.1';
+import {drawFounderAppearance} from './founder-preview.js?v=2026.11.23.2';
+import {createDiscoveryToastQueue} from './discovery-toast-queue.js?v=2026.11.23.2';
+import {differenceMagnitude,rankDifferences} from './discovery-diff.js?v=2026.11.23.2';
+import {FOUNDER_PRESETS,founderPresetGenome,randomFounderGenome} from './founder-presets.js?v=2026.11.23.2';
+import {phenotypeBarsHTML,abilityListHTML} from './ability-bars.js?v=2026.11.23.2';
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format=n=>Number(n).toFixed(1);
 const makeDialog=(id,title)=>{
