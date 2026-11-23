@@ -41,12 +41,12 @@ test('skill eligibility changes with real DNA and does not consume simulation ra
 test('screen renders basic stats first and keeps gene details and live skills (DNA v2)',async()=>{
  const ui=await readFile(new URL('./founder-screens.js',import.meta.url),'utf8');
  const css=await readFile(new URL('./style.css',import.meta.url),'utf8');
- assert.match(ui,/id="toggleGeneEditor"/);assert.match(ui,/id="founderGeneEditor" hidden/);
+ assert.match(ui,/id="toggleGeneEditor"/);assert.match(ui,/id="founderGeneEditor" class="founder-strategy-grid"/);
  assert.match(ui,/data-basic-stat/);
  assert.match(ui,/editBasicStat\(currentGenome\(\),input\.dataset\.basicStat,desired\)/);
  assert.match(ui,/changes\[input\.dataset\.basicStat\]=edited\.dna\[input\.dataset\.basicStat\]/);
  assert.match(ui,/founderSkills\(g\)/);
- assert.match(css,/#founderGeneEditor\[hidden\]/);
+ assert.match(css,/#founderEditorDialog \.founder-two-columns/);
 });
 
 test('training every skill edits only existing genome loci and enables its prerequisites (DNA v2)',async()=>{
