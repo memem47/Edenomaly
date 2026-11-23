@@ -6,14 +6,14 @@ import {FOUNDER_TRAIT_HELP} from './founder-trait-help.js';
 import {abilityAppearance} from './slime-ornaments.js';
 
 const shapeKeys=['r','elongation','eyes','mouths','jaw'];
-test('full genetic editor exactly matches the heritable genome registry',()=>{
+test('full genetic editor exactly matches the heritable genome registry (DNA v2)',async()=>{
+ const {DNA_KEYS,DNA_LIMITS}=await import('./genome-model.js');
  const keys=FOUNDER_FIELDS.map(([key])=>key);
- assert.equal(keys.length,37);
- assert.deepEqual([...keys].sort(),Object.keys(GENETIC_LOCUS_LIMITS).sort());
+ assert.equal(keys.length,19);
+ assert.deepEqual([...keys].sort(),[...DNA_KEYS].sort());
  assert.deepEqual([...keys].sort(),Object.keys(FOUNDER_TRAIT_HELP).sort());
- for(const [key,,lo,hi] of FOUNDER_FIELDS){
-  assert.deepEqual(GENETIC_LOCUS_LIMITS[key],[lo,hi],key);
- }
+ for(const [key,,lo,hi] of FOUNDER_FIELDS)assert.deepEqual(DNA_LIMITS[key],[lo,hi],key);
+ assert.equal(Object.keys(GENETIC_LOCUS_LIMITS).length,37);
 });
 
 test('all genes change at least one visible trait, shape or color endpoint',()=>{
@@ -32,27 +32,18 @@ test('all genes change at least one visible trait, shape or color endpoint',()=>
  }
 });
 
-test('directly edited morphology overrides the computed body and survives descendants',()=>{
- const world=new Ecosystem(201122),base=world.gene();
- const g=editFounderGenome(base,{eyes:5,r:13,jaw:2.25});
- assert.deepEqual(g.bodyOverrides.sort(),['eyes','jaw','r'].sort());
- assert.equal(g.eyes,5);
- assert.equal(g.r,13);
- assert.equal(g.jaw,2.25);
- assert.equal(g.alleles.eyes[0],5);
- const recomputed=editFounderGenome(g,{diet:0,retaliation:0,predatorSense:0});
- assert.equal(recomputed.r,13);
- assert.equal(recomputed.eyes,5);
- assert.equal(recomputed.jaw,2.25);
- const mutated=world.mutate(g);
- assert.ok(mutated.bodyOverrides.includes('eyes'));
- assert.equal(mutated.eyes,Math.max(...mutated.alleles.eyes));
- const child=world.recombine(g,g);
- assert.ok(child.bodyOverrides.includes('jaw'));
- assert.equal(child.jaw,(child.alleles.jaw[0]+child.alleles.jaw[1])/2);
- const passive=editFounderGenome(base,{predatorSense:1,caution:1});
- assert.ok(!passive.bodyOverrides.includes('eyes'));
- assert.equal(passive.eyes,6);
+test('directly edited morphology overrides the computed body and survives descendants (DNA v2)',async()=>{
+ const w=new Ecosystem(201122),base=w.gene();
+ const a=editFounderGenome(base,{power:10,intellect:9,fertility:9,agility:7});
+ assert.ok(a.r>base.r);assert.ok(a.jaw>base.jaw);assert.ok(a.eyes>=base.eyes);
+ for(const key of ['r','eyes','mouths','jaw','elongation'])assert.ok(!Object.hasOwn(a.alleles,key));
+ const derived=editFounderGenome(a,{power:4,intellect:4,fertility:4});
+ assert.ok(derived.r<a.r);assert.ok(derived.jaw<a.jaw);
+ const child=w.recombine(a,a),mutated=w.mutate(a);
+ assert.equal(child.genomeModel,2);assert.equal(mutated.genomeModel,2);
+ assert.equal(Object.keys(child.alleles).length,19);
+ assert.equal(Object.keys(mutated.alleles).length,19);
+ assert.deepEqual(child.dna,a.dna);
 });
 
 test('cosmetic loci affect visual phenotype without modifying existing mechanics',()=>{
