@@ -6,7 +6,7 @@ import {drawOrnamentsBehind,drawOrnamentsFront,drawAbilityDetails} from './slime
 
 test('each one of 37 genes changes appearance and an identifying name token (DNA v2)',async()=>{
  const w=new Ecosystem(2026112304),base=w.gene();
- assert.equal(FOUNDER_FIELDS.length,22);
+ assert.equal(FOUNDER_FIELDS.length,27);
  for(const [key,,lo,hi] of FOUNDER_FIELDS){
   const a=editFounderGenome(base,{[key]:lo});
   const b=editFounderGenome(base,{[key]:hi});
