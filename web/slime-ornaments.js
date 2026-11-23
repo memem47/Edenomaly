@@ -116,6 +116,7 @@ export function abilityAppearance(g){
   freckles:n(g,'deception')*.45+n(g,'nesting')*.25+n(g,'nestChoice')*.30,
   glow:n(g,'frugality')*.45+n(g,'hibernate')*.35+n(g,'sociability')*.20,
   brow:n(g,'caution')*.45+n(g,'predatorSense')*.55,
+  vitality:n(g,'longevity',.6,2),
   size:n(g,'r',3,15),shape:n(g,'elongation',.65,3),eyes:n(g,'eyes',0,6)
  };
 }
@@ -129,6 +130,10 @@ export function drawAbilityDetails(ctx,g,rx,ry){
  ctx.strokeStyle='rgba(245,255,255,'+(.08+a.membrane*.48)+')';
  ctx.lineWidth=Math.max(.25,ry*(.025+a.membrane*.055));
  ctx.beginPath();ctx.ellipse(0,0,rx*.86,ry*.85,0,0,TAU);ctx.stroke();
+ // Constitution is visible as a subtle, curved metabolic pulse on the inner rim.
+ ctx.strokeStyle='rgba(230,250,211,'+(.10+a.vitality*.65)+')';
+ ctx.lineWidth=Math.max(.35,ry*(.025+.045*a.vitality));
+ ctx.beginPath();ctx.ellipse(-rx*.12,0,rx*(.57+.13*a.vitality),ry*.65,0,-Math.PI*.72,Math.PI*.24);ctx.stroke();
  ctx.fillStyle='hsla('+(210-180*a.warmth)+',80%,65%,'+(.035+a.glow*.13)+')';
  ctx.beginPath();ctx.ellipse(-rx*.16,0,rx*.67,ry*.60,0,0,TAU);ctx.fill();
  // Internal reserves and camouflage, concentrated away from the eyes.
