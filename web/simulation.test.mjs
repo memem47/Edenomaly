@@ -3052,7 +3052,7 @@ test('planting remains unavailable to terrestrial organisms and low-garden genot
 
 test('dietary innovation occasionally produces heritable carnivorous offspring',()=>{
  const w=new Ecosystem(2026110824),g=w.gene();
- g.diet=.60;g.alleles.diet=[.60,.60];
+ g.diet=.60;g.dna.diet=.60;g.alleles.diet=[.60,.60];
  let novel=null;
  for(let i=0;i<500;i++){
   const descendant=w.recombine(g,g);
