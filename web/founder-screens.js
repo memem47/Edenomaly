@@ -1,6 +1,7 @@
 import {FOUNDER_BUDGET,FOUNDER_TRAITS,FOUNDER_FIELDS,formatTrait,editFounderGenome,founderCost,founderTraitCost,canUseFounder,founderLevel,founderValueAtLevel,founderLevelMeaning} from './founder-designer.js';
 import {founderTraitHelp,FOUNDER_ADVANCED_TRAITS} from './founder-trait-help.js';
 import {BASIC_STATS,basicStatLevel,editBasicStat,founderSkills,trainFounderSkill,skillTrainingGenes} from './basic-stats.js';
+import {founderFormulaHTML} from './founder-formulas.js';
 import {morphology,dietProfile,terrainFitness,genomeCode} from './simulation.js';
 import {drawFounderAppearance} from './founder-preview.js?v=2026.11.23.4';
 import {createDiscoveryToastQueue} from './discovery-toast-queue.js?v=2026.11.23.4';
@@ -63,16 +64,9 @@ export function mountFounderScreens({game,getMode,getDiscoveryMode=()=> 'detaile
   return original;
  };
  const currentGenome=()=>editFounderGenome(base??defaultGenome(),changes);
- const summary=(g)=>{const m=morphology(g),diet=dietProfile(g);
-  return '<div class="founder-summary">'+[
-   ['食性',diet.label],['生息型',g.aquatic?'水生':'陸生'],
-   ['体格',format(m.bodyMass)],['基本体格',format(g.r)],['長さ比',format(g.elongation)],['目',g.eyes],['口',g.mouths],['顎',format(g.jaw)],['最大HP',Math.max(25,Math.round(m.bodyMass*.48+25))],
-   ['移動速度',format(m.speed)],['視界',Math.round(m.eyeRange)],
-   ['適温',format(g.idealTemp)+'℃'],['耐性','±'+format(g.tempTolerance)+'℃'],
-   ['繁殖方式',formatTrait('repro',g.repro)],['卵の数',String(g.brood)],
-   ['乾燥適応',format(terrainFitness(g,2).fitness)],['岩場適応',format(terrainFitness(g,3).fitness)]
-  ].map(([name,value])=>'<span><small>'+escape(name)+'</small><b>'+escape(value)+'</b></span>').join('')+'</div>';
- };
+ const summary=g=>'<div class="founder-summary">'+BASIC_STATS.map(stat=>
+  '<span title="'+escape(stat.help)+'"><small>'+stat.icon+' '+escape(stat.name)+'</small>'+
+  '<b>'+basicStatLevel(g,stat.key)+'/10</b></span>').join('')+'</div>';
  const paintPreview=()=>{
   const edited=editorBody.querySelector('#founderAfterCanvas');
   if(!edited||!base)return;
@@ -161,6 +155,7 @@ export function mountFounderScreens({game,getMode,getDiscoveryMode=()=> 'detaile
     '<div class="ability-track" role="meter" aria-label="'+escape(stat.name)+'" aria-valuemin="1" aria-valuemax="10" aria-valuenow="'+basicStatLevel(currentGenome(),stat.key)+'"><span class="ability-fill" style="width:'+((basicStatLevel(currentGenome(),stat.key)-1)/9*100)+'%"></span></div>'+
     '<small class="basic-stat-help">'+escape(stat.help)+'</small></div>').join('')+'</div></section>'+
    '<section class="founder-skills-section"><h3>スキル・生存戦略</h3><p class="muted">スキルは新たな遺伝子ではありません。下の「素質あり」は発動保証ではなく、実際には環境・体力・相手などの条件が必要です。</p><div id="founderSkills" class="founder-skills-grid"></div></section>'+
+   founderFormulaHTML()+
    '<button type="button" id="toggleGeneEditor" aria-expanded="false">🧬 遺伝子を個別に調整（全37項目）</button><div id="founderGeneEditor" hidden><p class="muted">能力名の ⓘ にマウスを乗せると効果を表示します。基本ステータスに含まれない食性・水生／陸生・繁殖方式などもここで設定できます。</p><button type="button" id="toggleAdvancedTraits" aria-expanded="false">全37遺伝子を表示（詳細18項目）</button><p class="muted">全遺伝子を1〜10の10段階で調整します。適温・産卵数・繁殖方式・生息型は数値の横に実際の意味を表示します。二択・三択の特徴は1/10や1/6/10など有効なレベルに切り替わります。内部では従来の値に変換して計算します。</p><p class="muted">有利な能力はポイント消費、不利な能力はポイント還元。食性など環境次第の戦略は無料。複数地形への高適応には追加費用。体格・目・口・顎は通常は能力から自動決定。詳細編集で個別に固定でき、子孫にも遺伝します。</p><div class="compact-founder-fields">'+FOUNDER_TRAITS.map(([section,fields])=>'<fieldset class="founder-fieldset"'+(section.includes('（詳細）')?' hidden data-advanced-section="true"':'')+'><legend>'+escape(section)+'</legend><div class="founder-traits">'+
     fields.map(([key,name,min,max,step])=>{
      const level=founderLevel(key,currentGenome()[key]??min);
@@ -265,46 +260,34 @@ export function mountFounderScreens({game,getMode,getDiscoveryMode=()=> 'detaile
   discoveryQueue=[];
  }
  function comparisonHTML(g,parents){
-  const fields=[...FOUNDER_FIELDS,
-   ['r','基本体格',3,15],['elongation','体の長さ比',.65,3],['eyes','目の数',0,6],
-   ['mouths','口の数',1,4],['jaw','顎・攻撃力',.2,2.5]];
-  const derived=[['bodyMass','体格（質量）'],['eyeRange','視界'],['speed','移動速度'],['upkeep','維持エネルギー'],['biteReach','攻撃範囲'],['maxHp','最大HP']];
-  const stats=g=>{const m=morphology(g);return {...g,...m,maxHp:Math.max(25,Math.round(m.bodyMass*.48+25))};};
-  const current=stats(g),previous=parents.map(p=>stats(p.genome));
-  const geneKeys=new Set(FOUNDER_FIELDS.map(([key])=>key));
-  const fmt=(key,v)=>!Number.isFinite(v)?'—':geneKeys.has(key)?
-   founderLevel(key,v)+'/10（'+founderLevelMeaning(key,founderLevel(key,v))+'）':
-   Number(v.toFixed(3)).toString();
-  const rows=[...derived,...fields].map(([key,label,min,max],index)=>{
-   const v=current[key],pv=previous.map(p=>p[key]);
-   const changed=pv.some(x=>Number.isFinite(x)&&(
-    geneKeys.has(key)?founderLevel(key,v)!==founderLevel(key,x):Math.abs(v-x)>=.0005));
-   const cells=pv.map(x=>{
-    if(!Number.isFinite(x)||!Number.isFinite(v))return '<td>—</td>';
-    const d=geneKeys.has(key)?founderLevel(key,v)-founderLevel(key,x):v-x;
-    const dir=Math.abs(d)<.0005?'same':d>0?'up':'down';
-    const delta=dir==='same'?'±0':(d>0?'+':'')+Number(d.toFixed(3));
-    return '<td>'+escape(fmt(key,x))+' <small class="discovery-delta '+dir+'">'+escape(delta)+'</small></td>';
-   }).join('');
-   return {changed,index,score:geneKeys.has(key)?Math.max(0,...pv.map(x=>Number.isFinite(x)?Math.abs(founderLevel(key,v)-founderLevel(key,x))/9:0)):differenceMagnitude(key,v,pv,min,max),html:'<tr><th scope="row">'+escape(label)+'</th><td><strong>'+escape(fmt(key,v))+'</strong></td>'+cells+'</tr>'};
-  });
-  const table=rows=>'<div class="discovery-table-wrap"><table class="discovery-table"><thead><tr><th>能力</th><th>新種</th>'+parents.map((p,i)=>'<th>親'+(i+1)+'（新種との差）</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>r.html).join('')+'</tbody></table></div>';
   if(!parents.length)return '<p class="muted">親の情報がないため比較できません。</p>';
-  const ranked=rankDifferences(rows);
-  return '<h3>親から変化した能力</h3><p class="muted">差分＝新種 − 親。遺伝子は1〜10の段階差で表示し、派生能力は実数値の差で表示。両親のうち差が大きい方を採用し、能力の範囲に対する変化率が大きい順に並べています。増減は有利・不利を意味しません。成体の基礎能力を比較しています。</p>'+
-   (ranked.some(r=>r.changed)?table(ranked.filter(r=>r.changed)):'<p>表示精度内では能力値の変化なし。</p>')+
-   '<details><summary>変化のない能力も表示</summary>'+table(ranked.filter(r=>!r.changed))+'</details>';
+  const rows=BASIC_STATS.map(stat=>{
+   const value=basicStatLevel(g,stat.key),pv=parents.map(p=>basicStatLevel(p.genome,stat.key));
+   const changed=pv.some(x=>x!==value);
+   const score=Math.max(...pv.map(x=>Math.abs(value-x)));
+   const cells=pv.map(x=>{
+    const diff=value-x,dir=diff>0?'up':diff<0?'down':'same';
+    return '<td>'+x+'/10 <small class="discovery-delta '+dir+'">'+
+     (diff>0?'+':'')+diff+'</small></td>';
+   }).join('');
+   return {changed,score,html:'<tr><th>'+stat.icon+' '+escape(stat.name)+'</th><td><strong>'+
+    value+'/10</strong></td>'+cells+'</tr>'};
+  });
+  const table=items=>'<div class="discovery-table-wrap"><table class="discovery-table"><thead><tr><th>基本ステータス</th><th>新種</th>'+
+   parents.map((p,i)=>'<th>親'+(i+1)+'（新種との差）</th>').join('')+'</tr></thead><tbody>'+
+   items.map(r=>r.html).join('')+'</tbody></table></div>';
+  const sorted=[...rows].sort((a,b)=>b.score-a.score);
+  return '<h3>親から変化した基本ステータス</h3><p class="muted">6つの基本ステータスのみを比較。差分は新種−親です。詳細な遺伝子と変換式は移入画面で確認できます。</p>'+
+   (sorted.some(r=>r.changed)?table(sorted.filter(r=>r.changed)):'<p>基本ステータスに変化なし。</p>')+
+   '<details><summary>変化のない基本ステータス</summary>'+table(sorted.filter(r=>!r.changed))+'</details>';
  }
  function showNextDiscovery(){
   if(!discoveryQueue.length){if(discovery.open)discovery.close();return false;}
   const item=discoveryQueue[0],sp=item.species,g=sp.genome;
   const parents=(sp.parents??[]).filter(p=>p?.genome);
   discoveryBody.innerHTML='<p class="muted">Step '+item.step+' に発見。確認するまでシミュレーションを停止しています。</p>'+
-   '<div class="discovery-portraits">'+[{name:sp.name,genome:g},...parents].map((p,i)=>'<figure><canvas width="180" height="132" data-discovery-portrait="'+i+'"></canvas><figcaption><strong>'+(i===0?'✨ 新種':'親'+i+' #'+p.id)+'</strong><br>'+escape(p.name)+'</figcaption></figure>').join('')+'</div>'+summary(g)+comparisonHTML(g,parents)+
-   '<details><summary>外見の特徴</summary>'+phenotypeBarsHTML(g)+'</details>'+
-   '<details><summary>🧬 遺伝子・能力の詳細</summary><div class="founder-discovery-genes">'+
-   abilityListHTML(g)+
-   '</div></details><p class="muted">遺伝子コード '+escape(genomeCode(g))+'</p>';
+   '<div class="discovery-portraits">'+[{name:sp.name,genome:g},...parents].map((p,i)=>'<figure><canvas width="180" height="132" data-discovery-portrait="'+i+'"></canvas><figcaption><strong>'+(i===0?'✨ 新種':'親'+i+' #'+p.id)+'</strong><br>'+escape(p.name)+'</figcaption></figure>').join('')+'</div>'+
+   summary(g)+comparisonHTML(g,parents);
   discoveryBody.querySelectorAll('[data-discovery-portrait]').forEach(canvas=>drawFounderAppearance(canvas,[g,...parents.map(p=>p.genome)][Number(canvas.dataset.discoveryPortrait)],0));
   discoveryBody.scrollTop=0;
   discoveryFoot.innerHTML='<button type="button" id="keepPaused">停止したまま閉じる</button>'+
