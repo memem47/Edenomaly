@@ -57,7 +57,7 @@ test('editor renders ten-stage inputs and snap-safe categorical buttons',async()
  const ui=await readFile(new URL('./founder-screens.js',import.meta.url),'utf8');
  assert.ok(ui.includes('min="1" max="10" step="1"'));
  assert.ok(ui.includes('founderValueAtLevel(key,level)'));
- assert.ok(ui.includes("key==='aquatic'?(direction>0?10:1)"));
+ assert.ok(ui.includes("(key==='aquatic'||key==='albino')?(direction>0?10:1)"));
  assert.ok(ui.includes("key==='repro'?(direction>0?now<6?6:10:now>6?6:1)"));
  assert.ok(ui.includes('founderLevel(key,v)-founderLevel(key,x)'));
 });
