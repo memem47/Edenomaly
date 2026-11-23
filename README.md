@@ -35,11 +35,20 @@ flowchart LR
 
 ## すぐに始める（Windows / VSCode）
 
-Python 3 がある場合、リポジトリのルートディレクトリで実行します。
+**Windowsでの推奨起動方法：** リポジトリ直下の `start_game.bat` をダブルクリックするだけで、GitHub更新 → サーバー起動確認 → 標準ブラウザ表示を実行します。Git と Python 3（Windowsの `py` コマンド）が必要です。
+
+- `git pull --ff-only` に失敗した場合、ゲームは起動せず、エラーを表示します。ローカル変更やブランチの衝突を勝手に解消しません。
+- 同じランチャーで既に起動している場合は二重起動せず、ブラウザだけ開きます（既存サーバー稼働中のGit更新は行いません）。
+- 8000番ポートを別アプリが使用している場合は、誤ったページを開かずエラーにします。
+- **終了方法：** ランチャーの黒いウィンドウで `Ctrl+C` を押すか、ウィンドウを閉じます。ブラウザのタブを閉じるだけではサーバーは停止しません。
+- 更新せずに起動するときは、リポジトリ直下で `py -3 tools/launch_game.py --no-pull` を実行します。ポート変更は `--port 8001` などです。
+- この方法はWindows向けです。macOS/Linuxでは `python3 tools/launch_game.py` を利用できます。
+
+従来の手動実行も可能です。
 
 ```powershell
-git pull
-py -m http.server 8000 --directory web
+git pull --ff-only
+py -m http.server 8000 --bind 127.0.0.1 --directory web
 ```
 
 ブラウザで **http://localhost:8000/** を開き、**「生命を移入」** を選んでフィールドをクリックしてください。
