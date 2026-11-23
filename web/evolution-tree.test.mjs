@@ -1,0 +1,70 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {Ecosystem} from './simulation.js';
+import {evolutionGraph,evolutionSVG} from './evolution-tree.js';
+import {editFounderGenome} from './founder-designer.js';
+
+test('founder species become roots with portrait-and-name tree nodes',()=>{
+ const w=new Ecosystem(561230),founder=editFounderGenome(w.gene(),{fertility:6});
+ const root=w.spawn(220,180,founder);
+ assert.ok(root);
+ const graph=evolutionGraph(w);
+ assert.equal(graph.nodes.length,1);assert.equal(graph.edges.length,0);
+ assert.equal(graph.roots,1);
+ assert.equal(graph.nodes[0].name,w.species.get(root.category).name);
+ const svg=evolutionSVG(graph,()=>'data:image/png;base64,AA==');
+ assert.match(svg,/<image /);assert.match(svg,/<text /);
+ assert.match(svg,/data:image\/png;base64/);
+ assert.match(svg,/進化家系図/);
+});
+test('new descendant species record parent link and timeline layout',()=>{
+ const w=new Ecosystem(561231),founder=editFounderGenome(w.gene(),{diet:.06,agility:2});
+ const p=w.spawn(210,180,founder);assert.ok(p);
+ w.tick+=5;
+ const evolved=editFounderGenome(founder,{diet:1,agility:9,power:9});
+ const c=w.spawn(225,185,evolved,p);assert.ok(c);
+ assert.notEqual(p.category,c.category);
+ const graph=evolutionGraph(w);
+ assert.equal(graph.nodes.length,2);
+ assert.deepEqual(graph.edges,[{from:p.category,to:c.category}]);
+ const pNode=graph.nodes.find(n=>n.key===p.category),cNode=graph.nodes.find(n=>n.key===c.category);
+ assert.ok(cNode.x>pNode.x);assert.ok(graph.height>0&&graph.width>0);
+ const svg=evolutionSVG(graph);
+ assert.match(svg,/<path d="M/);
+ assert.match(svg,/fill="#112934"/);
+});
+test('cross lineage hybrid can have two parent edges, never a self-loop',()=>{
+ const w=new Ecosystem(561232);
+ const a=w.spawn(100,100,editFounderGenome(w.gene(),{diet:0,agility:1}));
+ const b=w.spawn(300,300,editFounderGenome(w.gene(),{diet:1,agility:10}));
+ w.tick+=5;
+ const g=editFounderGenome(a.g,{diet:.53,agility:5,power:9});
+ const c=w.spawn(250,250,g,{...a,parents:[w.parentSnapshot(a),w.parentSnapshot(b)]});
+ const graph=evolutionGraph(w);
+ assert.equal(graph.edges.filter(e=>e.to===c.category).length,2);
+ assert.ok(graph.nodes.find(n=>n.key===c.category).depth>=1);
+ assert.ok(graph.edges.every(e=>e.from!==e.to));
+});
+test('graph is repeatable and read-only for real ecosystem state',()=>{
+ const w=new Ecosystem(561233);
+ w.introduce(240,180,1);
+ for(let i=0;i<100;i++)w.step();
+ const before=w.rng,sizes=[w.units.length,w.species.size,w.tick];
+ const a=evolutionGraph(w),b=evolutionGraph(w);
+ assert.equal(w.rng,before);
+ assert.deepEqual([w.units.length,w.species.size,w.tick],sizes);
+ assert.deepEqual(a,b);
+ assert.equal(evolutionSVG(a),evolutionSVG(b));
+});
+test('tree UI provides modal, picture nodes, save buttons and entry point',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const read=path=>readFile(new URL(path,import.meta.url),'utf8');
+ const html=await read('./index.html'),app=await read('./app.js');
+ assert.match(html,/id="openEvolutionTree"/);
+ assert.match(html,/id="evolutionTreeDialog"/);
+ assert.match(html,/id="saveEvolutionSVG"/);
+ assert.match(html,/id="saveEvolutionPNG"/);
+ assert.match(app,/drawFounderAppearance\(canvas,node.genome,0\)/);
+ assert.match(app,/evolutionGraph\(game\)/);
+ assert.match(app,/evolutionSVG\(graph,portrait,zoom\)/);
+});
