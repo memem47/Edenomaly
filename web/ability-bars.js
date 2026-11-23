@@ -1,5 +1,6 @@
 import {FOUNDER_FIELDS,founderLevel,founderLevelMeaning} from './founder-designer.js';
 import {visibleOrnaments,phenotypeTraits} from './simulation.js';
+import {BASIC_STAT_GROUPS,basicStatScore} from './basic-stat-score.js';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const abilityPosition=(value,min,max)=>Number.isFinite(value)&&max>min?
  Math.min(100,Math.max(0,(value-min)/(max-min)*100)):0;
@@ -29,10 +30,14 @@ export function abilityBarHTML(key,label,value,min,max,{editable=false}={}){
   '<div class="ability-scale"><small>1</small><small>10</small></div>'+
  '</div>';
 }
-export function abilityListHTML(g){
- return '<div class="ability-grid">'+FOUNDER_FIELDS.filter(([key])=>Number.isFinite(g[key]))
-  .map(([key,label,min,max])=>abilityBarHTML(key,label,g[key],min,max)).join('')+'</div>';
+// All in-game displays use the same six derived stats; raw genes are only
+// exposed by the initial founder editor's formula/advanced panel.
+export function basicStatsHTML(g){
+ return '<div class="ability-grid basic-stat-readout">'+BASIC_STAT_GROUPS.map(stat=>
+  abilityBarHTML('stat-'+stat.key,stat.icon+' '+stat.name,basicStatScore(g,stat.key),1,10)
+ ).join('')+'</div>';
 }
+export const abilityListHTML=basicStatsHTML;
 export function phenotypeBarsHTML(g){
  const traits={...visibleOrnaments(g),...phenotypeTraits(g)};
  return '<div class="appearance-derivation"><strong>能力から決まる外見</strong><p>ひれ・角・甲殻・卵房・触手・希少な翼が遺伝子から決まります。全37遺伝子は固有の体表の粒模様にも反映されます。</p>'+
