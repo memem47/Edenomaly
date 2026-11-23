@@ -171,8 +171,6 @@ speciesDialog.addEventListener('close',()=>{
 });
 speciesDialog.addEventListener('click',event=>{if(event.target===speciesDialog)closeSpeciesStatistics();});
 
-const GENE_LABELS={nestChoice:'産卵地選択',parentFeeding:'親の給餌',yolkReserve:'卵黄栄養',juvenileCannibalism:'幼体共食い',idealTemp:'好みの温度',tempTolerance:'温度耐性',hibernate:'休眠傾向',r:'体の大きさ',elongation:'体の長さ比',eyes:'目の数',mouths:'口の能力',jaw:'顎の能力',wet:'水への適応',dry:'乾燥への適応',rock:'岩場への適応',aquatic:'水生／陸生',shell:'卵殻',guard:'卵の保護',nesting:'産卵場所',brood:'産卵数',diet:'食性',deception:'擬態',resist:'感染抵抗力',longevity:'長寿特性',albino:'白色変異',dispersal:'分散傾向',sociability:'集合傾向',caution:'警戒心',predatorSense:'捕食者識別',retaliation:'反撃性',frugality:'省エネ特性',waterGardening:'水草栽培傾向',tailLength:'しっぽの長さ',hornLength:'角の長さ',antennaLength:'触角の長さ',pattern:'体表模様の強さ'};
-function genomeValue(key,value){return key==='aquatic'?(value===1?'水生':'陸生'):typeof value==='number'?(Number.isInteger(value)?String(value):value.toFixed(3)):String(value);}
 function speciesColor(sp){
  const g=sp.genome;
  if(!g)return '#70c6ad';
