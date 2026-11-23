@@ -359,8 +359,12 @@ test('water adapted creatures retain underwater vision',()=>{
  assert.ok(diver.sight>=1);
 });
 test('dryland intolerance causes potentially lethal hazard',()=>{
- const g=new Ecosystem(503).gene();
- assert.ok(terrainFitness({...g,dry:0},2).hazard>.5);
+ const g=new Ecosystem(503).gene(),unadapted={...g,dna:{...g.dna,adaptation:1}};
+ const low=terrainFitness({...unadapted,dry:0},2);
+ const resilient=terrainFitness({...g,dry:0,dna:{...g.dna,adaptation:10}},2);
+ assert.ok(low.hazard>.5);
+ assert.ok(resilient.hazard<low.hazard,'adaptability reduces damage on an unsuitable terrain');
+ assert.ok(resilient.fitness>low.fitness);
  assert.equal(terrainFitness({...g,dry:1},2).hazard,0);
 });
 test('same founder classification shares lineage across individuals',()=>{
@@ -1856,12 +1860,12 @@ import {lifeDrain,longevityUpkeep} from './simulation.js';
 test('longevity is heritable, mutable, and not an arbitrary species boundary (DNA v2)',async()=>{
  const w=new Ecosystem(8240),a=w.gene(),b=w.gene();
  const {editFounderGenome}=await import('./founder-designer.js');
- const strong=editFounderGenome(a,{stamina:10}),weak=editFounderGenome(a,{stamina:1});
+ const strong=editFounderGenome(a,{fertility:10}),weak=editFounderGenome(a,{fertility:1});
  assert.ok(strong.longevity>weak.longevity);
  assert.equal(Object.hasOwn(strong.alleles,'longevity'),false);
  const child=w.recombine(a,b);
  assert.ok(child.longevity>=.6&&child.longevity<=2);
- assert.equal(child.alleles.stamina.length,2);
+ assert.equal(child.alleles.fertility.length,2);
  assert.equal(w.category({...a,longevity:.6}),w.category({...a,longevity:2}));
  for(let i=0;i<100;i++)assert.ok(w.mutate(a).longevity>=.6&&w.mutate(a).longevity<=2);
 });
