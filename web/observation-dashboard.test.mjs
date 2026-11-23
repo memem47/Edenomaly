@@ -1,15 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {Ecosystem,functionalOrnaments,morphology,speciesFeatureName,speciesAppearanceCategory} from './simulation.js';
+import {Ecosystem,functionalOrnaments,visibleOrnaments,morphology,speciesFeatureName,speciesAppearanceCategory} from './simulation.js';
 import {FOUNDER_FIELDS,editFounderGenome} from './founder-designer.js';
 import {abilityPosition,abilityListHTML,phenotypeBarsHTML} from './ability-bars.js';
 import {DASHBOARD_TABS} from './dashboard-tabs.js';
 
-test('independent appearance sliders are no longer exposed',()=>{
+test('all inherited appearance and body loci are now directly editable',()=>{
  for(const key of ['tailLength','hornLength','antennaLength','pattern'])
-  assert.equal(FOUNDER_FIELDS.some(([trait])=>trait===key),false,key);
- assert.ok(!FOUNDER_FIELDS.some(([key])=>key==='jaw'));
+  assert.equal(FOUNDER_FIELDS.some(([trait])=>trait===key),true,key);
+ assert.ok(FOUNDER_FIELDS.some(([key])=>key==='jaw'));
  assert.ok(FOUNDER_FIELDS.some(([key])=>key==='predatorSense'));
 });
 test('combat, perception and aquatic ability determine the visible body',()=>{
@@ -26,13 +26,13 @@ test('combat, perception and aquatic ability determine the visible body',()=>{
  assert.ok(morphology(jaw).biteReach>morphology(low).biteReach);
  assert.ok(morphology(sense).eyeRange>morphology(low).eyeRange);
 });
-test('legacy cosmetic loci cannot change morphology or species identities',()=>{
+test('cosmetic loci alter visible ornaments and species names, not mechanical morphology',()=>{
  const g=new Ecosystem(2026112103).gene();
  const a={...g,tailLength:0,hornLength:0,antennaLength:0,pattern:0};
  const b={...g,tailLength:1,hornLength:1,antennaLength:1,pattern:1};
  assert.deepEqual(functionalOrnaments(a),functionalOrnaments(b));
- assert.equal(speciesFeatureName(a),speciesFeatureName(b));
- assert.equal(speciesAppearanceCategory(a),speciesAppearanceCategory(b));
+ assert.notDeepEqual(visibleOrnaments(a),visibleOrnaments(b));
+ assert.notEqual(speciesAppearanceCategory(a),speciesAppearanceCategory(b));
  assert.deepEqual(morphology(a),morphology(b));
 });
 test('ability meters use a uniform 1–10 scale and bounded fill',()=>{
