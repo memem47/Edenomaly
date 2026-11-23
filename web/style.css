@@ -473,3 +473,6 @@ button:disabled,input:disabled{opacity:.40;cursor:not-allowed}
 #toggleAdvancedTraits{padding:7px 12px;margin:5px 0 12px;background:#22526a;color:#e4f9fa;
  border:1px solid #619cac;border-radius:7px;cursor:pointer}
 #toggleAdvancedTraits:hover{background:#316985}
+
+/* HTML hidden must override custom fieldset layout and grid styles. */
+.founder-fieldset[hidden]{display:none!important}
