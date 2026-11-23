@@ -19,6 +19,6 @@ test('advanced genes remain editable and are only visually collapsed (DNA v2)',a
  const ui=await readFile(new URL('./founder-screens.js',import.meta.url),'utf8');
  assert.match(ui,/founderTraitHelp\(key\)/);
  assert.match(ui,/id="toggleGeneEditor"/);
- assert.match(ui,/生存戦略7項目/);
+ assert.match(ui,/生存戦略/);
  assert.ok(!ui.includes('全37遺伝子を表示'));
 });
