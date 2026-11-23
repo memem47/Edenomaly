@@ -597,3 +597,17 @@ button:disabled,input:disabled{opacity:.40;cursor:not-allowed}
  #founderEditorDialog .founder-derived-item{min-height:22px}
  #founderEditorDialog .compact-founder-top canvas{width:76px;height:56px}
 }
+
+/* Evolution lineage visualization: portrait+name nodes and ancestor branches. */
+.evolution-tree-dialog{width:min(96vw,1520px);max-width:96vw;height:min(92dvh,1000px);max-height:92dvh;padding:0;background:#122b38;color:#ecf6f2;border:1px solid #618b97;border-radius:12px;overflow:hidden}
+.evolution-tree-dialog[open]{display:flex;flex-direction:column}
+.evolution-tree-header{display:flex;flex-wrap:wrap;align-items:center;gap:9px;padding:10px 14px;background:#1a404e;border-bottom:1px solid #4c7584}
+.evolution-tree-header strong{font-size:16px}
+.evolution-tree-header span{font-size:12px;color:#b4d4cf;margin-right:auto}
+.evolution-tree-header label{font-size:12px;display:flex;align-items:center;gap:5px}
+.evolution-tree-header input{width:110px}
+.evolution-tree-header button{background:#2a6175;color:#fff;padding:5px 9px;border:1px solid #628d99;border-radius:6px;cursor:pointer}
+.evolution-tree-viewport{flex:1;min-height:0;overflow:auto;background:#112934;scrollbar-width:thin}
+.evolution-tree-viewport svg{display:block;max-width:none}
+.evolution-tree-hint{font-size:11px;line-height:1.5;margin:0;padding:7px 14px;color:#bed8dc;background:#183440}
+@media(max-width:740px){.evolution-tree-dialog{width:99vw;max-width:99vw}.evolution-tree-header{gap:5px;padding:7px}.evolution-tree-header button{font-size:11px}.evolution-tree-header label input{width:70px}}
