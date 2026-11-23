@@ -1,7 +1,7 @@
 // Lightweight visual-only preview that uses the same slime geometry,
 // jelly shading, eyes, and ornaments as the running world renderer.
 // No simulation advance, RNG use, or side effects on the selected genome.
-import {morphology,bodySizeMultiplier} from './simulation.js';
+import {morphology,bodySizeMultiplier,phenotypeTraits} from './simulation.js';
 import {slimeEyeAngles,slimeEyeColor,slimeEyeLocation} from './renderer.js';
 import {drawJellyBody} from './jelly-visuals.js';
 import {drawOrnamentsBehind,drawOrnamentsFront,drawAbilityDetails} from './slime-ornaments.js';
@@ -25,7 +25,10 @@ export function drawFounderAppearance(canvas,g,frame=0){
  const rx=g.r*scale*1.06*Math.max(1,Math.min(3,g.elongation??1))*(1+squash);
  const ry=g.r*scale*1.06*(1-squash);
  // Size is allowed to change, but the preview must not crop big rare morphs.
- const fit=Math.min(1,(w*.44)/Math.max(1,rx),(h*.37)/Math.max(1,ry));
+ const forms=phenotypeTraits(g);
+ const footprintX=rx*(forms.tentacles>.12?1.55:1.12);
+ const footprintY=ry*(forms.wings>.15?2.05:forms.fins>.15?1.55:1.18);
+ const fit=Math.min(1,(w*.43)/Math.max(1,footprintX),(h*.42)/Math.max(1,footprintY));
  const px=rx*fit,py=ry*fit;
  const cy=h*.51+Math.sin(frame*.08)*2.2;
  ctx.save();ctx.translate(w*.5,cy);
