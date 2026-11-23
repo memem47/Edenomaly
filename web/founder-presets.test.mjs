@@ -5,17 +5,16 @@ import {Ecosystem,genomeCode} from './simulation.js';
 import {FOUNDER_PRESETS,founderPresetGenome,randomFounderGenome} from './founder-presets.js';
 import {FOUNDER_FIELDS,FOUNDER_BUDGET,founderCost} from './founder-designer.js';
 
-test('four distinctive explained strategies are valid in game mode',()=>{
- const w=new Ecosystem(2026112121),base=w.gene();
- assert.equal(FOUNDER_PRESETS.length,4);
+test('four distinctive explained strategies are valid in game mode (DNA v2)',async()=>{
+ const {DNA_KEYS}=await import('./genome-model.js');
+ const w=new Ecosystem(2026112121),base=w.gene();assert.equal(FOUNDER_PRESETS.length,4);
  const codes=new Set();
  for(const preset of FOUNDER_PRESETS){
-  assert.ok(preset.name.length>=4);
-  assert.ok(preset.description.length>=18,preset.id);
+  assert.ok(preset.name.length>=4&&preset.description.length>=18,preset.id);
   const g=founderPresetGenome(base,preset.id);
-  assert.ok(g&&g.functionalBody,preset.id);
+  assert.equal(g.genomeModel,2);
   assert.ok(founderCost(base,g)<=FOUNDER_BUDGET,preset.id);
-  assert.equal(g.alleles.wet[0],g.wet);
+  assert.deepEqual(Object.keys(g.alleles).sort(),[...DNA_KEYS].sort());
   codes.add(genomeCode(g));
  }
  assert.equal(codes.size,4);
