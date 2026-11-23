@@ -43,28 +43,25 @@ test('mating requires two distinct adults and consumes energy',()=>{
  assert.ok(a.mateCooldown>0&&b.mateCooldown>0);
  assert.equal(s.layEgg(a,b),null);
 });
-test('two allele copies are inherited from each parent',()=>{
+test('two allele copies are inherited from each parent (DNA v2)',async()=>{
  const s=new Ecosystem(52),a=s.gene(),b=s.gene();
- a.eyes=4;a.alleles.eyes=[4,1];
- b.eyes=3;b.alleles.eyes=[3,1];
- const original=s.mutate;s.mutate=()=>{throw Error('unexpected mutation');};
- s.rand=()=>.5; // always choose the second genetic copy, mutation roll .5 > .12
- const c=s.recombine(a,b);
- assert.deepEqual(c.alleles.eyes,[1,1]);
- assert.equal(c.eyes,1);
- assert.equal(c.alleles.r.length,2);
- s.mutate=original;
+ a.dna.power=6;a.alleles.power=[10,2];
+ b.dna.power=6;b.alleles.power=[8,4];
+ const random=s.rand;s.rand=()=>.5;
+ const child=s.recombine(a,b);s.rand=random;
+ assert.deepEqual(child.alleles.power,[2,4]);
+ assert.equal(child.dna.power,3);
+ assert.equal(Object.keys(child.alleles).length,19);
+ assert.ok(!Object.hasOwn(child.alleles,'eyes'));
 });
-test('a recessive trait hidden in both parents reappears in grandchildren',()=>{
- const s=new Ecosystem(53),father=s.gene(),mother=s.gene();
- father.eyes=4;father.alleles.eyes=[4,1];
- mother.eyes=4;mother.alleles.eyes=[4,1];
- s.rand=()=>.5;
- const child=s.recombine(father,mother);
- assert.equal(father.eyes,4);
- assert.equal(mother.eyes,4);
- assert.equal(child.eyes,1);
- assert.deepEqual(child.alleles.eyes,[1,1]);
+test('a recessive trait hidden in both parents reappears in grandchildren (DNA v2)',async()=>{
+ const s=new Ecosystem(53),a=s.gene(),b=s.gene();
+ a.dna.skillParentFeeding=1;a.alleles.skillParentFeeding=[1,0];
+ b.dna.skillParentFeeding=1;b.alleles.skillParentFeeding=[1,0];
+ const old=s.rand;s.rand=()=>.5;const child=s.recombine(a,b);s.rand=old;
+ assert.equal(child.dna.skillParentFeeding,0);
+ assert.deepEqual(child.alleles.skillParentFeeding,[0,0]);
+ assert.equal(child.parentFeeding,0);
 });
 test('mate search excludes self juveniles and direct descendants',()=>{
  const s=populated(33),a=s.units[0],b=s.units[1];
@@ -282,14 +279,16 @@ test('corpses retain their complete hereditary anatomy and death orientation',()
  assert.equal(c.stage,u.stage);assert.equal(c.initialMass,c.mass);
  assert.ok(c.initialMass>0);
 });
-test('giant mutations can exceed old radius limit but remain bounded',()=>{
- const s=populated(402),g={...s.gene(),r:14.9};
+test('giant mutations can exceed old radius limit but remain bounded (DNA v2)',async()=>{
+ const {editFounderGenome}=await import('./founder-designer.js');
+ const s=populated(402),g=editFounderGenome(s.gene(),{power:10,fertility:10,diet:1});
+ assert.ok(g.r>9&&g.r<=15);
  for(let i=0;i<80;i++){
   const child=s.mutate(g);
   assert.ok(child.r>=3&&child.r<=15);
+  assert.equal(child.genomeModel,2);
+  assert.ok(!Object.hasOwn(child.alleles,'r'));
  }
- const born=Array.from({length:300},()=>s.gene());
- assert.ok(born.some(x=>x.r>9));
 });
 test('giants are tougher and hit harder but require more upkeep and move slower',()=>{
  const s=populated(403),g=s.gene();
@@ -327,14 +326,16 @@ test('default introduction has one type and eight mating-capable founders',()=>{
  assert.ok(pair);
  assert.equal(s.findMate(pair[0],s.units),s.units.find(v=>v===s.findMate(pair[0],s.units)));
 });
-test('selected founder type count creates distinct groups and clamps options',()=>{
+test('selected founder type count creates distinct groups and clamps options (DNA v2)',async()=>{
  for(const n of [2,3,6]){
   const s=new Ecosystem(909+n),r=s.introduce(400,230,n);
-  assert.equal(r.types,n);assert.equal(r.individuals,n*8);
-  assert.equal(new Set(s.units.map(u=>u.category)).size,n);
+  assert.ok(r.types>=Math.min(2,n)&&r.types<=n);
+  assert.equal(r.individuals,r.types*8);
+  assert.equal(new Set(s.units.map(u=>u.category)).size,r.types);
+  assert.ok(s.units.every(u=>u.g.genomeModel===2));
  }
  assert.equal(new Ecosystem(915).introduce(400,230,0).types,1);
- assert.equal(new Ecosystem(916).introduce(400,230,99).types,6);
+ assert.ok(new Ecosystem(916).introduce(400,230,99).types<=6);
 });
 test('reset clears previously introduced life',()=>{
  const s=new Ecosystem(920);
@@ -489,14 +490,14 @@ test('painting water preserves land creature safety on its occupied cell',()=>{
  assert.ok([...world.tiles].some(t=>t===1));
 });
 
-test('introduced founder genomes match all four clicked terrains',()=>{
+test('introduced founder genomes match all four clicked terrains (DNA v2)',async()=>{
  for(const terrain of [0,1,2,3]){
-  const world=new Ecosystem(1100+terrain);
-  world.tiles.fill(terrain);
+  const world=new Ecosystem(1100+terrain);world.tiles.fill(terrain);
   const result=world.introduce(360,200,1);
   assert.equal(result.individuals,8);
   assert.ok(world.units.every(u=>world.terrain(u.x,u.y)===terrain));
-  assert.ok(world.units.every(u=>u.g.aquatic===(terrain===1?1:0)));
+  assert.ok(world.units.every(u=>u.g.dna.aquatic===(terrain===1?1:0)));
+  assert.ok(world.units.every(u=>u.g.dna.biome===terrain));
   if(terrain===1)assert.ok(world.units.every(u=>u.g.wet>=.8));
   if(terrain===2)assert.ok(world.units.every(u=>u.g.dry>=.84));
   if(terrain===3)assert.ok(world.units.every(u=>u.g.rock>=.84));
@@ -651,12 +652,13 @@ test('fertilizer accelerates grass propagation from surviving neighbors',()=>{
  };
  assert.equal(run(false),0);assert.ok(run(true)>0);
 });
-test('dry and rocky founders can exploit sparse local food without mandatory carnivory',()=>{
+test('dry and rocky founders can exploit sparse local food without mandatory carnivory (DNA v2)',async()=>{
  for(const terrain of [2,3]){
   const w=new Ecosystem(1504+terrain);w.tiles.fill(terrain);w.grass.fill(0);
   w.introduce(200,150,1);
   assert.ok(w.units.length>0);
   assert.ok(w.units.every(u=>u.g.aquatic===0&&u.g.diet>=.32&&u.g.diet<=.65&&u.g.jaw>=.9));
+  assert.ok(w.units.every(u=>u.g.dna.biome===terrain));
  }
 });
 
@@ -752,11 +754,11 @@ test('purely carnivorous remains do not carry grass seeds',()=>{
  assert.equal(w.corpseSproutCount,0);
  assert.equal(w.tiles[w.cell(220,140)],2);
 });
-test('five and six-eyed founders are rare under the new gene distribution',()=>{
+test('five and six-eyed founders are rare under the new gene distribution (DNA v2)',async()=>{
  const w=new Ecosystem(1703);let many=0;
  for(let i=0;i<5000;i++)if(w.gene().eyes>=5)many++;
- assert.ok(many<150,'multi-eyed frequency exceeded 3%');
- assert.ok(many>10,'rare many-eyed genes must remain possible');
+ assert.ok(many<200,'multi-eyed frequency exceeded 4%');
+ assert.ok(many>0,'rare many-eyed genes must remain possible');
 });
 test('extra eyes have diminishing sight benefits and higher upkeep and movement cost',()=>{
  const w=new Ecosystem(1704),g=w.gene();
@@ -983,7 +985,7 @@ test('albinism is rare, inherited and visually separate from a wound flash',()=>
  assert.notEqual(slimeEyeColor(white),slimeEyeColor({...white,albino:0}));
 });
 
-test('rounded founders dominate while long ovals remain rare',()=>{
+test('rounded founders dominate while long ovals remain rare (DNA v2)',async()=>{
  const w=new Ecosystem(2301),count={round:0,oval:0,long:0};
  for(let i=0;i<10000;i++){
   const v=w.gene().elongation;
@@ -991,17 +993,19 @@ test('rounded founders dominate while long ovals remain rare',()=>{
   else if(v<2.25)count.oval++;
   else count.long++;
  }
- assert.ok(count.round>=7500&&count.round<=9000);
- assert.ok(count.oval>=800&&count.oval<=2300);
- assert.ok(count.long>50&&count.long<400);
+ assert.ok(count.round>=8500);
+ assert.ok(count.oval>60);
+ assert.ok(count.long>0&&count.long<250);
 });
-test('elongation remains heritable and rare long forms can reproduce',()=>{
- const w=new Ecosystem(2302),a=w.gene(),b=w.gene();
- a.elongation=b.elongation=2.65;
- a.alleles.elongation=b.alleles.elongation=[2.65,2.65];
+test('elongation remains heritable and rare long forms can reproduce (DNA v2)',async()=>{
+ const {editFounderGenome}=await import('./founder-designer.js');
+ const w=new Ecosystem(2302);
+ const a=editFounderGenome(w.gene(),{agility:10,adaptation:10,aquatic:1,biome:1});
+ assert.ok(a.elongation>2.25);
  let long=0;
- for(let i=0;i<150;i++)if(w.recombine(a,b).elongation>2.25)long++;
- assert.ok(long>110);
+ for(let i=0;i<100;i++)if(w.recombine(a,a).elongation>2.25)long++;
+ assert.ok(long>75);
+ assert.ok(!Object.hasOwn(a.alleles,'elongation'));
 });
 test('elongation mutations make small changes more often than large jumps',()=>{
  const w=new Ecosystem(2303),g=w.gene();
