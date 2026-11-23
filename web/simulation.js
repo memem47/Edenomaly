@@ -333,13 +333,14 @@ export const morphology=g=>{
  // denominator. Small limbs also cover less ground per simulation step.
  const speed=3.45/(.65+metabolicMass*.017)*(.55+.45*bodySizeMultiplier(g)/1.7)
   *(1-Math.max(0,g.eyes-3)*.055)
-  *(1-.07*ornaments.horn-.035*ornaments.antenna);
+  *(1-.07*ornaments.horn-.035*ornaments.antenna)
+  *(.80+.40*clamp(g.dispersal??.5,0,1)); // agility increases actual movement speed
  const turnRate=clamp(.29/(.75+g.elongation*.21),.12,.29);
  const mouths=g.mouths;
  const biteReach=width*(.7+.15*mouths)+g.jaw*1.6+1.2*ornaments.horn;
  const edibleRatio=clamp(.60+.055*mouths+.06*g.jaw,.62,.88);
  const predatory=dietProfile(g).meat>.14&&g.jaw>=.55&&mouths>=1;
- const upkeep=.09+metabolicMass*.008+Math.max(0,metabolicMass-110)**1.2*.002+g.eyes*.045+Math.max(0,g.eyes-3)**2*.06+mouths*.03+g.jaw*.02+Math.abs(g.deception-.5)*.035+(g.resist??.4)*.04+ornaments.tail*.13+ornaments.horn*.18+ornaments.antenna*.12+ornaments.pattern*.075;
+ const upkeep=.09+metabolicMass*.008+Math.max(0,metabolicMass-110)**1.2*.002+g.eyes*.045+Math.max(0,g.eyes-3)**2*.06+mouths*.03+g.jaw*.02+Math.abs(g.deception-.5)*.035+(g.resist??.4)*.04+ornaments.tail*.13+ornaments.horn*.18+ornaments.antenna*.12+ornaments.pattern*.075+clamp(g.dispersal??.5,0,1)*.06; // speed has metabolic cost
  const foodGain=1+Math.min(.42,(mouths-1)*.13);
  return {width,length,bodyMass,eyeRange,speed,turnRate,biteReach,edibleRatio,predatory,upkeep,foodGain};
 };
