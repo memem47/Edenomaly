@@ -18,15 +18,13 @@ test('rock has edible persistent lichen available without conversion to grasslan
  assert.ok(eaten>0);
  assert.equal(w.tiles[i],3,'grazing lichen must not erase rock biome');
 });
-test('brood cost punishes excessive reproduction, weak brood refunds points',()=>{
- assert.ok(founderTraitCost('brood',8)>founderTraitCost('brood',4));
- assert.ok(founderTraitCost('brood',1)<0);
+test('brood cost punishes excessive reproduction, weak brood refunds points (DNA v2)',async()=>{
+ const {founderTraitCost}=await import('./founder-designer.js');
+ assert.ok(founderTraitCost('fertility',10)>founderTraitCost('fertility',6));
+ assert.ok(founderTraitCost('fertility',1)<0);
  assert.ok(founderTraitCost('repro',2)<founderTraitCost('repro',1));
  const w=new Ecosystem(109),base=w.gene();
- for(const p of FOUNDER_PRESETS){
-  const g=founderPresetGenome(base,p.id);
-  assert.ok(founderCost(base,g)<=FOUNDER_BUDGET,p.id);
- }
+ for(const p of FOUNDER_PRESETS)assert.ok(founderCost(base,founderPresetGenome(base,p.id))<=FOUNDER_BUDGET,p.id);
 });
 test('coherent random genomes remain within game-mode budget',()=>{
  const w=new Ecosystem(110),base=w.gene();
