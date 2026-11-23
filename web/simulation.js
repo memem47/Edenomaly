@@ -1786,7 +1786,7 @@ export class Ecosystem{
    const eggClimate=thermalFitness(egg.g,this.temperatureAt(egg.x,egg.y));
    // Thick-shelled / dormant genotypes can delay hatching through a
    // hostile season, at the expense of reserves and delayed reproduction.
-   const eggRest=eggClimate.excess>2&&
+   const eggRest=(eggClimate.excess>2||eggClimate.comfort<.72)&&
     ((egg.g.hibernate??0)>.52||(egg.g.shell??0)>.58);
    egg.dormant=eggRest;
    egg.age+=eggRest?.008:eggClimate.excess>0?.32:clamp(.72+eggClimate.comfort*.28,.72,1);
