@@ -183,7 +183,11 @@ export const phenotypeSignature=g=>{
    h=Math.imul(h^byte,16777619)>>>0;
   }
  }
- return h.toString(36).toUpperCase().padStart(7,'0');
+ // Katakana-only imprint keeps the established readable naming format.
+ const syllables='アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミ';
+ let bits=h,code='';
+ for(let i=0;i<7;i++){code=syllables[bits&31]+code;bits=Math.floor(bits/32);}
+ return code;
 };
 export const distinctivePhenotypeNames=g=>{
  const p=phenotypeTraits(g),tags=[];
@@ -224,7 +228,7 @@ export const speciesNameFromCategory=(key,genome=null)=>{
  // Names keep the categorical ecological core while distinguishing the
  // actual founder genome and its distinctive appendages.
  const distinctive=genome?distinctivePhenotypeNames(genome).join(''):'';
- const genomeTag=genome?'型'+phenotypeSignature(genome):'';
+ const genomeTag=genome?phenotypeSignature(genome):'';
  return [color,speciesEcologyCode(key)+distinctive+genomeTag,feature].filter(Boolean).join('・');
 };
 // Pigment is a derived phenotype, not an additional independent gene.
