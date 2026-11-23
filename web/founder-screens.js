@@ -3,11 +3,11 @@ import {founderTraitHelp,FOUNDER_ADVANCED_TRAITS} from './founder-trait-help.js'
 import {BASIC_STATS,basicStatLevel,editBasicStat,founderSkills,trainFounderSkill,skillTrainingGenes} from './basic-stats.js';
 import {founderFormulaHTML} from './founder-formulas.js';
 import {morphology,dietProfile,terrainFitness,genomeCode} from './simulation.js';
-import {drawFounderAppearance} from './founder-preview.js?v=2026.11.23.4';
-import {createDiscoveryToastQueue} from './discovery-toast-queue.js?v=2026.11.23.4';
-import {differenceMagnitude,rankDifferences} from './discovery-diff.js?v=2026.11.23.4';
-import {FOUNDER_PRESETS,founderPresetGenome,randomFounderGenome} from './founder-presets.js?v=2026.11.23.4';
-import {phenotypeBarsHTML,abilityListHTML} from './ability-bars.js?v=2026.11.23.4';
+import {drawFounderAppearance} from './founder-preview.js?v=2026.11.23.5';
+import {createDiscoveryToastQueue} from './discovery-toast-queue.js?v=2026.11.23.5';
+import {differenceMagnitude,rankDifferences} from './discovery-diff.js?v=2026.11.23.5';
+import {FOUNDER_PRESETS,founderPresetGenome,randomFounderGenome} from './founder-presets.js?v=2026.11.23.5';
+import {phenotypeBarsHTML,abilityListHTML} from './ability-bars.js?v=2026.11.23.5';
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format=n=>Number(n).toFixed(1);
 const makeDialog=(id,title)=>{
