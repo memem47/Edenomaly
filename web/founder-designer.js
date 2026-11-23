@@ -18,7 +18,14 @@ export const FOUNDER_TRAITS=Object.freeze([
  ['行動・生存',[
   ['dispersal','分散傾向',0,1,.05],['sociability','集合傾向',0,1,.05],
   ['caution','警戒心',0,1,.05],['predatorSense','捕食者の識別',0,1,.05],
-  ['retaliation','反撃',0,1,.05],['deception','擬態',0,1,.05]]]
+  ['retaliation','反撃',0,1,.05],['deception','擬態',0,1,.05]]],
+ ['体格・形態（詳細）',[
+  ['r','基本体格',3,15,.1],['elongation','体の長さ',.65,3,.05],
+  ['eyes','目の数',0,6,1],['mouths','口の数',1,4,1],['jaw','顎の強さ',.2,2.5,.05]]],
+ ['体表・遺伝（詳細）',[
+  ['tailLength','尾の発達',0,1,.05],['hornLength','角の発達',0,1,.05],
+  ['antennaLength','触角の発達',0,1,.05],['pattern','斑点・模様',0,1,.05],
+  ['albino','白化（色素喪失）',0,1,1],['longevity','生命維持の効率',.6,2,.05]]]
 ]);
 export const FOUNDER_FIELDS=FOUNDER_TRAITS.flatMap(([,fields])=>fields);
 // All player-facing DNA controls use the same 1..10 integer scale. Internal
@@ -48,6 +55,13 @@ export function founderLevelMeaning(key,level){
  if(key==='tempTolerance')return '±'+value+'℃';
  if(key==='brood')return value+'個';
  if(key==='diet')return value>=.75?'肉食':value>=.3?'雑食':'草食';
+ if(key==='albino')return value===1?'白化':'通常色';
+ if(key==='eyes')return value+'個';
+ if(key==='mouths')return value+'個';
+ if(key==='r')return '半径 '+value;
+ if(key==='elongation')return '長さ比 '+value;
+ if(key==='jaw')return '顎 '+value;
+ if(key==='longevity')return '維持係数 '+value;
  return level<=3?'低い':level>=8?'高い':'中程度';
 }
 
@@ -57,7 +71,8 @@ export const formatTrait=(key,v)=>{
  return Number.isInteger(v)?String(v):Number(v).toFixed(2);
 };
 export function editFounderGenome(base,changes={}){
- const g={...base,alleles:Object.fromEntries(Object.entries(base.alleles??{}).map(([k,pair])=>[k,[...pair]]))};
+ const g={...base,bodyOverrides:[...(base.bodyOverrides??[])],
+  alleles:Object.fromEntries(Object.entries(base.alleles??{}).map(([k,pair])=>[k,[...pair]]))};
  for(const [key,,lo,hi,step] of FOUNDER_FIELDS){
   if(!Object.hasOwn(changes,key))continue;
   const raw=Number(changes[key]);
@@ -66,6 +81,8 @@ export function editFounderGenome(base,changes={}){
   const clean=Number(val.toFixed(5));
   g[key]=clean;
   g.alleles[key]=[clean,clean];
+  if(['r','elongation','eyes','mouths','jaw'].includes(key)&&!g.bodyOverrides.includes(key))
+   g.bodyOverrides.push(key);
  }
  return deriveFunctionalBody(g);
 }
@@ -76,16 +93,25 @@ const PRICE=Object.freeze({wet:8,dry:8,rock:8,tempTolerance:12,hibernate:4,resis
 export function founderTraitCost(key,value){
  if(!Number.isFinite(value))return 0;
  if(key==='tempTolerance')return PRICE[key]*(Math.max(3,Math.min(18,value))-10.5)/15;
+ if(key==='longevity')return 4*(value-1.2)/.8;
  if(key==='repro')return [0,3,1][Math.round(value)]??0;
  // High brood sizes gain many simultaneous offspring: price the advantage
  // non-linearly, while low brood sizes refund points for the tradeoff.
  if(key==='brood')return value<=3?(value-3)*1.5:1.35*Math.pow(value-3,1.35);
- if(!Object.hasOwn(PRICE,key))return 0; // alternative strategies have no universal advantage
+ if(!Object.hasOwn(PRICE,key))return 0; // unpriced appearance / ecological trade-offs
  return PRICE[key]*(Math.max(0,Math.min(1,value))-.5);
 }
 export function founderCost(base,edited){
  const g=edited??base;
  let total=FOUNDER_FIELDS.reduce((sum,[key])=>sum+founderTraitCost(key,g[key]),0);
+ // Manual morphology overrides have a separate price; automatically
+ // derived body shape is already paid for through functional abilities.
+ const bodyPrice={r:[3,15,8],elongation:[.65,3,3],eyes:[0,6,4],
+  mouths:[1,4,3],jaw:[.2,2.5,6]};
+ for(const key of (g.bodyOverrides??[])){
+  const [lo,hi,weight]=bodyPrice[key]??[];
+  if(weight)total+=weight*Math.max(0,(g[key]-lo)/(hi-lo));
+ }
  // Generalists pay a premium for combining strong terrain adaptations.
  const excess=['wet','dry','rock'].reduce((sum,k)=>sum+Math.max(0,(g[k]??.5)-.6),0);
  total+=Math.max(0,excess-.4)*15;
