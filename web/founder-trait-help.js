@@ -25,10 +25,22 @@ export const FOUNDER_TRAIT_HELP=Object.freeze({
  caution:'危険を感じたときに逃げようとする傾向。警戒が強いほど採食や繁殖を中断しやすくなります。',
  predatorSense:'相手の捕食性や危険信号を見分ける能力。警戒行動の精度や目の数にも影響します。',
  retaliation:'攻撃されたときに反撃する傾向。攻撃能力にも関係し、戦うリスクを伴います。',
- deception:'捕食者かどうかの外見・行動上の信号を変える擬態性。外見とエネルギー消費にも影響します。'
+ deception:'捕食者かどうかの外見・行動上の信号を変える擬態性。外見とエネルギー消費にも影響します。',
+ r:'スライムの基本半径。大きいほど体格とHPが増えますが、餌とエネルギーを多く消費します。直接変更すると自動体格計算より優先します。',
+ elongation:'体の長さと細長さ。移動や旋回、体重に関係します。直接変更すると自動形状計算より優先します。',
+ eyes:'目の数。視界が広くなりますが消費エネルギーも増えます。直接変更すると感知能力からの自動計算より優先します。',
+ mouths:'口の数。食事効率や攻撃可能な相手の大きさに関係します。直接変更すると自動計算より優先します。',
+ jaw:'顎の強さ。攻撃範囲・反撃力・捕食能力に影響します。直接変更すると自動計算より優先します。',
+ tailLength:'尾の発達度。後方のゼリー状の尾が長く・豊かになり、移動時にも形が見えます。',
+ hornLength:'角の発達度。前側のゼリー状の角が発達し、形態として子孫へ遺伝します。',
+ antennaLength:'触角の発達度。顔の前側の触角が目立ちます。触角は視界の広さにも関係します。',
+ pattern:'体表の斑点模様。模様は保護色として捕食者からの発見にも関係します。',
+ albino:'色素を失う白化の形質。1は通常色、10は白い体色です。自然発生は希少です。',
+ longevity:'基礎的な生命維持の効率。高いほど日常的なエネルギー負担が小さくなります。寿命による突然死は復活させません。'
 });
 export const FOUNDER_ADVANCED_TRAITS=new Set([
  'waterGardening','nestChoice','parentFeeding','yolkReserve','juvenileCannibalism',
- 'predatorSense','deception'
+ 'predatorSense','deception','r','elongation','eyes','mouths','jaw',
+ 'tailLength','hornLength','antennaLength','pattern','albino','longevity'
 ]);
 export const founderTraitHelp=key=>FOUNDER_TRAIT_HELP[key]??'遺伝的な能力。生存や繁殖への効果は環境によって変化します。';
