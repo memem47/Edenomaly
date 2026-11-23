@@ -20,28 +20,24 @@ test('every editable gene exposes integer levels 1–10, preserving min/max and 
   }
  }
 });
-test('ecological simulation retains physical units, costs and immutable parents',()=>{
+test('ecological simulation retains physical units, costs and immutable parents (DNA v2)',async()=>{
  const w=new Ecosystem(34),base=w.gene();
- const g=editFounderGenome(base,{
-  resist:founderValueAtLevel('resist',8),
-  idealTemp:founderValueAtLevel('idealTemp',7),
-  brood:founderValueAtLevel('brood',10)
- });
- assert.equal(g.brood,8);
- assert.equal(g.idealTemp,25);
- assert.equal(founderLevel('resist',g.resist),8);
- assert.equal(g.alleles.resist[0],g.resist);
- assert.notEqual(g,base);
+ const g=editFounderGenome(base,{stamina:8,fertility:10,thermal:.70});
+ assert.equal(g.dna.stamina,8);assert.equal(g.dna.fertility,10);
+ assert.deepEqual(g.alleles.stamina,[8,8]);
+ assert.notEqual(g,base);assert.notEqual(g.dna,base.dna);
  assert.ok(Number.isFinite(founderCost(base,g)));
+ assert.ok(g.tempTolerance>0&&g.brood>=1);
 });
-test('two and three state traits report understandable categorical meanings',()=>{
+test('two and three state traits report understandable categorical meanings (DNA v2)',async()=>{
  assert.equal(founderLevelMeaning('aquatic',1),'陸生');
  assert.equal(founderLevelMeaning('aquatic',10),'水生');
  assert.equal(founderLevelMeaning('repro',1),'雌雄異体');
  assert.equal(founderLevelMeaning('repro',6),'雌雄同体');
  assert.equal(founderLevelMeaning('repro',10),'単為生殖');
- assert.match(founderLevelMeaning('idealTemp',8),/℃/);
- assert.match(founderLevelMeaning('brood',10),/個/);
+ assert.match(founderLevelMeaning('thermal',8),/℃/);
+ assert.equal(founderLevelMeaning('biome',10),'岩場');
+ assert.equal(founderLevelMeaning('skillRetaliation',10),'保有');
 });
 test('presets remain valid and DNA meters no longer show raw floats',()=>{
  const base=new Ecosystem(35).gene();
@@ -53,11 +49,11 @@ test('presets remain valid and DNA meters no longer show raw floats',()=>{
  assert.match(html,/aria-valuemax="10"/);
  assert.doesNotMatch(html,/最小 0/);
 });
-test('editor renders ten-stage inputs and snap-safe categorical buttons',async()=>{
+test('editor renders ten-stage inputs and snap-safe categorical buttons (DNA v2)',async()=>{
  const ui=await readFile(new URL('./founder-screens.js',import.meta.url),'utf8');
  assert.ok(ui.includes('min="1" max="10" step="1"'));
  assert.ok(ui.includes('founderValueAtLevel(key,level)'));
- assert.ok(ui.includes("(key==='aquatic'||key==='albino')?(direction>0?10:1)"));
+ assert.ok(ui.includes("['aquatic','albino'].includes(key)?(direction>0?10:1)"));
  assert.ok(ui.includes("key==='repro'?(direction>0?now<6?6:10:now>6?6:1)"));
  assert.ok(ui.includes('basicStatLevel(g,stat.key)'));
 });
