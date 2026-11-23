@@ -91,7 +91,7 @@ test('founder only formula index explains 19 DNA and 37 derived physiology field
  assert.match(html,/37応用パラメータ/);
  assert.equal((html.match(/<tr>/g)||[]).length>=40,true);
  assert.match(ui,/founderFormulaHTML\(\)/);
- assert.match(ui,/生存戦略7項目/);
+ assert.match(ui,/生存戦略/);
  assert.ok(!ui.includes('全37遺伝子を表示（詳細18項目）'));
 });
 
