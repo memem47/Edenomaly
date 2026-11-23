@@ -59,5 +59,5 @@ test('editor renders ten-stage inputs and snap-safe categorical buttons',async()
  assert.ok(ui.includes('founderValueAtLevel(key,level)'));
  assert.ok(ui.includes("(key==='aquatic'||key==='albino')?(direction>0?10:1)"));
  assert.ok(ui.includes("key==='repro'?(direction>0?now<6?6:10:now>6?6:1)"));
- assert.ok(ui.includes('founderLevel(key,v)-founderLevel(key,x)'));
+ assert.ok(ui.includes('basicStatLevel(g,stat.key)'));
 });
