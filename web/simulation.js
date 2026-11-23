@@ -156,7 +156,7 @@ const ORNAMENT_NAMES=[
 // strength are grouped, with horn before tail for "ホーンテール".
 export const speciesFeatureName=g=>{
  if(!g)return '';
- const ornaments=functionalOrnaments(g);
+ const ornaments=visibleOrnaments(g);
  const values=ORNAMENT_NAMES.map(([key,label])=>({key,label,value:ornaments[{hornLength:'horn',tailLength:'tail',antennaLength:'antenna',pattern:'pattern'}[key]]}))
   .sort((a,b)=>b.value-a.value||ORNAMENT_NAMES.findIndex(t=>t[0]===a.key)-ORNAMENT_NAMES.findIndex(t=>t[0]===b.key));
  const best=values[0];
