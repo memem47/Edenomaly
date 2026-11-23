@@ -702,7 +702,12 @@ export class Ecosystem{
    skillCannibalism:this.rand()<.018?1:0,
    skillSprint:this.rand()<.045?1:0,
    skillAmbush:this.rand()<.028?1:0,
-   skillRegenerate:this.rand()<.038?1:0
+   skillRegenerate:this.rand()<.038?1:0,
+   skillPredation:this.rand()<.05?1:0,
+   skillNesting:this.rand()<.045?1:0,
+   skillCooperate:this.rand()<.055?1:0,
+   skillAbsorb:this.rand()<.045?1:0,
+   skillSplit:this.rand()<.018?1:0
   };
   // Rare physically large founder is a correlated stat/strategy package,
   // not a hidden independently inherited radius gene.
@@ -1188,6 +1193,11 @@ export class Ecosystem{
       egg.x=waterSite.x;egg.y=waterSite.y;egg.submergedNest=true;
      }
     }
+   if(parent.g.dna?.skillNesting===1&&parent.energy>=42){
+    egg.nestProtection=true;
+    egg.energy+=2.5;
+    parent.energy-=4;
+   }
    laid.push(egg);this.eggs.push(egg);
   }
   parent.pregnancy=null;
@@ -1227,6 +1237,7 @@ export class Ecosystem{
  eatEgg(egg,hunter){
   if(egg.dead||dietProfile(hunter.g).meat===0)return false;
   if(this.supportZones.some(z=>z.kind==='nursery'&&z.until>this.tick&&(z.x-egg.x)**2+(z.y-egg.y)**2<=55**2)&&this.rand()<.75)return false;
+  if(egg.nestProtection&&this.rand()<.42)return false;
    if(this.terrain(egg.x,egg.y)===1&&hunter.g.aquatic!==1)return false;
   egg.dead=true;
   const nutrients=egg.energy*(.8+eggTraits(egg.g).shell*.12)*dietProfile(hunter.g).meat;
@@ -1244,9 +1255,10 @@ export class Ecosystem{
   const power=clamp(((hunter.g.dna?.power??5)-1)/9,0,1);
   const surprise=predatoryAttack&&hunter.g.dna?.skillAmbush===1&&
    (prey.attackResponse?.id!==hunter.id)&&(prey.bite??0)===0?1.28:1;
+  const predation=predatoryAttack&&hunter.g.dna?.skillPredation===1?1.16:1;
   const damage=Math.max(2,(4+hunter.g.jaw*7+mm.bodyMass*.065+
    3.2*clamp(hunter.g.hornLength??0,0,1))*(defensive==='rival'?.42:defensive==='retaliation'?.72:defensive?.65+protectiveDrive(hunter.g)*.65:effectiveMeatAffinity(hunter))*
-   v.vigor*(predatoryAttack?(.80+.65*power)*surprise:1));
+   v.vigor*(predatoryAttack?(.80+.65*power)*surprise*predation:1));
   const vulnerable=(1+.8*metabolicFrugality(prey.g))*
    (1-.16*clamp(prey.g.hornLength??0,0,1));
   const actualDamage=damage*vulnerable;
@@ -1269,7 +1281,8 @@ export class Ecosystem{
    // removed from the corpse so nutrients are never counted twice.
    const meat=defensive===true||defensive==='retaliation'?0:effectiveMeatAffinity(hunter)*(defensive==='rival'?.65:1);
    const tissue=Math.max(4,organismMorphology(prey).bodyMass*.23);
-   const gained=(Math.max(5,prey.energy*.35)+tissue)*meat;
+   const gained=(Math.max(5,prey.energy*.35)+tissue)*meat*
+    (hunter.g.dna?.skillPredation===1?1.12:1);
    hunter.energy+=gained;
    if(meat>0){
     const old=carnivoryExperience(hunter);learnCarnivory(hunter,tissue);
@@ -1899,7 +1912,7 @@ export class Ecosystem{
     if(u.energy<80&&!nearest)u.forageFailure++;
    }
    let nearestCorpse=null,corpseDist=sight*sight;
-   if(effectiveMeatAffinity(u)>.15||famineCannibalism(u))for(const corpse of corpseGrid.query(u.x,u.y,sight)){
+   if(effectiveMeatAffinity(u)>.15||famineCannibalism(u)||g.dna?.skillAbsorb===1)for(const corpse of corpseGrid.query(u.x,u.y,sight)){
     if(corpse.mass<1)continue;
     const d=distance(u,corpse);
     if(d<corpseDist){corpseDist=d;nearestCorpse=corpse;}
