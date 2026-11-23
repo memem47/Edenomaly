@@ -148,6 +148,54 @@ export const visibleOrnaments=g=>{
  }));
 };
 
+// A single deterministic phenotype model for renderer, editor and naming.
+// All 37 editable loci contribute to distinct visible skin pearls. The larger
+// appendages combine ecological traits; no RNG or extra hidden wing genes.
+export const phenotypeTraits=g=>{
+ const normalize=key=>{
+  const [lo,hi]=GENETIC_LOCUS_LIMITS[key];
+  return clamp((Number(g?.[key]??lo)-lo)/(hi-lo),0,1);
+ };
+ const v=Object.fromEntries(Object.keys(GENETIC_LOCUS_LIMITS).map(k=>[k,normalize(k)]));
+ const ornaments=visibleOrnaments(g);
+ const fins=clamp(.52*v.aquatic+.28*v.wet+.20*v.waterGardening,0,1);
+ const horns=clamp(.48*ornaments.horn+.28*v.retaliation+.24*v.guard,0,1);
+ const tentacles=clamp((.27*v.antennaLength+.25*v.parentFeeding+.25*v.nestChoice+.23*v.predatorSense-.42)*2.4,0,1);
+ const wings=clamp((.30*v.dispersal+.27*v.antennaLength+.23*v.sociability+.20*v.wet-.78)*4,0,1);
+ return {
+  genes:v,ornaments,fins,horns,tentacles,wings,
+  shellPlates:clamp(.38*v.resist+.34*v.shell+.28*v.tempTolerance,0,1),
+  eggCrown:clamp(.30*v.brood+.28*v.yolkReserve+.22*v.parentFeeding+.20*v.repro,0,1),
+  gills:clamp(.45*v.aquatic+.35*v.wet+.20*v.waterGardening,0,1),
+  plume:clamp(.38*v.frugality+.33*v.hibernate+.29*v.longevity,0,1),
+  behavior:clamp(.35*v.nesting+.33*v.nestChoice+.32*v.caution,0,1)
+ };
+};
+// Ten-level-like bins produce a compact reproducible genetic tag, while
+// the existing species category stays coarse for stable ecological counting.
+export const phenotypeSignature=g=>{
+ if(!g)return '';
+ let h=2166136261;
+ for(const [key,[lo,hi]] of Object.entries(GENETIC_LOCUS_LIMITS)){
+  const n=clamp((Number(g[key]??lo)-lo)/(hi-lo),0,1);
+  const bin=Math.round(n*255);
+  for(const byte of [bin,key.length]){
+   h=Math.imul(h^byte,16777619)>>>0;
+  }
+ }
+ return h.toString(36).toUpperCase().padStart(7,'0');
+};
+export const distinctivePhenotypeNames=g=>{
+ const p=phenotypeTraits(g),tags=[];
+ if(p.wings>.47)tags.push('ツバサ');
+ if(p.tentacles>.49)tags.push('ショクシュ');
+ if(p.fins>.45)tags.push('ヒレ');
+ if(p.horns>.51)tags.push('ツノ');
+ if(p.eggCrown>.66)tags.push('タマゴフサ');
+ if(p.shellPlates>.72)tags.push('コウラ');
+ return tags.slice(0,3);
+};
+
 const ORNAMENT_NAMES=[
  ['hornLength','ホーン'],['tailLength','テール'],
  ['antennaLength','アンテナ'],['pattern','スポット']
@@ -173,7 +221,11 @@ export const speciesNameFromCategory=(key,genome=null)=>{
  const feature=parts.appearanceFeature===null?
   speciesFeatureName(genome):NAME_FEATURES[parts.appearanceFeature];
  if(!color||feature===undefined)throw new Error('Unsupported species appearance category: '+key);
- return [color,speciesEcologyCode(key),feature].filter(Boolean).join('・');
+ // Names keep the categorical ecological core while distinguishing the
+ // actual founder genome and its distinctive appendages.
+ const distinctive=genome?distinctivePhenotypeNames(genome).join(''):'';
+ const genomeTag=genome?'型'+phenotypeSignature(genome):'';
+ return [color,speciesEcologyCode(key)+distinctive+genomeTag,feature].filter(Boolean).join('・');
 };
 // Pigment is a derived phenotype, not an additional independent gene.
 export const pigmentClass=g=>{
