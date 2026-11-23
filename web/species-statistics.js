@@ -2,7 +2,9 @@
 // individual's numeric value (even after extinction); active physiology is
 // measured from currently living individuals at export/snapshot time.
 // Never consume ecology RNG. No imported simulation module (avoids cycles).
+import {basicStatValues,BASIC_STAT_GROUPS} from './basic-stat-score.js';
 export const SPECIES_METRIC_LABELS={
+ ...Object.fromEntries(BASIC_STAT_GROUPS.map(stat=>['stat_'+stat.key,stat.name])),
  idealTemp:'好みの温度',tempTolerance:'温度耐性',hibernate:'休眠傾向',
  longevity:'寿命特性',r:'遺伝的半径',elongation:'体の縦横比',
  eyes:'目の数',mouths:'口能力',jaw:'顎',wet:'水適応',dry:'乾燥適応',rock:'岩適応',
@@ -35,7 +37,7 @@ export function appendSpeciesBirth(store,key,g,derived={}){
  if(!entry){entry=new Map();store.set(key,entry);}
  // Birth quantiles are unchanged until the next birth in this species.
  entry.birthSummaryCache=null;
- for(const [metric,value] of Object.entries({...g,...derived})){
+ for(const [metric,value] of Object.entries({...g,...derived,...basicStatValues(g)})){
   if(!numeric(value)||metric==='alleles'||metric==='sizeBaseRadius')continue;
   let values=entry.get(metric);
   if(!values){values=[];entry.set(metric,values);}
@@ -69,7 +71,7 @@ export function speciesReport(world,{run=1,version='development'}={}){
  for(const u of world.units)if(!u.dead){
   let entry=active.get(u.category);
   if(!entry){entry=new Map();active.set(u.category,entry);}
-  for(const [field,value] of Object.entries(livingValues(u))){
+  for(const [field,value] of Object.entries({...livingValues(u),...basicStatValues(u.g)})){
    if(!numeric(value))continue;
    let values=entry.get(field);
    if(!values){values=[];entry.set(field,values);}values.push(value);
