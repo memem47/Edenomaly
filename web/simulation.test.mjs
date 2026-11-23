@@ -959,7 +959,7 @@ test('aquatic and terrestrial adaptations can evolve in both directions',()=>{
    if(child.aquatic!==habitat)conversions++;
    if(child.dry>ancestor.dry+.15)dry++;
    if(child.rock>ancestor.rock+.15)rock++;
-   assert.equal(child.aquatic,child.alleles.aquatic[0]);
+   assert.equal(child.aquatic,w.expressGeneticPair('aquatic',child.alleles.aquatic));
   }
   assert.ok(conversions>50&&conversions<450,'Habitat changes should occur but stay uncommon');
   assert.ok(dry>25||rock>25,'Environmental specialists should appear across many offspring');
@@ -988,9 +988,21 @@ test('albinism is rare, inherited and visually separate from a wound flash',()=>
   const child=w.recombine(ancestor,ancestor);
   whites+=child.albino===1?1:0;
  }
- assert.ok(whites>0&&whites<100,'white mutation should occur but stay below 2%');
- const white={...ancestor,albino:1,alleles:{...ancestor.alleles,albino:[1,1]}};
- assert.equal(w.recombine(white,white).albino,1);
+ // From two non-carriers, first mutations usually create *carriers*.
+ // A recessive white phenotype needs two white alleles.
+ assert.equal(whites,0,'albino should remain hidden after a single allele mutation');
+ const white={...ancestor,albino:1,dna:{...ancestor.dna,albino:1},
+  alleles:{...ancestor.alleles,albino:[1,1]}};
+ const activeChild=w.recombine(white,white);
+ assert.equal(activeChild.albino,1);
+ const carrier={...ancestor,albino:0,dna:{...ancestor.dna,albino:0},
+  alleles:{...ancestor.alleles,albino:[1,0]}};
+ const oldRand=w.rand;let calls=0;
+ w.rand=()=>calls++<54?.2:.99;
+ const grandson=w.recombine(carrier,carrier);
+ w.rand=oldRand;
+ assert.deepEqual(grandson.alleles.albino,[1,1]);
+ assert.equal(grandson.albino,1,'white phenotype reappears from hidden parental alleles');
  const color=adaptationColor(white);
  assert.ok(color.saturation<=8&&color.lightness>=88);
  assert.notEqual(slimeEyeColor(white),slimeEyeColor({...white,albino:0}));
