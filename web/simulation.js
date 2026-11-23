@@ -128,12 +128,16 @@ export const speciesColorName=(g,fallback='green')=>{
 export const functionalOrnaments=g=>{
  const val=(key,fallback=0)=>clamp(Number(g?.[key]??fallback),0,1);
  const jaw=clamp((Number(g?.jaw??1)-.2)/2.3,0,1);
- return {
+ const functional={
   horn:clamp((jaw-.48)*1.37+(val('guard')-.52)*.55,0,1),
   tail:clamp((val('wet')-.48)*.89+(g?.aquatic===1?.28:0)+(val('dispersal')-.52)*.44,0,1),
   antenna:clamp((val('predatorSense')-.54)*1.28+Math.max(0,Number(g?.eyes??2)-3)*.10,0,1),
   pattern:clamp((val('deception')-.53)*1.13+(val('resist')-.65)*.31,0,1)
  };
+ // Independently inherited ornamental loci now contribute to appearance.
+ const loci={horn:'hornLength',tail:'tailLength',antenna:'antennaLength',pattern:'pattern'};
+ return Object.fromEntries(Object.entries(functional).map(([key,value])=>
+  [key,Number.isFinite(g?.[loci[key]])?.45*value+.55*val(loci[key]):value]));
 };
 const ORNAMENT_NAMES=[
  ['hornLength','ホーン'],['tailLength','テール'],
@@ -488,7 +492,8 @@ export const lifeDrain=u=>{
  return energy>=65?0:.08+(65-energy)*.025;
 };
 // Retain the historical genome field for compatibility without aging upkeep.
-export const longevityUpkeep=()=>0;
+// Constitution changes basal upkeep, not an automatic countdown to death.
+export const longevityUpkeep=g=>.06*(1-clamp(((g.longevity??1.2)-.6)/1.4,0,1));
 export const vitality=u=>{
  const max=u.maxHp??Math.max(25,Math.round(organismMorphology(u).bodyMass*.48+25));
  const health=clamp((u.hp??max)/Math.max(1,max),0,1);
@@ -522,7 +527,8 @@ export function deriveFunctionalBody(g){
  };
  const out={...g,functionalBody:true,alleles:{...g.alleles}};
  for(const [key,value] of Object.entries(values)){
-  out[key]=Number(value.toFixed(4));out.alleles[key]=[out[key],out[key]];
+   if(g.bodyOverrides?.includes(key)&&Number.isFinite(g[key]))continue;
+   out[key]=Number(value.toFixed(4));out.alleles[key]=[out[key],out[key]];
  }
  return out;
 }
@@ -537,7 +543,8 @@ export const genomeCode=g=>HERITABLE.map(key=>{
  return step.toString(16).toUpperCase();
 }).join('').match(/.{1,4}/g).join('-');
 
-const LIMITS={tailLength:[0,1],hornLength:[0,1],antennaLength:[0,1],pattern:[0,1],repro:[0,2],idealTemp:[-5,40],tempTolerance:[3,18],hibernate:[0,1],longevity:[.6,2],r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1],albino:[0,1],dispersal:[0,1],sociability:[0,1],caution:[0,1],predatorSense:[0,1],retaliation:[0,1],frugality:[0,1],waterGardening:[0,1],nestChoice:[0,1],parentFeeding:[0,1],yolkReserve:[0,1],juvenileCannibalism:[0,1]};
+export const GENETIC_LOCUS_LIMITS={tailLength:[0,1],hornLength:[0,1],antennaLength:[0,1],pattern:[0,1],repro:[0,2],idealTemp:[-5,40],tempTolerance:[3,18],hibernate:[0,1],longevity:[.6,2],r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1],albino:[0,1],dispersal:[0,1],sociability:[0,1],caution:[0,1],predatorSense:[0,1],retaliation:[0,1],frugality:[0,1],waterGardening:[0,1],nestChoice:[0,1],parentFeeding:[0,1],yolkReserve:[0,1],juvenileCannibalism:[0,1]};
+const LIMITS=GENETIC_LOCUS_LIMITS;
 const alleleExpression=(key,pair)=>{
  // Eyes: more-eye allele is dominant; hidden low-eye alleles can reappear in grandchildren.
  // Other continuous traits use incomplete dominance (mean of the two inherited copies).
@@ -722,10 +729,12 @@ export class Ecosystem{
    next.alleles[key][index]=clamp(value,lo,hi);
   }
   for(const trait of HERITABLE)next[trait]=alleleExpression(trait,next.alleles[trait]);
-  return next.functionalBody?deriveFunctionalBody(next):next;
+  next.bodyOverrides=[...(g.bodyOverrides??[])];
+   return next.functionalBody?deriveFunctionalBody(next):next;
  }
  recombine(a,b){
-  const child={alleles:{},functionalBody:!!(a.functionalBody||b.functionalBody)};
+  const child={alleles:{},functionalBody:!!(a.functionalBody||b.functionalBody),
+    bodyOverrides:[...new Set([...(a.bodyOverrides??[]),...(b.bodyOverrides??[])])]};
   for(const key of HERITABLE){
    const maternal=allelePair(a,key),paternal=allelePair(b,key);
    const pair=[maternal[this.rand()<.5?0:1],paternal[this.rand()<.5?0:1]];
