@@ -75,23 +75,23 @@ export function expressDNA(source){
  const dry=clamp(.16+.55*adaptation+(biome===2?.30:0));
  const rock=clamp(.16+.53*adaptation+(biome===3?.32:0));
  const guard=clamp(.10+.79*power);
- const retaliation=clamp(.05+.85*power*(s('skillRetaliation')?1:.62));
- const nestChoice=clamp((.09+.72*intellect)*(s('skillNestChoice')?1:.32));
- const parentFeeding=clamp((.08+.81*fertility)*(s('skillParentFeeding')?1:.3));
+ const retaliation=s('skillRetaliation')?clamp(.35+.60*power):0;
+ const nestChoice=s('skillNestChoice')?clamp(.20+.75*intellect):0;
+ const parentFeeding=s('skillParentFeeding')?clamp(.20+.74*fertility):0;
  const brood=Math.max(1,Math.min(8,Math.round(1+7*fertility)));
  const g={
   ...source,...dna,dna,genomeModel:2,functionalBody:true,bodyOverrides:[],
   diet:dna.diet,aquatic:dna.aquatic,repro:dna.repro,albino:dna.albino,
   wet,dry,rock,idealTemp:-5+45*dna.thermal,
-  tempTolerance:3+15*stamina,hibernate:s('skillHibernate')?clamp(.28+.72*adaptation):.04,
+  tempTolerance:3+15*stamina,hibernate:s('skillHibernate')?clamp(.28+.72*adaptation):0,
   resist:clamp(.09+.87*stamina),frugality:clamp(.12+.82*stamina),
   longevity:.6+1.4*stamina,
-  waterGardening:s('skillWaterGardening')?clamp(.35+.65*adaptation):.02,
+  waterGardening:s('skillWaterGardening')?clamp(.35+.65*adaptation):0,
   shell:clamp(.08+.84*fertility),guard,
   nesting:clamp(.14+.57*fertility+.20*intellect),
   nestChoice,parentFeeding,
   yolkReserve:clamp(.08+.79*fertility),brood,
-  juvenileCannibalism:s('skillCannibalism')?clamp(.30+.60*dna.diet):.01,
+  juvenileCannibalism:s('skillCannibalism')?clamp(.30+.60*dna.diet):0,
   dispersal:clamp(.09+.86*agility),sociability:clamp(dna.social),
   caution:clamp(.12+.78*intellect),predatorSense:clamp(.12+.79*intellect),
   retaliation,deception:clamp(.12+.42*intellect+.20*(1-power)),
