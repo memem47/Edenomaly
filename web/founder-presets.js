@@ -14,7 +14,7 @@ export const FOUNDER_PRESETS=Object.freeze([
   values:{stamina:5,adaptation:7,agility:6,diet:.05,aquatic:1,biome:1,skillWaterGardening:1}},
  {id:'desert',name:'🏜 乾燥地の節約型',description:'乾燥地と季節の変化に備え、休眠する。',
   values:{stamina:8,adaptation:7,fertility:3,diet:.36,biome:2,skillHibernate:1}},
- {id:'rock',name:'🪨 岩場の警戒型',description:'岩場で危険を識別し、反撃する戦略。',
+ {id:'rock',name:'🪨 岩場の警戒型',description:'岩場に強い生存戦略。危険を早期に察知し、反撃スキルで卵や仲間を守る。',
   values:{power:7,intellect:7,adaptation:7,diet:.42,biome:3,skillRetaliation:1}}
 ]);
 export function founderPresetGenome(base,id){
