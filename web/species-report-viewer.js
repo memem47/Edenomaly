@@ -1,4 +1,5 @@
 import {parseSpeciesCSV} from './species-statistics.js';
+import {BASIC_STAT_GROUPS} from './basic-stat-score.js';
 const $=id=>document.getElementById(id);
 let rows=[],selected='',run='',species=[];
 const fmt=n=>Number.isFinite(n)?new Intl.NumberFormat('ja-JP',{maximumFractionDigits:3}).format(n):'—';
@@ -6,6 +7,7 @@ const node=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.classNa
 const clear=el=>{el.replaceChildren();return el;};
 const lookup=(r)=>r.category+' | '+r.species;
 const key=r=>String(r.run);
+const basicMetrics=new Set(BASIC_STAT_GROUPS.map(s=>'stat_'+s.key));
 function getRows(){return rows.filter(r=>key(r)===run);}
 function filteredSpecies(){
  const q=$('search').value.trim().toLowerCase();
@@ -51,6 +53,7 @@ const zeroToOneMetrics=new Set([
  'antennaLength','pattern','edibleRatio','hpPercent'
 ]);
 function metricDomain(scope,metric){
+ if(basicMetrics.has(metric))return [1,10];
  if(zeroToOneMetrics.has(metric))return metric==='hpPercent'?[0,100]:[0,1];
  const comparable=getRows().filter(r=>r.scope===scope&&r.metric===metric);
  const min=Math.min(...comparable.map(r=>r.min));
@@ -65,8 +68,9 @@ function drawDetails(){
  info.textContent=sp.name+' ｜ '+sp.current+'体現存 / 累計'+sp.total+'体 ｜ 分類: '+sp.category;
  const scope=$('scope').value,q=$('metricSearch').value.trim().toLowerCase();
  const selectedRows=getRows().filter(r=>r.category===selected&&r.scope===scope&&
+  basicMetrics.has(r.metric)&&
   (!q||String(r.label+' '+r.metric).toLowerCase().includes(q)));
- if(!selectedRows.length){target.append(node('p','sub',scope==='living'?'現存個体がいない、または該当する項目がありません。':'該当する項目がありません。'));return;}
+ if(!selectedRows.length){target.append(node('p','sub',scope==='living'?'現存個体がいないか、基本ステータスの記録がありません。':'基本ステータス記録がありません。古いCSVの場合は最新版で再記録してください。'));return;}
  for(const r of selectedRows){
   const [min,max]=metricDomain(scope,r.metric);
   target.append(formatRow(r,min,max));
@@ -75,7 +79,7 @@ function drawDetails(){
 function drawComparison(){
  const target=clear($('comparison'));
  const scope=$('compareScope').value,field=$('metric').value;
- const match=getRows().filter(r=>r.scope===scope&&r.metric===field);
+ const match=getRows().filter(r=>r.scope===scope&&r.metric===field&&basicMetrics.has(r.metric));
  if(!match.length){target.append(node('p','sub','比較できる項目がありません。'));return;}
  const order=$('sort').value;
  match.sort((a,b)=>order==='name'?a.species.localeCompare(b.species,'ja'):
@@ -89,12 +93,15 @@ function drawComparison(){
 function populateMetrics(){
  const scope=$('compareScope').value,prev=$('metric').value;
  const options=new Map();
- for(const row of getRows())if(row.scope===scope&&!options.has(row.metric))
-  options.set(row.metric,row.label||row.metric);
+ for(const stat of BASIC_STAT_GROUPS){
+  const metric='stat_'+stat.key;
+  if(getRows().some(row=>row.scope===scope&&row.metric===metric))
+   options.set(metric,stat.icon+' '+stat.name);
+ }
  const sel=clear($('metric'));
  for(const [id,label] of options){const opt=node('option','',label);opt.value=id;sel.append(opt);}
  if(options.has(prev))sel.value=prev;
- else if(options.has('geneticMass'))sel.value='geneticMass';
+ else if(options.has('stat_power'))sel.value='stat_power';
 }
 function loadRows(parsed,sourceLabel){
  if(!parsed.length)throw new Error('有効なデータがありません');
