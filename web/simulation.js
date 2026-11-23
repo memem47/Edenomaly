@@ -845,6 +845,47 @@ export class Ecosystem{
   return u;
  }
  // Rescue demands abundant food and an isolated surviving lineage.
+ // Skill: share reserves with a starving member of the same lineage.
+ // Equal or lower-value transfers cannot create energy from nothing.
+ shareFoodWithAlly(u,near){
+  if(u.g.dna?.skillCooperate!==1||u.stage!=='adult'||u.energy<128||
+     (this.tick+u.id)%24!==0)return false;
+  const ally=near.filter(v=>v!==u&&!v.dead&&v.lineage===u.lineage&&
+   v.energy<65&&distance(u,v)<36**2).sort((a,b)=>a.energy-b.energy)[0];
+  if(!ally)return false;
+  const supplied=Math.min(9,65-ally.energy,(u.energy-110)*.70);
+  if(supplied<=0)return false;
+  u.energy-=supplied*1.20;
+  ally.energy+=supplied;
+  if(ally.stage==='juvenile')ally.juvenileFood=(ally.juvenileFood??0)+supplied*.3;
+  this.log('feed','#'+u.id+' が仲間 #'+ally.id+' に栄養を分配',ally);
+  return true;
+ }
+ // Unlike the last-survivor emergency split, skill division can act in a
+ // healthy colony, but only rarely with surplus resources and low crowding.
+ canSkillSplit(u,near=[]){
+  if(u?.g?.dna?.skillSplit!==1||u.dead||u.stage!=='adult'||u.dormant||
+    u.pregnancy||u.courtPartner||u.infection>0||u.age<120||
+    u.energy<165||u.hydration<72||u.hp<u.maxHp*.8||
+    this.tick-(u.lastSkillSplit??-100000)<640||this.units.length>=1600)return false;
+  if(near.filter(v=>!v.dead&&v!==u&&distance(u,v)<65**2).length>=6)return false;
+  return thermalFitness(u.g,this.temperatureAt(u.x,u.y)).reproduction;
+ }
+ skillSplit(u){
+  if(!this.canSkillSplit(u))return null;
+  const genome=this.rand()<.035?this.mutate(u.g):u.g;
+  const child=this.spawn(clamp(u.x+this.range(-13,13),10,W-10),
+   clamp(u.y+this.range(-13,13),10,H-10),genome,u);
+  if(!child)return null;
+  child.energy=40;child.hydration=75;
+  child.hp=child.maxHp*.8;
+  u.energy-=110;u.hydration-=14;u.hp*=.83;
+  u.lastSkillSplit=this.tick;u.mateCooldown=Math.max(u.mateCooldown,180);
+  child.lastSkillSplit=this.tick;
+  this.log('split','#'+u.id+' が分裂スキルで #'+child.id+' を生み出した',u);
+  this.addVisualEffect('birth',u);
+  return child;
+ }
  canEmergencySplit(u){
   if(!u||u.dead||u.stage!=='adult'||u.dormant||u.pregnancy||u.courtPartner||
      (u.infection??0)>0||u.energy<145||u.hydration<70||
@@ -2095,6 +2136,9 @@ export class Ecosystem{
    const mate=u.courtPartner?(byId.get(u.courtPartner)??null):this.findMate(u,near);
     // Rescue is rare and expensive; never override a viable natural mate.
     if((this.tick+u.id)%24===0&&this.canEmergencySplit(u))this.emergencySplit(u);
+    // The optional division skill works beyond emergency rescue, with
+    // high resource cost and local density restrictions.
+    if((this.tick+u.id)%80===0&&this.canSkillSplit(u,near))this.skillSplit(u);
     // Without an eligible partner, a well-fed parthenogen can repopulate alone.
     if(!mate&&!u.courtPartner&&reproductiveMode(g)===2&&u.sex==='F'&&
        u.energy>120&&(this.tick+u.id)%135===0)this.conceiveSolo(u);
@@ -2277,18 +2321,21 @@ export class Ecosystem{
      this.log('meal','#'+u.id+' が草を食べた',u);}
    }
    this.feedOffspring(u,near);
+   if(g.dna?.skillCooperate===1)this.shareFoodWithAlly(u,near);
     // A carnivore can also scavenge a corpse: deserts cannot support herbivores.
-   if(!flight&&(effectiveMeatAffinity(u)>.15||famineCannibalism(u))&&nearestCorpse&&distance(u,nearestCorpse)<(m.biteReach+14)**2&&u.energy<175){
+   if(!flight&&(effectiveMeatAffinity(u)>.15||famineCannibalism(u)||g.dna?.skillAbsorb===1)&&nearestCorpse&&distance(u,nearestCorpse)<(m.biteReach+14)**2&&u.energy<175){
     const eaten=Math.min(nearestCorpse.mass,2.4*m.foodGain*feedingCapacity(u));
     nearestCorpse.mass-=eaten;
-    u.energy+=eaten*5.8*effectiveMeatAffinity(u);
-    if(eaten>0){
+    const absorption=g.dna?.skillAbsorb===1?.42:0;
+    const recovered=eaten*5.8*Math.max(effectiveMeatAffinity(u),absorption);
+    u.energy+=recovered;
+    if(eaten>0&&effectiveMeatAffinity(u)>.15){
      const previous=carnivoryExperience(u);learnCarnivory(u,eaten);
      if(previous<.25&&carnivoryExperience(u)>=.25)
       this.log('carnivoreLearn','#'+u.id+' が肉食に順化し始めた',u);
     }
     u.recentFood=(u.recentFood??0)+eaten*4;
-    if(u.stage==='juvenile')u.juvenileFood+=eaten*5.8*effectiveMeatAffinity(u);
+    if(u.stage==='juvenile')u.juvenileFood+=recovered;
     if(eaten>0){if((this.tick+u.id)%9===0)this.addVisualEffect('scavenge',u,{fromX:nearestCorpse.x,fromY:nearestCorpse.y});this.log('meal','#'+u.id+' が死体を食べた',u);}
    }
    if(!flight&&!defenderTarget&&targetEgg&&!targetEgg.dead&&u.bite===0&&distance(u,targetEgg)<(m.biteReach+4)**2)this.eatEgg(targetEgg,u);
