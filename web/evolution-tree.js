@@ -14,9 +14,11 @@ export function evolutionGraph(world){
  for(const node of nodes){
   const sp=world.species.get(node.key);
   const linked=new Set();
-  for(const parent of sp.parents??[]){
-   if(!parent?.genome)continue;
-   const parentKey=world.category(parent.genome);
+  const parents=(sp.parents?.length?sp.parents:
+   (sp.parentCategories??[]).map(category=>({category})));
+  for(const parent of parents){
+   const parentKey=parent?.category??(parent?.genome?world.category(parent.genome):null);
+   if(!parentKey)continue;
    if(parentKey===node.key||!byKey.has(parentKey)||linked.has(parentKey))continue;
    const source=byKey.get(parentKey);
    // Discard invalid temporal or cyclic parent references.
