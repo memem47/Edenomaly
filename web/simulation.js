@@ -821,7 +821,7 @@ export class Ecosystem{
  // a species average or finding a potentially deceased parent after hatching.
  parentSnapshot(u){
   if(!u?.g)return null;
-  return {id:u.id,name:this.name(u.category??this.category(u.g),u.g),
+  return {id:u.id,category:u.category??this.category(u.g),name:this.name(u.category??this.category(u.g),u.g),
    genome:{...u.g,alleles:Object.fromEntries(Object.entries(u.g.alleles??{}).map(([k,p])=>[k,[...p]]))}};
  }
  spawn(x,y,g,parent=null){
@@ -832,7 +832,7 @@ export class Ecosystem{
    const u={sex,id:this.nextId++,x:clamp(x,10,W-10),y:clamp(y,10,H-10),angle:this.range(0,Math.PI*2),g,energy:parent?58:this.range(64,86),age:0,generation:parent?parent.generation+1:0,parent:parent?.id??null,otherParent:parent?.otherParent??null,dead:false,bite:0,stage:parent?'juvenile':'adult',hp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),maxHp:Math.max(25,Math.round(morphology(g).bodyMass*.48+25)),woundFlash:0,attackFlash:0,defendFlash:0,mateCooldown:0,courtPartner:null,pregnancy:null,lineage:parent?.lineage??null,infection:0,hydration:100,seedBank:0,growthScale:1,juvenileGrowth:parent?0:1,juvenileFood:0,recentFood:0,dormant:false,forageSuccess:0,forageFailure:0,stranded:0,submerged:0,lastTerrain:this.terrain(x,y),migrations:0,refugeTarget:null,socialTarget:null,mateTarget:null,rejectedBy:null,mateApproachFailures:0,behaviorTarget:'idle',waterSeedBank:0,lastWaterPlant:-100,landAcclimation:0,carnivoryExperience:0,landExcursion:false,shoreTarget:null,threatDecisions:new Map(),attackResponse:null,retaliationCooldown:0,isolatedSteps:0,lastEmergencySplit:-100000,bornTick:this.tick,hpLoss:{natural:0,temperature:0,terrain:0,starvation:0,juvenile:0,infection:0,combat:0}};
   u.category=this.category(g);u.lineage??=u.id;this.units.push(u);
   if(!this.species.has(u.category)){
-   const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(u.category,g),current:0,total:0,diet:dietProfile(g).label,first:this.tick,parents:(parent?.parents??[this.parentSnapshot(parent)]).filter(Boolean),genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(u.category,g),u);
+   const n=this.species.size+1;this.species.set(u.category,{n,name:this.name(u.category,g),current:0,total:0,diet:dietProfile(g).label,first:this.tick,parents:(parent?.parents??[this.parentSnapshot(parent)]).filter(Boolean),parentCategories:[...new Set((parent?.parents??[this.parentSnapshot(parent)]).filter(Boolean).map(p=>p.category??(p.genome?this.category(p.genome):null)).filter(c=>c&&c!==u.category))],genome:{...g,alleles:Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]))}});this.discoveries.push(this.tick);this.log('new','新しい形態：'+this.name(u.category,g),u);
   }
   const s=this.species.get(u.category);s.current++;s.total++;
   s.firstGeneration??=u.generation;
