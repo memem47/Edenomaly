@@ -498,3 +498,15 @@ button:disabled,input:disabled{opacity:.40;cursor:not-allowed}
 
 .founder-skill button{width:100%;border:1px solid #6199b2;border-radius:6px;padding:6px 8px;color:#e9fbf7;background:#27617b;cursor:pointer}
 .founder-skill button:hover{background:#367b96}
+
+/* Formula source is available only from the founder editor. */
+.founder-formula-reference{margin:12px 0;border:1px solid #54798a;border-radius:10px;padding:10px;background:#183747}
+.founder-formula-reference summary{cursor:pointer;font-weight:650;color:#c3f3ef}
+.founder-formula-reference h4{margin:16px 0 6px;color:#cbe6f3}
+.founder-formula-reference p{font-size:12px;line-height:1.75;color:#bed6df}
+.founder-formula-scroll{max-height:380px;overflow:auto;border:1px solid #426074;border-radius:7px}
+.founder-formula-scroll table{border-collapse:collapse;width:100%;font-size:12px}
+.founder-formula-scroll th,.founder-formula-scroll td{padding:7px 9px;border-bottom:1px solid #345064;text-align:left;vertical-align:top}
+.founder-formula-scroll th{min-width:105px;position:sticky;left:0;background:#214556}
+.founder-formula-scroll td{overflow-wrap:anywhere}
+.founder-formula-scroll code{white-space:normal;color:#e5eddd;font-family:Consolas,monospace}
