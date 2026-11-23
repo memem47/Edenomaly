@@ -1,7 +1,8 @@
 import {zipFiles} from './zip-log.js?v=2026.11.07.4';
 import {mountFounderScreens} from './founder-screens.js?v=2026.11.23.4';
 import {mountDashboardTabs} from './dashboard-tabs.js?v=2026.11.23.4';
-import {abilityListHTML,phenotypeBarsHTML} from './ability-bars.js?v=2026.11.23.4';
+import {abilityListHTML} from './ability-bars.js?v=2026.11.23.5';
+import {BASIC_STAT_GROUPS,basicStatScore} from './basic-stat-score.js';
 import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.23.4';
 import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.23.4';
 import {mountGameUI} from './game-ui.js?v=2026.11.14.2';
@@ -182,12 +183,10 @@ function speciesRepresentative(key,species,liveBySpecies){
  return liveBySpecies.get(key)?.g||species.genome;
 }
 function speciesAbilityText(g){
- if(!g)return '能力情報なし';
- const m=morphology(g),diet=dietProfile(g),hp=Math.max(25,Math.round(m.bodyMass*.48+25));
- const fmt=v=>v.toFixed(2);
- const habitat=g.aquatic===1?'水生':'陸生';
- const strategy=protectiveDrive(g)>.52?'卵の守護種':eggPredationDrive(g)>.62?'卵を狙う危険種':'一般型';
- return `<div class="species-abilities" aria-label="計算済みの能力"><span title="適温と生存に関わる温度耐性">適温 ${fmt(g.idealTemp??22)}℃ ±${fmt(g.tempTolerance??9)}℃</span><span title="休眠能力は遺伝。高いと悪条件で休眠し、活動と繁殖を止めるが栄養を節約する">休眠 ${fmt(g.hibernate??0)}</span><span title="混雑時に仲間から離れようとする遺伝的傾向">分散 ${fmt(g.dispersal??.45)}</span><span title="十分な栄養があるとき同種の仲間に近づく遺伝的傾向">集合 ${fmt(g.sociability??.45)}</span><span title="草地での基準移動速度">速 ${fmt(m.speed*.58)}</span><span title="草地での視界距離">視 ${Math.round(m.eyeRange)}</span><span title="最大HP（健康な成体）">HP ${hp}</span><span title="長寿遺伝子。高いほどHPの自然減少が遅いが代謝コストが高い">長寿 ×${fmt(g.longevity??1)}</span><span title="1ステップあたりの基礎代謝（長寿のコストを含む）">代謝 ${fmt(m.upkeep+longevityUpkeep(g))}</span><span title="食性">${escapeHTML(diet.label)}</span><span title="遺伝した食性・顎・保護能力による生態的戦略">${strategy}</span><span title="生息型">${habitat}</span><span title="乾燥地／岩場／水辺の適応度">適応 乾${fmt(terrainFitness(g,2).fitness)} 岩${fmt(terrainFitness(g,3).fitness)} 水${fmt(terrainFitness(g,1).fitness)}</span></div>`;
+ if(!g)return '基本ステータスなし';
+ return '<div class="species-abilities" aria-label="基本ステータス">'+
+  BASIC_STAT_GROUPS.map(stat=>'<span title="'+escapeHTML(stat.help)+'">'+stat.icon+' '+
+   escapeHTML(stat.name)+' '+basicStatScore(g,stat.key)+'/10</span>').join('')+'</div>';
 }
 function catalogSpecies(liveBySpecies){
  const phenotype=e=>speciesRepresentative(e[0],e[1],liveBySpecies);
@@ -198,10 +197,8 @@ function catalogSpecies(liveBySpecies){
   newest:(a,b)=>b[1].first-a[1].first||b[1].n-a[1].n,
   oldest:(a,b)=>a[1].first-b[1].first||a[1].n-b[1].n,
   name:(a,b)=>a[1].name.localeCompare(b[1].name,'ja')||a[1].n-b[1].n,
-  speed:(a,b)=>morphology(phenotype(b)).speed-morphology(phenotype(a)).speed||a[1].n-b[1].n,
-  sight:(a,b)=>morphology(phenotype(b)).eyeRange-morphology(phenotype(a)).eyeRange||a[1].n-b[1].n,
-  hp:(a,b)=>morphology(phenotype(b)).bodyMass-morphology(phenotype(a)).bodyMass||a[1].n-b[1].n,
-  upkeep:(a,b)=>morphology(phenotype(a)).upkeep-morphology(phenotype(b)).upkeep||a[1].n-b[1].n
+  ...Object.fromEntries(BASIC_STAT_GROUPS.map(stat=>[stat.key,
+   (a,b)=>basicStatScore(phenotype(b),stat.key)-basicStatScore(phenotype(a),stat.key)||a[1].n-b[1].n]))
  };
  return entries.sort(comparators[$('speciesSort').value]||comparators.current);
 }
@@ -212,19 +209,10 @@ function speciesGenomeHTML(key){
  const genome=representative?.g||species.genome;
  if(!genome)return '<p class="muted">この種の遺伝子記録はありません。</p>';
  const origin=representative?'現存する代表個体 #'+representative.id:'発見時に保存した遺伝子';
- const bars=abilityListHTML(genome);
- const genes=Object.entries(GENE_LABELS)
-  .filter(([name])=>genome[name]!==undefined&&!['tailLength','hornLength','antennaLength','pattern'].includes(name))
-  .map(([name,label])=>{
-   const pair=genome.alleles?.[name];
-   return '<div class="gene"><span>'+escapeHTML(label)+
-    (pair?'<small class="allele-pair">遺伝子型 '+pair.map(v=>escapeHTML(genomeValue(name,v))).join(' / ')+'</small>':'')+
-    '</span><b>'+escapeHTML(genomeValue(name,genome[name]))+'</b></div>';
-  }).join('');
- return '<div class="genome-heading"><strong>'+escapeHTML(species.name)+' の遺伝子</strong><button type="button" data-close-genome="true">閉じる</button></div>'+
-  '<p class="muted">'+escapeHTML(origin)+'。各能力バーは最小値～最大値を基準にした相対位置です。見た目の飾りは独立した能力ではなく、他の生存能力から生まれます。</p>'+
-  phenotypeBarsHTML(genome)+'<p class="muted">遺伝子コード：<code>'+genomeCode(genome)+'</code></p>'+bars+
-  '<details class="gene-alleles"><summary>対立遺伝子の組合せを詳しく見る</summary><div class="genome-grid">'+genes+'</div></details>';
+ return '<div class="genome-heading"><strong>'+escapeHTML(species.name)+
+  ' の基本ステータス</strong><button type="button" data-close-genome="true">閉じる</button></div>'+
+  '<p class="muted">'+escapeHTML(origin)+'。詳細な遺伝子と変換式は最初の移入用調整画面で確認できます。</p>'+
+  abilityListHTML(genome);
 }
 function update(){
  const dietCounts=[0,0,0];for(const u of game.units){const d=dietProfile(u.g).diet;dietCounts[d<.3?0:d>.7?2:1]++;}
@@ -346,7 +334,7 @@ function update(){
   inspectedAbilityKey=inspectKey;
   const area=$('selectedAbilityBars'),details=$('selectedAbilityDetails');
   if(area)area.innerHTML=selected&&!selected.dead?
-   phenotypeBarsHTML(selected.g)+abilityListHTML(selected.g):
+   abilityListHTML(selected.g):
    '<p class="muted">観察モードで個体を選択してください。</p>';
   if(details)details.hidden=!selected||selected.dead;
  }
