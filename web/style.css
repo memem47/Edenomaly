@@ -495,3 +495,6 @@ button:disabled,input:disabled{opacity:.40;cursor:not-allowed}
 #toggleGeneEditor:hover{background:#30718f}
 @media(max-width:700px){.basic-stat-grid,.founder-skills-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:420px){.basic-stat-grid,.founder-skills-grid{grid-template-columns:1fr}}
+
+.founder-skill button{width:100%;border:1px solid #6199b2;border-radius:6px;padding:6px 8px;color:#e9fbf7;background:#27617b;cursor:pointer}
+.founder-skill button:hover{background:#367b96}
