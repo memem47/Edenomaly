@@ -574,9 +574,6 @@ export const rearPosition=(u,offset=0)=>({
 // These founders are deterministically derived from existing traits after
 // base allele initialization. Keeping the group centralized prevents dead
 // branches, duplicate random draws and silent genetic initialization drift.
-const DERIVED_FOUNDER_LOCI=new Set(['tailLength','hornLength','antennaLength','pattern',
- 'hibernate','dispersal','sociability','caution','predatorSense','retaliation',
- 'frugality','waterGardening','nestChoice','parentFeeding','yolkReserve','juvenileCannibalism']);
 const HERITABLE=['tailLength','hornLength','antennaLength','pattern','repro','idealTemp','tempTolerance','hibernate','longevity','r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic','albino','dispersal','sociability','caution','predatorSense','retaliation','frugality','waterGardening','nestChoice','parentFeeding','yolkReserve','juvenileCannibalism'];
 // Natural ponds always retain a viable reservoir. Drought reduces excess
 // water depth, but only deliberate terrain painting may remove a water tile.
@@ -683,94 +680,31 @@ export class Ecosystem{
  terrain(x,y){return this.tiles[this.cell(x,y)];}
  terrainLevel(x,y){return this.terrainLevels?.[this.cell(x,y)]??3;}
  gene(){
-  // Most founders prefer mild temperatures, but rare cold/hot specialists
-  // and broad-tolerance generalists can already exist before selection.
-  // Preserve the existing two random draws per genome: adding extra
-  // draws would also perturb unrelated size/diet/sex traits for fixed seeds.
-  const thermalRoll=this.rand(),toleranceRoll=this.rand();
-  const founderIdeal=thermalRoll<.15?-3+thermalRoll/.15*15:
-   thermalRoll<.30?30+(thermalRoll-.15)/.15*10:
-   15+(thermalRoll-.30)/.70*14;
-  const founderTolerance=toleranceRoll<.20?14+toleranceRoll/.20*4:
-   toleranceRoll<.30?4+(toleranceRoll-.20)/.10*4:
-   8+(toleranceRoll-.30)/.70*6;
-  const g={idealTemp:founderIdeal,tempTolerance:founderTolerance,longevity:this.range(.8,1.5),repro:(()=>{const roll=this.rand();return roll<.004?1:roll<.006?2:0;})(),r:(()=>{
-    const roll=this.rand();
-    // 88% compact, 10% medium, 1.8% large, 0.2% exceptionally large.
-    return roll<.88?this.range(3,4.2):
-     roll<.98?this.range(4.2,7):
-     roll<.998?this.range(7,11):this.range(11,15);
-   })(),
-   elongation:(()=>{const roll=this.rand();
-    return roll<.82?this.range(.94,1.16):roll<.98?this.range(1.43,2.04):this.range(2.35,2.83);
-   })(),eyes:(()=>{const roll=this.rand();return roll<.08?0:roll<.36?1:roll<.71?2:roll<.90?3:roll<.975?4:roll<.995?5:6;})(),
-   mouths:1+Math.floor(this.rand()*4),jaw:this.range(.2,2.5),
-   wet:this.rand(),dry:this.rand(),rock:this.rand(),
-   shell:this.rand(),guard:this.rand(),nesting:this.rand(),
-   brood:1+Math.floor(this.rand()*8),diet:this.rand(),
-   deception:clamp(.5+this.range(-.42,.42),0,1),resist:this.rand(),
-   aquatic:this.rand()<.25?1:0,albino:this.rand()<.0015?1:0};
-  // Founders inherit four continuous ornament loci. Seed from the existing
-  // genome without extra draws so the old seed remains reproducible.
-  g.tailLength=clamp((g.wet-.38)*.58+(g.aquatic===1?.22:0),0,1);
-  g.hornLength=clamp((g.jaw-1.15)*.25+(g.guard-.72)*.29,0,1);
-  g.antennaLength=clamp((g.eyes/6-.34)*.38+(g.predatorSense??g.resist-.5)*.12,0,1);
-  g.pattern=clamp((g.deception-.55)*.57+(g.resist-.62)*.23,0,1);
-  // Each founding individual carries two genetic copies per locus, including
-  // recessive alleles that are not necessarily visible in its phenotype.
-  g.alleles={};
-  for(const key of HERITABLE){
-   if(DERIVED_FOUNDER_LOCI.has(key))continue; // preserve existing founder RNG
-   let second=g[key];
-   if(key==='repro')second=0;
-    else if(key==='idealTemp')second=clamp(g.idealTemp+this.range(-3,3),...LIMITS.idealTemp);
-    else if(key==='tempTolerance')second=clamp(g.tempTolerance+this.range(-2,2),...LIMITS.tempTolerance);
-     else if(key==='longevity')second=clamp(g.longevity+this.range(-.2,.2),...LIMITS.longevity);
-    else if(key==='elongation')second=clamp(g.elongation+this.range(-.11,.11),...LIMITS.elongation);
-    else if(key==='r')second=clamp(g.r+this.range(-.35,.35),...LIMITS.r);
-   else if(key==='albino')second=0;
-   else if(key==='aquatic'&&this.rand()<.14)second=1-g.aquatic;
-   else if(key==='eyes'&&this.rand()<.82)second=Math.max(0,g.eyes-1-Math.floor(this.rand()*3));
-   else if(key!=='aquatic'&&key!=='eyes'&&this.rand()<.75){
-    const range=LIMITS[key][1]-LIMITS[key][0];
-    second=clamp(g[key]+this.range(-.36,.36)*range,...LIMITS[key]);
-   }
-   const pair=[g[key],second];
-   g.alleles[key]=pair;
-   g[key]=alleleExpression(key,pair);
-  }
-  // An existing inherited trait combination seeds a new independently
-  // recombining mutation locus without shifting all previous seed outcomes.
-  g.hibernate=clamp(.07+g.shell*.57+g.guard*.44,0,1);
-  g.alleles.hibernate=[g.hibernate,g.hibernate];
-  // Seed two behavioral loci from existing variation without consuming extra
-  // random draws or perturbing older morphology and reproduction trajectories.
-  // Their values can subsequently mutate and recombine independently.
-  g.dispersal=clamp(.08+g.dry*.42+g.eyes/6*.28+g.jaw/2.5*.13,0,1);
-  g.sociability=clamp(.08+g.guard*.42+g.nesting*.27+g.brood/8*.22,0,1);
-  g.alleles.dispersal=[g.dispersal,g.dispersal];
-  g.alleles.sociability=[g.sociability,g.sociability];
-   // Derive founding combat traits from existing variation without altering
-   // previous seed RNG. They subsequently recombine/mutate independently.
-   g.caution=clamp(.10+g.eyes/6*.35+g.resist*.21+g.dry*.13,0,1);
-   g.predatorSense=clamp(.12+g.eyes/6*.4+g.deception*.16+g.guard*.12,0,1);
-   g.retaliation=clamp(.08+g.jaw/2.5*.42+g.guard*.32,0,1);
-   for(const key of ['caution','predatorSense','retaliation'])g.alleles[key]=[g[key],g[key]];
-   // New ecological niches initially remain uncommon, but can spread
-   // through mutation and recombination if their tradeoffs are beneficial.
-   g.frugality=clamp(.10+g.shell*.26+g.longevity*.10-g.jaw*.035,0,1);
-   g.waterGardening=clamp(.05+g.wet*.28+g.nesting*.15,0,1);
-   g.alleles.frugality=[g.frugality,g.frugality];
-   g.alleles.waterGardening=[g.waterGardening,g.waterGardening];
-   g.nestChoice=clamp(.04+g.nesting*.63+g.eyes/6*.16,0,1);
-   g.parentFeeding=clamp(.04+g.guard*.39+g.sociability*.34,0,1);
-   g.yolkReserve=clamp(.08+g.shell*.34+g.brood/8*.18,0,1);
-   g.juvenileCannibalism=clamp(.025+g.diet*.43+g.jaw/2.5*.21-g.guard*.13,0,1);
-   for(const key of ['nestChoice','parentFeeding','yolkReserve','juvenileCannibalism'])
-    g.alleles[key]=[g[key],g[key]];
-   for(const key of ['tailLength','hornLength','antennaLength','pattern'])
-    g.alleles[key]=[g[key],g[key]];
-  return expressDNA({dna:legacyToDNA(g)});
+  // Only canonical DNA is sampled. The 37 ecology/morphology values are
+  // expressed deterministically and are NOT separately inherited.
+  const roll=(lo,hi)=>Math.round(this.range(lo,hi));
+  const coldHot=this.rand();
+  const thermal=coldHot<.075?this.range(.05,.36):
+   coldHot<.15?this.range(.79,.96):this.range(.45,.73);
+  const aquatic=this.rand()<.21?1:0,biome=aquatic?1:
+   this.rand()<.15?2:this.rand()<.12?3:0;
+  const dna={
+   power:roll(2,7),agility:roll(3,7),stamina:roll(3,8),
+   intellect:roll(2,7),adaptation:roll(3,8),fertility:roll(3,7),
+   diet:this.rand()<.85?this.range(0,.32):this.range(.38,.93),
+   aquatic,repro:(()=>{const r=this.rand();return r<.004?1:r<.006?2:0;})(),
+   biome,thermal,social:this.range(.25,.8),albino:this.rand()<.0015?1:0,
+   skillWaterGardening:this.rand()<.045?1:0,
+   skillHibernate:this.rand()<.09?1:0,
+   skillParentFeeding:this.rand()<.065?1:0,
+   skillNestChoice:this.rand()<.07?1:0,
+   skillRetaliation:this.rand()<.10?1:0,
+   skillCannibalism:this.rand()<.018?1:0
+  };
+  // Two alleles per canonical locus. Derived morphology is recomputed from
+  // the expressed DNA, so neither random shape nor old cached DNA survives.
+  const alleles=Object.fromEntries(DNA_KEYS.map(key=>[key,[dna[key],dna[key]]]));
+  return expressDNA({dna,alleles});
  }
  mutate(g){
   if(g.genomeModel!==2)return this.mutateLegacy(g);
