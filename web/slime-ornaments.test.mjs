@@ -43,7 +43,9 @@ test('round tails and mirrored horns remain attached to slime silhouette',()=>{
  const lobes=calls.ellipses.slice(before).filter(p=>p[2]>.7&&p[3]>.7);
  assert.ok(lobes.length>=4,'two rounded forehead horns with bead tips');
  assert.ok(lobes.some(p=>p[1]>1)&&lobes.some(p=>p[1]<-1));
- assert.ok(lobes.every(([x,y,rx,ry])=>(x+rx)**2/8**2+(Math.abs(y)+ry)**2/6**2<1.5));
+ // New horns deliberately protrude; the body-attached root remains visible.
+ assert.ok(lobes.some(([x,y,rx,ry])=>(x+rx)**2/8**2+(Math.abs(y)+ry)**2/6**2<1.5));
+ assert.ok(lobes.some(([x,y,rx,ry])=>(x+rx)**2/8**2+(Math.abs(y)+ry)**2/6**2>=1.5));
  assert.equal(calls.curve.length,0);
 });
 test('defensive horns form a symmetric pair with inherited horn expression',()=>{
