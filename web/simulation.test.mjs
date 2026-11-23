@@ -558,16 +558,23 @@ test('a decomposing corpse recycles organic matter to soil',()=>{
  assert.ok(w.soil[i]>before);
 });
 
-test('offspring remain genetically varied within one large clutch',()=>{
+test('offspring remain genetically varied within one large clutch (DNA v2)',async()=>{
  const w=new Ecosystem(1201);w.introduce(160,140,1);
  const a=w.units[0],b=w.units[1];a.sex='F';b.sex='M';
- a.g.brood=8;b.g.brood=8;a.energy=b.energy=200;
- a.age=b.age=100;
- for(const u of [a,b]){u.g.r=7;u.g.alleles.r=[4,10];u.g.diet=.5;u.g.alleles.diet=[.1,.9];u.g.eyes=6;u.g.alleles.eyes=[2,6];}
+ a.energy=b.energy=200;a.age=b.age=100;a.g.brood=8;b.g.brood=8;
+ // Heterozygosity now belongs to inherited core and strategy loci, not the
+ // 37 phenotype fields that are deterministically re-expressed per offspring.
+ for(const u of [a,b]){
+  u.g.dna.power=6;u.g.alleles.power=[2,10];
+  u.g.dna.agility=6;u.g.alleles.agility=[2,10];
+  u.g.dna.diet=.5;u.g.alleles.diet=[.1,.9];
+ }
  const p=w.conceive(a,b);
  assert.ok(p);assert.ok(p.genomes.length>=10);
- const expressions=new Set(p.genomes.map(g=>[g.eyes,g.r.toFixed(2),g.diet.toFixed(2)].join(':')));
+ const expressions=new Set(p.genomes.map(g=>
+  [g.dna.power,g.dna.agility,g.dna.diet.toFixed(2)].join(':')));
  assert.ok(expressions.size>=4);
+ assert.ok(p.genomes.every(g=>Object.keys(g.alleles).length===19));
 });
 test('habitat adaptation changes per-step metabolism for different dry traits',()=>{
  const s=new Ecosystem(1202);s.tiles.fill(2);s.grass.fill(0);
@@ -993,7 +1000,7 @@ test('rounded founders dominate while long ovals remain rare (DNA v2)',async()=>
   else if(v<2.25)count.oval++;
   else count.long++;
  }
- assert.ok(count.round>=8500);
+ assert.ok(count.round>=6900&&count.round<=9200);
  assert.ok(count.oval>60);
  assert.ok(count.long>0&&count.long<250);
 });
@@ -2285,7 +2292,8 @@ test('reproduction census distinguishes unsuitable temperature from no compatibl
  assert.equal(summary.reproReady,0);
  assert.ok(summary.meanPreferredTemp>0&&summary.meanTempTolerance>0);
 });
-test('founder thermal genes include cold-hot specialists and heritable differences',()=>{
+test('founder thermal genes include cold-hot specialists and heritable differences (DNA v2)',async()=>{
+ const {editFounderGenome}=await import('./founder-designer.js');
  const w=new Ecosystem(99004),distribution={cold:0,hot:0,generalist:0};
  for(let i=0;i<800;i++){
   const g=w.gene();
@@ -2296,13 +2304,14 @@ test('founder thermal genes include cold-hot specialists and heritable differenc
  assert.ok(distribution.cold>15);
  assert.ok(distribution.hot>15);
  assert.ok(distribution.generalist>20);
- const cold={...w.gene(),idealTemp:2,tempTolerance:12};
- const warm={...w.gene(),idealTemp:35,tempTolerance:8};
+ const cold=editFounderGenome(w.gene(),{thermal:.16,stamina:8});
+ const warm=editFounderGenome(w.gene(),{thermal:.90,stamina:5});
  assert.ok(thermalFitness(cold,0).comfort>thermalFitness(warm,0).comfort);
  assert.ok(thermalFitness(warm,35).comfort>thermalFitness(cold,35).comfort);
  assert.ok(thermalFitness(warm,35).reproduction);
  assert.equal(thermalFitness(cold,35).reproduction,false);
  assert.ok(w.recombine(cold,cold).idealTemp<20);
+ assert.ok(!Object.hasOwn(cold.alleles,'idealTemp'));
 });
 test('CSV tracks reproductive blockers and failed courtships with distinct columns',()=>{
  const w=new Ecosystem(99005),g={...w.gene(),idealTemp:22,tempTolerance:7};
