@@ -761,7 +761,7 @@ export class Ecosystem{
   // Rare strategy innovations remain genetically encoded.
   if(this.rand()<.036){dna.aquatic=1-dna.aquatic;alleles.aquatic=[dna.aquatic,dna.aquatic];}
   if(this.rand()<.045){dna.biome=Math.floor(this.rand()*4);alleles.biome=[dna.biome,dna.biome];}
-  if(this.rand()<.015){dna.diet=clamp(dna.diet+this.range(-.36,.36),0,1);alleles.diet=[dna.diet,dna.diet];}
+  if(this.rand()<.035){dna.diet=clamp(dna.diet+this.range(-.36,.36),0,1);alleles.diet=[dna.diet,dna.diet];}
   const child=expressDNA({dna,alleles});
   return this.rand()<.32?this.mutate(child):child;
  }
