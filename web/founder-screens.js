@@ -212,6 +212,7 @@ export function mountFounderScreens({game,getMode,getDiscoveryMode=()=> 'detaile
     const now=founderLevel(key,currentGenome()[key]);
     const next=['aquatic','albino'].includes(key)?(direction>0?10:1):
      key==='repro'?(direction>0?now<6?6:10:now>6?6:1):
+     key==='biome'?(direction>0?now<4?4:now<7?7:10:now>7?7:now>4?4:1):
      Math.max(1,Math.min(10,now+direction));
     input.value=String(next);
     apply(true);
