@@ -2,6 +2,7 @@ import {FOUNDER_BUDGET,FOUNDER_TRAITS,FOUNDER_FIELDS,formatTrait,editFounderGeno
 import {founderTraitHelp} from './founder-trait-help.js';
 import {BASIC_STATS,basicStatLevel,editBasicStat,founderSkills,trainFounderSkill,skillTrainingGenes} from './basic-stats.js';
 import {founderFormulaHTML} from './founder-formulas.js';
+import {derivedDashboardHTML,refreshDerivedDashboard} from './founder-derived-dashboard.js';
 import {morphology,dietProfile,terrainFitness,genomeCode} from './simulation.js';
 import {drawFounderAppearance} from './founder-preview.js?v=2026.11.23.6';
 import {createDiscoveryToastQueue} from './discovery-toast-queue.js?v=2026.11.23.6';
@@ -103,10 +104,10 @@ export function mountFounderScreens({game,getMode,getDiscoveryMode=()=> 'detaile
   }
   const skillPanel=editorBody.querySelector('#founderSkills');
   if(skillPanel)skillPanel.innerHTML=founderSkills(g).map(skill=>
-   '<div class="founder-skill" title="'+escape(skill.detail)+'"><strong>'+escape(skill.name)+'</strong>'+
-   '<span class="'+(skill.ready?'skill-ready':'skill-locked')+'">'+(skill.ready?'保有':'未習得')+'</span>'+
-   '<small>'+escape(skill.detail)+'</small>'+
-   '<button type="button" data-train-skill="'+escape(skill.name)+'" title="スキルの保有／未習得を切り替えます">'+(skill.ready?'外す':'習得')+'</button></div>').join('');
+   '<div class="founder-skill" title="'+escape(skill.detail)+'">'+
+    '<span>'+escape(skill.name)+'</span>'+
+    '<button type="button" class="'+(skill.ready?'skill-ready':'skill-locked')+'" data-train-skill="'+escape(skill.name)+'" aria-pressed="'+skill.ready+'" aria-label="'+escape(skill.name)+'を'+(skill.ready?'外す':'習得する')+'">'+(skill.ready?'✓ 保有':'＋ 習得')+'</button>'+
+   '</div>').join('');
   if(skillPanel)skillPanel.querySelectorAll('[data-train-skill]').forEach(button=>button.onclick=()=>{
    const name=button.dataset.trainSkill;
    for(const key of skillTrainingGenes(name))changes[key]=currentGenome().dna[key]===1?0:1;
@@ -133,6 +134,7 @@ export function mountFounderScreens({game,getMode,getDiscoveryMode=()=> 'detaile
     bar.querySelector('.ability-fill').style.width=((level-1)/9*100)+'%';
    }
   }
+  refreshDerivedDashboard(editorBody,g,base);
   paintPreview();
   const btn=editorFoot.querySelector('#confirmFounder');
   btn.disabled=!canUseFounder(base,g,isGame);
@@ -145,34 +147,58 @@ export function mountFounderScreens({game,getMode,getDiscoveryMode=()=> 'detaile
   const source=selectedGenome??preparedGenome??defaultGenome();
   base=site?game.adaptFounderToTerrain(source,game.terrain(site.x,site.y)):source;
   changes={};
-  editorBody.innerHTML='<section class="compact-founder-top"><canvas id="founderAfterCanvas" width="180" height="132" aria-label="調整後のスライム"></canvas><div class="compact-founder-info"><strong>調整後の外見</strong><div class="founder-species-name-line"><small>現在の能力から決まる種族名</small><b id="founderSpeciesName" aria-live="polite"></b></div><small>　能力に応じて体表・口・膜・栄養粒・ひれなどが変化</small> <small id="founderPreviewChanges"></small><p id="founderCost" class="founder-budget"></p><div id="founderSummary"></div></div></section>'+
-   '<section class="founder-preset-selection"><strong>① 初期能力を選ぶ</strong><p class="muted">プリセットはおすすめの生存戦略です。選択後もすべての能力を編集できます。</p><div class="founder-preset-grid">'+FOUNDER_PRESETS.map(p=>'<button type="button" data-founder-preset="'+p.id+'"><b>'+escape(p.name)+'</b><small>'+escape(p.description)+'</small></button>').join('')+'<button type="button" id="randomFounderPreset"><b>🎲 ランダム生成</b><small>能力を毎回ランダムに選びます。ゲームモードの遺伝子ポイント上限内で生成します。</small></button></div></section>'+
-   '<p class="muted" id="founderHabitatTip"></p>'+
-   '<section class="founder-basic-section"><h3>基本ステータス</h3><p class="muted">6つの数値がそのまま遺伝子として子孫に受け継がれます。応用能力と外見はこれらの数値から自動計算されます。</p><div class="basic-stat-grid">'+BASIC_STATS.map(stat=>
-    '<div class="basic-stat-card" title="'+escape(stat.help)+'"><div class="basic-stat-head"><strong>'+stat.icon+' '+escape(stat.name)+'</strong><span class="founder-trait-help" tabindex="0" title="'+escape(stat.help)+'" aria-label="'+escape(stat.help)+'">ⓘ</span></div>'+
-    '<div class="compact-value"><button type="button" data-basic-adjust="-1" aria-label="'+escape(stat.name)+'を減らす">−</button><input type="number" min="1" max="10" step="1" data-basic-stat="'+stat.key+'" aria-label="'+escape(stat.name)+'" value="'+basicStatLevel(currentGenome(),stat.key)+'"><button type="button" data-basic-adjust="1" aria-label="'+escape(stat.name)+'を増やす">＋</button></div>'+
-    '<div class="ability-track" role="meter" aria-label="'+escape(stat.name)+'" aria-valuemin="1" aria-valuemax="10" aria-valuenow="'+basicStatLevel(currentGenome(),stat.key)+'"><span class="ability-fill" style="width:'+((basicStatLevel(currentGenome(),stat.key)-1)/9*100)+'%"></span></div>'+
-    '<small class="basic-stat-help">'+escape(stat.help)+'</small></div>').join('')+'</div></section>'+
-   '<section class="founder-skills-section"><h3>スキル・生存戦略</h3><p class="muted">6つのスキルは保有／未習得の遺伝子として子孫に継承されます。保有していても、実際の発動には地形・体力・相手などの条件が必要です。</p><div id="founderSkills" class="founder-skills-grid"></div></section>'+
-   founderFormulaHTML()+
-   '<button type="button" id="toggleGeneEditor" aria-expanded="false">🧬 生存戦略7項目を調整</button><div id="founderGeneEditor" hidden><p class="muted">食性・生息型・繁殖方式・主適応地形・温度の好み・群れ志向・白化の7項目を遺伝させます。応用能力37項目は自動計算であり、個別の遺伝子ではありません。</p><div class="compact-founder-fields">'+FOUNDER_TRAITS.filter(([section])=>section==='生存戦略').map(([section,fields])=>'<fieldset class="founder-fieldset"'+'><legend>'+escape(section)+'</legend><div class="founder-traits">'+
-    fields.map(([key,name,min,max,step])=>{
-     const level=founderLevel(key,currentGenome()[key]??min);
-     return '<div class="founder-trait" title="'+escape(founderTraitHelp(key))+'"' +'><label for="edit-'+key+'">'+escape(name)+' <span class="founder-trait-help" tabindex="0" role="note" aria-label="'+escape(name)+'の説明：'+escape(founderTraitHelp(key))+'" title="'+escape(founderTraitHelp(key))+'">ⓘ</span> <small data-point-cost="'+key+'"></small></label>'+
-      '<div class="compact-value"><button type="button" data-adjust="-1" aria-label="'+escape(name)+'を減らす">−</button>'+
-      '<input id="edit-'+key+'" type="number" data-trait="'+key+'" min="1" max="10" step="1" value="'+level+'">'+
-      '<button type="button" data-adjust="1" aria-label="'+escape(name)+'を増やす">＋</button></div>'+
-      '<small class="founder-level-meaning" data-trait-meaning="'+key+'">'+escape(founderLevelMeaning(key,level))+'</small>'+
-      '<div class="ability-track" role="meter" aria-label="'+escape(name)+'" aria-valuemin="1" aria-valuemax="10" aria-valuenow="'+level+'"><span class="ability-fill" style="width:'+((level-1)/9*100)+'%"></span></div>'+
-      '<div class="ability-scale"><small>1</small><small>10</small></div></div>';
-    }).join('')+'</div></fieldset>').join('')+'</div></div>';
+  // Keep every editable locus and every derived value visible together:
+  // left = six core stats, six inherited skills, seven strategies
+  // right = all 37 read-only expressed values, updated live.
+  const strategyInputs=FOUNDER_TRAITS.find(([section])=>section==='生存戦略')[1];
+  editorBody.innerHTML=
+   '<div class="founder-compact-header"><div class="compact-founder-top">'+
+    '<canvas id="founderAfterCanvas" width="180" height="132" aria-label="調整後のスライム"></canvas>'+
+    '<div class="compact-founder-info"><div class="founder-species-name-line"><b id="founderSpeciesName" aria-live="polite"></b></div>'+
+    '<small id="founderPreviewChanges"></small><p id="founderCost" class="founder-budget"></p>'+
+    '<p class="founder-habitat-compact" id="founderHabitatTip"></p>'+
+    '<div id="founderSummary" hidden></div></div></div>'+
+   '<div class="founder-preset-selection"><strong>初期設定</strong><div class="founder-preset-grid">'+
+    FOUNDER_PRESETS.map(p=>'<button type="button" data-founder-preset="'+p.id+'" title="'+escape(p.description)+'">'+escape(p.name)+'</button>').join('')+
+    '<button type="button" id="randomFounderPreset" title="ランダムな遺伝子で始める">🎲 ランダム</button></div></div></div>'+
+   '<div class="founder-two-columns">'+
+    '<section class="founder-genome-column" aria-label="遺伝子編集">'+
+     '<section class="founder-basic-section"><h3>基本ステータス <small>遺伝する／1〜10</small></h3>'+
+      '<div class="basic-stat-grid">'+BASIC_STATS.map(stat=>
+       '<div class="basic-stat-card" title="'+escape(stat.help)+'">'+
+        '<div class="basic-stat-head"><strong>'+stat.icon+' '+escape(stat.name)+'</strong>'+
+         '<span class="founder-trait-help" tabindex="0" title="'+escape(stat.help)+'">ⓘ</span></div>'+
+        '<div class="compact-value"><button type="button" data-basic-adjust="-1" aria-label="'+escape(stat.name)+'を減らす">−</button>'+
+         '<input type="number" min="1" max="10" step="1" data-basic-stat="'+stat.key+'" aria-label="'+escape(stat.name)+'" value="'+basicStatLevel(currentGenome(),stat.key)+'">'+
+         '<button type="button" data-basic-adjust="1" aria-label="'+escape(stat.name)+'を増やす">＋</button></div>'+
+        '<div class="ability-track" role="meter" aria-label="'+escape(stat.name)+'" aria-valuemin="1" aria-valuemax="10" aria-valuenow="'+basicStatLevel(currentGenome(),stat.key)+'">'+
+        '<span class="ability-fill" style="width:'+((basicStatLevel(currentGenome(),stat.key)-1)/9*100)+'%"></span></div></div>'
+      ).join('')+'</div></section>'+
+     '<section class="founder-skills-section"><h3>スキル <small>遺伝する／保有・未習得</small></h3>'+
+      '<div id="founderSkills" class="founder-skills-grid"></div></section>'+
+     '<section class="founder-strategy-section"><h3>生存戦略 <small>遺伝する／7項目</small></h3>'+
+      '<div id="founderGeneEditor" class="founder-strategy-grid">'+strategyInputs.map(([key,name])=>{
+       const level=founderLevel(key,currentGenome()[key]);
+       return '<div class="founder-trait" title="'+escape(founderTraitHelp(key))+'">'+
+        '<label for="edit-'+key+'">'+escape(name)+' <span class="founder-trait-help" tabindex="0" title="'+escape(founderTraitHelp(key))+'">ⓘ</span>'+
+        '<small data-point-cost="'+key+'" hidden></small></label>'+
+        '<div class="compact-value"><button type="button" data-adjust="-1" aria-label="'+escape(name)+'を減らす">−</button>'+
+        '<input id="edit-'+key+'" type="number" data-trait="'+key+'" min="1" max="10" step="1" value="'+level+'">'+
+        '<button type="button" data-adjust="1" aria-label="'+escape(name)+'を増やす">＋</button></div>'+
+        '<small class="founder-level-meaning" data-trait-meaning="'+key+'">'+escape(founderLevelMeaning(key,level))+'</small>'+
+        '<div class="ability-track" role="meter" aria-label="'+escape(name)+'" aria-valuemin="1" aria-valuemax="10" aria-valuenow="'+level+'">'+
+        '<span class="ability-fill" style="width:'+((level-1)/9*100)+'%"></span></div></div>';
+      }).join('')+'</div></section>'+
+    '</section>'+
+    '<div class="founder-phenotype-column">'+derivedDashboardHTML()+'</div>'+
+   '</div>'+
+   '<div class="founder-reference-footer"><button type="button" id="toggleGeneEditor" aria-expanded="false" aria-controls="founderFormulaReference">📐 変換式の詳細</button>'+
+    founderFormulaHTML()+'</div>';
   editorFoot.innerHTML='<button type="button" id="resetFounder">標準に戻す</button><button type="button" id="cancelFounder">閉じる</button><button type="button" id="confirmFounder">移入</button>';
   editorBody.querySelector('#toggleGeneEditor').onclick=()=>{
-   const button=editorBody.querySelector('#toggleGeneEditor');
-   const expand=button.getAttribute('aria-expanded')!=='true';
-   button.setAttribute('aria-expanded',String(expand));
-   editorBody.querySelector('#founderGeneEditor').hidden=!expand;
-   button.textContent=expand?'🧬 遺伝子の個別調整を閉じる':'🧬 生存戦略7項目を調整';
+   const reference=editorBody.querySelector('#founderFormulaReference');
+   reference.open=!reference.open;
+   editorBody.querySelector('#toggleGeneEditor').setAttribute('aria-expanded',String(reference.open));
   };
   editorBody.querySelectorAll('[data-basic-stat]').forEach(input=>{
    const apply=()=>{
