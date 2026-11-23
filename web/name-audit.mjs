@@ -22,7 +22,10 @@ for(let i=0;i<runs;i++){
   const name=speciesNameFromCategory(category,species.genome);
   if(name!==species.name)throw new Error('Discovery name changed during simulation');
   const code=speciesEcologyCode(category);
-  if(!name.includes(code)||!(/(ホーン|テール|アンテナ|スポット)$/.test(name)||name.endsWith(code)))
+  // A founder name now includes a kana-only 37-locus signature and may
+  // include fins, horns, tentacles, rare wings, armor or brood ornaments.
+  if(!name.includes(code)||!(/^[ァ-ヶー]+(?:・[ァ-ヶー]+){1,2}$/.test(name))||
+     !name.includes(speciesEcologyCode(category)))
    throw new Error('Unexpected species name: '+name);
   // The old 5-kana ecological code is intentionally shared by different
   // appearance-defined species; their full visible names must be unique.
