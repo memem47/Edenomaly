@@ -6,11 +6,14 @@ import {FOUNDER_FIELDS,editFounderGenome} from './founder-designer.js';
 import {abilityPosition,abilityListHTML,phenotypeBarsHTML} from './ability-bars.js';
 import {DASHBOARD_TABS} from './dashboard-tabs.js';
 
-test('all inherited appearance and body loci are now directly editable',()=>{
- for(const key of ['tailLength','hornLength','antennaLength','pattern'])
-  assert.equal(FOUNDER_FIELDS.some(([trait])=>trait===key),true,key);
- assert.ok(FOUNDER_FIELDS.some(([key])=>key==='jaw'));
- assert.ok(FOUNDER_FIELDS.some(([key])=>key==='predatorSense'));
+test('all inherited appearance and body loci are now directly editable (DNA v2)',async()=>{
+ const {DNA_KEYS}=await import('./genome-model.js');
+ assert.equal(FOUNDER_FIELDS.length,19);
+ for(const key of ['tailLength','hornLength','antennaLength','pattern','jaw','eyes','r'])
+  assert.equal(FOUNDER_FIELDS.some(([trait])=>trait===key),false,key);
+ assert.ok(DNA_KEYS.includes('power'));
+ assert.ok(DNA_KEYS.includes('skillRetaliation'));
+ assert.ok(DNA_KEYS.includes('aquatic'));
 });
 test('combat, perception and aquatic ability determine the visible body',()=>{
  const world=new Ecosystem(2026112102),initial=world.gene();
