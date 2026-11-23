@@ -326,15 +326,18 @@ export const experiencedTerrainFitness=(u,t)=>{
 export const terrainFitness=(g,t)=>{
  // Traits are inherited; acquired acclimatization is deliberately not simulated.
  const tolerance=[1, g.wet, g.dry, g.rock??.2][t];
- const fitness=t===0?1:clamp(.28+.95*tolerance,.28,1.23);
+ const adaptability=clamp(((g.dna?.adaptation??1)-1)/9,0,1);
+ const mismatch=t===0?0:1-clamp(tolerance,0,1);
+ const fitness=t===0?1:clamp(.28+.95*tolerance+.28*adaptability*mismatch,.28,1.23);
  const aquatic=g.aquatic===1;
  const passable=t!==1||aquatic;
  const sight=t===1?(aquatic?clamp(.92+g.wet*.34,.92,1.26):.18):t===2?clamp(.52+g.dry*.56,.52,1.08):t===3?clamp(.67+(g.rock??.2)*.43,.67,1.10):1;
- const hazard=t===1?(aquatic?0:.7):
+ const rawHazard=t===1?(aquatic?0:.7):
    t===2?clamp((.50-g.dry)*1.3,0,.65):
    t===3?clamp((.45-(g.rock??.2))*.28,0,.15):0;
+ const hazard=rawHazard*(1-.42*adaptability*mismatch);
  return {fitness,passable,sight,hazard,move:(t===1?(aquatic?.50+g.wet*.26:.035):t===2?.17+g.dry*.42:t===3?.19+(g.rock??.2)*.39:.58),
-   upkeep:t===0?0:(1-tolerance)*[0,.38,.51,.52][t]+tolerance*.045};
+   upkeep:t===0?0:(1-tolerance)*[0,.38,.51,.52][t]*(1-.35*adaptability)+tolerance*.045};
 };
 // Ephemeral per-step caches avoid recalculating traits for the same agents.
 let stepCache=null;
@@ -869,8 +872,9 @@ export class Ecosystem{
   if(u.hydration<40)this.applyHpLoss(u,'dehydration',.04+(40-u.hydration)*.045);
   if((u.lastHpDamageTick??-1)!==this.tick&&u.energy>=90&&
      u.hydration>=45&&u.infection<=0&&u.hp>0&&u.hp<u.maxHp){
-   const recovery=Math.min(u.maxHp-u.hp,.09+Math.min(.25,(u.energy-90)*.003),
-    Math.max(0,(u.energy-75)/2));
+   const regeneration=u.g.dna?.skillRegenerate===1?1:0;
+   const recovery=Math.min(u.maxHp-u.hp,(.09+Math.min(.25,(u.energy-90)*.003))*(regeneration?2.25:1),
+    Math.max(0,(u.energy-75)/(regeneration?3:2)));
    u.hp+=recovery;
    u.energy-=recovery*2;
    u.hpRecovered=(u.hpRecovered??0)+recovery;
@@ -1222,8 +1226,13 @@ export class Ecosystem{
  attack(hunter,prey,defensive=false){
   if(hunter===prey||hunter.dead||prey.dead||hunter.bite>0||(!defensive&&effectiveMeatAffinity(hunter)<=0)||(defensive===true&&protectiveDrive(hunter.g)<=.34))return false;
   const mm=organismMorphology(hunter),v=vitality(hunter),def=vitality(prey);
+  const predatoryAttack=!defensive&&effectiveMeatAffinity(hunter)>0;
+  const power=clamp(((hunter.g.dna?.power??5)-1)/9,0,1);
+  const surprise=predatoryAttack&&hunter.g.dna?.skillAmbush===1&&
+   (prey.attackResponse?.id!==hunter.id)&&(prey.bite??0)===0?1.28:1;
   const damage=Math.max(2,(4+hunter.g.jaw*7+mm.bodyMass*.065+
-   3.2*clamp(hunter.g.hornLength??0,0,1))*(defensive==='rival'?.42:defensive==='retaliation'?.72:defensive?.65+protectiveDrive(hunter.g)*.65:effectiveMeatAffinity(hunter))*v.vigor);
+   3.2*clamp(hunter.g.hornLength??0,0,1))*(defensive==='rival'?.42:defensive==='retaliation'?.72:defensive?.65+protectiveDrive(hunter.g)*.65:effectiveMeatAffinity(hunter))*
+   v.vigor*(predatoryAttack?(.80+.65*power)*surprise:1));
   const vulnerable=(1+.8*metabolicFrugality(prey.g))*
    (1-.16*clamp(prey.g.hornLength??0,0,1));
   const actualDamage=damage*vulnerable;
@@ -2138,10 +2147,14 @@ export class Ecosystem{
       :target?Math.atan2(target.y-u.y,target.x-u.x):u.angle+this.range(-.5,.5);
    const terrainMove=home.move;
    const courtingMate=u.courtPartner?byId.get(u.courtPartner):null;
+   const actionSpeed=flight||(!flight&&prey&&!prey.dead&&effectiveMeatAffinity(u)>.14)?1:0;
+   const agility=clamp(((g.dna?.agility??5)-1)/9,0,1);
+   const sprint=g.dna?.skillSprint===1&&actionSpeed&&u.energy>52?1:0;
    const speed=m.speed*body.vigor*thermal.activity*(u.stage==='juvenile'?.8:1)*terrainMove
     *(aquatic&&underwater?1+.23*clamp(g.tailLength??0,0,1):
       1-.09*clamp(g.tailLength??0,0,1))
      *(flight?1.24:courtingMate&&distance(u,courtingMate)<22**2?.20:1)
+     *(actionSpeed?1+.48*agility:1)*(sprint?1.27:1)
      *(flight?1:Math.max(.55,1-congestion*.06));
    // Targets are satisfied at contact range. Repeatedly overshooting food
    // or a partner looks like stationary spinning, and wastes resources.
@@ -2168,6 +2181,9 @@ export class Ecosystem{
     this.log('mateFail','#'+u.id+' が相手 #'+mate.id+' に近づけず探索をやり直す',u);
     u.mateTarget=null;
    }
+   // Chase/escape mobility requires real energy.
+   if(sprint)u.energy-=.26+.12*agility;
+   else if(actionSpeed)u.energy-=.075*agility;
    // Terrain hazards change energy economy instead of directly draining HP.
    u.energy-=home.hazard*.7;
    // Terrain-fit offspring retain energy and can reproduce more successfully.
@@ -2269,7 +2285,10 @@ export class Ecosystem{
    const newTerrain=this.terrain(u.x,u.y);
    if(newTerrain!==u.lastTerrain){u.lastTerrain=newTerrain;this.terrainCrossings++;}
    if(u.stage==='juvenile'){
-    const increment=juvenileGrowthIncrement(u,u.juvenileFood,u.habitatLoad,u.crowdStress);
+    const adaptability=clamp(((g.dna?.adaptation??1)-1)/9,0,1);
+    const mismatch=Math.max(0,1-home.fitness);
+    const increment=juvenileGrowthIncrement(u,u.juvenileFood,u.habitatLoad,u.crowdStress)*
+     (1+.55*adaptability*mismatch);
     u.juvenileGrowth=Math.min(1,(u.juvenileGrowth??0)+increment);
     // Tissue growth uses nutrients that cannot also pay for maintenance.
     u.energy-=increment*38;
