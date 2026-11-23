@@ -1,13 +1,13 @@
 import {zipFiles} from './zip-log.js?v=2026.11.07.4';
-import {mountFounderScreens} from './founder-screens.js?v=2026.11.23.1';
-import {mountDashboardTabs} from './dashboard-tabs.js?v=2026.11.23.1';
-import {abilityListHTML,phenotypeBarsHTML} from './ability-bars.js?v=2026.11.23.1';
-import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.23.1';
-import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.23.1';
+import {mountFounderScreens} from './founder-screens.js?v=2026.11.23.2';
+import {mountDashboardTabs} from './dashboard-tabs.js?v=2026.11.23.2';
+import {abilityListHTML,phenotypeBarsHTML} from './ability-bars.js?v=2026.11.23.2';
+import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.23.2';
+import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.23.2';
 import {mountGameUI} from './game-ui.js?v=2026.11.14.2';
-import {placementAssessment,populationDiagnosis} from './survival-guidance.js?v=2026.11.23.1';
+import {placementAssessment,populationDiagnosis} from './survival-guidance.js?v=2026.11.23.2';
 import {fitView,screenToWorld,zoomAround,panBy,MAX_ZOOM,ZOOM_STEP} from './viewport.js?v=2026.11.08.12';
-import {drawWorld,drawChart} from './renderer.js?v=2026.11.23.1';
+import {drawWorld,drawChart} from './renderer.js?v=2026.11.23.2';
 import {EcologyLogbook,observeEcology,ECOLOGY_LOG_FIELDS} from './ecology-log.js?v=2026.11.14.2';
 import {gameRunReport,saveGameRunReport,readGameRunHistory} from './game-run-log.js?v=2026.11.14.2';
 import {SpeciesLogbook,speciesReport,csvCell} from './species-statistics.js';
@@ -16,7 +16,7 @@ const $=id=>document.getElementById(id);
 const dashboard=mountDashboardTabs(document);
 // Release label is bundled with the running source; comparison uses a
 // separately published manifest from the repository's main branch.
-const BUILD_VERSION='2026.11.23.1';
+const BUILD_VERSION='2026.11.23.2';
 const VERSION_SOURCE='https://raw.githubusercontent.com/memem47/Edenomaly/main/web/version.json';
 $('buildVersion').textContent=BUILD_VERSION;
 async function checkLatestVersion(){
