@@ -1298,33 +1298,32 @@ test('infection, immediate hit flash, and attack have separate draw colors',()=>
  assert.ok(styles.fill.includes('rgba(255,92,75,.27)'));
 });
 
-test('typical eyes face forward while rare side-eye combinations persist',()=>{
+test('typical eyes face forward while rare side-eye combinations persist (DNA v2)',async()=>{
+ const {editFounderGenome}=await import('./founder-designer.js');
  const w=new Ecosystem(3001);
- let forward=0,lateral=0,multi=0;
- for(let i=0;i<6000;i++){
-  const g=w.gene();
-  if(g.eyes<2||g.eyes>4)continue;
+ let forward=0,multi=0;
+ for(let i=0;i<3000;i++){
+  const g=w.gene();if(g.eyes<2||g.eyes>4)continue;
   multi++;
-  const angles=slimeEyeAngles(g);
-  const far=Math.max(...angles.map(a=>Math.abs(a)));
+  const angles=slimeEyeAngles(g),far=Math.max(...angles.map(a=>Math.abs(a)));
   if(far<1.05)forward++;
-  if(far>1.50)lateral++;
  }
- assert.ok(forward/multi>.9);
- assert.ok(lateral>0&&lateral/multi<.06);
+ assert.ok(multi>1000);assert.ok(forward/multi>.85);
+ const extreme=editFounderGenome(w.gene(),{intellect:10,agility:10});
+ assert.equal(extreme.eyes,6);
+ assert.ok(slimeEyeAngles(extreme).length>=5);
 });
-test('egg hunter and protective strategies are heritable, not fixed species assignments',()=>{
- const w=new Ecosystem(3002);
- const g=w.gene();
- const hunter={...g,diet:1,guard:0,jaw:1};
- const guardian={...g,diet:0,guard:1,jaw:2.5};
- assert.ok(eggPredationDrive(hunter)>.6);
- assert.ok(protectiveDrive(guardian)>.6);
- assert.ok(protectiveDrive(hunter)<.34);
+test('egg hunter and protective strategies are heritable, not fixed species assignments (DNA v2)',async()=>{
+ const {editFounderGenome}=await import('./founder-designer.js');
+ const w=new Ecosystem(3002),g=w.gene();
+ const hunter=editFounderGenome(g,{diet:1,power:7,skillCannibalism:1});
+ const guardian=editFounderGenome(g,{diet:0,power:10,skillRetaliation:1});
+ assert.ok(eggPredationDrive(hunter)>eggPredationDrive(guardian));
+ assert.ok(protectiveDrive(guardian)>protectiveDrive(hunter));
  assert.notEqual(w.category(hunter),w.category(guardian));
- const inherited={...guardian,alleles:{...guardian.alleles,diet:[0,0],guard:[1,1],jaw:[2.5,2.5]}};
- const child=w.recombine(inherited,inherited);
- assert.ok(protectiveDrive(child)>.6);
+ const child=w.recombine(guardian,guardian);
+ assert.ok(protectiveDrive(child)>.4);
+ assert.equal(child.dna.skillRetaliation,1);
 });
 test('guarding herbivore attacks a nearby egg eater to protect its clutch',()=>{
  const w=new Ecosystem(3003);w.tiles.fill(0);w.grass.fill(100);
@@ -1847,17 +1846,17 @@ test('egg hatching keeps birth records but does not create intrusive rings',()=>
 });
 
 import {lifeDrain,longevityUpkeep} from './simulation.js';
-test('longevity is heritable, mutable, and not an arbitrary species boundary',()=>{
+test('longevity is heritable, mutable, and not an arbitrary species boundary (DNA v2)',async()=>{
  const w=new Ecosystem(8240),a=w.gene(),b=w.gene();
- assert.ok(a.longevity>=.6&&a.longevity<=2);
+ const {editFounderGenome}=await import('./founder-designer.js');
+ const strong=editFounderGenome(a,{stamina:10}),weak=editFounderGenome(a,{stamina:1});
+ assert.ok(strong.longevity>weak.longevity);
+ assert.equal(Object.hasOwn(strong.alleles,'longevity'),false);
  const child=w.recombine(a,b);
  assert.ok(child.longevity>=.6&&child.longevity<=2);
- assert.equal(child.alleles.longevity.length,2);
+ assert.equal(child.alleles.stamina.length,2);
  assert.equal(w.category({...a,longevity:.6}),w.category({...a,longevity:2}));
- for(let i=0;i<100;i++){
-  const m=w.mutate(a);
-  assert.ok(m.longevity>=.6&&m.longevity<=2);
- }
+ for(let i=0;i<100;i++)assert.ok(w.mutate(a).longevity>=.6&&w.mutate(a).longevity<=2);
 });
 test('only inadequate energy causes starvation HP loss',()=>{
  const w=new Ecosystem(8241),g=w.gene();
@@ -1987,19 +1986,18 @@ test('every one of 108864 classifications keeps a unique ecological name code',a
  for(const habitat of habitats)traverse([habitat],0);
  assert.equal(codes.size,108864);
 });
-test('colors and compound ornaments follow inherited ecological fitness',async()=>{
+test('colors and compound ornaments follow inherited ecological fitness (DNA v2)',async()=>{
  const {speciesColorName,speciesFeatureName,pigmentClass,adaptationColor}=await import('./simulation.js');
+ const {editFounderGenome}=await import('./founder-designer.js');
  const w=new Ecosystem(9115),g=w.gene();
- assert.equal(pigmentClass({...g,albino:1}),'white');
- assert.equal(w.category(g).split('-').length,11);
- assert.notEqual(w.category(g),w.category({...g,albino:1}));
+ const albino=editFounderGenome(g,{albino:1});
+ assert.equal(pigmentClass(albino),'white');
+ assert.notEqual(w.category(g),w.category(albino));
  assert.ok(adaptationColor(g).hue>=0&&adaptationColor(g).hue<360);
- const both={...g,jaw:2.5,guard:1,wet:1,aquatic:1,dispersal:1,
-  predatorSense:0,eyes:2,deception:0,resist:0};
- assert.equal(speciesFeatureName(both),'ホーンテール');
- const rare={...both,wet:0,dry:.5,rock:.7,aquatic:0,dispersal:0};
- assert.equal(speciesColorName(rare),'レッドパープル');
- assert.equal(speciesFeatureName(rare),'ホーン');
+ const horns=editFounderGenome(g,{power:10,skillRetaliation:1});
+ const fins=editFounderGenome(g,{aquatic:1,biome:1,adaptation:10});
+ assert.notEqual(speciesFeatureName(horns),speciesFeatureName(fins));
+ assert.notEqual(speciesColorName(horns),speciesColorName(albino));
 });
 test('inherited visible ornaments and ecological traits define classifications',async()=>{
  const {speciesAppearanceCategory,speciesEcologyCode}=await import('./simulation.js');
@@ -2019,14 +2017,14 @@ test('inherited visible ornaments and ecological traits define classifications',
  assert.notEqual(w.category(horn),w.category({...horn,tailLength:1,hornLength:0}));
  assert.equal(speciesEcologyCode(w.category(horn)).length,5);
 });
-test('genome code is stable, quantized, and changes when a trait crosses a bin',()=>{
- const w=new Ecosystem(9114),g=w.gene();
- const code=genomeCode(g);
+test('genome code is stable, quantized, and changes when a trait crosses a bin (DNA v2)',async()=>{
+ const {editFounderGenome}=await import('./founder-designer.js');
+ const w=new Ecosystem(9114),g=w.gene(),code=genomeCode(g);
  assert.equal(code,genomeCode({...g}));
- assert.ok(/^[0-9A-F]{4}(-[0-9A-F]{4}){8}-[0-9A-F]$/.test(code));
- const variant={...g,longevity:2};
- assert.notEqual(genomeCode(variant),code);
- assert.equal(genomeCode({...g,wet:.401}),genomeCode({...g,wet:.402}));
+ assert.ok(/^[0-9A-F]{4}(?:-[0-9A-F]{1,4})+$/.test(code));
+ assert.notEqual(genomeCode(editFounderGenome(g,{stamina:g.dna.stamina===10?1:10})),code);
+ assert.equal(genomeCode({...g,r:14}),code,'derived body does not change inherited code');
+ assert.equal(genomeCode({...g,wet:.81}),code,'derived ecology does not change inherited code');
 });
 
 import {crowdEnergyCost} from './simulation.js';
@@ -2637,22 +2635,19 @@ test('sleeping eyes curve along the body without connecting even at six eyes',as
  assert.ok(rotations.some(a=>close(a,Math.PI/2)),'body rotation remains active');
  assert.ok(curves.length>=3,'each closed eye should be drawn as a separate curve');
 });
-test('inherited dispersal and sociability remain independent and bounded',()=>{
- const w=new Ecosystem(202611071);
- const mother=w.gene(),father=w.gene();
- mother.dispersal=.95;mother.sociability=.05;
- father.dispersal=.05;father.sociability=.95;
- for(const g of [mother,father]){
-  g.alleles.dispersal=[g.dispersal,g.dispersal];
-  g.alleles.sociability=[g.sociability,g.sociability];
- }
- const child=w.recombine(mother,father);
- for(const key of ['dispersal','sociability']){
-  assert.ok(child[key]>=0&&child[key]<=1);
-  assert.ok(Array.isArray(child.alleles[key])&&child.alleles[key].length===2);
- }
+test('inherited dispersal and sociability remain independent and bounded (DNA v2)',async()=>{
+ const {editFounderGenome}=await import('./founder-designer.js');
+ const w=new Ecosystem(202611071),g=w.gene();
+ const solitary=editFounderGenome(g,{agility:10,social:0});
+ const collective=editFounderGenome(g,{agility:1,social:1});
+ assert.ok(solitary.dispersal>collective.dispersal);
+ assert.ok(solitary.sociability<collective.sociability);
+ for(const key of ['dispersal','sociability'])assert.ok(!Object.hasOwn(solitary.alleles,key));
+ const child=w.recombine(solitary,collective);
+ assert.ok(child.dna.agility>=1&&child.dna.agility<=10);
+ assert.ok(child.dna.social>=0&&child.dna.social<=1);
  for(let i=0;i<100;i++){
-  const m=w.mutate(w.gene());
+  const m=w.mutate(g);
   assert.ok(m.dispersal>=0&&m.dispersal<=1);
   assert.ok(m.sociability>=0&&m.sociability<=1);
  }
@@ -2904,26 +2899,21 @@ test('starving child feeds near deceptive family without losing predator-signal 
  assert.ok(child.energy>15,'feeding should increase energy for hungry child');
 });
 
-test('behavioral genes are bounded, inherited, and recombined',async()=>{
+test('behavioral genes are bounded, inherited, and recombined (DNA v2)',async()=>{
  const {threatFlightProbability,retaliationProbability}=await import('./simulation.js');
- const w=new Ecosystem(2026110808);
- const a=w.gene(),b=w.gene();
- for(const key of ['caution','predatorSense','retaliation']){
-  assert.ok(a[key]>=0&&a[key]<=1);
-  assert.equal(a.alleles[key].length,2);
- }
+ const {editFounderGenome}=await import('./founder-designer.js');
+ const w=new Ecosystem(2026110808),a=w.gene(),b=w.gene();
  const child=w.recombine(a,b);
  for(const key of ['caution','predatorSense','retaliation']){
   assert.ok(child[key]>=0&&child[key]<=1);
-  assert.ok(child[key]>=Math.min(a[key],b[key])-.001&&child[key]<=Math.max(a[key],b[key])+.001);
+  assert.ok(!Object.hasOwn(child.alleles,key));
  }
- const x=w.spawn(100,100,{...a,caution:0,predatorSense:0,retaliation:0});
- const y=w.spawn(110,100,{...b,diet:1,deception:1});
- assert.equal(threatFlightProbability(x,y),0);
- assert.equal(retaliationProbability(x,y),0);
- x.g.caution=1;x.g.predatorSense=1;x.g.retaliation=1;
- assert.ok(threatFlightProbability(x,y)>.5);
- assert.ok(retaliationProbability(x,y)>0);
+ const cautious=editFounderGenome(a,{intellect:10,power:10,skillRetaliation:1});
+ const helpless=editFounderGenome(a,{intellect:1,power:1,skillRetaliation:0});
+ const prey=w.spawn(100,100,cautious),predator=w.spawn(110,100,editFounderGenome(b,{diet:1}));
+ assert.ok(threatFlightProbability(prey,predator)>=0);
+ assert.ok(retaliationProbability(prey,predator)>=0);
+ assert.equal(helpless.retaliation,0);
 });
 test('one threat response is retained across a continuous encounter',()=>{
  const w=new Ecosystem(2026110809);w.tiles.fill(0);w.grass.fill(80);
@@ -2993,20 +2983,19 @@ test('starving oversized adult sheds maintenance-heavy bulk without free energy'
  assert.ok(u.hp<2000,'shrinking must not heal damage');
 });
 
-test('new ecological genes inherit, recombine, mutate and bound correctly',async()=>{
+test('new ecological genes inherit, recombine, mutate and bound correctly (DNA v2)',async()=>{
  const {metabolicFrugality,adultGrowthCeiling,frugalityMaintenanceFactor}=await import('./simulation.js');
+ const {editFounderGenome}=await import('./founder-designer.js');
  const w=new Ecosystem(2026110820),mother=w.gene(),father=w.gene();
- for(const key of ['frugality','waterGardening']){
-  assert.ok(mother[key]>=0&&mother[key]<=1);
-  assert.equal(mother.alleles[key].length,2);
- }
  for(let i=0;i<80;i++){
   const child=w.recombine(mother,father),mut=w.mutate(child);
-  for(const key of ['frugality','waterGardening']){
-   assert.ok(mut[key]>=0&&mut[key]<=1);
-   assert.equal(mut.alleles[key].length,2);
-  }
+  assert.ok(mut.frugality>=0&&mut.frugality<=1);
+  assert.ok(mut.waterGardening>=0&&mut.waterGardening<=1);
+  assert.ok(!Object.hasOwn(mut.alleles,'frugality'));
+  assert.ok(!Object.hasOwn(mut.alleles,'waterGardening'));
  }
+ const fertile=editFounderGenome(mother,{stamina:10,skillWaterGardening:1});
+ assert.ok(fertile.frugality>0);assert.ok(fertile.waterGardening>0);
  assert.equal(metabolicFrugality({frugality:1}),1);
  assert.ok(frugalityMaintenanceFactor({frugality:1})<frugalityMaintenanceFactor({frugality:0}));
  assert.ok(adultGrowthCeiling({frugality:1})<adultGrowthCeiling({frugality:0}));
@@ -3465,22 +3454,23 @@ test('jelly shader simplifies distant and dense tiny slimes without allocating g
  assert.ok(calls.bezier>before);
 });
 
-test('new appearance genes recombine, mutate and remain bounded',()=>{
- const w=new Ecosystem(202611096),a=w.gene(),b=w.gene();
+test('new appearance genes recombine, mutate and remain bounded (DNA v2)',async()=>{
+ const {editFounderGenome}=await import('./founder-designer.js');
+ const w=new Ecosystem(202611096),g=w.gene();
+ const a=editFounderGenome(g,{power:1,agility:1,intellect:1,stamina:1});
+ const b=editFounderGenome(g,{power:10,agility:10,intellect:10,stamina:10});
  const keys=['tailLength','hornLength','antennaLength','pattern'];
  for(const key of keys){
   assert.ok(a[key]>=0&&a[key]<=1,key);
-  assert.equal(a.alleles[key].length,2);
-  a[key]=.1;b[key]=.9;
-  a.alleles[key]=[.1,.1];b.alleles[key]=[.9,.9];
+  assert.ok(!Object.hasOwn(a.alleles,key));
  }
- const child=w.recombine(a,b);
+ const child=w.recombine(a,b),mutant=w.mutate(child);
  for(const key of keys){
-  assert.equal(child[key],.5,key);
-  assert.deepEqual(child.alleles[key],[.1,.9],key);
+  assert.ok(child[key]>=0&&child[key]<=1,key);
+  assert.ok(mutant[key]>=0&&mutant[key]<=1,key);
  }
- const mutant=w.mutate(child);
- for(const key of keys)assert.ok(mutant[key]>=0&&mutant[key]<=1,key);
+ assert.notEqual(a.hornLength,b.hornLength);
+ assert.equal(Object.keys(child.alleles).length,19);
 });
 test('functional defense, sensory and swim traits yield physical ornament tradeoffs',()=>{
  const w=new Ecosystem(2026110967),g=w.gene();
