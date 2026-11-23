@@ -30,6 +30,25 @@ export function editBasicStat(g,key,target){
  return editFounderGenome(g,changes);
 }
 const value=(g,k)=>Number(g?.[k]??0);
+// Skill buttons train real loci, never a parallel RPG skill variable.
+const SKILL_TRAINING=Object.freeze({
+ '水草栽培':{aquatic:1,waterGardening:.65},
+ '休眠':{hibernate:.7},
+ '親の給餌':{parentFeeding:.65},
+ '産卵地選択':{nestChoice:.70},
+ '反撃':{retaliation:.70},
+ '幼体共食い':{juvenileCannibalism:.8,diet:.35}
+});
+export function trainFounderSkill(g,name){
+ const target=SKILL_TRAINING[name];
+ if(!target)return g;
+ const changes={};
+ for(const [key,min] of Object.entries(target)){
+  changes[key]=key==='aquatic'?1:Math.min(1,Math.max(min,Number(g[key]??0)+.10));
+ }
+ return editFounderGenome(g,changes);
+}
+export function skillTrainingGenes(name){return Object.keys(SKILL_TRAINING[name]??{});}
 export function founderSkills(g){
  return [
   {name:'水草栽培',ready:g.aquatic===1&&value(g,'waterGardening')>=.4,
