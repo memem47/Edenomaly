@@ -3488,7 +3488,10 @@ test('functional defense, sensory and swim traits yield physical ornament tradeo
  assert.ok(b.upkeep>a.upkeep);
  assert.ok(b.eyeRange>a.eyeRange);
  assert.ok(b.biteReach>a.biteReach);
- assert.ok(b.speed<a.speed);
+ // High dispersal now increases running speed. Hold it fixed to verify
+ // that extra horns and sensors still impose their own movement penalty.
+ assert.ok(morphology({...decorated,dispersal:0}).speed<a.speed);
+ assert.ok(b.speed>0);
 });
 test('camouflage effect follows deception and resistance, not cosmetic pattern gene',async()=>{
  const {camouflageFactor}=await import('./simulation.js');
