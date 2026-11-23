@@ -510,3 +510,90 @@ button:disabled,input:disabled{opacity:.40;cursor:not-allowed}
 .founder-formula-scroll th{min-width:105px;position:sticky;left:0;background:#214556}
 .founder-formula-scroll td{overflow-wrap:anywhere}
 .founder-formula-scroll code{white-space:normal;color:#e5eddd;font-family:Consolas,monospace}
+
+/* Founder DNA v2: single-screen editing on desktop, live read-only phenotype.
+   Scoped to #founderEditorDialog so discovery dialogs retain their layout. */
+#founderEditorDialog.genome-dialog{width:min(1440px,99vw);max-height:calc(100dvh - 12px);height:min(910px,calc(100dvh - 12px));border-radius:12px}
+#founderEditorDialog .genome-dialog-head{padding:7px 14px 5px;flex:none}
+#founderEditorDialog .genome-dialog-head h2{font-size:16px}
+#founderEditorDialog .genome-dialog-body{display:flex;flex-direction:column;gap:5px;min-height:0;padding:6px 10px;overflow:hidden}
+#founderEditorDialog .genome-dialog-foot{padding:6px 12px;gap:8px;flex:none}
+#founderEditorDialog .genome-dialog-foot button{padding:6px 12px;font-size:12px}
+#founderEditorDialog .founder-compact-header{display:grid;grid-template-columns:minmax(250px,1.5fr) minmax(370px,2fr);gap:8px;align-items:center;flex:none}
+#founderEditorDialog .compact-founder-top{position:static;padding:0;gap:7px;border:0;min-height:64px;min-width:0}
+#founderEditorDialog .compact-founder-top canvas{width:94px;height:69px}
+#founderEditorDialog .founder-species-name-line{margin:0 0 2px;padding:2px 6px;border-left-width:2px}
+#founderEditorDialog .founder-species-name-line b{font-size:11px;line-height:1.28}
+#founderEditorDialog .compact-founder-info .founder-budget{font-size:11px;margin:1px 0}
+#founderEditorDialog #founderPreviewChanges,#founderEditorDialog #founderHabitatTip{font-size:9px;line-height:1.25;margin:0;color:#b8d5d6}
+#founderEditorDialog .founder-preset-selection{border:0;padding:0;margin:0;min-width:0}
+#founderEditorDialog .founder-preset-selection>strong{font-size:10px;color:#bce8d3}
+#founderEditorDialog .founder-preset-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;margin-top:3px}
+#founderEditorDialog .founder-preset-grid button{min-height:0;height:37px;display:block;padding:3px 4px;text-align:center;font-size:10px;line-height:1.25;white-space:normal}
+#founderEditorDialog .founder-two-columns{display:grid;grid-template-columns:minmax(360px,.91fr) minmax(590px,1.42fr);gap:8px;flex:1;min-height:0;overflow:hidden}
+#founderEditorDialog .founder-genome-column,#founderEditorDialog .founder-phenotype-column{min-height:0;min-width:0;overflow:auto;scrollbar-width:thin;scrollbar-color:#527987 #163743}
+#founderEditorDialog .founder-genome-column{display:flex;flex-direction:column;gap:6px;padding-right:2px}
+#founderEditorDialog .founder-basic-section,#founderEditorDialog .founder-skills-section,#founderEditorDialog .founder-strategy-section{margin:0;padding:6px 7px;border:1px solid #375e71;border-radius:8px;background:#163441;min-width:0}
+#founderEditorDialog .founder-basic-section h3,#founderEditorDialog .founder-skills-section h3,#founderEditorDialog .founder-strategy-section h3,#founderEditorDialog .founder-derived-title h3{font-size:13px;line-height:1.2;margin:0 0 5px;color:#b2f4dc}
+#founderEditorDialog h3 small{font-size:9px;color:#b6cbd0;font-weight:400}
+#founderEditorDialog .basic-stat-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+#founderEditorDialog .basic-stat-card{padding:5px 6px;gap:3px;border-radius:6px}
+#founderEditorDialog .basic-stat-head{font-size:11px;gap:2px}
+#founderEditorDialog .basic-stat-head strong{white-space:nowrap}
+#founderEditorDialog .founder-trait-help{width:13px;height:13px;font-size:9px!important;margin:0}
+#founderEditorDialog .compact-value{gap:2px;min-height:23px}
+#founderEditorDialog .compact-value button{padding:1px 4px;min-width:21px;min-height:21px;font-size:12px}
+#founderEditorDialog .compact-value input{height:23px;font-size:12px;padding:1px;min-width:0}
+#founderEditorDialog .ability-track{height:4px;margin:0}
+#founderEditorDialog .founder-skills-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+#founderEditorDialog .founder-skill{display:flex;align-items:center;justify-content:space-between;flex-wrap:nowrap;gap:3px;padding:4px 5px;border-radius:5px;font-size:10px;min-height:29px}
+#founderEditorDialog .founder-skill>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#founderEditorDialog .founder-skill button{width:auto;flex:none;padding:3px 4px;font-size:10px;min-width:48px;line-height:1.2}
+#founderEditorDialog .founder-strategy-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
+#founderEditorDialog .founder-strategy-grid .founder-trait{display:grid;grid-template-columns:minmax(0,1fr) minmax(85px,.9fr);grid-template-rows:auto auto;gap:1px 5px;padding:4px 5px;background:#1a3b49;border-radius:5px;min-width:0;align-items:center}
+#founderEditorDialog .founder-strategy-grid .founder-trait>label{font-size:10px;min-height:0;grid-column:1;grid-row:1;display:flex;align-items:center;gap:3px;white-space:nowrap}
+#founderEditorDialog .founder-strategy-grid .founder-trait>.compact-value{grid-column:2;grid-row:1}
+#founderEditorDialog .founder-strategy-grid .founder-level-meaning{font-size:9px;grid-column:1 / 3;grid-row:2;color:#a8e1ce}
+#founderEditorDialog .founder-strategy-grid .ability-track{display:none}
+#founderEditorDialog .founder-derived-panel{border:1px solid #456d79;border-radius:8px;padding:6px 7px;background:#142f3c;min-height:100%}
+#founderEditorDialog .founder-derived-title{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px}
+#founderEditorDialog .founder-derived-title p{font-size:9px;color:#bad5d6;margin:0 0 5px}
+#founderEditorDialog .founder-derived-groups{display:grid;gap:7px}
+#founderEditorDialog .founder-derived-group h4{font-size:11px;color:#a4ddd0;margin:0 0 3px;padding:0 0 2px;border-bottom:1px solid #31515e}
+#founderEditorDialog .founder-derived-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px 5px}
+#founderEditorDialog .founder-derived-item{display:flex;align-items:center;gap:3px;min-width:0;min-height:25px;padding:2px 4px;border:1px solid #294c5b;border-radius:5px;background:#193b48;font-size:10px;transition:background-color .12s}
+#founderEditorDialog .founder-derived-item>span{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#founderEditorDialog .founder-derived-item>strong{flex:none;font-variant-numeric:tabular-nums;font-size:10px;color:#def2e8}
+#founderEditorDialog .founder-derived-item>small{flex:none;font-size:9px;min-width:7px}
+#founderEditorDialog .founder-derived-item.derived-changed{background:#255264;border-color:#5b9ba1}
+#founderEditorDialog .founder-derived-item.derived-changed>strong{color:#b9ffce}
+#founderEditorDialog .derived-up{color:#83eed0}
+#founderEditorDialog .derived-down{color:#e9b79b}
+#founderEditorDialog .founder-reference-footer{flex:none;display:flex;align-items:center;gap:8px;position:relative}
+#founderEditorDialog #toggleGeneEditor{width:auto;margin:0;padding:4px 7px;font-size:10px;border-radius:5px}
+#founderEditorDialog .founder-reference-footer>.founder-formula-reference{display:none}
+#founderEditorDialog .founder-reference-footer>.founder-formula-reference[open]{display:block;position:absolute;z-index:20;left:0;right:0;bottom:30px;margin:0;max-height:min(60dvh,590px);overflow:auto;box-shadow:0 14px 35px #000d}
+#founderEditorDialog .founder-formula-reference summary{font-size:11px}
+#founderEditorDialog [hidden]{display:none!important}
+@media(max-width:1050px){
+ #founderEditorDialog .founder-compact-header{grid-template-columns:1fr}
+ #founderEditorDialog .founder-two-columns{grid-template-columns:minmax(300px,1fr) minmax(360px,1.3fr)}
+ #founderEditorDialog .founder-derived-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #founderEditorDialog .founder-skills-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:740px){
+ #founderEditorDialog.genome-dialog{width:99vw;height:calc(100dvh - 8px);max-height:calc(100dvh - 8px)}
+ #founderEditorDialog .genome-dialog-body{overflow:auto;display:block}
+ #founderEditorDialog .founder-two-columns{display:flex;flex-direction:column;overflow:visible}
+ #founderEditorDialog .founder-genome-column,#founderEditorDialog .founder-phenotype-column{overflow:visible}
+ #founderEditorDialog .founder-preset-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+ #founderEditorDialog .founder-derived-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #founderEditorDialog .founder-compact-header{display:block}
+ #founderEditorDialog .founder-reference-footer>.founder-formula-reference[open]{position:static;max-height:55dvh}
+ #founderEditorDialog .founder-reference-footer{display:block}
+}
+@media(max-height:680px) and (min-width:741px){
+ #founderEditorDialog .founder-derived-grid{gap:2px}
+ #founderEditorDialog .founder-derived-item{min-height:22px}
+ #founderEditorDialog .compact-founder-top canvas{width:76px;height:56px}
+}
