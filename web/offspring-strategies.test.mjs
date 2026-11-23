@@ -2,17 +2,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Ecosystem} from './simulation.js';
 
-test('all four offspring survival traits are inherited and may mutate',()=>{
+test('all four offspring survival traits are inherited and may mutate (DNA v2)',async()=>{
  const w=new Ecosystem(2026111701);
- const names=['nestChoice','parentFeeding','yolkReserve','juvenileCannibalism'];
- const a=w.gene(),b=w.gene();
- for(const key of names){
-  assert.ok(a[key]>=0&&a[key]<=1,key);
+ const a=w.gene(),b=w.gene(),keys=['fertility','skillNestChoice','skillParentFeeding','skillCannibalism'];
+ for(const key of keys){
+  assert.ok(Number.isFinite(a.dna[key]),key);
   assert.equal(a.alleles[key].length,2,key);
  }
- const child=w.recombine(a,b);
- for(const key of names)assert.ok(child[key]>=0&&child[key]<=1,key);
- assert.equal(w.mutate(child).alleles.nestChoice.length,2);
+ const child=w.recombine(a,b),mut=w.mutate(child);
+ for(const key of keys){
+  assert.ok(Number.isFinite(child.dna[key]),key);
+  assert.equal(mut.alleles[key].length,2,key);
+ }
+ for(const key of ['nestChoice','parentFeeding','yolkReserve','juvenileCannibalism'])
+  assert.ok(!Object.hasOwn(child.alleles,key));
 });
 
 test('nutrition-sensitive nest seeking favors food while costing finite travel energy',()=>{
