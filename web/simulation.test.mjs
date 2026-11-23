@@ -1943,16 +1943,17 @@ test('large colonies retain cheap glossy sheen without allocating gradients per 
 });
 
 import {speciesNameFromCategory,genomeCode} from './simulation.js';
-test('new species names reflect ecology-derived appearance rather than obsolete ornament knobs',()=>{
+test('species naming reflects both functional and inherited appearance genes',()=>{
  const w=new Ecosystem(9111),base=w.gene();
  const g={...base,jaw:2.5,guard:1,wet:0,dispersal:0,aquatic:0,
-  predatorSense:0,eyes:2,deception:0,resist:0};
+  predatorSense:0,eyes:2,deception:0,resist:0,
+  tailLength:0,hornLength:0,antennaLength:0,pattern:0};
  const key=w.category(g),expected=speciesNameFromCategory(key,g);
  assert.ok(expected.endsWith('・ホーン'));
  assert.match(expected,/^[^・]+・[^・]+・[^・]+$/);
  w.spawn(120,130,g);
  assert.equal(w.species.get(key).name,expected);
- assert.equal(w.category({...g,hornLength:0,tailLength:1,antennaLength:1,pattern:1}),key);
+ assert.notEqual(w.category({...g,hornLength:0,tailLength:1,antennaLength:1,pattern:1}),key);
  const water={...g,jaw:.2,guard:0,wet:1,dispersal:1,aquatic:1};
  assert.ok(speciesNameFromCategory(w.category(water),water).endsWith('・テール'));
  assert.notEqual(w.category(water),key);
@@ -1996,11 +1997,12 @@ test('colors and compound ornaments follow inherited ecological fitness',async()
  assert.equal(speciesColorName(rare),'レッドパープル');
  assert.equal(speciesFeatureName(rare),'ホーン');
 });
-test('visible ornaments, not unused cosmetic loci, define classifications',async()=>{
+test('inherited visible ornaments and ecological traits define classifications',async()=>{
  const {speciesAppearanceCategory,speciesEcologyCode}=await import('./simulation.js');
  const w=new Ecosystem(202611117),g=w.gene();
  const plain={...g,jaw:.2,guard:0,wet:0,dispersal:0,aquatic:0,
-  predatorSense:0,eyes:2,deception:0,resist:0};
+  predatorSense:0,eyes:2,deception:0,resist:0,
+  tailLength:0,hornLength:0,antennaLength:0,pattern:0};
  const horn={...plain,jaw:2.5,guard:1};
  const tail={...plain,wet:1,aquatic:1,dispersal:1};
  const both={...horn,wet:1,aquatic:1,dispersal:1};
@@ -2010,7 +2012,7 @@ test('visible ornaments, not unused cosmetic loci, define classifications',async
  assert.ok(speciesAppearanceCategory(both).endsWith('f_horn_tail'));
  assert.notEqual(w.category(plain),w.category(horn));
  assert.notEqual(w.category(horn),w.category(tail));
- assert.equal(w.category(horn),w.category({...horn,tailLength:1,hornLength:0}));
+ assert.notEqual(w.category(horn),w.category({...horn,tailLength:1,hornLength:0}));
  assert.equal(speciesEcologyCode(w.category(horn)).length,5);
 });
 test('genome code is stable, quantized, and changes when a trait crosses a bin',()=>{
