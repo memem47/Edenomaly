@@ -387,6 +387,12 @@ export const bodySizeMultiplier=g=>{
  const t=clamp((r-10)/5,0,1);
  return 1.7*(.5+.5*t*t);
 };
+export const pursuitEscapeSpeedFactor=(g,active,energy=100)=>{
+ if(!active)return 1;
+ const agility=clamp(((g.dna?.agility??5)-1)/9,0,1);
+ const sprint=g.dna?.skillSprint===1&&energy>52;
+ return (1+.48*agility)*(sprint?1.27:1);
+};
 export const morphology=g=>{
  const width=g.r*bodySizeMultiplier(g),length=width*g.elongation;
  const bodyMass=width*width*g.elongation;
@@ -2162,7 +2168,7 @@ export class Ecosystem{
     *(aquatic&&underwater?1+.23*clamp(g.tailLength??0,0,1):
       1-.09*clamp(g.tailLength??0,0,1))
      *(flight?1.24:courtingMate&&distance(u,courtingMate)<22**2?.20:1)
-     *(actionSpeed?1+.48*agility:1)*(sprint?1.27:1)
+     *pursuitEscapeSpeedFactor(g,actionSpeed,u.energy)
      *(flight?1:Math.max(.55,1-congestion*.06));
    // Targets are satisfied at contact range. Repeatedly overshooting food
    // or a partner looks like stationary spinning, and wastes resources.
