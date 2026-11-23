@@ -1,6 +1,6 @@
 import {FOUNDER_BUDGET,FOUNDER_TRAITS,FOUNDER_FIELDS,formatTrait,editFounderGenome,founderCost,founderTraitCost,canUseFounder,founderLevel,founderValueAtLevel,founderLevelMeaning} from './founder-designer.js';
 import {founderTraitHelp,FOUNDER_ADVANCED_TRAITS} from './founder-trait-help.js';
-import {BASIC_STATS,basicStatLevel,editBasicStat,founderSkills} from './basic-stats.js';
+import {BASIC_STATS,basicStatLevel,editBasicStat,founderSkills,trainFounderSkill,skillTrainingGenes} from './basic-stats.js';
 import {morphology,dietProfile,terrainFitness,genomeCode} from './simulation.js';
 import {drawFounderAppearance} from './founder-preview.js?v=2026.11.23.2';
 import {createDiscoveryToastQueue} from './discovery-toast-queue.js?v=2026.11.23.2';
@@ -112,7 +112,13 @@ export function mountFounderScreens({game,getMode,getDiscoveryMode=()=> 'detaile
   if(skillPanel)skillPanel.innerHTML=founderSkills(g).map(skill=>
    '<div class="founder-skill" title="'+escape(skill.detail)+'"><strong>'+escape(skill.name)+'</strong>'+
    '<span class="'+(skill.ready?'skill-ready':'skill-locked')+'">'+(skill.ready?'素質あり':'条件不足')+'</span>'+
-   '<small>'+escape(skill.detail)+'</small></div>').join('');
+   '<small>'+escape(skill.detail)+'</small>'+
+   '<button type="button" data-train-skill="'+escape(skill.name)+'" title="関連する既存遺伝子を高める。ポイント超過に注意">習得・強化</button></div>').join('');
+  if(skillPanel)skillPanel.querySelectorAll('[data-train-skill]').forEach(button=>button.onclick=()=>{
+   const name=button.dataset.trainSkill,edited=trainFounderSkill(currentGenome(),name);
+   for(const key of skillTrainingGenes(name))changes[key]=edited[key];
+   updateEditorSummary();
+  });
   
   for(const item of editorBody.querySelectorAll('[data-point-cost]')){
    const v=founderTraitCost(item.dataset.pointCost,g[item.dataset.pointCost]);
