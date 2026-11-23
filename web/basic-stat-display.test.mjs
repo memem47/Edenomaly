@@ -16,7 +16,7 @@ test('every game-time stat uses identical six-stat levels to founder editor',()=
   assert.equal(basicStatScore(g,stat.key),basicStatLevel(g,stat.key));
   assert.equal(basicStatValues(g)['stat_'+stat.key],basicStatLevel(g,stat.key));
  }
- for(const [key] of FOUNDER_FIELDS)
+ for(const stat of BASIC_STATS)for(const key of stat.genes)
   assert.equal(geneLevel(g,key),founderLevel(key,g[key]),key);
  const html=abilityListHTML(g);
  for(const stat of BASIC_STATS)assert.ok(html.includes(stat.name));
