@@ -10,8 +10,8 @@ test('basic stats are six derived views of existing genes, with no additional DN
  assert.deepEqual(BASIC_STATS.map(s=>s.name),
   ['ちから','すばやさ','たいりょく','かしこさ','てきおう','はんしょく']);
  assert.deepEqual(BASIC_STATS.map(s=>s.key),CORE_KEYS);
- assert.equal(DNA_KEYS.length,19);assert.equal(SKILLS.length,6);assert.equal(STRATEGY_FIELDS.length,7);
- assert.equal(FOUNDER_FIELDS.length,19);
+ assert.equal(DNA_KEYS.length,22);assert.equal(SKILLS.length,9);assert.equal(STRATEGY_FIELDS.length,7);
+ assert.equal(FOUNDER_FIELDS.length,22);
 });
 
 test('changing each basic stat modifies a genuine editable locus and leaves unrelated genes untouched (DNA v2)',async()=>{
