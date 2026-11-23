@@ -1,4 +1,5 @@
 import {FOUNDER_BUDGET,FOUNDER_TRAITS,FOUNDER_FIELDS,formatTrait,editFounderGenome,founderCost,founderTraitCost,canUseFounder,founderLevel,founderValueAtLevel,founderLevelMeaning} from './founder-designer.js';
+import {founderTraitHelp,FOUNDER_ADVANCED_TRAITS} from './founder-trait-help.js';
 import {morphology,dietProfile,terrainFitness,genomeCode} from './simulation.js';
 import {drawFounderAppearance} from './founder-preview.js?v=2026.11.23.1';
 import {createDiscoveryToastQueue} from './discovery-toast-queue.js?v=2026.11.23.1';
@@ -124,10 +125,10 @@ export function mountFounderScreens({game,getMode,getDiscoveryMode=()=> 'detaile
   changes={};
   editorBody.innerHTML='<section class="compact-founder-top"><canvas id="founderAfterCanvas" width="180" height="132" aria-label="調整後のスライム"></canvas><div class="compact-founder-info"><strong>調整後の外見</strong><div class="founder-species-name-line"><small>現在の能力から決まる種族名</small><b id="founderSpeciesName" aria-live="polite"></b></div><small>　能力に応じて体表・口・膜・栄養粒・ひれなどが変化</small> <small id="founderPreviewChanges"></small><p id="founderCost" class="founder-budget"></p><div id="founderSummary"></div></div></section>'+
    '<section class="founder-preset-selection"><strong>① 初期能力を選ぶ</strong><p class="muted">プリセットはおすすめの生存戦略です。選択後もすべての能力を編集できます。</p><div class="founder-preset-grid">'+FOUNDER_PRESETS.map(p=>'<button type="button" data-founder-preset="'+p.id+'"><b>'+escape(p.name)+'</b><small>'+escape(p.description)+'</small></button>').join('')+'<button type="button" id="randomFounderPreset"><b>🎲 ランダム生成</b><small>能力を毎回ランダムに選びます。ゲームモードの遺伝子ポイント上限内で生成します。</small></button></div></section>'+
-   '<p class="muted" id="founderHabitatTip"></p><p class="muted">全遺伝子を1〜10の10段階で調整します。適温・産卵数・繁殖方式・生息型は数値の横に実際の意味を表示します。二択・三択の特徴は1/10や1/6/10など有効なレベルに切り替わります。内部では従来の値に変換して計算します。</p><p class="muted">有利な能力はポイント消費、不利な能力はポイント還元。食性など環境次第の戦略は無料。複数地形への高適応には追加費用。体格・目・口・顎は能力から自動決定。</p><div class="compact-founder-fields">'+FOUNDER_TRAITS.map(([section,fields])=>'<fieldset class="founder-fieldset"><legend>'+escape(section)+'</legend><div class="founder-traits">'+
+   '<p class="muted" id="founderHabitatTip"></p><p class="muted">能力名の ⓘ にマウスを乗せると効果の説明を表示します。キーボードではⓘを選んで確認できます。</p><button type="button" id="toggleAdvancedTraits" aria-expanded="false">詳細能力7項目を表示</button><p class="muted">全遺伝子を1〜10の10段階で調整します。適温・産卵数・繁殖方式・生息型は数値の横に実際の意味を表示します。二択・三択の特徴は1/10や1/6/10など有効なレベルに切り替わります。内部では従来の値に変換して計算します。</p><p class="muted">有利な能力はポイント消費、不利な能力はポイント還元。食性など環境次第の戦略は無料。複数地形への高適応には追加費用。体格・目・口・顎は能力から自動決定。</p><div class="compact-founder-fields">'+FOUNDER_TRAITS.map(([section,fields])=>'<fieldset class="founder-fieldset"><legend>'+escape(section)+'</legend><div class="founder-traits">'+
     fields.map(([key,name,min,max,step])=>{
      const level=founderLevel(key,currentGenome()[key]??min);
-     return '<div class="founder-trait"><label for="edit-'+key+'">'+escape(name)+' <small data-point-cost="'+key+'"></small></label>'+
+     return '<div class="founder-trait"'+(FOUNDER_ADVANCED_TRAITS.has(key)?' hidden data-advanced-trait="true"':'')+'><label for="edit-'+key+'">'+escape(name)+' <span class="founder-trait-help" tabindex="0" role="note" aria-label="'+escape(name)+'の説明：'+escape(founderTraitHelp(key))+'" title="'+escape(founderTraitHelp(key))+'">ⓘ</span> <small data-point-cost="'+key+'"></small></label>'+
       '<div class="compact-value"><button type="button" data-adjust="-1" aria-label="'+escape(name)+'を減らす">−</button>'+
       '<input id="edit-'+key+'" type="number" data-trait="'+key+'" min="1" max="10" step="1" value="'+level+'">'+
       '<button type="button" data-adjust="1" aria-label="'+escape(name)+'を増やす">＋</button></div>'+
@@ -136,6 +137,13 @@ export function mountFounderScreens({game,getMode,getDiscoveryMode=()=> 'detaile
       '<div class="ability-scale"><small>1</small><small>10</small></div></div>';
     }).join('')+'</div></fieldset>').join('')+'</div>';
   editorFoot.innerHTML='<button type="button" id="resetFounder">標準に戻す</button><button type="button" id="cancelFounder">閉じる</button><button type="button" id="confirmFounder">移入</button>';
+  editorBody.querySelector('#toggleAdvancedTraits').onclick=()=>{
+   const button=editorBody.querySelector('#toggleAdvancedTraits');
+   const expand=button.getAttribute('aria-expanded')!=='true';
+   button.setAttribute('aria-expanded',String(expand));
+   button.textContent=expand?'詳細能力7項目を隠す':'詳細能力7項目を表示';
+   editorBody.querySelectorAll('[data-advanced-trait]').forEach(row=>{row.hidden=!expand;});
+  };
   editorBody.querySelectorAll('[data-trait]').forEach(input=>{
    const row=input.closest('.founder-trait');
    const apply=(normalize=false)=>{
