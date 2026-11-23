@@ -463,3 +463,13 @@ button:disabled,input:disabled{opacity:.40;cursor:not-allowed}
 .founder-species-name-line{display:flex;flex-direction:column;gap:3px;margin:6px 0 7px;padding:6px 8px;background:#1a4350;border-left:3px solid #73cba9;border-radius:5px;min-width:0}
 .founder-species-name-line small{color:#a9d0c7;font-size:10px}
 .founder-species-name-line b{color:#e1fff0;font-size:15px;line-height:1.5;overflow-wrap:anywhere}
+
+/* Founder gene guidance and progressive disclosure */
+.founder-trait[hidden]{display:none!important}
+.founder-trait-help{display:inline-flex!important;justify-content:center!important;align-items:center;
+ width:17px;height:17px;border:1px solid #75b5bd;border-radius:50%;font-size:11px!important;
+ color:#b8eaf0;cursor:help;vertical-align:middle;margin-left:3px}
+.founder-trait-help:hover,.founder-trait-help:focus-visible{background:#326a79;color:white;outline:2px solid #9ddedb;outline-offset:2px}
+#toggleAdvancedTraits{padding:7px 12px;margin:5px 0 12px;background:#22526a;color:#e4f9fa;
+ border:1px solid #619cac;border-radius:7px;cursor:pointer}
+#toggleAdvancedTraits:hover{background:#316985}
