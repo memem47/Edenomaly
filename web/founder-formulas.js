@@ -1,45 +1,67 @@
-// Exact, reviewable gene / basic-stat mapping for the initial founder editor.
-// This is intentionally not imported into in-game displays.
-import {BASIC_STAT_GROUPS,BASIC_STAT_BOUNDS} from './basic-stat-score.js';
-import {FOUNDER_FIELDS} from './founder-designer.js';
-
-export const FOUNDER_DERIVED_FORMULAS=Object.freeze([
- ['基本体格 r','3 + 12 × (0.45×diet + 0.30×yolkReserve + 0.25×guard)^2.7','手動で体格を指定した場合は自動式より優先'],
- ['体の長さ elongation','0.85 + 2.15 × (0.55×dispersal + 0.30×wet + 0.15×aquatic)^2.4','手動で指定した場合は自動式より優先'],
- ['目 eyes','round(6 × (0.70×predatorSense + 0.30×caution))','手動で指定した場合は自動式より優先'],
- ['口 mouths','1 + round(3 × (0.65×diet + 0.35×parentFeeding))','手動で指定した場合は自動式より優先'],
- ['顎 jaw','0.2 + 2.3 × (0.65×diet + 0.35×retaliation)','手動で指定した場合は自動式より優先'],
- ['遺伝的な幅 width','r × bodySizeMultiplier(g)','成長前の形状'],
- ['遺伝的な全長 length','width × elongation','成長前の形状'],
- ['体重 bodyMass','width² × elongation','基礎形状'],
- ['最大HP','max(25, round(bodyMass × 0.48 + 25))','成体の最大HP'],
- ['視野 eyeRange','20 + min(eyes,3)×14 + max(eyes−3,0)×7 + 24×antennaFunctional','antennaFunctional は機能上の触角表現'],
- ['移動速度 speed','[3.45/(0.65 + r²×elongation×0.017)] × [0.55+0.45×bodySizeMultiplier/1.7] × [1−max(eyes−3,0)×0.055] × [1−0.07×hornFunctional−0.035×antennaFunctional] × [0.80+0.40×dispersal]','地形・成長段階でさらに変化'],
- ['旋回 turnRate','clamp(0.29/(0.75+elongation×0.21),0.12,0.29)','体型によって変化'],
- ['攻撃範囲 biteReach','width × (0.70+0.15×mouths) + jaw×1.6 + 1.2×hornFunctional','機能上の角の表現を使用'],
- ['捕食可能体格比 edibleRatio','clamp(0.60+mouths×0.055+jaw×0.06,0.62,0.88)','上限あり'],
- ['摂食効率 foodGain','1+min(0.42,(mouths−1)×0.13)','口の数で変化'],
- ['基礎代謝 upkeep','0.09 + r²×elongation×0.008 + max(r²×elongation−110,0)^1.2×0.002 + eyes×0.045 + max(eyes−3,0)²×0.06 + mouths×0.03 + jaw×0.02 + |deception−0.5|×0.035 + resist×0.04 + tailFunctional×0.13 + hornFunctional×0.18 + antennaFunctional×0.12 + patternFunctional×0.075 + dispersal×0.06','体格・装飾の機能要素・すばやさに負担']
-]);
+// Founder-only reference for the canonical inherited model.
+// Six core stats + six binary skills + seven independent strategies = 19 loci.
+// The old 37 ecology and morphology properties are derived, never inherited.
+import {CORE_KEYS,SKILLS,STRATEGY_FIELDS,DNA_KEYS} from './genome-model.js';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const mapping=new Map(BASIC_STAT_GROUPS.flatMap(stat=>stat.genes.map(gene=>[gene,stat])));
-export const formulaMappingRows=()=>FOUNDER_FIELDS.map(([key,label,lo,hi,step])=>{
- const stat=mapping.get(key);
- return {key,label,stat:stat?.name??'独立設定',min:lo,max:hi,step,
-  formula:stat?`B=${stat.name}; Δ=目標B−現在B; L' = clamp(L+Δ,1,10); 値'=round_step(${lo}+(L'−1)×(${hi}−${lo})/9,${step})`:
-   '基本ステータス6値だけからは決定不可。独立遺伝子・戦略として個別設定（形態5項目は未固定時のみ自動算出）'};
-});
+export const GENOME_DERIVATION_FORMULAS=Object.freeze([
+ ['diet','食性','diet = strategy.diet'],
+ ['aquatic','水生','aquatic = strategy.aquatic'],
+ ['repro','繁殖方式','repro = strategy.repro'],
+ ['albino','白化','albino = strategy.albino'],
+ ['idealTemp','好適温度','−5 + 45×thermal'],
+ ['tempTolerance','温度耐性','3 + 15×staminaN'],
+ ['wet','水辺適応','clamp(0.18 + 0.50×adaptationN + (biome=水辺 ? 0.32 : 0))'],
+ ['dry','乾燥適応','clamp(0.16 + 0.55×adaptationN + (biome=乾燥 ? 0.30 : 0))'],
+ ['rock','岩場適応','clamp(0.16 + 0.53×adaptationN + (biome=岩場 ? 0.32 : 0))'],
+ ['guard','防衛','clamp(0.10 + 0.79×powerN)'],
+ ['retaliation','反撃','clamp(0.05 + 0.85×powerN × (反撃スキル ? 1 : 0.62))'],
+ ['resist','感染抵抗','clamp(0.09 + 0.87×staminaN)'],
+ ['frugality','省エネ','clamp(0.12 + 0.82×staminaN)'],
+ ['longevity','体内光沢','0.6 + 1.4×staminaN'],
+ ['hibernate','休眠傾向','休眠スキル ? clamp(0.28 + 0.72×adaptationN) : 0.04'],
+ ['waterGardening','水草栽培','水草栽培スキル ? clamp(0.35 + 0.65×adaptationN) : 0.02'],
+ ['shell','卵殻','clamp(0.08 + 0.84×fertilityN)'],
+ ['nesting','巣づくり','clamp(0.14 + 0.57×fertilityN + 0.20×intellectN)'],
+ ['nestChoice','産卵地選択','clamp((0.09 + 0.72×intellectN) × (産卵地選択スキル ? 1 : 0.32))'],
+ ['parentFeeding','親の給餌','clamp((0.08 + 0.81×fertilityN) × (給餌スキル ? 1 : 0.30))'],
+ ['yolkReserve','卵黄栄養','clamp(0.08 + 0.79×fertilityN)'],
+ ['brood','産卵数','round(1 + 7×fertilityN) [1..8]'],
+ ['juvenileCannibalism','幼体共食い','共食いスキル ? clamp(0.30 + 0.60×diet) : 0.01'],
+ ['dispersal','分散','clamp(0.09 + 0.86×agilityN)'],
+ ['sociability','集合','social'],
+ ['caution','警戒','clamp(0.12 + 0.78×intellectN)'],
+ ['predatorSense','捕食者感知','clamp(0.12 + 0.79×intellectN)'],
+ ['deception','擬態','clamp(0.12 + 0.42×intellectN + 0.20×(1−powerN))'],
+ ['tailLength','しっぽ','clamp(0.13 + 0.56×wet + 0.18×agilityN)'],
+ ['hornLength','角','clamp(0.08 + 0.56×powerN + 0.27×retaliation)'],
+ ['antennaLength','触角','clamp(0.07 + 0.67×intellectN + 0.20×agilityN)'],
+ ['pattern','模様','clamp(0.10 + 0.39×intellectN + 0.28×staminaN)'],
+ ['r','体格','3 + 12×(0.38×diet + 0.32×fertilityN + 0.30×powerN)^2.7'],
+ ['elongation','体の長さ','0.85 + 2.15×(0.60×agilityN + 0.25×wet + 0.15×aquatic)^2.4'],
+ ['eyes','目の数','round(6×(0.70×intellectN + 0.30×agilityN))'],
+ ['mouths','口の数','1 + round(3×(0.64×diet + 0.36×fertilityN))'],
+ ['jaw','顎','0.20 + 2.30×(0.63×diet + 0.37×powerN)']
+]);
+export const FOUNDER_DERIVED_FORMULAS=Object.freeze([
+ ['体重 bodyMass','[r×bodySizeMultiplier(g)]²×elongation','基本体型'],
+ ['最大HP','max(25, round(bodyMass×0.48+25))','体格に応じた上限'],
+ ['移動速度','3.45/(0.65+r²×elongation×0.017) × 体格係数 × 眼数係数 × 飾り負荷 × (0.80+0.40×dispersal)','体格・地形で変化'],
+ ['視野','20 + min(eyes,3)×14 + max(eyes−3,0)×7 + 24×機能触角','機能と形態の合成'],
+ ['基礎代謝','0.09 + 体重×0.008 + 大型負担 + 目・口・顎・飾り・分散の負担','全式は simulation.js の morphology 参照']
+]);
+export const formulaMappingRows=()=>GENOME_DERIVATION_FORMULAS.map(([key,label,formula])=>({key,label,formula}));
 export function founderFormulaHTML(){
- const formula=BASIC_STAT_GROUPS.map(stat=>
-  '<tr><th>'+esc(stat.icon+' '+stat.name)+'</th><td><code>B = clamp(round(('+stat.genes.map(key=>'L('+key+')').join(' + ')+')/'+stat.genes.length+'),1,10)</code></td><td>'+esc(stat.genes.join(', '))+'</td></tr>').join('');
- const genes=formulaMappingRows().map(row=>'<tr><th>'+esc(row.label)+' <small>('+esc(row.key)+')</small></th><td>'+esc(row.stat)+'</td><td><code>'+esc(row.formula)+'</code></td></tr>').join('');
- const physical=FOUNDER_DERIVED_FORMULAS.map(([name,formula,detail])=>
-  '<tr><th>'+esc(name)+'</th><td><code>'+esc(formula)+'</code></td><td>'+esc(detail)+'</td></tr>').join('');
- return '<details id="founderFormulaReference" class="founder-formula-reference"><summary>📐 全37遺伝子と基本ステータスの変換式・派生能力一覧</summary>'+
- '<p>現在の実装では、6つの基本値は37遺伝子の集約値であり、すべての遺伝子を基本値だけから一意に復元することはできません。基本値を編集すると対応する遺伝子のレベルを相対的に上下させます。食性・水生／陸生・繁殖方式などは独立設定です。</p>'+
- '<p>記号：L(x)=遺伝子xの1〜10段階、B=その基本ステータス、round=四捨五入、round_step(x,s)=s単位に丸める、clamp=上下限で制限。レベルは L(x)=clamp(round((x−最小)/(最大−最小)×9)+1,1,10)。</p>'+
- '<h4>① 基本ステータスの算出式</h4><div class="founder-formula-scroll"><table><thead><tr><th>基本ステータス</th><th>算出式</th><th>関連遺伝子</th></tr></thead><tbody>'+formula+'</tbody></table></div>'+
- '<h4>② 全37遺伝子の調整・変換規則</h4><div class="founder-formula-scroll"><table><thead><tr><th>応用パラメータ</th><th>関連</th><th>変換式・独立設定</th></tr></thead><tbody>'+genes+'</tbody></table></div>'+
- '<h4>③ 体格・戦闘などの派生能力計算</h4><div class="founder-formula-scroll"><table><thead><tr><th>派生能力</th><th>計算式</th><th>補足</th></tr></thead><tbody>'+physical+'</tbody></table></div>'+
- '<p>スキルの発動はこれらの値に加えて地形・相手・空腹などの条件を持ちます。実際の計算は simulation.js のゲームロジックが優先です。</p></details>';
+ const table=(head,rows)=>'<div class="founder-formula-scroll"><table><thead><tr>'+head.map(h=>'<th>'+esc(h)+'</th>').join('')+'</tr></thead><tbody>'+
+ rows.map(row=>'<tr>'+row.map((cell,i)=>'<'+(i?'td':'th')+'>'+esc(cell)+'</'+(i?'td':'th')+'>').join('')+'</tr>').join('')+'</tbody></table></div>';
+ return '<details id="founderFormulaReference" class="founder-formula-reference"><summary>📐 19遺伝子から37応用パラメータへの変換式</summary>'+
+ '<p>遺伝子 = 基本ステータス6項目＋保有スキル6項目＋生存戦略7項目。応用パラメータ37項目は独立して遺伝しません。各基本値 x の正規化 xN=(x−1)/9。clamp は0〜1に制限。値は子孫の遺伝子から毎回再計算します。</p>'+
+ '<h4>① 遺伝子本体（19項目）</h4>'+
+ table(['種類','遺伝子'],[
+  ['基本ステータス（各1〜10）',CORE_KEYS.join('、')],
+  ['スキル（各0/1）',SKILLS.map(s=>s.key).join('、')],
+  ['戦略',STRATEGY_FIELDS.map(s=>s.key).join('、')]
+ ])+
+ '<h4>② 全37応用パラメータの算出式</h4>'+table(['応用値','変換式'],GENOME_DERIVATION_FORMULAS.map(([,label,formula])=>[label,formula]))+
+ '<h4>③ 物理量・行動の計算</h4>'+table(['派生量','式','備考'],FOUNDER_DERIVED_FORMULAS)+
+ '<p>スキルはDNAとして継承されますが、発動には空腹・地形・相手などの追加条件が必要です。細かな端数や例外処理は genome-model.js / simulation.js が正です。</p></details>';
 }
