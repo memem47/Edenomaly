@@ -1,7 +1,7 @@
 // Soft, readable jelly ornaments made entirely of overlapping round shapes.
 // Drawing only: genes, hitboxes, upkeep, movement and RNG are unchanged.
 // The organism faces +X. The upper-right contour is its forehead.
-import {adaptationColor,visibleOrnaments} from './simulation.js?v=2026.11.23.3';
+import {adaptationColor,visibleOrnaments,phenotypeTraits} from './simulation.js?v=2026.11.23.4';
 const TAU=Math.PI*2;
 const lim=v=>Math.max(0,Math.min(1,v??0));
 export const ornamentTraits=g=>visibleOrnaments(g);
@@ -30,7 +30,40 @@ const bead=(ctx,x,y,rx,ry,c,outline=true)=>{
 };
 export const headAnchor=(rx,ry)=>({x:rx*.47,y:-ry*.68});
 export function drawOrnamentsBehind(ctx,g,rx,ry,tick=0,id=0){
- const tr=ornamentTraits(g),c=appearance(g);
+ const tr=ornamentTraits(g),c=appearance(g),p=phenotypeTraits(g);
+ // Webbed fins project past the silhouette instead of hiding under the belly.
+ if(p.fins>.13)for(const side of [-1,1]){
+  ctx.save();
+  ctx.translate(-rx*.30,side*ry*.84);
+  ctx.rotate(side*(.30+Math.sin(tick*.09+id)*.08));
+  const count=p.fins>.66?3:2;
+  for(let i=0;i<count;i++){
+   ctx.beginPath();
+   ctx.ellipse(-rx*.08+i*rx*.16,side*ry*(.08+i*.07),
+    Math.max(1.0,rx*(.15+.08*p.fins)),Math.max(1.1,ry*(.25+.16*p.fins)),
+    side*.36,0,TAU);
+   ctx.fillStyle='rgba(124,215,242,'+(.48+.32*p.fins)+')';ctx.fill();
+   ctx.strokeStyle=c.rim;ctx.lineWidth=Math.max(.3,ry*.045);ctx.stroke();
+  }
+  ctx.restore();
+ }
+ // Wings are genuinely rare: require multiple strongly expressed traits.
+ // Entirely cosmetic, with soft elliptical feathers and no flight physics.
+ if(p.wings>.15)for(const side of [-1,1]){
+  ctx.save();ctx.translate(-rx*.12,side*ry*.78);
+  ctx.rotate(side*(.35+Math.sin(tick*.12+id)*.10));
+  for(let i=0;i<3;i++){
+   ctx.beginPath();
+   ctx.ellipse(-rx*.05-i*rx*.14,side*ry*(.16+.16*i),
+    Math.max(1.1,rx*(.20+.08*p.wings-i*.02)),
+    Math.max(1.1,ry*(.23+.15*p.wings)),
+    -side*.55,0,TAU);
+   ctx.fillStyle='rgba(205,224,249,'+(.42+.20*p.wings)+')';ctx.fill();
+   ctx.strokeStyle=c.rim;ctx.lineWidth=Math.max(.3,ry*.045);ctx.stroke();
+  }
+  ctx.restore();
+ }
+
  const tail=ornamentVisibility(tr.tail),horn=ornamentVisibility(tr.horn);
  if(tail>.08){
   // A slightly swaying chain of one to three overlapping jelly bubbles.
@@ -51,7 +84,25 @@ export function drawOrnamentsBehind(ctx,g,rx,ry,tick=0,id=0){
 
 }
 export function drawOrnamentsFront(ctx,g,rx,ry,tick=0,id=0){
- const tr=ornamentTraits(g),c=appearance(g);
+ const tr=ornamentTraits(g),c=appearance(g),p=phenotypeTraits(g);
+ // Broad, round horn clusters on the forward shoulders.
+ if(p.horns>.15)for(const side of [-1,1]){
+  const size=Math.max(1.0,ry*(.095+.14*p.horns));
+  bead(ctx,rx*.63,side*ry*.76,size*.90,size*1.25,c);
+  if(p.horns>.57)bead(ctx,rx*.70,side*ry*(.87+.13*p.horns),size*.71,size*.84,c);
+ }
+ // Sensory / nurturing tentacles are chains of rounded, attached jelly beads.
+ if(p.tentacles>.12)for(const side of [-1,1]){
+  const segments=p.tentacles>.58?4:3;
+  const beadRadius=Math.max(.9,ry*(.065+.075*p.tentacles));
+  for(let i=0;i<segments;i++){
+   const t=(i+1)/segments;
+   const sway=Math.sin(tick*.095+id*.31+i*.5)*beadRadius*.32;
+   bead(ctx,rx*(.74+t*(.28+.22*p.tentacles)),side*ry*(.36+t*.17)+sway,
+    beadRadius*(1-.28*t),beadRadius*(1-.2*t),c);
+  }
+ }
+
  const pattern=ornamentVisibility(tr.pattern),antenna=ornamentVisibility(tr.antenna);
  // Low, rounded forehead horns remain inside the body outline, above the eyes.
  // Mirror across the forward-facing X axis.
@@ -150,6 +201,44 @@ export function drawAbilityDetails(ctx,g,rx,ry){
  for(let i=0;i<a.mouths;i++){
   const y=(i-(a.mouths-1)/2)*ry*.19;
   ctx.beginPath();ctx.ellipse(rx*.88,y,Math.max(.2,rx*(.025+a.mouth*.035)),Math.max(.2,ry*(.045+a.mouth*.07)),0,0,TAU);ctx.fill();
+ }
+ // A brood crown and armored scales make fertility and stamina obvious.
+ const p=phenotypeTraits(g);
+ if(p.eggCrown>.12){
+  const count=Math.max(2,Math.round(2+p.eggCrown*5));
+  for(let i=0;i<count;i++){
+   const angle=-2.55+i/(count-1)*1.9;
+   const x=rx*.58*Math.cos(angle),y=ry*.80*Math.sin(angle);
+   ctx.fillStyle='rgba(255,231,181,'+(.38+.50*p.eggCrown)+')';
+   ctx.beginPath();ctx.ellipse(x,y,Math.max(.55,ry*(.045+.05*p.eggCrown)),
+    Math.max(.65,ry*(.07+.09*p.eggCrown)),angle*.18,0,TAU);ctx.fill();
+  }
+ }
+ if(p.shellPlates>.15){
+  const count=p.shellPlates>.65?5:3;
+  ctx.strokeStyle='rgba(235,244,255,'+(.18+.45*p.shellPlates)+')';
+  ctx.lineWidth=Math.max(.45,ry*(.018+.038*p.shellPlates));
+  for(let i=0;i<count;i++){
+   const x=rx*(-.51+i*.24);
+   ctx.beginPath();ctx.ellipse(x,ry*.46,Math.max(.5,rx*.10),Math.max(.6,ry*.095),
+    -.12,0,TAU);ctx.stroke();
+  }
+ }
+ // Every editable locus leaves one individual heritable skin pearl:
+ // stable position, size and shade. No new DNA and no random draws.
+ if(Math.min(rx,ry)>=5){
+  const genes=Object.entries(p.genes),count=genes.length;
+  for(let i=0;i<count;i++){
+   const value=genes[i][1];
+   const row=i<Math.ceil(count/2)?0:1;
+   const offset=row===0?i:i-Math.ceil(count/2);
+   const rowCount=row===0?Math.ceil(count/2):Math.floor(count/2);
+   const a=Math.PI*(row===0?1.09:.09)+offset/(Math.max(1,rowCount-1))*Math.PI*.80;
+   const x=rx*.71*Math.cos(a),y=ry*.71*Math.sin(a);
+   const r=Math.max(.32,Math.min(ry*.10,ry*(.022+.055*value)));
+   ctx.fillStyle='rgba(246,249,223,'+(.18+.66*value)+')';
+   ctx.beginPath();ctx.ellipse(x,y,r,Math.max(.3,r*.76),0,0,TAU);ctx.fill();
+  }
  }
  if(a.armor>.15)for(const side of [-1,1]){
   bead(ctx,-rx*.16,side*ry*.73,ry*(.07+a.armor*.05),ry*.10,c,false);
