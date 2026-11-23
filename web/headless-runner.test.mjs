@@ -11,7 +11,7 @@ test('founder sizes are strongly right-skewed, with 80% or more compact bodies',
  const medium=sizes.filter(r=>r>=4.5&&r<8).length/count;
  const extremelyLarge=sizes.filter(r=>r>=11).length/count;
  assert.ok(compact>=.80&&compact<=.94,JSON.stringify({compact,medium,extremelyLarge}));
- assert.ok(medium>.06&&medium<.18);
+ assert.ok(medium>.06&&medium<.18,JSON.stringify({compact,medium,extremelyLarge}));
  assert.ok(extremelyLarge<.01,'historically large bodies must be very rare');
 });
 
