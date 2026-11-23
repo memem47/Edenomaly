@@ -28,7 +28,11 @@ test('appearance derives from real abilities rather than decorative genes',()=>{
  assert.ok(ornamentTraits(tail).tail>ornamentTraits(bare).tail);
  assert.ok(ornamentTraits(antenna).antenna>ornamentTraits(bare).antenna);
  assert.ok(ornamentTraits(spotted).pattern>ornamentTraits(bare).pattern);
- assert.deepEqual(ornamentTraits({...horn,tailLength:1,hornLength:0,antennaLength:1,pattern:1}),ornamentTraits(horn));
+ const inherited=ornamentTraits({...horn,tailLength:1,hornLength:0,antennaLength:1,pattern:1});
+ assert.ok(inherited.horn<ornamentTraits(horn).horn,'horn DNA must affect the actual shape');
+ assert.ok(inherited.tail>ornamentTraits(horn).tail,'tail DNA must affect the actual shape');
+ assert.ok(inherited.antenna>ornamentTraits(horn).antenna,'antenna DNA must affect the actual shape');
+ assert.ok(inherited.pattern>ornamentTraits(horn).pattern,'pattern DNA must affect the actual shape');
 });
 test('round tails and mirrored horns remain attached to slime silhouette',()=>{
  const {ctx,calls}=recordingCanvas(),g={...horn,...tail,jaw:2.5,guard:1};
@@ -42,7 +46,7 @@ test('round tails and mirrored horns remain attached to slime silhouette',()=>{
  assert.ok(lobes.every(([x,y,rx,ry])=>(x+rx)**2/8**2+(Math.abs(y)+ry)**2/6**2<1.5));
  assert.equal(calls.curve.length,0);
 });
-test('defensive horns form a symmetric pair, independently of former horn gene',()=>{
+test('defensive horns form a symmetric pair with inherited horn expression',()=>{
  for(const guard of [.6,.8,1]){
   const g={...horn,guard};
   const {ctx,calls}=recordingCanvas();
