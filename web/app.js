@@ -12,6 +12,8 @@ import {drawWorld,drawChart} from './renderer.js?v=2026.11.23.7';
 import {EcologyLogbook,observeEcology,ECOLOGY_LOG_FIELDS} from './ecology-log.js?v=2026.11.14.2';
 import {gameRunReport,saveGameRunReport,readGameRunHistory} from './game-run-log.js?v=2026.11.14.2';
 import {SpeciesLogbook,speciesReport,csvCell} from './species-statistics.js';
+import {evolutionGraph,evolutionSVG} from './evolution-tree.js';
+import {drawFounderAppearance} from './founder-preview.js?v=2026.11.23.8';
 import {performancePolicy,simulationBatch,BROWSER_BACKGROUND_INTERVAL} from './performance-policy.js?v=video-friendly-1';
 const $=id=>document.getElementById(id);
 const dashboard=mountDashboardTabs(document);
@@ -130,6 +132,65 @@ $('startEditFounder').onclick=()=>{
  $('gameStartDialog').close();running=false;screens.showEditor();
 };
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const evolutionDialog=$('evolutionTreeDialog');
+let evolutionWasRunning=false,lastEvolutionSVG='';
+function generateEvolutionTree(){
+ const graph=evolutionGraph(game);
+ const portraitCache=new Map();
+ const portrait=node=>{
+  if(!node.genome)return '';
+  if(portraitCache.has(node.key))return portraitCache.get(node.key);
+  const canvas=document.createElement('canvas');canvas.width=180;canvas.height=132;
+  drawFounderAppearance(canvas,node.genome,0);
+  const url=canvas.toDataURL('image/png');
+  portraitCache.set(node.key,url);return url;
+ };
+ const zoom=Number($('evolutionTreeZoom').value)/100;
+ lastEvolutionSVG=evolutionSVG(graph,portrait,zoom);
+ $('evolutionTreeViewport').innerHTML=graph.nodes.length?lastEvolutionSVG:
+  '<p class="muted" style="padding:24px">まだ生命が移入されていません。</p>';
+ $('evolutionTreeSummary').textContent=graph.nodes.length+'種・'+graph.edges.length+
+  '本の進化経路・起点'+graph.roots+'種';
+}
+function openEvolutionTree(){
+ evolutionWasRunning=running;running=false;
+ evolutionDialog.showModal();
+ generateEvolutionTree();
+}
+function closeEvolutionTree(){
+ if(evolutionDialog.open)evolutionDialog.close();
+ running=evolutionWasRunning&&!session.finished;
+}
+function downloadEvolutionFile(content,filename,mime){
+ const blob=new Blob([content],{type:mime}),url=URL.createObjectURL(blob);
+ const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+$('openEvolutionTree').addEventListener('click',openEvolutionTree);
+$('closeEvolutionTree').addEventListener('click',closeEvolutionTree);
+$('refreshEvolutionTree').addEventListener('click',generateEvolutionTree);
+$('evolutionTreeZoom').addEventListener('input',generateEvolutionTree);
+$('saveEvolutionSVG').addEventListener('click',()=>{
+ if(!lastEvolutionSVG)return;
+ downloadEvolutionFile(lastEvolutionSVG,'edenomaly-evolution-step-'+game.tick+'.svg','image/svg+xml;charset=utf-8');
+});
+$('saveEvolutionPNG').addEventListener('click',()=>{
+ if(!lastEvolutionSVG)return;
+ const blob=new Blob([lastEvolutionSVG],{type:'image/svg+xml;charset=utf-8'});
+ const url=URL.createObjectURL(blob),img=new Image();
+ img.onload=()=>{
+  const canvas=document.createElement('canvas');
+  canvas.width=img.width;canvas.height=img.height;
+  const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0);
+  URL.revokeObjectURL(url);
+  canvas.toBlob(png=>{
+   if(png)downloadEvolutionFile(png,'edenomaly-evolution-step-'+game.tick+'.png','image/png');
+  },'image/png');
+ };
+ img.onerror=()=>URL.revokeObjectURL(url);
+ img.src=url;
+});
+
 const speciesDialog=$('speciesStatisticsDialog');
 const speciesFrame=$('speciesStatisticsFrame');
 let reportWasRunning=false;
