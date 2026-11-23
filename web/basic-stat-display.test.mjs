@@ -9,37 +9,30 @@ import {abilityListHTML} from './ability-bars.js';
 import {founderFormulaHTML,formulaMappingRows,FOUNDER_DERIVED_FORMULAS} from './founder-formulas.js';
 import {speciesReport} from './species-statistics.js';
 
-test('every game-time stat uses identical six-stat levels to founder editor',()=>{
+test('every game-time stat uses identical six-stat levels to founder editor (DNA v2)',async()=>{
  const g=new Ecosystem(61513).gene();
  assert.equal(BASIC_STAT_GROUPS.length,6);
+ assert.equal(g.genomeModel,2);
  for(const stat of BASIC_STATS){
-  assert.equal(basicStatScore(g,stat.key),basicStatLevel(g,stat.key));
-  assert.equal(basicStatValues(g)['stat_'+stat.key],basicStatLevel(g,stat.key));
+  assert.equal(basicStatScore(g,stat.key),g.dna[stat.key]);
+  assert.equal(basicStatLevel(g,stat.key),g.dna[stat.key]);
+  assert.equal(basicStatValues(g)['stat_'+stat.key],g.dna[stat.key]);
  }
- for(const stat of BASIC_STATS)for(const key of stat.genes)
-  assert.equal(geneLevel(g,key),founderLevel(key,g[key]),key);
  const html=abilityListHTML(g);
  for(const stat of BASIC_STATS)assert.ok(html.includes(stat.name));
  assert.equal((html.match(/class="ability-bar" /g)||[]).length,6);
- assert.ok(!html.includes('卵殻'));
- assert.ok(!html.includes('水草栽培'));
 });
-test('founder-only mapping lists all 37 loci and derived physiology formulas',()=>{
+test('founder-only mapping lists all 37 loci and derived physiology formulas (DNA v2)',async()=>{
+ const {GENETIC_LOCUS_LIMITS}=await import('./simulation.js');
  const rows=formulaMappingRows();
+ assert.equal(FOUNDER_FIELDS.length,19);
  assert.equal(rows.length,37);
- assert.deepEqual(new Set(rows.map(x=>x.key)),new Set(FOUNDER_FIELDS.map(([key])=>key)));
- for(const stat of BASIC_STATS){
-  for(const key of stat.genes)assert.equal(rows.find(row=>row.key===key).stat,stat.name);
- }
- for(const key of ['diet','repro','aquatic','albino'])
-  assert.equal(rows.find(row=>row.key===key).stat,'独立設定');
- assert.ok(FOUNDER_DERIVED_FORMULAS.length>=12);
+ assert.deepEqual(new Set(rows.map(row=>row.key)),new Set(Object.keys(GENETIC_LOCUS_LIMITS)));
+ assert.ok(FOUNDER_DERIVED_FORMULAS.length>=5);
  const html=founderFormulaHTML();
- assert.ok(html.includes('全37遺伝子'));
- assert.ok(html.includes('基本ステータス'));
+ assert.ok(html.includes('19遺伝子')&&html.includes('37応用パラメータ'));
  assert.ok(html.includes('体重 bodyMass'));
- assert.ok(html.includes('基礎代謝 upkeep'));
- assert.ok(html.includes('独立設定'));
+ assert.ok(html.includes('基礎代謝'));
 });
 test('individual birth samples retain exact six-stat quantiles, not averaged allele medians',()=>{
  const w=new Ecosystem(61514);
