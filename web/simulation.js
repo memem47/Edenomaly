@@ -1,5 +1,6 @@
 // Edenomaly simulation: browser-only; no DOM or Canvas dependencies.
 import {appendSpeciesBirth,birthDerived} from './species-statistics.js';
+import {DNA_KEYS,DNA_LIMITS,canonicalDNA,legacyToDNA,expressDNA} from './genome-model.js';
 const W=800,H=460,CELL=20,NX=40,NY=23;
 export const TERRAIN_NAMES=['草地','水辺','乾燥地','岩場'];
 export const TERRAIN_COLORS=['#54c74c','#279cfa','#edb85c','#8980bf'];
@@ -583,6 +584,7 @@ export const POND_RESERVE=35;
 // Functional body plan for player-designed lineages. Derived traits are
 // recalculated after environmental adaptation, mutation and recombination.
 export function deriveFunctionalBody(g){
+ if(g.genomeModel===2)return expressDNA(g);
  const n=k=>clamp(g[k]??.5,0,1);
  const diet=n('diet'),sense=n('predatorSense'),guard=n('guard');
  const values={
@@ -603,9 +605,9 @@ const INTEGER_GENES=new Set(['eyes','mouths','brood','aquatic','albino','repro']
 // Detailed phenotype code: one rounded hexadecimal digit per expressed
 // inherited trait, in fixed gene order. Same genome -> same code after reset;
 // mutations too small to cross a quantization boundary share a code.
-export const genomeCode=g=>HERITABLE.map(key=>{
- const [lo,hi]=LIMITS[key];
- const v=Number(g[key]);
+export const genomeCode=g=>(g?.genomeModel===2?DNA_KEYS:HERITABLE).map(key=>{
+ const [lo,hi]=(g?.genomeModel===2?DNA_LIMITS:LIMITS)[key];
+ const v=Number(g?.genomeModel===2?g.dna[key]:g[key]);
  const step=Number.isFinite(v)?Math.round(clamp((v-lo)/(hi-lo),0,1)*15):0;
  return step.toString(16).toUpperCase();
 }).join('').match(/.{1,4}/g).join('-');
@@ -768,76 +770,63 @@ export class Ecosystem{
     g.alleles[key]=[g[key],g[key]];
    for(const key of ['tailLength','hornLength','antennaLength','pattern'])
     g.alleles[key]=[g[key],g[key]];
-  return g;
+  return expressDNA({dna:legacyToDNA(g)});
  }
  mutate(g){
-  const next={...g,alleles:{}};
-  for(const key of HERITABLE)next.alleles[key]=[...allelePair(g,key)];
-  // Occasionally change 2-3 independent genetic loci in one descendant.
-  // Different siblings can develop a genuinely distinct body or feeding style.
-  const changes=1+(this.rand()<.28?1:0)+(this.rand()<.08?1:0);
-  for(let n=0;n<changes;n++){
-   const key=HERITABLE[Math.floor(this.rand()*HERITABLE.length)];
-   // Do not let the generic mutation path make albinos common.
-   if(key==='albino'&&this.rand()<.93)continue;
-    if(key==='repro'&&this.rand()<.95)continue;
+  if(g.genomeModel!==2)return this.mutateLegacy(g);
+  const dna=canonicalDNA(g),alleles={};
+  for(const key of DNA_KEYS)alleles[key]=[...(g.alleles?.[key]??[dna[key],dna[key]])];
+  const count=1+(this.rand()<.22?1:0)+(this.rand()<.06?1:0);
+  for(let n=0;n<count;n++){
+   const key=DNA_KEYS[Math.floor(this.rand()*DNA_KEYS.length)];
    const index=this.rand()<.5?0:1;
-   const [lo,hi]=LIMITS[key],width=hi-lo;
-   let value=next.alleles[key][index];
-   if(key==='repro')value=this.rand()<.5?1:2;
-    else if(key==='idealTemp')value+=this.range(-7,7);
-    else if(key==='tempTolerance')value+=this.range(-3.5,3.5);
-     else if(key==='longevity')value+=this.range(-.20,.20);
-    else if(key==='aquatic')value=1-value;
-   else if(key==='albino')value=1-value;
-   else if(key==='elongation')value+=this.rand()<.85?this.range(-.13,.08):this.range(-.20,.24);
-   else if(INTEGER_GENES.has(key))value+=this.rand()<.5?-1:1;
-   else value+=this.range(-.24,.24)*width;
-   next.alleles[key][index]=clamp(value,lo,hi);
+   const [lo,hi]=DNA_LIMITS[key];
+   let value=alleles[key][index];
+   if(key.startsWith('skill')){if(this.rand()<.16)value=1-value;else continue;}
+   else if(['aquatic','albino'].includes(key)){if(this.rand()<.06)value=1-value;else continue;}
+   else if(['repro','biome'].includes(key)){if(this.rand()<.15)value=Math.floor(this.range(lo,hi+1));else continue;}
+   else if(['power','agility','stamina','intellect','adaptation','fertility'].includes(key))value+=this.rand()<.5?-1:1;
+   else value+=this.range(-.17,.17);
+   alleles[key][index]=clamp(value,lo,hi);
   }
-  for(const trait of HERITABLE)next[trait]=alleleExpression(trait,next.alleles[trait]);
-  next.bodyOverrides=[...(g.bodyOverrides??[])];
-   return next.functionalBody?deriveFunctionalBody(next):next;
+  const next={};
+  for(const key of DNA_KEYS){
+   const pair=alleles[key];
+   next[key]=this.expressGeneticPair(key,pair);
+  }
+  return expressDNA({dna:next,alleles});
+ }
+ expressGeneticPair(key,pair){
+  const [lo,hi]=DNA_LIMITS[key];
+  const val=key==='aquatic'?pair[0]:key==='albino'||key==='repro'?
+   Math.max(...pair):(pair[0]+pair[1])/2;
+  const discrete=DNA_KEYS.slice(0,6).includes(key)||key.startsWith('skill')||
+   ['aquatic','repro','biome','albino'].includes(key);
+  return discrete?Math.round(clamp(val,lo,hi)):clamp(val,lo,hi);
  }
  recombine(a,b){
-  const child={alleles:{},functionalBody:!!(a.functionalBody||b.functionalBody),
-    bodyOverrides:[...new Set([...(a.bodyOverrides??[]),...(b.bodyOverrides??[])])]};
-  for(const key of HERITABLE){
-   const maternal=allelePair(a,key),paternal=allelePair(b,key);
-   const pair=[maternal[this.rand()<.5?0:1],paternal[this.rand()<.5?0:1]];
-   child.alleles[key]=pair;
-   child[key]=alleleExpression(key,pair);
+  if(a.genomeModel!==2||b.genomeModel!==2)return this.recombineLegacy(a,b);
+  const dna={},alleles={};
+  for(const key of DNA_KEYS){
+   const ap=a.alleles?.[key]??[a.dna[key],a.dna[key]];
+   const bp=b.alleles?.[key]??[b.dna[key],b.dna[key]];
+   const pair=[ap[this.rand()<.5?0:1],bp[this.rand()<.5?0:1]];
+   alleles[key]=pair;dna[key]=this.expressGeneticPair(key,pair);
   }
-  // Rare body-plan changes create stable aquatic/terrestrial lineages.
-  // Selection still decides whether an innovator survives its habitat.
-  if(this.rand()<.038){
-   const habitat=1-child.aquatic;
-   child.alleles.aquatic=[habitat,habitat];child.aquatic=habitat;
-   if(habitat===1){
-    child.wet=Math.max(child.wet,.68);
-    child.alleles.wet=[child.wet,child.wet];
-   }else{
-    child.dry=Math.max(child.dry,.52);
-    child.alleles.dry=[child.dry,child.dry];
-   }
-  }
-  // Noticeable but infrequent jumps allow dry or rocky specialization.
-  if(this.rand()<.13){
-   const trait=this.rand()<.5?'dry':'rock';
-   const improved=clamp(child[trait]+this.range(.18,.43),0,1);
-   child.alleles[trait]=[improved,improved];child[trait]=improved;
-  }
-  // Rare dietary innovation creates predators without forcing an individual
-  // to change diet during its lifetime. Selection must sustain the lineage.
-  if(this.rand()<.014){
-   const delta=this.range(.20,.44)*(this.rand()<.72?1:-1);
-   const changed=clamp(child.diet+delta,0,1);
-   child.diet=changed;child.alleles.diet=[changed,changed];
-  }
-  // Extremely rare stable inherited pigment loss, distinct from damage flash.
-  if(this.rand()<.0025){child.albino=1;child.alleles.albino=[1,1];}
-  const expressed=child.functionalBody?deriveFunctionalBody(child):child;
-  return this.rand()<.32?this.mutate(expressed):expressed;
+  // Rare strategy innovations remain genetically encoded.
+  if(this.rand()<.036){dna.aquatic=1-dna.aquatic;alleles.aquatic=[dna.aquatic,dna.aquatic];}
+  if(this.rand()<.045){dna.biome=Math.floor(this.rand()*4);alleles.biome=[dna.biome,dna.biome];}
+  if(this.rand()<.015){dna.diet=clamp(dna.diet+this.range(-.36,.36),0,1);alleles.diet=[dna.diet,dna.diet];}
+  const child=expressDNA({dna,alleles});
+  return this.rand()<.32?this.mutate(child):child;
+ }
+ // Compatibility for experiments explicitly supplying a pre-migration genome.
+ mutateLegacy(g){
+  const dna=legacyToDNA(g),next=this.mutate(expressDNA({dna}));
+  return next;
+ }
+ recombineLegacy(a,b){
+  return this.recombine(expressDNA({dna:legacyToDNA(a)}),expressDNA({dna:legacyToDNA(b)}));
  }
  category(g){
   // A species represents a recognizable ecological/morphological strategy.
@@ -2554,22 +2543,15 @@ export class Ecosystem{
  }
 
  adaptFounderToTerrain(g,t){
-  const adapted={...g};
-  adapted.aquatic=t===1?1:0;
-  // On plant-free arid and rocky terrain, carnivorous/scavenging founders are favored.
-  if(t===2||t===3){
-   // Sparse local lichen allows omnivory; obligate predation without prey
-   // made early gameplay an uncontrollable death lottery.
-   adapted.diet=clamp(adapted.diet,.32,.65);
-   adapted.jaw=Math.max(.9,adapted.jaw);
+  if(g.genomeModel===2){
+   const dna={...canonicalDNA(g),aquatic:t===1?1:0,biome:t};
+   if(t===2||t===3)dna.diet=clamp(dna.diet,.32,.65);
+   return expressDNA({dna,alleles:{
+    ...g.alleles,aquatic:[dna.aquatic,dna.aquatic],biome:[t,t],
+    ...(dna.diet!==g.diet?{diet:[dna.diet,dna.diet]}:{})
+   }});
   }
-  if(t===1)adapted.wet=Math.max(.83,adapted.wet);
-  if(t===2)adapted.dry=Math.max(.86,adapted.dry);
-  if(t===3)adapted.rock=Math.max(.86,adapted.rock);
-  // Grassland founders are terrestrial, and require nearby access to water.
-  adapted.alleles=Object.fromEntries(Object.entries(g.alleles??{}).map(([key,pair])=>[key,[...pair]]));
-  for(const key of ['aquatic','wet','dry','rock','diet','jaw'])if(adapted[key]!==g[key])adapted.alleles[key]=[adapted[key],adapted[key]];
-  return adapted.functionalBody?deriveFunctionalBody(adapted):adapted;
+  return this.adaptFounderToTerrain(expressDNA({dna:legacyToDNA(g)}),t);
  }
  founderSite(x,y,terrain){
   for(let attempt=0;attempt<24;attempt++){
