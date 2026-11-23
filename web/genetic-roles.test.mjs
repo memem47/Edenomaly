@@ -90,6 +90,6 @@ test('all three new skills are heritable selectable and mechanically described',
  assert.ok(formulaMap.get('pattern').includes('adaptationN'));
  assert.ok(formulaMap.get('longevity').includes('fertilityN'));
  assert.ok(formulaMap.get('r').includes('staminaN'));
- assert.ok(founderFormulaHTML().includes('22遺伝子'));
+ assert.ok(founderFormulaHTML().includes('27遺伝子'));
  assert.equal(phenotypeTraits(editFounderGenome(new Ecosystem(20261123227).gene(),{adaptation:10})).genes.pattern>0,true);
 });
