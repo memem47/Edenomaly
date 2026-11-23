@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {Ecosystem,GENETIC_LOCUS_LIMITS} from './simulation.js';
-import {BASIC_STATS,basicStatLevel,editBasicStat,founderSkills} from './basic-stats.js';
+import {Ecosystem,GENETIC_LOCUS_LIMITS,morphology} from './simulation.js';
+import {BASIC_STATS,basicStatLevel,editBasicStat,founderSkills,trainFounderSkill,skillTrainingGenes} from './basic-stats.js';
 import {FOUNDER_FIELDS,founderCost,editFounderGenome} from './founder-designer.js';
 
 test('basic stats are six derived views of existing genes, with no additional DNA',()=>{
@@ -59,4 +59,25 @@ test('screen renders basic stats first and keeps gene details and live skills',a
  assert.match(ui,/changes\[key\]=edited\[key\]/);
  assert.match(ui,/founderSkills\(g\)/);
  assert.match(css,/#founderGeneEditor\[hidden\]/);
+});
+
+test('training every skill edits only existing genome loci and enables its prerequisites',()=>{
+ const base=editFounderGenome(new Ecosystem(20903).gene(),{
+  aquatic:0,waterGardening:0,hibernate:0,parentFeeding:0,
+  nestChoice:0,retaliation:0,juvenileCannibalism:0,diet:0
+ });
+ for(const skill of founderSkills(base)){
+  const trained=trainFounderSkill(base,skill.name);
+  const newSkill=founderSkills(trained).find(s=>s.name===skill.name);
+  assert.ok(newSkill.ready,skill.name);
+  assert.ok(skillTrainingGenes(skill.name).length,skill.name);
+  assert.ok(skillTrainingGenes(skill.name).some(key=>trained[key]!==base[key]),skill.name);
+  assert.ok(Number.isFinite(founderCost(base,trained)));
+ }
+});
+test('agility gene directly improves locomotion at a real upkeep cost',()=>{
+ const g=new Ecosystem(20904).gene();
+ const slow=morphology({...g,dispersal:0}),quick=morphology({...g,dispersal:1});
+ assert.ok(quick.speed>slow.speed);
+ assert.ok(quick.upkeep>slow.upkeep);
 });
