@@ -13,7 +13,7 @@ test('strength increases actual carnivorous attack damage even when morphology i
  assert.ok(attacker&&victim);
  const hit=(power,ambush)=>{
   attacker.g={...base,dna:{...base.dna,power,skillAmbush:ambush}};
-  attacker.bite=0;victim.bite=0;victim.attackResponse=null;victim.hp=victim.maxHp;
+  attacker.bite=0;victim.bite=0;victim.attackResponse=null;victim.maxHp=10000;victim.hp=10000;
   const before=victim.hp;
   assert.equal(w.attack(attacker,victim),true);
   return before-victim.hp;
