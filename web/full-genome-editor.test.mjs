@@ -39,7 +39,9 @@ test('directly edited morphology overrides the computed body and survives descen
  for(const key of ['r','eyes','mouths','jaw','elongation'])assert.ok(!Object.hasOwn(a.alleles,key));
  const derived=editFounderGenome(a,{power:4,intellect:4,fertility:4});
  assert.ok(derived.r<a.r);assert.ok(derived.jaw<a.jaw);
- const child=w.recombine(a,a),mutated=w.mutate(a);
+ const originalRandom=w.rand;w.rand=()=>.8;
+ const child=w.recombine(a,a);w.rand=originalRandom;
+ const mutated=w.mutate(a);
  assert.equal(child.genomeModel,2);assert.equal(mutated.genomeModel,2);
  assert.equal(Object.keys(child.alleles).length,22);
  assert.equal(Object.keys(mutated.alleles).length,22);
