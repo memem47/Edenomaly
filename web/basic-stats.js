@@ -14,7 +14,10 @@ const SKILL_DESCRIPTIONS={
  skillParentFeeding:'余剰の栄養がある親が空腹の幼体に給餌します。',
  skillNestChoice:'産卵時によりよい場所を選ぼうとします。',
  skillRetaliation:'攻撃を受けた場合に反撃します。',
- skillCannibalism:'空腹と食性などの条件が揃うと幼体を捕食します。'
+ skillCannibalism:'空腹と食性などの条件が揃うと幼体を捕食します。',
+ skillSprint:'獲物を追う・捕食者から逃げるときだけ一時的に加速します。エネルギーを消費します。',
+ skillAmbush:'肉食個体が警戒していない獲物に最初の一撃を与えるとダメージが増えます。',
+ skillRegenerate:'十分な餌と水があり感染していないとき、エネルギーを使ってHPを早く回復します。'
 };
 export function founderSkills(g){
  const dna=canonicalDNA(g);
