@@ -2,20 +2,10 @@
 // These are not new genes. Basic-stat editing changes the existing loci.
 import {founderLevel,founderValueAtLevel,editFounderGenome} from './founder-designer.js';
 
-export const BASIC_STATS=Object.freeze([
- {key:'power',name:'ちから',icon:'💪',help:'反撃と防衛の強さ。強い防衛には維持コストもあります。',genes:['retaliation','guard']},
- {key:'agility',name:'すばやさ',icon:'💨',help:'拡散・探索の傾向。移動の速さそのものは体格や地形にも左右されます。',genes:['dispersal']},
- {key:'stamina',name:'たいりょく',icon:'❤️',help:'感染への抵抗、燃費、温度変化への耐性。体格によるHPは別要素です。',genes:['resist','frugality','tempTolerance']},
- {key:'intellect',name:'かしこさ',icon:'🧠',help:'危険の識別、警戒、産卵地点を選ぶ能力。',genes:['predatorSense','caution','nestChoice']},
- {key:'adaptation',name:'てきおう',icon:'🌦️',help:'水辺・乾燥地・岩場への適応と休眠の備え。万能化には遺伝子ポイントが必要です。',genes:['wet','dry','rock','hibernate']},
- {key:'fertility',name:'はんしょく',icon:'🥚',help:'産卵数、卵の保護殻、給餌、卵の栄養投資。多産は親の負担も増えます。',genes:['brood','shell','parentFeeding','yolkReserve']}
-]);
+import {BASIC_STAT_GROUPS,basicStatScore} from './basic-stat-score.js';
+export const BASIC_STATS=BASIC_STAT_GROUPS;
 const clamp=n=>Math.max(1,Math.min(10,Math.round(n)));
-export function basicStatLevel(g,key){
- const stat=BASIC_STATS.find(s=>s.key===key);
- if(!stat)return null;
- return clamp(stat.genes.reduce((sum,gene)=>sum+founderLevel(gene,g[gene]),0)/stat.genes.length);
-}
+export const basicStatLevel=(g,key)=>basicStatScore(g,key);
 export function editBasicStat(g,key,target){
  const stat=BASIC_STATS.find(s=>s.key===key);
  if(!stat)return g;
