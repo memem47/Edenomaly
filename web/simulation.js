@@ -689,8 +689,8 @@ export class Ecosystem{
   const aquatic=this.rand()<.21?1:0,biome=aquatic?1:
    this.rand()<.15?2:this.rand()<.12?3:0;
   const dna={
-   power:roll(2,7),agility:roll(3,7),stamina:roll(3,8),
-   intellect:roll(2,7),adaptation:roll(3,8),fertility:roll(3,7),
+   power:roll(2,7),agility:this.rand()<.04?roll(8,10):roll(3,7),stamina:roll(3,8),
+   intellect:this.rand()<.045?roll(8,10):roll(2,7),adaptation:roll(3,8),fertility:roll(3,7),
    diet:this.rand()<.85?this.range(0,.32):this.range(.38,.93),
    aquatic,repro:(()=>{const r=this.rand();return r<.004?1:r<.006?2:0;})(),
    biome,thermal,social:this.range(.25,.8),albino:this.rand()<.0015?1:0,
