@@ -606,9 +606,7 @@ export const genomeCode=g=>(g?.genomeModel===2?DNA_KEYS:LEGACY_GENE_KEYS).map(ke
  return step.toString(16).toUpperCase();
 }).join('').match(/.{1,4}/g).join('-');
 
-export const GENETIC_LOCUS_LIMITS={tailLength:[0,1],hornLength:[0,1],antennaLength:[0,1],pattern:[0,1],repro:[0,2],idealTemp:[-5,40],tempTolerance:[3,18],hibernate:[0,1],longevity:[.6,2],r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1],albino:[0,1],dispersal:[0,1],sociability:[0,1],caution:[0,1],predatorSense:[0,1],retaliation:[0,1],frugality:[0,1],waterGardening:[0,1],nestChoice:[0,1],parentFeeding:[0,1],yolkReserve:[0,1],juvenileCannibalism:[0,1]};
-const LIMITS=GENETIC_LOCUS_LIMITS;
-// Retained range registry for the 37 computed phenotype values.
+// The old 37 ranges now describe computed phenotype values only.
 export const GENETIC_LOCUS_LIMITS={tailLength:[0,1],hornLength:[0,1],antennaLength:[0,1],pattern:[0,1],repro:[0,2],idealTemp:[-5,40],tempTolerance:[3,18],hibernate:[0,1],longevity:[.6,2],r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1],albino:[0,1],dispersal:[0,1],sociability:[0,1],caution:[0,1],predatorSense:[0,1],retaliation:[0,1],frugality:[0,1],waterGardening:[0,1],nestChoice:[0,1],parentFeeding:[0,1],yolkReserve:[0,1],juvenileCannibalism:[0,1]};
 const LIMITS=GENETIC_LOCUS_LIMITS;
 // Strategies emerge from existing inherited diet, jaw and guarding traits.
