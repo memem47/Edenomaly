@@ -128,17 +128,26 @@ export const speciesColorName=(g,fallback='green')=>{
 export const functionalOrnaments=g=>{
  const val=(key,fallback=0)=>clamp(Number(g?.[key]??fallback),0,1);
  const jaw=clamp((Number(g?.jaw??1)-.2)/2.3,0,1);
- const functional={
+ return {
   horn:clamp((jaw-.48)*1.37+(val('guard')-.52)*.55,0,1),
   tail:clamp((val('wet')-.48)*.89+(g?.aquatic===1?.28:0)+(val('dispersal')-.52)*.44,0,1),
   antenna:clamp((val('predatorSense')-.54)*1.28+Math.max(0,Number(g?.eyes??2)-3)*.10,0,1),
   pattern:clamp((val('deception')-.53)*1.13+(val('resist')-.65)*.31,0,1)
  };
- // Independently inherited ornamental loci now contribute to appearance.
- const loci={horn:'hornLength',tail:'tailLength',antenna:'antennaLength',pattern:'pattern'};
- return Object.fromEntries(Object.entries(functional).map(([key,value])=>
-  [key,Number.isFinite(g?.[loci[key]])?.45*value+.55*val(loci[key]):value]));
 };
+// Separate shape expression from mechanical functional ornaments.
+// Cosmetic loci now affect the rendered body and names without silently
+// changing speed, HP, upkeep, vision, or camouflage rules in old saves.
+export const visibleOrnaments=g=>{
+ const genes={horn:'hornLength',tail:'tailLength',antenna:'antennaLength',pattern:'pattern'};
+ const base=functionalOrnaments(g);
+ return Object.fromEntries(Object.entries(base).map(([key,value])=>{
+  const locus=Number(g?.[genes[key]]);
+  return [key,Number.isFinite(locus)?
+   clamp(.45*value+.55*clamp(locus,0,1),0,1):value];
+ }));
+};
+
 const ORNAMENT_NAMES=[
  ['hornLength','ホーン'],['tailLength','テール'],
  ['antennaLength','アンテナ'],['pattern','スポット']
