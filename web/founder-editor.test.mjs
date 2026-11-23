@@ -4,18 +4,16 @@ import {readFile} from 'node:fs/promises';
 import {Ecosystem,genomeCode} from './simulation.js';
 import {FOUNDER_FIELDS,FOUNDER_BUDGET,editFounderGenome,founderCost,canUseFounder} from './founder-designer.js';
 
-test('founder editor exposes heritable abilities and keeps original immutable',()=>{
+test('founder editor exposes heritable abilities and keeps original immutable (DNA v2)',async()=>{
+ const {DNA_KEYS}=await import('./genome-model.js');
  const world=new Ecosystem(2026112001),base=world.gene();
- const changes={eyes:4,brood:6,parentFeeding:.95,nestChoice:.8,
-  yolkReserve:.65,juvenileCannibalism:.7,idealTemp:22};
- const adjusted=editFounderGenome(base,changes);
- assert.notEqual(adjusted.eyes,undefined);
- assert.deepEqual(adjusted.alleles.eyes,[adjusted.eyes,adjusted.eyes]);
- assert.deepEqual(adjusted.alleles.parentFeeding,[.95,.95]);
- assert.notEqual(adjusted.alleles,base.alleles);
- assert.notEqual(adjusted,base);
- assert.ok(FOUNDER_FIELDS.length>=25);
- assert.ok(genomeCode(adjusted).length>30);
+ const adjusted=editFounderGenome(base,{power:9,fertility:8,intellect:7,skillParentFeeding:1,thermal:.60});
+ assert.equal(adjusted.genomeModel,2);assert.equal(Object.keys(adjusted.alleles).length,19);
+ assert.deepEqual(adjusted.alleles.power,[9,9]);
+ assert.deepEqual(adjusted.alleles.skillParentFeeding,[1,1]);
+ assert.notEqual(adjusted.alleles,base.alleles);assert.notEqual(adjusted,base);
+ assert.deepEqual(Object.keys(adjusted.dna).sort(),[...DNA_KEYS].sort());
+ assert.ok(genomeCode(adjusted).length>=19);
 });
 test('game mode budget is checked, while lab can change all genes',()=>{
  const w=new Ecosystem(2026112002),g=w.gene();
@@ -56,16 +54,16 @@ test('browser pauses on discovery and has a confirmation/resume dialog',async()=
  assert.ok(html.includes('startEditFounder'));
 });
 
-test('absolute survival budget rewards disadvantages and ignores neutral strategy changes',()=>{
+test('absolute survival budget rewards disadvantages and ignores neutral strategy changes (DNA v2)',async()=>{
  const w=new Ecosystem(12),g=w.gene();
- const weak=editFounderGenome(g,{frugality:0,resist:0,wet:0,dry:0,rock:0});
- const strong=editFounderGenome(g,{frugality:1,resist:1,wet:1,dry:1,rock:1});
+ const weak=editFounderGenome(g,{power:1,stamina:1,adaptation:1,fertility:1});
+ const strong=editFounderGenome(g,{power:10,stamina:10,adaptation:10,fertility:10});
  assert.ok(founderCost(g,weak)<founderCost(g,strong));
  assert.equal(founderCost(g,strong),founderCost(weak,strong));
- assert.equal(founderCost(g,weak),founderCost(g,{...weak,diet:1,idealTemp:40}));
- const eyes=editFounderGenome(g,{predatorSense:1,caution:1});
- assert.equal(eyes.eyes,6);
- assert.equal(w.mutate(eyes).functionalBody,true);
- assert.equal(w.recombine(eyes,weak).functionalBody,true);
- for(const key of ['r','elongation','eyes','mouths','jaw'])assert.ok(FOUNDER_FIELDS.some(([k])=>k===key));
+ assert.equal(founderCost(g,weak),founderCost(g,editFounderGenome(weak,{diet:1,thermal:1})));
+ const senses=editFounderGenome(g,{intellect:10});
+ assert.equal(senses.dna.intellect,10);
+ assert.equal(w.mutate(senses).genomeModel,2);
+ assert.equal(w.recombine(senses,weak).genomeModel,2);
+ for(const key of ['r','eyes','mouths','jaw'])assert.ok(!FOUNDER_FIELDS.some(([k])=>k===key));
 });
