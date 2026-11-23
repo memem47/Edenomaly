@@ -275,7 +275,12 @@ export const microclimateTemperature=(ambient,terrain,level=3,season='spring')=>
 };
 export const thermalFitness=(g,temp)=>{
  const ideal=clamp(g.idealTemp??22,-5,40),tolerance=clamp(g.tempTolerance??9,3,18);
- const delta=Math.abs(temp-ideal),comfort=clamp(1-delta/tolerance,0,1),excess=Math.max(0,delta-tolerance);
+ const adaptability=clamp(((g.dna?.adaptation??1)-1)/9,0,1);
+ // Adaptability absorbs some unexpected conditions without changing
+ // genetically preferred temperature or stamina-based thermal tolerance.
+ const effectiveTolerance=tolerance+adaptability*4;
+ const delta=Math.abs(temp-ideal),comfort=clamp(1-delta/effectiveTolerance,0,1),
+  excess=Math.max(0,delta-effectiveTolerance);
  return {ideal,tolerance,comfort,excess,activity:clamp(1.09-.033*delta,.33,1.09),
   upkeep:.035*delta+.095*excess+Math.max(0,tolerance-7)*.045,
   // Broad-tolerance genes reduce the severity of extreme-weather injury.
@@ -688,7 +693,10 @@ export class Ecosystem{
    skillParentFeeding:this.rand()<.065?1:0,
    skillNestChoice:this.rand()<.07?1:0,
    skillRetaliation:this.rand()<.10?1:0,
-   skillCannibalism:this.rand()<.018?1:0
+   skillCannibalism:this.rand()<.018?1:0,
+   skillSprint:this.rand()<.045?1:0,
+   skillAmbush:this.rand()<.028?1:0,
+   skillRegenerate:this.rand()<.038?1:0
   };
   // Rare physically large founder is a correlated stat/strategy package,
   // not a hidden independently inherited radius gene.
