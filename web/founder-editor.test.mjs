@@ -67,5 +67,5 @@ test('absolute survival budget rewards disadvantages and ignores neutral strateg
  assert.equal(eyes.eyes,6);
  assert.equal(w.mutate(eyes).functionalBody,true);
  assert.equal(w.recombine(eyes,weak).functionalBody,true);
- for(const key of ['r','elongation','eyes','mouths','jaw'])assert.ok(!FOUNDER_FIELDS.some(([k])=>k===key));
+ for(const key of ['r','elongation','eyes','mouths','jaw'])assert.ok(FOUNDER_FIELDS.some(([k])=>k===key));
 });
