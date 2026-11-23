@@ -72,9 +72,9 @@ export function expressDNA(source){
   intellect=q('intellect'),adaptation=q('adaptation'),fertility=q('fertility');
  const biome=dna.biome;
  const wet=clamp(.18+.50*adaptation+(biome===1?.53:0));
- const dry=clamp(.16+.55*adaptation+(biome===2?.53:0));
- const rock=clamp(.16+.53*adaptation+(biome===3?.53:0));
- const guard=clamp(.10+.79*power);
+ const dry=clamp(.16+.55*adaptation+(biome===2?.57:0));
+ const rock=clamp(.16+.53*adaptation+(biome===3?.57:0));
+ const guard=clamp((.10+.79*power)*(1-.65*dna.diet));
  const retaliation=s('skillRetaliation')?clamp(.35+.60*power):0;
  const nestChoice=s('skillNestChoice')?clamp(.20+.75*intellect):0;
  const parentFeeding=s('skillParentFeeding')?clamp(.20+.74*fertility):0;
