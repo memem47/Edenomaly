@@ -18,6 +18,7 @@ export const geneLevel=(g,key)=>{
  return clamp(Number.isFinite(value)?Math.round((value-lo)/(hi-lo)*9)+1:1);
 };
 export const basicStatScore=(g,key)=>{
+ if(g?.genomeModel===2&&Number.isFinite(g?.dna?.[key]))return g.dna[key];
  const stat=BASIC_STAT_GROUPS.find(s=>s.key===key);
  return stat?clamp(stat.genes.reduce((sum,gene)=>sum+geneLevel(g,gene),0)/stat.genes.length):null;
 };
