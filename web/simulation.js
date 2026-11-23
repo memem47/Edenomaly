@@ -501,8 +501,9 @@ export const lifeDrain=u=>{
  return energy>=65?0:.08+(65-energy)*.025;
 };
 // Retain the historical genome field for compatibility without aging upkeep.
-// Constitution changes basal upkeep, not an automatic countdown to death.
-export const longevityUpkeep=g=>.06*(1-clamp(((g.longevity??1.2)-.6)/1.4,0,1));
+// Legacy longevity is expressed visually as an inner-body pulse. Aging
+// depletion remains disabled: never reintroduce a hidden starvation penalty.
+export const longevityUpkeep=()=>0;
 export const vitality=u=>{
  const max=u.maxHp??Math.max(25,Math.round(organismMorphology(u).bodyMass*.48+25));
  const health=clamp((u.hp??max)/Math.max(1,max),0,1);
