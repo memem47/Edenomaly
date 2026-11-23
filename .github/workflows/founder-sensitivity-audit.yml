@@ -1,0 +1,25 @@
+name: Founder gene sensitivity audit
+on:
+  push:
+    branches: [main]
+    paths:
+      - web/founder-sensitivity-audit.mjs
+      - .github/workflows/founder-sensitivity-audit.yml
+  workflow_dispatch:
+jobs:
+  sensitivity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run paired-seed parameter sensitivity audit
+        run: node web/founder-sensitivity-audit.mjs 600 2
+      - name: Upload full gene audit result
+        uses: actions/upload-artifact@v4
+        with:
+          name: edenomaly-founder-sensitivity
+          path: reports/founder-sensitivity-audit.json
+          retention-days: 30
