@@ -30,7 +30,7 @@ a{color:#96dff5}.toolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
 #uploadPanel[hidden],#standaloneIntro[hidden]{display:none!important}
 @media(max-width:850px){.embedded main{grid-template-columns:1fr}}
 </style></head><body>
-<header><div><h1>🧬 種族ステータス分析</h1><div class="sub">Edenomaly / 遺伝・能力・現存個体の分布を比較</div></div>
+<header><div><h1>🧬 種族ステータス分析</h1><div class="sub">Edenomaly / 6つの基本ステータスの分布を比較</div></div>
 <a class="link" href="index.html">ゲームへ戻る</a></header>
 <p id="standaloneIntro" class="sub">このページはゲーム内の「種族ステータス一覧」ボタンから直接開けます。単独で利用する場合のみ、全ログZIP内の <strong>edenomaly-species-statistics-*.csv</strong> を選択してください。データはブラウザ内だけで処理されます。</p>
 <main>
@@ -41,11 +41,11 @@ a{color:#96dff5}.toolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
 <label>種族名・分類キーで検索<input id="search" type="search" placeholder="例：アオ、肉食、aquatic" disabled></label>
 <div class="summary" id="totals"></div>
 <h2>種族一覧</h2><div id="species"></div></section>
-<section class="panel"><h2>種族の全ステータス</h2>
+<section class="panel"><h2>種族の基本ステータス（6項目）</h2>
 <div id="selectedInfo" class="sub">種族を選択してください。</div>
-<div class="toolbar"><label>項目グループ<select id="scope"><option value="birth">出生時の遺伝・基本能力</option><option value="living">現存個体の状態</option></select></label>
-<label>検索<input id="metricSearch" type="search" placeholder="例：体重、しっぽ、速度"></label></div>
-<div class="legend"><i></i>最小～最大　<b>│</b> 中央値　（項目ごとに種族間で同じ目盛りを使用。0～1の遺伝子は固定目盛り）</div>
+<div class="toolbar"><label>項目グループ<select id="scope"><option value="birth">出生時の基本ステータス</option><option value="living">現存個体の状態</option></select></label>
+<label>検索<input id="metricSearch" type="search" placeholder="例：ちから、すばやさ、たいりょく"></label></div>
+<div class="legend"><i></i>最小～最大　<b>│</b> 中央値　（項目ごとに種族間で同じ目盛りを使用。基本ステータスは1～10の共通目盛り）</div>
 <div id="details" aria-live="polite"></div></section>
 <section class="panel full"><h2>種族間の比較</h2>
 <div class="controls"><label>比較する項目<select id="metric" disabled></select></label>
@@ -54,5 +54,5 @@ a{color:#96dff5}.toolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
 <p class="sub">共通スケール上に各種族の分布を配置。青い帯が最小～最大、金色の線が中央値です。上位20種を表示します。</p>
 <div id="comparison"></div></section>
 </main>
-<script type="module" src="./species-report-viewer.js?v=2026.11.10.2"></script>
+<script type="module" src="./species-report-viewer.js?v=2026.11.23.5"></script>
 </body></html>
