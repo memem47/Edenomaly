@@ -15,7 +15,7 @@ test('every editable founder gene has a meaningful tooltip',()=>{
 
 test('advanced genes remain editable and are only visually collapsed (DNA v2)',async()=>{
  const keys=new Set(FOUNDER_FIELDS.map(([key])=>key));
- assert.equal(keys.size,22);assert.equal(FOUNDER_ADVANCED_TRAITS.size,0);
+ assert.equal(keys.size,27);assert.equal(FOUNDER_ADVANCED_TRAITS.size,0);
  const ui=await readFile(new URL('./founder-screens.js',import.meta.url),'utf8');
  assert.match(ui,/founderTraitHelp\(key\)/);
  assert.match(ui,/id="toggleGeneEditor"/);
