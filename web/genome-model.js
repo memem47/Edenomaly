@@ -33,6 +33,40 @@ export const DNA_LIMITS=Object.freeze({
  ...Object.fromEntries(STRATEGY_FIELDS.map(s=>[s.key,[s.min,s.max]]))
 });
 export const DNA_KEYS=Object.freeze(Object.keys(DNA_LIMITS));
+// Explicit Mendelian-style expression rules. Alleles are still both inherited;
+// a recessive skill can remain latent for generations then reappear.
+export const RECESSIVE_SKILLS=Object.freeze([
+ 'skillHibernate','skillCannibalism','skillAmbush',
+ 'skillRegenerate','skillNesting','skillAbsorb','skillSplit'
+]);
+export const DOMINANT_SKILLS=Object.freeze(SKILLS.map(s=>s.key).filter(k=>!RECESSIVE_SKILLS.includes(k)));
+export const INHERITANCE_RULES=Object.freeze(Object.fromEntries(
+ Object.keys(DNA_LIMITS).map(key=>[key,
+  CORE_KEYS.includes(key)?'additive':
+  key.startsWith('skill')?(RECESSIVE_SKILLS.includes(key)?'recessive':'dominant'):
+  key==='albino'?'recessive':
+  key==='aquatic'?'dominant':
+  key==='repro'?'ordered-dominant':
+  ['biome'].includes(key)?'intermediate':'additive'
+ ])
+));
+// Express a *pair*, not its order. Intermediate traits allow quantitative
+// blending; discrete recessive traits require two copies of the active allele.
+export function expressAllelePair(key,pair){
+ if(!Object.hasOwn(DNA_LIMITS,key))throw Error('Unknown genetic locus: '+key);
+ const [lo,hi]=DNA_LIMITS[key];
+ const a=clamp(Number(pair[0]),lo,hi),b=clamp(Number(pair[1]),lo,hi);
+ const rule=INHERITANCE_RULES[key];
+ let value;
+ if(rule==='recessive')value=(a>=1&&b>=1)?1:0;
+ else if(rule==='dominant')value=(a>=1||b>=1)?1:0;
+ else if(rule==='ordered-dominant')value=Math.max(a,b);
+ else value=(a+b)/2;
+ if(CORE_KEYS.includes(key)||key.startsWith('skill')||
+  ['aquatic','repro','biome','albino'].includes(key))value=Math.round(value);
+ return clamp(value,lo,hi);
+}
+
 const clamp=(n,a=0,b=1)=>Math.max(a,Math.min(b,n));
 const step=(n,a,b)=>clamp(Number(n),a,b);
 export function normalizeDNA(source={}){
