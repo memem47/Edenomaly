@@ -13,15 +13,12 @@ test('every editable founder gene has a meaningful tooltip',()=>{
  }
 });
 
-test('advanced genes remain editable and are only visually collapsed',async()=>{
+test('advanced genes remain editable and are only visually collapsed (DNA v2)',async()=>{
  const keys=new Set(FOUNDER_FIELDS.map(([key])=>key));
- for(const key of FOUNDER_ADVANCED_TRAITS)assert.ok(keys.has(key),key);
- assert.equal(FOUNDER_ADVANCED_TRAITS.size,18);
+ assert.equal(keys.size,19);assert.equal(FOUNDER_ADVANCED_TRAITS.size,0);
  const ui=await readFile(new URL('./founder-screens.js',import.meta.url),'utf8');
- const css=await readFile(new URL('./style.css',import.meta.url),'utf8');
  assert.match(ui,/founderTraitHelp\(key\)/);
- assert.match(ui,/title="/);
- assert.match(ui,/id="toggleAdvancedTraits"/);
- assert.match(ui,/row\.hidden=!expand/);
- assert.match(css,/\.founder-trait\[hidden\]\{display:none!important\}/);
+ assert.match(ui,/id="toggleGeneEditor"/);
+ assert.match(ui,/生存戦略7項目/);
+ assert.ok(!ui.includes('全37遺伝子を表示'));
 });
