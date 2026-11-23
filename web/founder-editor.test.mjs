@@ -8,7 +8,7 @@ test('founder editor exposes heritable abilities and keeps original immutable (D
  const {DNA_KEYS}=await import('./genome-model.js');
  const world=new Ecosystem(2026112001),base=world.gene();
  const adjusted=editFounderGenome(base,{power:9,fertility:8,intellect:7,skillParentFeeding:1,thermal:.60});
- assert.equal(adjusted.genomeModel,2);assert.equal(Object.keys(adjusted.alleles).length,22);
+ assert.equal(adjusted.genomeModel,2);assert.equal(Object.keys(adjusted.alleles).length,27);
  assert.deepEqual(adjusted.alleles.power,[9,9]);
  assert.deepEqual(adjusted.alleles.skillParentFeeding,[1,1]);
  assert.notEqual(adjusted.alleles,base.alleles);assert.notEqual(adjusted,base);
