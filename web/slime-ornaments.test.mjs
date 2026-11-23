@@ -21,7 +21,7 @@ const tail={...bare,wet:1,aquatic:1,dispersal:1};
 const antenna={...bare,predatorSense:1,eyes:6};
 const spotted={...bare,deception:1,resist:1};
 
-test('appearance derives from real abilities rather than decorative genes',()=>{
+test('visible ornaments combine ecological abilities and inherited appearance genes',()=>{
  assert.equal(ornamentVisibility(0),0);
  assert.ok(ornamentVisibility(.1)>.3);
  assert.ok(ornamentTraits(horn).horn>ornamentTraits(bare).horn);
