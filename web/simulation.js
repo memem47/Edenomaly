@@ -701,6 +701,9 @@ export class Ecosystem{
    skillRetaliation:this.rand()<.10?1:0,
    skillCannibalism:this.rand()<.018?1:0
   };
+  // Rare physically large founder is a correlated stat/strategy package,
+  // not a hidden independently inherited radius gene.
+  if(this.rand()<.014){dna.power=10;dna.fertility=9;dna.diet=Math.max(.79,dna.diet);}
   // Two alleles per canonical locus. Derived morphology is recomputed from
   // the expressed DNA, so neither random shape nor old cached DNA survives.
   const alleles=Object.fromEntries(DNA_KEYS.map(key=>[key,[dna[key],dna[key]]]));
@@ -2479,7 +2482,7 @@ export class Ecosystem{
  adaptFounderToTerrain(g,t){
   if(g.genomeModel===2){
    const dna={...canonicalDNA(g),aquatic:t===1?1:0,biome:t};
-   if(t===2||t===3)dna.diet=clamp(dna.diet,.32,.65);
+   if(t===2||t===3)dna.diet=clamp(dna.diet,.43,.65);
    return expressDNA({dna,alleles:{
     ...g.alleles,aquatic:[dna.aquatic,dna.aquatic],biome:[t,t],
     ...(dna.diet!==g.diet?{diet:[dna.diet,dna.diet]}:{})
@@ -2510,20 +2513,19 @@ export class Ecosystem{
      key=this.category(g);
      break;
     }
-    g=this.gene();key=this.category(g);
-    // A single founder type must be able to use ambient nutrients;
-    // later types remain fully random (including predators).
+    g=this.gene();
+    // Initial viable feeding matters before the biome conversion.
     const dryFounder=this.terrain(x,y)===2||this.terrain(x,y)===3;
     if(k===0&&(!dryFounder&&g.diet>.28||morphology(g).bodyMass>100||g.eyes<2||!thermalFitness(g,this.temperatureAt(x,y)).reproduction))continue;
+    // Select unique categories *after* terrain adaptation; otherwise six
+    // original types can collapse to one biome-derived category.
+    const clickedTerrain=this.terrain(x,y);
+    g=this.adaptFounderToTerrain(g,clickedTerrain);
+    key=this.category(g);
     if(!used.has(key))break;
    }
    if(used.has(key))continue;
-   // Introduced founders adapt genetically to the terrain actually clicked.
-   // Natural offspring still inherit their parents' DNA without this shortcut.
    const placedTerrain=this.terrain(x,y);
-   if(!(k===0&&customFounder))g=this.adaptFounderToTerrain(g,placedTerrain);
-   key=this.category(g);
-   if(used.has(key))continue;
    used.add(key);
    const foundingLineage='founder-'+this.nextId;
    let spawned=0;
