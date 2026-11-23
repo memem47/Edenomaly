@@ -574,7 +574,8 @@ export const rearPosition=(u,offset=0)=>({
 // These founders are deterministically derived from existing traits after
 // base allele initialization. Keeping the group centralized prevents dead
 // branches, duplicate random draws and silent genetic initialization drift.
-const HERITABLE=['tailLength','hornLength','antennaLength','pattern','repro','idealTemp','tempTolerance','hibernate','longevity','r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic','albino','dispersal','sociability','caution','predatorSense','retaliation','frugality','waterGardening','nestChoice','parentFeeding','yolkReserve','juvenileCannibalism'];
+// Historical field ordering for reading legacy hashes; NOT active DNA.
+const LEGACY_GENE_KEYS=['tailLength','hornLength','antennaLength','pattern','repro','idealTemp','tempTolerance','hibernate','longevity','r','elongation','eyes','mouths','jaw','wet','dry','shell','guard','nesting','brood','diet','deception','rock','resist','aquatic','albino','dispersal','sociability','caution','predatorSense','retaliation','frugality','waterGardening','nestChoice','parentFeeding','yolkReserve','juvenileCannibalism'];
 // Natural ponds always retain a viable reservoir. Drought reduces excess
 // water depth, but only deliberate terrain painting may remove a water tile.
 export const POND_RESERVE=35;
@@ -598,11 +599,7 @@ export function deriveFunctionalBody(g){
  }
  return out;
 }
-const INTEGER_GENES=new Set(['eyes','mouths','brood','aquatic','albino','repro']);
-// Detailed phenotype code: one rounded hexadecimal digit per expressed
-// inherited trait, in fixed gene order. Same genome -> same code after reset;
-// mutations too small to cross a quantization boundary share a code.
-export const genomeCode=g=>(g?.genomeModel===2?DNA_KEYS:HERITABLE).map(key=>{
+export const genomeCode=g=>(g?.genomeModel===2?DNA_KEYS:LEGACY_GENE_KEYS).map(key=>{
  const [lo,hi]=(g?.genomeModel===2?DNA_LIMITS:LIMITS)[key];
  const v=Number(g?.genomeModel===2?g.dna[key]:g[key]);
  const step=Number.isFinite(v)?Math.round(clamp((v-lo)/(hi-lo),0,1)*15):0;
@@ -611,18 +608,9 @@ export const genomeCode=g=>(g?.genomeModel===2?DNA_KEYS:HERITABLE).map(key=>{
 
 export const GENETIC_LOCUS_LIMITS={tailLength:[0,1],hornLength:[0,1],antennaLength:[0,1],pattern:[0,1],repro:[0,2],idealTemp:[-5,40],tempTolerance:[3,18],hibernate:[0,1],longevity:[.6,2],r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1],albino:[0,1],dispersal:[0,1],sociability:[0,1],caution:[0,1],predatorSense:[0,1],retaliation:[0,1],frugality:[0,1],waterGardening:[0,1],nestChoice:[0,1],parentFeeding:[0,1],yolkReserve:[0,1],juvenileCannibalism:[0,1]};
 const LIMITS=GENETIC_LOCUS_LIMITS;
-const alleleExpression=(key,pair)=>{
- // Eyes: more-eye allele is dominant; hidden low-eye alleles can reappear in grandchildren.
- // Other continuous traits use incomplete dominance (mean of the two inherited copies).
- const raw=key==='repro'?Math.max(...pair):key==='eyes'?Math.max(...pair):key==='aquatic'?pair[0]:key==='albino'?Math.max(...pair):(pair[0]+pair[1])/2;
- const [lo,hi]=LIMITS[key];
- const val=clamp(INTEGER_GENES.has(key)?Math.round(raw):raw,lo,hi);
- return val;
-};
-const allelePair=(g,key)=>{
- const pair=g.alleles?.[key];
- return Array.isArray(pair)&&pair.length===2&&Math.abs(alleleExpression(key,pair)-g[key])<1e-6?pair:[g[key],g[key]];
-};
+// Retained range registry for the 37 computed phenotype values.
+export const GENETIC_LOCUS_LIMITS={tailLength:[0,1],hornLength:[0,1],antennaLength:[0,1],pattern:[0,1],repro:[0,2],idealTemp:[-5,40],tempTolerance:[3,18],hibernate:[0,1],longevity:[.6,2],r:[3,15],elongation:[.65,3],eyes:[0,6],mouths:[1,4],jaw:[.2,2.5],wet:[0,1],dry:[0,1],rock:[0,1],shell:[0,1],guard:[0,1],nesting:[0,1],brood:[1,8],diet:[0,1],deception:[0,1],resist:[0,1],aquatic:[0,1],albino:[0,1],dispersal:[0,1],sociability:[0,1],caution:[0,1],predatorSense:[0,1],retaliation:[0,1],frugality:[0,1],waterGardening:[0,1],nestChoice:[0,1],parentFeeding:[0,1],yolkReserve:[0,1],juvenileCannibalism:[0,1]};
+const LIMITS=GENETIC_LOCUS_LIMITS;
 // Strategies emerge from existing inherited diet, jaw and guarding traits.
 // 0 = separate sexes, 1 = hermaphrodite, 2 = facultative parthenogenesis.
 export const reproductiveMode=g=>Math.round(clamp(g.repro??0,0,2));
