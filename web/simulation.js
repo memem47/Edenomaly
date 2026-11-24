@@ -427,9 +427,7 @@ export const suppressFearSignal=(u,v,rawDistanceSq,foodWithinReach)=>{
  const family=u.stage==='juvenile'&&(u.parent===v.id||u.otherParent===v.id||
   u.lineage===v.lineage);
  if(family)return true;
- // A starving animal can finish eating when the apparent threat is distant.
- // Real predators still bypass this suppression above.
- if(u.energy<85&&foodWithinReach&&rawDistanceSq>36**2)return true;
+ if(u.energy<38&&foodWithinReach&&rawDistanceSq>48**2)return true;
  return false;
 };
 export const organismMorphology=u=>{
@@ -447,7 +445,6 @@ export const individualGrowthLimit=()=>MAX_NUTRITION_GROWTH;
 // Heritable body size is already reflected in morphology.upkeep.
 export const acquiredSizeMaintenance=u=>{
  const scale=Math.max(1,u.growthScale??1);
- // Cubic upkeep previously exceeded maximum possible feeding calories.
  return 1.3*(scale*scale-1);
 };
 export const feedingCapacity=u=>{
@@ -574,7 +571,10 @@ export class SpatialLookup{
 // HP depletion is driven by injury, disease, starvation or dehydration.
 export const lifeDrain=u=>{
  const energy=Math.max(0,u.energy??100);
- return energy>=65?0:.08+(65-energy)*.025;
+ // A starving organism remains mobile long enough to search for food,
+ // but HP still declines continuously and death remains inevitable without feeding.
+ const tissueReserve=u.stage==='juvenile'?.50:.70;
+ return energy>=65?0:(.08+(65-energy)*.025)*tissueReserve;
 };
 // Retain the historical genome field for compatibility without aging upkeep.
 // Legacy longevity is expressed visually as an inner-body pulse. Aging
@@ -1410,7 +1410,7 @@ export class Ecosystem{
   this._waterRegions=regions;this._waterRegionTick=this.tick;
   return regions;
  }
- nearestWaterweed(x,y,radius,hungry=false){
+ nearestWaterweed(x,y,radius){
   let best=null,score=radius*radius;
   const home=this.cell(x,y);
   const region=this.tiles[home]===1?this.waterRegions()[home]:0;
@@ -1419,15 +1419,14 @@ export class Ecosystem{
   for(let yy=Math.max(0,cy-reach);yy<=Math.min(NY-1,cy+reach);yy++)
    for(let xx=Math.max(0,cx-reach);xx<=Math.min(NX-1,cx+reach);xx++){
     const i=yy*NX+xx;
-    if(this.tiles[i]!==1||this.water[i]<=0||this.waterweed[i]<=(hungry?1.2:.2)||
+    if(this.tiles[i]!==1||this.water[i]<=0||this.waterweed[i]<=.2||
      region&&regions[i]!==region)continue;
     // Approach the reachable edge of a food tile instead of its centre.
     // This reduces needless movement before taking the first bite.
     const px=clamp(x,xx*CELL+2,(xx+1)*CELL-2);
     const py=clamp(y,yy*CELL+2,(yy+1)*CELL-2);
     const d=(px-x)**2+(py-y)**2;
-    const weighted=hungry?d/(.45+Math.min(4,this.waterweed[i])/4):d;
-     if(weighted<score){best={x:px,y:py};score=weighted;}
+    if(d<score){best={x:px,y:py};score=d;}
    }
   return best;
  }
@@ -1499,18 +1498,17 @@ export class Ecosystem{
   }
   return best;
  }
- nearestGrass(x,y,radius,g,hungry=false){
+ nearestGrass(x,y,radius,g){
   let best=null,score=radius*radius;
   const cx=Math.floor(x/CELL),cy=Math.floor(y/CELL),reach=Math.ceil(radius/CELL)+1;
   for(let yy=Math.max(0,cy-reach);yy<=Math.min(NY-1,cy+reach);yy++)
    for(let xx=Math.max(0,cx-reach);xx<=Math.min(NX-1,cx+reach);xx++){
-    const id=yy*NX+xx;if((this.tiles[id]!==0&&this.tiles[id]!==2&&this.tiles[id]!==3)||this.grass[id]<=(hungry?1.0:.2))continue;
+    const id=yy*NX+xx;if((this.tiles[id]!==0&&this.tiles[id]!==2&&this.tiles[id]!==3)||this.grass[id]<=.2)continue;
     if(!terrainFitness(g,this.tiles[id]).passable)continue;
     const a=clamp(x,xx*CELL+2,(xx+1)*CELL-2);
     const b=clamp(y,yy*CELL+2,(yy+1)*CELL-2);
     const d=(a-x)**2+(b-y)**2;
-    const weighted=hungry?d/(.4+Math.min(5,this.grass[id])/5):d;
-     if(weighted<score){score=weighted;best={x:a,y:b};}
+    if(d<score){score=d;best={x:a,y:b};}
    }
   return best;
  }
@@ -1944,8 +1942,7 @@ export class Ecosystem{
    if(u.hp<=0){this.die(u,this.vitalDeathCause(u));continue;}
    let nearest=null,df=sight*sight;
    const onLand=aquatic&&!underwater;
-   const urgentHunger=u.energy<90;
-    const waterFood=aquatic?this.nearestWaterweed(u.x,u.y,Math.min(145,Math.max(65,sight*(urgentHunger?2.3:1.7))),urgentHunger):null;
+   const waterFood=aquatic?this.nearestWaterweed(u.x,u.y,Math.min(95,Math.max(65,sight*1.7))):null;
    if(aquatic&&underwater&&!waterFood&&u.energy<116&&!u.pregnancy){
     if(!u.shoreTarget||this.tick>u.shoreTarget.until){
      const site=this.nearestEdibleShore(u.x,u.y,105);
@@ -1959,9 +1956,9 @@ export class Ecosystem{
    if(onLand)u.landExcursion=true;
    if(diet.plant>0){
     // Search farther only while hungry; no new food is generated.
-    const forageRadius=urgentHunger?Math.min(185,Math.max(85,sight*2.25)):sight;
-    nearest=aquatic&&!onLand?waterFood||this.nearestWaterweed(u.x,u.y,forageRadius,urgentHunger):
-     this.nearestGrass(u.x,u.y,forageRadius,g,urgentHunger);
+    const forageRadius=u.energy<80?Math.min(165,Math.max(65,sight*1.9)):sight;
+    nearest=aquatic&&!onLand?waterFood||this.nearestWaterweed(u.x,u.y,forageRadius):
+     this.nearestGrass(u.x,u.y,forageRadius,g);
     if(nearest)df=distance(u,nearest);
     if(u.energy<80&&!nearest)u.forageFailure++;
    }
@@ -2218,14 +2215,10 @@ export class Ecosystem{
    const breedingPriority=!flight&&!criticalWater&&mate&&!mate.dead&&
     (u.courtPartner||this.isReadyToMate(u)&&u.energy>=112);
    if(breedingPriority&&!u.pregnancy&&!u.landExcursion){target=mate;u.refugeTarget=null;u.socialTarget=null;}
-   // Urgent hunger outranks optional migration, mating, guarding and social attraction.
-    if(u.energy<85&&!flight&&nearest&&!criticalWater){
-     target=nearest;u.refugeTarget=null;u.socialTarget=null;
-    }
-    // A blocked food/refuge target may be abandoned, but a compatible mate
+   // A blocked food/refuge target may be abandoned, but a compatible mate
    // should not be discarded by an unrelated avoidance marker.
    if(target&&!breedingPriority&&u.avoidTarget&&u.avoidTarget.until>this.tick&&
-      distance(target,u.avoidTarget)<20*20&&!flight&&!(u.energy<85&&target===nearest))target=null;
+      distance(target,u.avoidTarget)<20*20&&!flight)target=null;
    // Immediate escape overrides food, reproduction and egg guarding.
    if(aquatic&&underwater&&u.landExcursion&&u.shoreTarget&&!flight&&!criticalWater)
     target=u.shoreTarget;
@@ -2238,11 +2231,7 @@ export class Ecosystem{
    const actionSpeed=flight||(!flight&&prey&&!prey.dead&&effectiveMeatAffinity(u)>.14)?1:0;
    const agility=clamp(((g.dna?.agility??5)-1)/9,0,1);
    const sprint=g.dna?.skillSprint===1&&actionSpeed&&u.energy>52?1:0;
-   // Weak hatchlings need enough mobility to reach nearby plants before
-    // starvation reduces vigor further. No teleportation or free food.
-    const juvenileMobility=u.stage==='juvenile'?(u.energy<90?1.02:.87):1;
-    const travelVigor=u.stage==='juvenile'&&u.energy<65?Math.max(.62,body.vigor):body.vigor;
-    const speed=m.speed*travelVigor*thermal.activity*juvenileMobility*terrainMove
+   const speed=m.speed*body.vigor*thermal.activity*(u.stage==='juvenile'?.8:1)*terrainMove
     *(aquatic&&underwater?1+.23*clamp(g.tailLength??0,0,1):
       1-.09*clamp(g.tailLength??0,0,1))
      *(flight?1.24:courtingMate&&distance(u,courtingMate)<22**2?.20:1)
