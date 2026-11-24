@@ -1,0 +1,51 @@
+name: Starvation balance validation
+on:
+  push:
+    paths:
+      - '.github/workflows/starvation-validation.yml'
+      - 'web/simulation.js'
+      - 'web/headless-runner.mjs'
+      - 'tests/starvation-balance.test.mjs'
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Regression tests (report even if one fails)
+        run: |
+          node --test tests/starvation-balance.test.mjs tests/linkage.test.mjs tests/discovery-comparison.test.mjs 2>&1 | tee validation-tests.log
+      - name: Headless baseline vs current (same seeds)
+        run: |
+          mkdir -p validation/baseline validation/current
+          git worktree add --detach ../edenomaly-baseline 57921bc49282956a227d8c3c20f1e77d9a0fd68e
+          for seed in 72 73 74; do
+            node ../edenomaly-baseline/web/headless-cli.mjs --seed "$seed" --steps 3000 --runs 1 --interval 100 --out "validation/baseline/$seed"
+            node web/headless-cli.mjs --seed "$seed" --steps 3000 --runs 1 --interval 100 --out "validation/current/$seed"
+          done
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const rows = [];
+            for (const seed of [72,73,74]) {
+              const a=JSON.parse(fs.readFileSync("validation/baseline/"+seed+"/summary.json")).summary[0];
+              const b=JSON.parse(fs.readFileSync("validation/current/"+seed+"/summary.json")).summary[0];
+              rows.push({seed, baseline:{steps:a.simulatedSteps, deaths:a.totalDeaths,starvation:a.deathsByStarvation,population:a.finalPopulation,peak:a.peakPopulation}, current:{steps:b.simulatedSteps,deaths:b.totalDeaths,starvation:b.deathsByStarvation,population:b.finalPopulation,peak:b.peakPopulation}});
+            }
+            fs.writeFileSync("validation/comparison.json",JSON.stringify(rows,null,2));
+            console.log(JSON.stringify(rows,null,2));
+          '
+      - name: Upload validation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: starvation-validation
+          path: |
+            validation/
+            validation-tests.log
+          retention-days: 14
