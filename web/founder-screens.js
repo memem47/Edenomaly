@@ -1,3 +1,4 @@
+import {discoveryDifferenceHTML} from './discovery-comparison.js';
 import {FOUNDER_BUDGET,FOUNDER_TRAITS,FOUNDER_FIELDS,formatTrait,editFounderGenome,founderCost,founderTraitCost,canUseFounder,founderLevel,founderValueAtLevel,founderLevelMeaning} from './founder-designer.js';
 import {founderTraitHelp} from './founder-trait-help.js';
 import {BASIC_STATS,basicStatLevel,editBasicStat,founderSkills,trainFounderSkill,skillTrainingGenes} from './basic-stats.js';
@@ -294,7 +295,7 @@ export function mountFounderScreens({game,getMode,getDiscoveryMode=()=> 'detaile
    parents.map((p,i)=>'<th>親'+(i+1)+'（新種との差）</th>').join('')+'</tr></thead><tbody>'+
    items.map(r=>r.html).join('')+'</tbody></table></div>';
   const sorted=[...rows].sort((a,b)=>b.score-a.score);
-  return '<h3>親から変化した基本ステータス</h3><p class="muted">6つの基本ステータスのみを比較。差分は新種−親です。詳細な遺伝子と変換式は移入画面で確認できます。</p>'+
+  return '<h3>親から変化した基本ステータス</h3><p class="muted">基本6値の差分は新種−親です。新種判定の理由は上の「なぜ新種になった？」に表示します。</p>'+
    (sorted.some(r=>r.changed)?table(sorted.filter(r=>r.changed)):'<p>基本ステータスに変化なし。</p>')+
    '<details><summary>変化のない基本ステータス</summary>'+table(sorted.filter(r=>!r.changed))+'</details>';
  }
@@ -304,7 +305,7 @@ export function mountFounderScreens({game,getMode,getDiscoveryMode=()=> 'detaile
   const parents=(sp.parents??[]).filter(p=>p?.genome);
   discoveryBody.innerHTML='<p class="muted">Step '+item.step+' に発見。確認するまでシミュレーションを停止しています。</p>'+
    '<div class="discovery-portraits">'+[{name:sp.name,genome:g},...parents].map((p,i)=>'<figure><canvas width="180" height="132" data-discovery-portrait="'+i+'"></canvas><figcaption><strong>'+(i===0?'✨ 新種':'親'+i+' #'+p.id)+'</strong><br>'+escape(p.name)+'</figcaption></figure>').join('')+'</div>'+
-   summary(g)+comparisonHTML(g,parents);
+   summary(g)+discoveryDifferenceHTML(g,parents,genome=>game.category(genome))+comparisonHTML(g,parents);
   discoveryBody.querySelectorAll('[data-discovery-portrait]').forEach(canvas=>drawFounderAppearance(canvas,[g,...parents.map(p=>p.genome)][Number(canvas.dataset.discoveryPortrait)],0));
   discoveryBody.scrollTop=0;
   discoveryFoot.innerHTML='<button type="button" id="keepPaused">停止したまま閉じる</button>'+
