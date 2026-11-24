@@ -427,7 +427,9 @@ export const suppressFearSignal=(u,v,rawDistanceSq,foodWithinReach)=>{
  const family=u.stage==='juvenile'&&(u.parent===v.id||u.otherParent===v.id||
   u.lineage===v.lineage);
  if(family)return true;
- if(u.energy<38&&foodWithinReach&&rawDistanceSq>48**2)return true;
+ // A starving animal can finish eating when the apparent threat is distant.
+ // Real predators still bypass this suppression above.
+ if(u.energy<85&&foodWithinReach&&rawDistanceSq>36**2)return true;
  return false;
 };
 export const organismMorphology=u=>{
@@ -2236,7 +2238,11 @@ export class Ecosystem{
    const actionSpeed=flight||(!flight&&prey&&!prey.dead&&effectiveMeatAffinity(u)>.14)?1:0;
    const agility=clamp(((g.dna?.agility??5)-1)/9,0,1);
    const sprint=g.dna?.skillSprint===1&&actionSpeed&&u.energy>52?1:0;
-   const speed=m.speed*body.vigor*thermal.activity*(u.stage==='juvenile'?.8:1)*terrainMove
+   // Weak hatchlings need enough mobility to reach nearby plants before
+    // starvation reduces vigor further. No teleportation or free food.
+    const juvenileMobility=u.stage==='juvenile'?(u.energy<90?1.02:.87):1;
+    const travelVigor=u.stage==='juvenile'&&u.energy<65?Math.max(.62,body.vigor):body.vigor;
+    const speed=m.speed*travelVigor*thermal.activity*juvenileMobility*terrainMove
     *(aquatic&&underwater?1+.23*clamp(g.tailLength??0,0,1):
       1-.09*clamp(g.tailLength??0,0,1))
      *(flight?1.24:courtingMate&&distance(u,courtingMate)<22**2?.20:1)
