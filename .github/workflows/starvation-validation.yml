@@ -22,7 +22,7 @@ jobs:
           node-version: '22'
       - name: Regression tests (report even if one fails)
         run: |
-          node --test tests/starvation-balance.test.mjs tests/linkage.test.mjs tests/discovery-comparison.test.mjs 2>&1 | tee validation-tests.log
+          node --test tests/starvation-balance.test.mjs tests/starvation-diagnostics.test.mjs tests/linkage.test.mjs tests/discovery-comparison.test.mjs 2>&1 | tee validation-tests.log
       - name: Headless baseline vs current (same seeds)
         run: |
           mkdir -p validation/baseline validation/current
