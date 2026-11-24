@@ -573,7 +573,7 @@ export const lifeDrain=u=>{
  const energy=Math.max(0,u.energy??100);
  // A starving organism remains mobile long enough to search for food,
  // but HP still declines continuously and death remains inevitable without feeding.
- const tissueReserve=u.stage==='juvenile'?.50:.70;
+ const tissueReserve=u.stage==='juvenile'?.25:.55;
  return energy>=65?0:(.08+(65-energy)*.025)*tissueReserve;
 };
 // Retain the historical genome field for compatibility without aging upkeep.
