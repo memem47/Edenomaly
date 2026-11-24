@@ -970,6 +970,16 @@ export class Ecosystem{
    hp:+u.hp.toFixed(2),maxHp:u.maxHp,terrain:TERRAIN_NAMES[this.terrain(u.x,u.y)],
    foodSuccess:u.forageSuccess,foodFailure:u.forageFailure,
     nearbyEdibleFood:this.nearbyFoodEstimate(u),
+    foodOnTile:this.tiles[this.cell(u.x,u.y)]===1?
+      (u.g.aquatic===1?this.waterweed[this.cell(u.x,u.y)]:0):
+      this.grass[this.cell(u.x,u.y)]*dietProfile(u.g).plant,
+    nearestFoodDistance:(()=>{
+      const aquatic=u.g.aquatic===1,wet=this.terrain(u.x,u.y)===1;
+      const next=aquatic&&wet?this.nearestWaterweed(u.x,u.y,180):
+       this.nearestGrass(u.x,u.y,180,u.g);
+      return next?Math.round(Math.hypot(next.x-u.x,next.y-u.y)*10)/10:null;
+    })(),
+
    diagnosticCause:(u.infection>0||u.lastHpLossSource==='infection')?'感染':
     (u.hydration<25||u.lastHpLossSource==='dehydration')?'脱水':
     (u.forageFailure>Math.max(5,u.forageSuccess*2))?'採食失敗・食料探索':
