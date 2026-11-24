@@ -1088,12 +1088,14 @@ test('high-density groups pay an actual extra energy cost during a simulation ti
  assert.ok(packed.a.crowdStress>0);
 });
 
-test('acquired giantism incurs strongly rising tissue-volume upkeep',()=>{
+test('acquired giantism requires increasing but feedable upkeep',()=>{
  const make=scale=>({growthScale:scale});
  assert.equal(acquiredSizeMaintenance(make(1)),0);
- assert.ok(acquiredSizeMaintenance(make(1.6))>5);
- assert.ok(acquiredSizeMaintenance(make(2.35))>20);
- assert.ok(acquiredSizeMaintenance(make(2.35))>3*acquiredSizeMaintenance(make(1.6)));
+ assert.ok(acquiredSizeMaintenance(make(1.6))>2);
+ assert.ok(acquiredSizeMaintenance(make(2.35))>5);
+ assert.ok(acquiredSizeMaintenance(make(2.35))>2*acquiredSizeMaintenance(make(1.6)));
+ assert.ok(acquiredSizeMaintenance(make(3.8))<25,
+  'giant upkeep must remain reachable by actual per-step feeding');
 });
 test('giants can harvest more biomass but have a finite one-step feeding capacity',()=>{
  const small={growthScale:1},giant={growthScale:2.35};
