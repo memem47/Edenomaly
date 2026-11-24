@@ -1,6 +1,7 @@
 // Edenomaly simulation: browser-only; no DOM or Canvas dependencies.
 import {appendSpeciesBirth,birthDerived} from './species-statistics.js';
 import {DNA_KEYS,DNA_LIMITS,canonicalDNA,legacyToDNA,expressDNA,expressAllelePair} from './genome-model.js';
+import {linkedOffspring} from './linkage-model.js';
 const W=800,H=460,CELL=20,NX=40,NY=23;
 export const TERRAIN_NAMES=['草地','水辺','乾燥地','岩場'];
 export const TERRAIN_COLORS=['#54c74c','#279cfa','#edb85c','#8980bf'];
@@ -746,17 +747,9 @@ export class Ecosystem{
  }
  recombine(a,b){
   if(a.genomeModel!==2||b.genomeModel!==2)return this.recombineLegacy(a,b);
-  const dna={},alleles={};
-  for(const key of DNA_KEYS){
-   const ap=a.alleles?.[key]??[a.dna[key],a.dna[key]];
-   const bp=b.alleles?.[key]??[b.dna[key],b.dna[key]];
-   const pair=[ap[this.rand()<.5?0:1],bp[this.rand()<.5?0:1]];
-   alleles[key]=pair;dna[key]=this.expressGeneticPair(key,pair);
-  }
-  // Rare strategy innovations remain genetically encoded.
-  if(this.rand()<.036){dna.aquatic=1-dna.aquatic;alleles.aquatic=[dna.aquatic,dna.aquatic];}
-  if(this.rand()<.045){dna.biome=Math.floor(this.rand()*4);alleles.biome=[dna.biome,dna.biome];}
-  if(this.rand()<.035){dna.diet=clamp(dna.diet+this.range(-.36,.36),0,1);alleles.diet=[dna.diet,dna.diet];}
+  // Each parent forms one gamete per chromosome, with occasional crossovers.
+  // The first allele in each child pair is maternal, the second paternal.
+  const {dna,alleles}=linkedOffspring(a,b,()=>this.rand());
   const child=expressDNA({dna,alleles});
   return this.rand()<.32?this.mutate(child):child;
  }
