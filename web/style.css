@@ -611,3 +611,12 @@ button:disabled,input:disabled{opacity:.40;cursor:not-allowed}
 .evolution-tree-viewport svg{display:block;max-width:none}
 .evolution-tree-hint{font-size:11px;line-height:1.5;margin:0;padding:7px 14px;color:#bed8dc;background:#183440}
 @media(max-width:740px){.evolution-tree-dialog{width:99vw;max-width:99vw}.evolution-tree-header{gap:5px;padding:7px}.evolution-tree-header button{font-size:11px}.evolution-tree-header label input{width:70px}}
+
+/* Explain the classification decision before comparing individual genes. */
+.discovery-cause{border:1px solid #4a8e89;border-radius:10px;background:#14333d;padding:10px 12px;margin:12px 0}
+.discovery-cause h3{margin:0 0 8px}
+.discovery-reason{margin:5px 0 10px;color:#d6f4e8;font-size:13px;line-height:1.6}
+.discovery-reason strong{color:#ffdd90}
+.discovery-changed{color:#f5d18b!important;background:#4b4032}
+.discovery-gene-pair{font-size:10px;color:#9fc0c9;font-weight:400;white-space:nowrap}
+.discovery-carrier{color:#ffd58b;font-size:10px}
