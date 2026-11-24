@@ -46,12 +46,21 @@ export function runHeadless({seed=971253,steps=5000,interval=50,founders=1,
  }
  const durationMs=Math.round((performance.now()-started)*100)/100;
  const last=rows.at(-1);
+ const starvationRecords=(w.deathRecords??[]).filter(d=>d.cause==='飢餓・栄養不足'||d.cause==='飢餓');
+ const countStage=stage=>starvationRecords.filter(d=>d.stage===stage).length;
+ const withLocalFood=starvationRecords.filter(d=>(d.nearbyEdibleFood??0)>=20).length;
+ const withSuccessfulForage=starvationRecords.filter(d=>(d.foodSuccess??0)>0).length;
+ const forageFailed=starvationRecords.filter(d=>(d.foodFailure??0)>Math.max(5,(d.foodSuccess??0)*2)).length;
+ const nearbyFoodMean=starvationRecords.length?
+  Math.round(starvationRecords.reduce((n,d)=>n+(d.nearbyEdibleFood??0),0)/starvationRecords.length*10)/10:0;
  return {world:w,rows,summary:{
   seed,version,requestedSteps:steps,simulatedSteps:w.tick,interval,founders,
   stoppedByExtinction:stopAtExtinction&&w.tick<steps&&w.units.length===0&&w.eggs.length===0,
   peakPopulation:peak,finalPopulation:w.units.length,finalEggs:w.eggs.length,
   totalBirths:last.births,totalDeaths:last.deaths,
-  deathsByStarvation:last.deathStarvation,finalSpecies:last.livingSpecies,
+  deathsByStarvation:last.deathStarvation,
+  starvationDiagnostics:{juvenile:countStage('juvenile'),adult:countStage('adult'),withNearbyFood20:withLocalFood,everForaged:withSuccessfulForage,forageFailuresDominant:forageFailed,meanNearbyFood:nearbyFoodMean},
+  finalFood:last.food,finalSpecies:last.livingSpecies,
   discoveries:last.discoveredSpecies,maxGeneration:last.maxGeneration,
   carnivoreDeaths:last.deathPredation,cannibalMeals:last.cannibalMeals,
   waterPlantings:last.waterPlantings,landExplorers:last.landExplorers,
