@@ -64,7 +64,7 @@ export function latentGenotype(genome){
    const format=v=>Number.isInteger(Number(v))?String(v):Number(v).toFixed(2);
    genotypes.push('Chr'+(ci+1)+' '+name+': '+pair.map(format).join('/')+' → '+format(active));
    if(INHERITANCE_RULES[key]==='recessive'&&Number(pair[0])!==Number(pair[1])&&
-      Number(pair[0])>=1!== (Number(pair[1])>=1)){
+      (Number(pair[0])>=1)!==(Number(pair[1])>=1)){
     hidden.push({key,label:name,chromosome:ci+1,alleles:[...pair]});
    }
   }
@@ -86,7 +86,7 @@ export function evolutionSVG(graph,portrait=()=>'',scale=1){
   const detail='発見 '+node.first+' / 現在 '+node.current+' / 累計 '+node.total;
   const genetics=latentGenotype(node.genome);
   const hiddenText=genetics.hidden.length?'潜在：'+genetics.hidden.slice(0,2).map(t=>t.label).join('・')+(genetics.hidden.length>2?' 他'+(genetics.hidden.length-2):''):'潜在劣性：なし';
-  const tooltip=node.name+' / '+detail+'\\n【潜在劣性形質】'+(genetics.hidden.map(t=>'Chr'+t.chromosome+' '+t.label+' ('+t.alleles.join('/')+')').join('、')||'なし')+'\\n【染色体別・全対立遺伝子】\\n'+genetics.genotypes.join('\\n');
+  const tooltip=node.name+' / '+detail+'\n【潜在劣性形質】'+(genetics.hidden.map(t=>'Chr'+t.chromosome+' '+t.label+' ('+t.alleles.join('/')+')').join('、')||'なし')+'\n【染色体別・全対立遺伝子】\n'+genetics.genotypes.join('\n');
   return '<g class="evolution-node" data-evolution-key="'+esc(node.key)+'" transform="translate('+node.x+' '+node.y+')">'+
    '<title>'+esc(tooltip)+'</title>'+
    '<rect width="'+NODE_WIDTH+'" height="'+NODE_HEIGHT+'" rx="12" fill="#1b3c4b" stroke="'+(node.current?'#7bd9bb':'#6d8790')+'" stroke-width="1.4"/>'+
