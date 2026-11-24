@@ -3,7 +3,7 @@
 import {CORE_KEYS,SKILLS,STRATEGY_FIELDS,INHERITANCE_RULES} from './genome-model.js';
 const esc=x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const CATEGORY_LABELS=['生息環境','食性分類','体格','体形','目の配置','行動戦略','繁殖方式','温度適性','色系統','体色','外見特徴'];
-const categories=key=>String(key||'').split('-');
+const categories=key=>String(key||'').replace('-egg-hunter-','-egg_hunter-').split('-').map(v=>v==='egg_hunter'?'egg-hunter':v);
 const CATEGORY_VALUES=[
  {land:'陸上',aquatic:'水生',dry:'乾燥地',rock:'岩場'},
  {plant:'草食',mixed:'雑食',hunter:'肉食'},
@@ -13,7 +13,7 @@ const CATEGORY_VALUES=[
  {general:'一般',guardian:'守護', 'egg-hunter':'卵捕食'},
  {repro0:'雌雄異体',repro1:'雌雄同体',repro2:'単為生殖'},
  {temperate:'温暖',cold:'低温',hot:'高温'},
- {red:'赤系',yellow:'黄系',green:'緑系',blue:'青系',purple:'紫系',white:'白系'}
+ {red:'赤系',yellow:'黄系',green:'緑系',blue:'青系',purple:'紫系',pink:'桃系',white:'白系'}
 ];
 const describeCategory=(value,index)=>{
  if(value===undefined)return '—';
