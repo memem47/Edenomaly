@@ -4,6 +4,24 @@ import {CORE_KEYS,SKILLS,STRATEGY_FIELDS,INHERITANCE_RULES} from './genome-model
 const esc=x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const CATEGORY_LABELS=['生息環境','食性分類','体格','体形','目の配置','行動戦略','繁殖方式','温度適性','色系統','体色','外見特徴'];
 const categories=key=>String(key||'').split('-');
+const CATEGORY_VALUES=[
+ {land:'陸上',aquatic:'水生',dry:'乾燥地',rock:'岩場'},
+ {plant:'草食',mixed:'雑食',hunter:'肉食'},
+ {tiny:'小型',medium:'中型',large:'大型',giant:'巨大'},
+ {round:'丸型',oval:'楕円型',long:'長型'},
+ {blind:'目なし',few:'少数',several:'複数',allround:'全周'},
+ {general:'一般',guardian:'守護', 'egg-hunter':'卵捕食'},
+ {repro0:'雌雄異体',repro1:'雌雄同体',repro2:'単為生殖'},
+ {temperate:'温暖',cold:'低温',hot:'高温'},
+ {red:'赤系',yellow:'黄系',green:'緑系',blue:'青系',purple:'紫系',white:'白系'}
+];
+const describeCategory=(value,index)=>{
+ if(value===undefined)return '—';
+ if(index===9)return '体色コード '+value.replace(/^c_/,'');
+ if(index===10)return '特徴コード '+value.replace(/^f_/,'');
+ return CATEGORY_VALUES[index]?.[value]??value;
+};
+
 const close=(a,b)=>Math.abs(Number(a)-Number(b))<1e-6;
 const display=n=>typeof n==='number'&&!Number.isInteger(n)?n.toFixed(2):String(n);
 const pairText=(g,key)=>{
@@ -15,7 +33,7 @@ export function discoveryDifferences(child,parents=[],categoryOf){
  const ownCategory=categoryOf(child),parts=categories(ownCategory);
  const parentsCategories=entries.map(p=>categoryOf(p.genome));
  const classification=CATEGORY_LABELS.map((label,i)=>({
-  label,value:parts[i],parentValues:parentsCategories.map(k=>categories(k)[i]),
+  label,index:i,value:parts[i],parentValues:parentsCategories.map(k=>categories(k)[i]),
   changed:parentsCategories.some(k=>categories(k)[i]!==parts[i])
  }));
  const loci=[...CORE_KEYS.map(key=>({key,label:({power:'ちから',agility:'すばやさ',stamina:'たいりょく',intellect:'かしこさ',adaptation:'てきおう',fertility:'はんしょく'})[key],section:'基本能力'})),
@@ -38,8 +56,8 @@ export function discoveryDifferenceHTML(child,parents,categoryOf){
  const d=discoveryDifferences(child,parents,categoryOf),count=parents.length;
  const table=(header,rows)=>'<div class="discovery-table-wrap"><table class="discovery-table"><thead><tr><th>'+header+'</th><th>新種</th>'+
   parents.map((_,i)=>'<th>親'+(i+1)+'</th>').join('')+'</tr></thead><tbody>'+rows.join('')+'</tbody></table></div>';
- const categoryRow=r=>'<tr><th>'+esc(r.label)+'</th><td><strong>'+esc(r.value??'—')+'</strong></td>'+
-  r.parentValues.map(v=>'<td class="'+(v!==r.value?'discovery-changed':'')+'">'+esc(v??'—')+(v!==r.value?' ✦':'')+'</td>').join('')+'</tr>';
+ const categoryRow=r=>'<tr><th>'+esc(r.label)+'</th><td><strong>'+esc(describeCategory(r.value,r.index))+'</strong></td>'+
+  r.parentValues.map(v=>'<td class="'+(v!==r.value?'discovery-changed':'')+'">'+esc(describeCategory(v,r.index))+(v!==r.value?' ✦':'')+'</td>').join('')+'</tr>';
  const displayGene=(r,i)=>{
   const n=i===-1?r.value:r.values[i],p=i===-1?r.pair:r.parentPairs[i];
   const active=r.section==='スキル'?(Number(n)===1?'習得':'未習得'):display(n);
