@@ -937,6 +937,24 @@ export class Ecosystem{
   u.lastHpDamageTick=this.tick;
   u.lastHpLossSource=source;
  }
+ nearbyFoodEstimate(u,radius=75){
+  // Diagnostics only: edible biomass in nearby passable cells.
+  // This is an upper bound, not a navigable-route guarantee.
+  const cx=Math.floor(u.x/CELL),cy=Math.floor(u.y/CELL),reach=Math.ceil(radius/CELL);
+  const plant=dietProfile(u.g).plant;
+  if(plant<=0)return 0;
+  let total=0;
+  for(let yy=Math.max(0,cy-reach);yy<=Math.min(NY-1,cy+reach);yy++)
+   for(let xx=Math.max(0,cx-reach);xx<=Math.min(NX-1,cx+reach);xx++){
+    const px=(xx+.5)*CELL,py=(yy+.5)*CELL;
+    if((px-u.x)**2+(py-u.y)**2>radius*radius)continue;
+    const i=yy*NX+xx,t=this.tiles[i];
+    if(!terrainFitness(u.g,t).passable)continue;
+    const biomass=t===1?(u.g.aquatic===1?this.waterweed[i]:0):this.grass[i];
+    total+=Math.max(0,biomass)*plant;
+   }
+  return Math.round(total*10)/10;
+ }
  die(u,cause,consumed=0){
   if(u.dead)return;
   u.dead=true;u.courtPartner=null;this.species.get(u.category).current--;
@@ -949,6 +967,7 @@ export class Ecosystem{
    cause,energy:+u.energy.toFixed(2),hydration:+u.hydration.toFixed(2),
    hp:+u.hp.toFixed(2),maxHp:u.maxHp,terrain:TERRAIN_NAMES[this.terrain(u.x,u.y)],
    foodSuccess:u.forageSuccess,foodFailure:u.forageFailure,
+    nearbyEdibleFood:this.nearbyFoodEstimate(u),
    diagnosticCause:(u.infection>0||u.lastHpLossSource==='infection')?'感染':
     (u.hydration<25||u.lastHpLossSource==='dehydration')?'脱水':
     (u.forageFailure>Math.max(5,u.forageSuccess*2))?'採食失敗・食料探索':
