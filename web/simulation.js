@@ -1162,7 +1162,9 @@ export class Ecosystem{
   // Whichever organism can lay eggs becomes the gestating parent.
   if(parent.sex==='M'&&partner.sex!=='M')return this.conceive(partner,parent);
   // An inherited brood-size trait trades clutch size against parental energy.
-  const desired=clamp(Math.round((parent.g.brood+partner.g.brood)/2)*2+2,4,18);
+  // Avoid laying 4-18 eggs per mating when juveniles cannot all feed.
+  // Brood remains heritable and the parents still pay for each egg.
+  const desired=clamp(Math.round((parent.g.brood+partner.g.brood)/2),1,8);
   const largeParentCost=Math.max(0,organismMorphology(parent).bodyMass-100)*.18;
   const affordable=clamp(Math.floor((Math.min(parent.energy,220)-55-largeParentCost)/7),1,18);
   const count=Math.min(desired,affordable,2500-this.eggs.length);
