@@ -4,6 +4,7 @@ on:
     paths:
       - '.github/workflows/starvation-validation.yml'
       - 'web/simulation.js'
+      - 'web/ecology-log.js'
       - 'web/headless-runner.mjs'
       - 'tests/starvation-balance.test.mjs'
   workflow_dispatch:
@@ -26,6 +27,8 @@ jobs:
         run: |
           mkdir -p validation/baseline validation/current
           git worktree add --detach ../edenomaly-baseline 57921bc49282956a227d8c3c20f1e77d9a0fd68e
+          # Diagnostic-only parity: use today's corrected cause counters in both versions.
+          cp web/ecology-log.js ../edenomaly-baseline/web/ecology-log.js
           for seed in 72 73 74; do
             node ../edenomaly-baseline/web/headless-cli.mjs --seed "$seed" --steps 3000 --runs 1 --interval 100 --out "validation/baseline/$seed"
             node web/headless-cli.mjs --seed "$seed" --steps 3000 --runs 1 --interval 100 --out "validation/current/$seed"
@@ -36,7 +39,7 @@ jobs:
             for (const seed of [72,73,74]) {
               const a=JSON.parse(fs.readFileSync("validation/baseline/"+seed+"/summary.json")).summary[0];
               const b=JSON.parse(fs.readFileSync("validation/current/"+seed+"/summary.json")).summary[0];
-              rows.push({seed, baseline:{steps:a.simulatedSteps, deaths:a.totalDeaths,starvation:a.deathsByStarvation,population:a.finalPopulation,peak:a.peakPopulation}, current:{steps:b.simulatedSteps,deaths:b.totalDeaths,starvation:b.deathsByStarvation,population:b.finalPopulation,peak:b.peakPopulation}});
+              rows.push({seed, baseline:{steps:a.simulatedSteps, deaths:a.totalDeaths,starvation:a.deathsByStarvation,starvationRate:a.totalDeaths?a.deathsByStarvation/a.totalDeaths:0,population:a.finalPopulation,peak:a.peakPopulation}, current:{steps:b.simulatedSteps,deaths:b.totalDeaths,starvation:b.deathsByStarvation,starvationRate:b.totalDeaths?b.deathsByStarvation/b.totalDeaths:0,population:b.finalPopulation,peak:b.peakPopulation}});
             }
             fs.writeFileSync("validation/comparison.json",JSON.stringify(rows,null,2));
             console.log(JSON.stringify(rows,null,2));
