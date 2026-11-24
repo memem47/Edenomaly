@@ -81,8 +81,8 @@ export function observeEcology(game){
  }
  const n=game.units.filter(u=>!u.dead).length,totalBirths=[...game.species.values()].reduce((sum,s)=>sum+s.total,0);
  const causes=game.deathCauses??{};
- const starvation=causes['飢餓']??0;
- const predation=(causes['捕食']??0)+(causes['卵の捕食']??0);
+ const starvation=(causes['飢餓']??0)+(causes['飢餓・栄養不足']??0);
+ const predation=(causes['捕食']??0)+(causes['捕食・攻撃']??0)+(causes['卵の捕食']??0);
  const infection=causes['感染症']??0;
  const deaths=Object.values(causes).reduce((a,b)=>a+b,0);
  const census=game.reproductionCensus();
