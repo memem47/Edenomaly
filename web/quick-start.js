@@ -1,9 +1,9 @@
-// Deterministic location for one-click game starts. No genome edits, resource
-// creation or invisible interventions. The ordinary GameSession.start() still
+// Pick a random viable location for one-click starts. No genome edits,
+// resource creation or invisible interventions. The ordinary GameSession.start() still
 // generates and introduces exactly one founder species (8 individuals).
 export function defaultGameStartSite(world){
  const nx=40,ny=23;
- let best=null,bestScore=-Infinity;
+ const sites=[];let best={x:170,y:130},bestScore=-Infinity;
  for(let cy=3;cy<ny-3;cy++)for(let cx=3;cx<nx-3;cx++){
   const idx=cy*nx+cx;
   if(world.tiles[idx]!==0)continue; // Standard founder is land-based.
@@ -15,11 +15,14 @@ export function defaultGameStartSite(world){
    if(world.tiles[i]===1)water++;
    else grass+=Math.max(0,world.grass[i]||0);
   }
-  // Nearby water and food matter; mild center preference avoids remote
-  // corners. Site selection is read-only and consumes no random numbers.
+  // Nearby water and food matter; mild center preference avoids remote corners.
   const score=Math.min(650,grass)/35+Math.min(water,3)*5-
    Math.hypot(x-400,y-230)/90;
   if(score>bestScore){bestScore=score;best={x,y};}
+  sites.push({x,y,score});
  }
- return best??{x:170,y:130};
+ // Draw from the best quarter: genuinely random, yet avoids severe food deserts.
+ const threshold=bestScore-5;
+ const viable=sites.filter(site=>site.score>=threshold);
+ return viable.length?viable[Math.floor(world.rand()*viable.length)]:best;
 }
