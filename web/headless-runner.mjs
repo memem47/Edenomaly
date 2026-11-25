@@ -4,8 +4,30 @@ import {performance} from 'node:perf_hooks';
 import {Ecosystem,organismMorphology,lifeStageScale} from './simulation.js';
 import {observeEcology,ECOLOGY_LOG_FIELDS} from './ecology-log.js';
 
+
+// Trait frequencies are measured, never injected into the simulation.
+// They allow observation of whether caregiving traits spread after selection.
+export function evolutionaryTraitMetrics(world){
+ const living=world.units.filter(u=>!u.dead);
+ const adult=living.filter(u=>u.stage==='adult');
+ const proportion=(group,predicate)=>group.length?
+  Math.round(group.filter(predicate).length*1000/group.length)/1000:0;
+ const mean=(group,metric)=>group.length?
+  Math.round(group.reduce((sum,u)=>sum+metric(u),0)*100/group.length)/100:0;
+ return {
+  parentalCareFraction:proportion(living,u=>u.g.dna?.skillParentFeeding===1),
+  nestChoiceFraction:proportion(living,u=>u.g.dna?.skillNestChoice===1),
+  adultCareFraction:proportion(adult,u=>u.g.dna?.skillParentFeeding===1),
+  adultNestChoiceFraction:proportion(adult,u=>u.g.dna?.skillNestChoice===1),
+  meanStamina:mean(living,u=>u.g.dna?.stamina??0),
+  adultMeanStamina:mean(adult,u=>u.g.dna?.stamina??0),
+  parentalCalories:Math.round(living.reduce((sum,u)=>sum+(u.parentalCalories??0),0)),
+  offspringCalories:Math.round(living.reduce((sum,u)=>sum+(u.receivedParentFood??0),0))
+ };
+}
 export const HEADLESS_EVENT_TYPES=['birth','attack','defend','rival','pred','cannibal','carnivoreLearn','eggeaten','waterPlant','shore','acclimate','mate','courtFail','ill','death','hatch','mature','migration','settle'];
 export const HEADLESS_COLUMNS=['seed',...ECOLOGY_LOG_FIELDS,
+ ...Object.keys(evolutionaryTraitMetrics({units:[]})),
  ...HEADLESS_EVENT_TYPES.map(type=>'event_'+type),'smallBodies','juvenileBodies','largeBodies','giantBodies','p10Radius','medianRadius','p90Radius'];
 const percentile=(sorted,p)=>sorted.length?sorted[Math.floor((sorted.length-1)*p)]:0;
 export function bodySizeMetrics(world){
@@ -35,7 +57,7 @@ export function runHeadless({seed=971253,steps=5000,interval=50,founders=1,
  const sample=()=>{
   const eventFields=Object.fromEntries(HEADLESS_EVENT_TYPES.map(type=>
    ['event_'+type,w.headlessEventCounts[type]??0]));
-  const row={...observeEcology(w),...bodySizeMetrics(w),...eventFields,seed,run:seed,version};
+  const row={...observeEcology(w),...bodySizeMetrics(w),...evolutionaryTraitMetrics(w),...eventFields,seed,run:seed,version};
   rows.push(row);onSample?.(row,w);
  };
  sample();
@@ -66,6 +88,7 @@ export function runHeadless({seed=971253,steps=5000,interval=50,founders=1,
    neverFedWithFoodOnTile:starvationRecords.filter(d=>(d.foodOnTile??0)>1&&(d.foodSuccess??0)===0).length,
    juvenileMeanDeathAge:(()=>{const a=starvationRecords.filter(d=>d.stage==='juvenile');return a.length?Math.round(a.reduce((n,d)=>n+(d.age??0),0)/a.length):0;})()},
   finalFood:last.food,finalSpecies:last.livingSpecies,
+  finalEvolutionaryTraits:evolutionaryTraitMetrics(w),
   discoveries:last.discoveredSpecies,maxGeneration:last.maxGeneration,
   carnivoreDeaths:last.deathPredation,cannibalMeals:last.cannibalMeals,
   waterPlantings:last.waterPlantings,landExplorers:last.landExplorers,
