@@ -770,7 +770,9 @@ export class Ecosystem{
   // The first allele in each child pair is maternal, the second paternal.
   const {dna,alleles}=linkedOffspring(a,b,()=>this.rand());
   const child=expressDNA({dna,alleles});
-  return this.rand()<.32?this.mutate(child):child;
+  // A modestly higher inherited mutation chance increases discovery opportunity,
+  // without changing species thresholds or guaranteeing useful adaptations.
+  return this.rand()<.40?this.mutate(child):child;
  }
  // Compatibility for experiments explicitly supplying a pre-migration genome.
  mutateLegacy(g){
