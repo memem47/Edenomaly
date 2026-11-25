@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Ecosystem,acquiredSizeMaintenance,frugalityMaintenanceFactor} from '../web/simulation.js';
 import {expressDNA} from '../web/genome-model.js';
+import {evolutionaryTraitMetrics} from '../web/headless-runner.mjs';
 
 function genotype(seed,changes){
  const w=new Ecosystem(seed),g=w.gene();
@@ -59,4 +60,18 @@ test('efficient physiology has a real but not free inherited maintenance tradeof
  assert.ok(frugalityMaintenanceFactor(high)<frugalityMaintenanceFactor(low));
  assert.ok(high.r>low.r,'stamina also increases inherited size and metabolic burden');
  assert.equal(acquiredSizeMaintenance({growthScale:1}),0);
+});
+
+test('caregiving adults actively pursue their children rather than waiting for accidental proximity',()=>{
+ const w=new Ecosystem(12023),g=genotype(12023,{skillParentFeeding:1,fertility:9});
+ w.tiles.fill(0);w.grass.fill(90);
+ const parent=w.spawn(150,150,g),child=w.spawn(215,150,g,parent);
+ w.units=[parent,child];
+ parent.age=100;parent.energy=200;
+ child.stage='juvenile';child.energy=30;
+ w.step();
+ assert.equal(parent.behaviorTarget,'parentFeed','well-fed caregiving parent should navigate to its own hungry offspring');
+ const metrics=evolutionaryTraitMetrics(w);
+ assert.ok(metrics.parentalCareFraction>0);
+ assert.ok(metrics.adultCareFraction>0);
 });
