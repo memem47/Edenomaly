@@ -31,7 +31,8 @@ test('parental feeding is heritable, has no effect without skill, and spends par
 });
 
 test('feeding ability survives linked inheritance and can be lost or gained through alleles',()=>{
- const w=new Ecosystem(12019),carrier=genotype(12019,{skillParentFeeding:1}),none=genotype(12020,{skillParentFeeding:0});
+ const w=new Ecosystem(12019),homo=genotype(12019,{skillParentFeeding:1}),none=genotype(12020,{skillParentFeeding:0});
+ const carrier=expressDNA({dna:{...homo.dna,skillParentFeeding:1},alleles:{...homo.alleles,skillParentFeeding:[1,0]}});
  let expressed=0,unexpressed=0;
  for(let i=0;i<100;i++){
   const child=w.recombine(carrier,none);
