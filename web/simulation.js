@@ -725,18 +725,34 @@ export class Ecosystem{
   if(g.genomeModel!==2)return this.mutateLegacy(g);
   const dna=canonicalDNA(g),alleles={};
   for(const key of DNA_KEYS)alleles[key]=[...(g.alleles?.[key]??[dna[key],dna[key]])];
+  // A mutation EVENT must alter an actual allele. Previously a random
+  // locus was often rejected by an additional probability gate, so the
+  // "mutation" returned an identical genome. Hidden/recessive changes still
+  // count; they do not create a new species unless expressed traits differ.
   const count=1+(this.rand()<.22?1:0)+(this.rand()<.06?1:0);
   for(let n=0;n<count;n++){
-   const key=DNA_KEYS[Math.floor(this.rand()*DNA_KEYS.length)];
-   const index=this.rand()<.5?0:1;
-   const [lo,hi]=DNA_LIMITS[key];
-   let value=alleles[key][index];
-   if(key.startsWith('skill')){if(this.rand()<.16)value=1-value;else continue;}
-   else if(['aquatic','albino'].includes(key)){if(this.rand()<.06)value=1-value;else continue;}
-   else if(['repro','biome'].includes(key)){if(this.rand()<.15)value=Math.floor(this.range(lo,hi+1));else continue;}
-   else if(['power','agility','stamina','intellect','adaptation','fertility'].includes(key))value+=this.rand()<.5?-1:1;
-   else value+=this.range(-.17,.17);
-   alleles[key][index]=clamp(value,lo,hi);
+   for(let attempt=0;attempt<24;attempt++){
+    const key=DNA_KEYS[Math.floor(this.rand()*DNA_KEYS.length)];
+    const index=this.rand()<.5?0:1;
+    const [lo,hi]=DNA_LIMITS[key],previous=alleles[key][index];
+    let value=previous;
+    if(key.startsWith('skill')){if(this.rand()<.16)value=1-value;}
+    else if(['aquatic','albino'].includes(key)){if(this.rand()<.06)value=1-value;}
+    else if(['repro','biome'].includes(key)){if(this.rand()<.15){
+     // Exclude the previous allele: an attempted discrete mutation
+     // should not silently assign the current value.
+     const span=hi-lo;
+     const offset=1+Math.floor(this.rand()*span);
+     value=lo+(previous-lo+offset)%(span+1);
+    }}
+    else if(['power','agility','stamina','intellect','adaptation','fertility'].includes(key))
+     value+=this.rand()<.5?-1:1;
+    else value+=this.range(-.17,.17);
+    value=clamp(value,lo,hi);
+    if(value===previous)continue;
+    alleles[key][index]=value;
+    break;
+   }
   }
   const next={};
   for(const key of DNA_KEYS){
