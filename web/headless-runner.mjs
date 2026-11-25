@@ -21,8 +21,8 @@ export function evolutionaryTraitMetrics(world){
   adultNestChoiceFraction:proportion(adult,u=>u.g.dna?.skillNestChoice===1),
   meanStamina:mean(living,u=>u.g.dna?.stamina??0),
   adultMeanStamina:mean(adult,u=>u.g.dna?.stamina??0),
-  parentalCalories:Math.round(living.reduce((sum,u)=>sum+(u.parentalCalories??0),0)),
-  offspringCalories:Math.round(living.reduce((sum,u)=>sum+(u.receivedParentFood??0),0))
+  parentalFeedEvents:world.parentFeedEvents??0,
+  parentalEnergySpent:Math.round((world.parentFeedEnergySpent??0)*10)/10
  };
 }
 export const HEADLESS_EVENT_TYPES=['birth','attack','defend','rival','pred','cannibal','carnivoreLearn','eggeaten','waterPlant','shore','acclimate','mate','courtFail','ill','death','hatch','mature','migration','settle'];
