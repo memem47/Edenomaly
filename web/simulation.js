@@ -1895,7 +1895,16 @@ export class Ecosystem{
    if(u.dead)continue;u.age++;u.juvenileFood=0;
    u.isolatedSteps=(lineageCounts.get(u.lineage)??0)>1?0:(u.isolatedSteps??0)+1;
    if(this.supportZones.some(z=>z.kind==='oasis'&&z.until>this.tick&&(z.x-u.x)**2+(z.y-u.y)**2<=65**2))u.hydration=Math.min(100,u.hydration+.36);if(u.bite>0)u.bite--;if(u.woundFlash>0)u.woundFlash--;if(u.attackFlash>0)u.attackFlash--;if(u.defendFlash>0)u.defendFlash--;if(u.mateCooldown>0)u.mateCooldown--;
-   if(u.pregnancy){u.pregnancy.remaining--;if(u.pregnancy.remaining<=0)this.layEgg(u);}
+   if(u.pregnancy){
+     u.pregnancy.remaining--;
+     if(u.pregnancy.remaining<=0){
+      const p=u.pregnancy,skill=u.g.nestChoice??0;
+      const unfinished=skill>.35&&p.nestGoal&&distance(u,p.nestGoal)>22**2;
+      if(unfinished&&u.energy>100&&(p.nestWait??0)<32)
+       p.nestWait=(p.nestWait??0)+1;
+      else this.layEgg(u);
+     }
+    }
    const g=u.g,t=this.terrain(u.x,u.y),m=organismMorphology(u),diet=dietProfile(g),
     home=terrainLevelFitness(experiencedTerrainFitness(u,t),t,this.terrainLevels?.[this.cell(u.x,u.y)]??3,g);
    const youth=u.stage==='juvenile'?.50:1,body=vitality(u),sight=m.eyeRange*home.sight;
@@ -2213,18 +2222,27 @@ export class Ecosystem{
      u.energy-=.035+.10*clamp(g.nestChoice??0,0,1);
     }
    }
+   // Inherited caregiving seeks hungry children at an actual movement cost.
+   const feedingTrait=g.parentFeeding??0;
+   const hungryChild=feedingTrait>.35&&u.stage==='adult'&&u.energy>125&&
+     !u.pregnancy&&!u.courtPartner&&!flight&&!criticalWater?
+     near.filter(v=>v!==u&&!v.dead&&v.stage==='juvenile'&&
+      (v.parent===u.id||v.otherParent===u.id)&&v.energy<65&&
+      distance(u,v)<100**2&&terrainFitness(g,this.terrain(v.x,v.y)).passable)
+     .sort((a,b)=>a.energy-b.energy)[0]:null;
    // Guarding trades feeding opportunities for staying near the offspring.
    const ownEgg=firstEggByParent.get(u.id);
    if(ownEgg&&g.guard>.15&&!flight&&!defenderTarget&&!criticalWater&&u.energy>85){
     const guardRadius=12+g.guard*40;
     if(distance(u,ownEgg)>guardRadius**2||!target)target=ownEgg;
    }
+   if(hungryChild&&!defenderTarget&&!criticalWater)target=hungryChild;
    // Well-fed, reproduction-ready adults seek an eligible mate BEFORE
    // foraging, guarding eggs, social regrouping and voluntary dispersal.
    // Danger and critical dehydration remain higher priorities.
    const breedingPriority=!flight&&!criticalWater&&mate&&!mate.dead&&
     (u.courtPartner||this.isReadyToMate(u)&&u.energy>=112);
-   if(breedingPriority&&!u.pregnancy&&!u.landExcursion){target=mate;u.refugeTarget=null;u.socialTarget=null;}
+   if(breedingPriority&&!hungryChild&&!u.pregnancy&&!u.landExcursion){target=mate;u.refugeTarget=null;u.socialTarget=null;}
    // A blocked food/refuge target may be abandoned, but a compatible mate
    // should not be discarded by an unrelated avoidance marker.
    if(target&&!breedingPriority&&u.avoidTarget&&u.avoidTarget.until>this.tick&&
@@ -2253,6 +2271,7 @@ export class Ecosystem{
      target===mate||target===courtingMate?18:
      target===nearest||target===nearestCorpse?Math.max(7,m.biteReach+5):
      target===ownEgg?14:
+     target===hungryChild?Math.max(8,16+feedingTrait*29-4):
      target===byId.get(u.socialTarget?.id)?30:
      target===targetEgg?Math.max(3,m.biteReach*.75):
      target===prey||target===defenderTarget||target===rival?Math.max(3,m.biteReach*.7):
@@ -2264,6 +2283,7 @@ export class Ecosystem{
     target===u.refugeTarget?'disperse':
     target===byId.get(u.socialTarget?.id)?'social':
     target===ownEgg?'guard':
+     target===hungryChild?'parentFeed':
     target?'other':'wander';
    const navigation=this.navigate(u,target,desired,speed,m.turnRate,arrivalRadius);
    if(navigation==='abandoned'&&breedingPriority&&u.mateTarget?.id===mate.id){
