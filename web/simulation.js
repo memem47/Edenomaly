@@ -1887,13 +1887,15 @@ export class Ecosystem{
    const eggRest=(eggClimate.excess>2||eggClimate.comfort<.72)&&
     ((egg.g.hibernate??0)>.52||(egg.g.shell??0)>.58);
    egg.dormant=eggRest;
-   egg.age+=eggRest?.008:eggClimate.excess>0?.32:clamp(.72+eggClimate.comfort*.28,.72,1);
+   // Dormancy pauses hatching rather than making embryo development effectively zero.
+   // At .008, many eggs required thousands of steps even after seasons changed.
+   egg.age+=eggRest?.08:eggClimate.excess>0?.32:clamp(.72+eggClimate.comfort*.28,.72,1);
    egg.heatExposure=(egg.heatExposure??0)+eggClimate.excess*(eggRest?.0003:.016);
    if(eggRest)egg.energy-=.0025+eggClimate.excess*.00035;
    if(egg.energy<=0){egg.dead=true;this.log('death','卵 #'+egg.id+' が休眠中に栄養を使い切った',egg);continue;}
    if(egg.heatExposure>22){egg.dead=true;this.log('death','卵 #'+egg.id+' が極端な気温で死亡',egg);continue;}
 
-   if(!egg.dead&&egg.age>=egg.hatchAt&&this.units.length<2000){
+   if(!egg.dead&&!eggRest&&egg.age>=egg.hatchAt&&this.units.length<2000){
     egg.dead=true;
     const hatchSite=egg.g.aquatic!==1&&this.terrain(egg.x,egg.y)===1?
       this.shoreEggSite(egg.x,egg.y,egg.g):{x:egg.x,y:egg.y};
