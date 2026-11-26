@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {Ecosystem,genomeCode} from './simulation.js';
+import {Ecosystem,WORLD,genomeCode} from './simulation.js';
 import {founderTraitCost,founderCost,FOUNDER_BUDGET} from './founder-designer.js';
 import {FOUNDER_PRESETS,founderPresetGenome,randomFounderGenome} from './founder-presets.js';
 import {placementAssessment,populationDiagnosis,deathDiagnosis} from './survival-guidance.js';
@@ -10,7 +10,7 @@ test('rock has edible persistent lichen available without conversion to grasslan
  const w=new Ecosystem(72);
  const i=w.tiles.findIndex(t=>t===3);
  assert.ok(i>=0);
- const x=(i%40+.5)*20,y=(Math.floor(i/40)+.5)*20;
+ const x=(i%WORLD.columns+.5)*WORLD.cell,y=(Math.floor(i/WORLD.columns)+.5)*WORLD.cell;
  assert.ok(w.grass[i]>0,'rock should start with living lichen');
  const g=w.gene();g.rock=1;g.aquatic=0;
  assert.ok(w.nearestGrass(x,y,28,g),'rock forage must be discoverable');
