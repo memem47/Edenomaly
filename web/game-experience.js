@@ -1,11 +1,12 @@
 // Game experience layer: observation only. This file does not modify
 // organism logic, economy, random state or species classifications.
 import {fitView} from './viewport.js';
-export const visibleInView=(view,x,y,width=800,height=460)=>{
+import {WORLD} from './simulation.js';
+export const visibleInView=(view,x,y,width=WORLD.width,height=WORLD.height)=>{
  const v=fitView(view,width,height);
  return x>=v.x&&y>=v.y&&x<=v.x+width/v.zoom&&y<=v.y+height/v.zoom;
 };
-export const centerOn=(view,x,y,width=800,height=460)=>fitView({
+export const centerOn=(view,x,y,width=WORLD.width,height=WORLD.height)=>fitView({
  zoom:view.zoom,x:x-width/(2*view.zoom),y:y-height/(2*view.zoom)},width,height);
 export function cameraSummary(world,view){
  let visible=0,threatened=0,offscreen=0;
@@ -17,8 +18,8 @@ export function cameraSummary(world,view){
  return {visible,offscreen,threatened};
 }
 export const observationDirection=(x,y)=>[
- y<460/3?'北':y>460*2/3?'南':'中央',
- x<800/3?'西':x>800*2/3?'東':'中央'
+ y<WORLD.height/3?'北':y>WORLD.height*2/3?'南':'中央',
+ x<WORLD.width/3?'西':x>WORLD.width*2/3?'東':'中央'
 ].filter(v=>v!=='中央').join('')||'中央';
 export class ObservationTracker{
  constructor(){this.reset();}
