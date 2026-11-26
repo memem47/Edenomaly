@@ -476,7 +476,12 @@ function frame(time){
  game.visualTick=(game.visualTick??0)+dt*.03;
  const policy=performancePolicy(game.units.length,$('lowImpactMode').checked);
  if(running){
-  const batch=simulationBatch(acc,dt,policy,speed*dormancySpeedMultiplier(game.units));
+  const dormantMultiplier=dormancySpeedMultiplier(game.units);
+  // The standard low-power cap is 24 ticks/sec (normal rate 14); expand
+  // the cap and per-frame budget too so "×2" really doubles simulation rate.
+  const tickPolicy=dormantMultiplier===2?
+   {...policy,speedLimit:policy.speedLimit*2,maxSteps:policy.maxSteps*2}:policy;
+  const batch=simulationBatch(acc,dt,tickPolicy,speed*dormantMultiplier);
   acc=batch.carry;
   for(let i=0;i<batch.steps&&running;i++){
    // A new awake offspring or a waking hibernator ends fast-forward at once.
