@@ -3458,7 +3458,12 @@ test('enhanced terrain rendering does not change ecology or seeded RNG',()=>{
 });
 
 test('jelly renderer uses fluid bezier outlines and remains ecology-pure',()=>{
- const w=new Ecosystem(202611093);const u=w.introduce(170,130,1);
+ const w=new Ecosystem(202611093);w.introduce(170,130,1);
+ // A fixed-size adult guarantees the gradient path irrespective of initial
+ // founder distribution in the enlarged randomized world.
+ const vivid={...w.gene(),r:12,elongation:1};
+ const adult=w.spawn(175,130,vivid);adult.stage='adult';adult.age=90;
+ adult.hp=adult.maxHp;adult.energy=145;
  assert.ok(w.units.length>0);
  const before={rng:w.rng,grass:[...w.grass],waterweed:[...w.waterweed],
   energy:w.units.map(u=>u.energy),hp:w.units.map(u=>u.hp)};
