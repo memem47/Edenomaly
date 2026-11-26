@@ -1022,7 +1022,7 @@ test('rounded founders dominate while long ovals remain rare (DNA v2)',async()=>
 test('elongation remains heritable and rare long forms can reproduce (DNA v2)',async()=>{
  const {editFounderGenome}=await import('./founder-designer.js');
  const w=new Ecosystem(2302);
- const a=editFounderGenome(w.gene(),{agility:10,adaptation:10,aquatic:1,biome:1});
+ const a=editFounderGenome(w.gene(),{agility:10,stamina:10,adaptation:10,aquatic:1,biome:1});
  assert.ok(a.elongation>2.25);
  let long=0;
  for(let i=0;i<100;i++)if(w.recombine(a,a).elongation>2.25)long++;
