@@ -1888,8 +1888,8 @@ export class Ecosystem{
     ((egg.g.hibernate??0)>.52||(egg.g.shell??0)>.58);
    egg.dormant=eggRest;
    // Dormancy pauses hatching rather than making embryo development effectively zero.
-   // At .008, many eggs required thousands of steps even after seasons changed.
-   egg.age+=eggRest?.08:eggClimate.excess>0?.32:clamp(.72+eggClimate.comfort*.28,.72,1);
+   // At .008, many eggs required thousands of steps even after seasons changed.\n   // Keep winter progress slow enough to preserve seasonal overwintering.
+   egg.age+=eggRest?.04:eggClimate.excess>0?.32:clamp(.72+eggClimate.comfort*.28,.72,1);
    egg.heatExposure=(egg.heatExposure??0)+eggClimate.excess*(eggRest?.0003:.016);
    if(eggRest)egg.energy-=.0025+eggClimate.excess*.00035;
    if(egg.energy<=0){egg.dead=true;this.log('death','卵 #'+egg.id+' が休眠中に栄養を使い切った',egg);continue;}
