@@ -620,3 +620,6 @@ button:disabled,input:disabled{opacity:.40;cursor:not-allowed}
 .discovery-changed{color:#f5d18b!important;background:#4b4032}
 .discovery-gene-pair{font-size:10px;color:#9fc0c9;font-weight:400;white-space:nowrap}
 .discovery-carrier{color:#ffd58b;font-size:10px}
+
+/* Automatically appears only while all surviving individuals are hibernating. */
+.dormancy-speed-status:not([hidden]){display:inline-flex;align-items:center;gap:4px;max-width:100%;padding:5px 10px;border:1px solid #b7a568;border-radius:7px;color:#ffdf85;background:#364130;font-size:12px;font-weight:700}
