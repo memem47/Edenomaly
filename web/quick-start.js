@@ -1,3 +1,10 @@
+// Every new game needs a fresh seed. The simulation itself stays deterministic
+// for reproducible logs/headless testing when a specific seed is supplied.
+export function freshGameSeed(random=Math.random){
+ const value=Number(random());
+ if(!Number.isFinite(value)||value<0||value>=1)throw new RangeError('random source must return [0,1)');
+ return 1+Math.floor(value*2147483646);
+}
 // Pick a random viable location for one-click starts. No genome edits,
 // resource creation or invisible interventions. The ordinary GameSession.start() still
 // generates and introduces exactly one founder species (8 individuals).
