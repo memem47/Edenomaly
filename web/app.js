@@ -287,6 +287,7 @@ function speciesGenomeHTML(key){
   abilityListHTML(genome);
 }
 function update(){
+ updateDormancySpeedStatus();
  const dietCounts=[0,0,0];for(const u of game.units){const d=dietProfile(u.g).diet;dietCounts[d<.3?0:d>.7?2:1]++;}
  const populationHealth=populationDiagnosis(game);
  const recentDeaths=(game.deathRecords??[]).slice(-20);
@@ -465,7 +466,7 @@ function stepSimulation(){
   if(knownSpecies.has(category))continue;
   knownSpecies.add(category);unseen.push({category,species,step:game.tick});
  }
- if(unseen.length&&screens.announce(unseen)){running=false;acc=0;}
+ if(unseen.length&&screens.announce(unseen)){running=false;acc=0;updateDormancySpeedStatus();}
 
 }
 function frame(time){
