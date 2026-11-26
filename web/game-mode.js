@@ -1,4 +1,5 @@
 // Game-mode progression is independent of Lab mode and browser storage.
+import {WORLD} from './simulation.js';
 export const TERRAIN_SCULPT_COST=Object.freeze({0:3,1:5,2:2,3:4});
 export const INTERVENTIONS=Object.freeze({
  seed:{cost:5,label:'草・水草の種をまく'},
@@ -46,11 +47,11 @@ export class GameSession{
   return true;
  }
  localFood(x,y){
-  const w=this.world,c=w.cell(x,y),cx=c%40,cy=Math.floor(c/40);
+  const w=this.world,c=w.cell(x,y),cx=c%WORLD.columns,cy=Math.floor(c/WORLD.columns);
   let biomass=0;
   for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){
    if(dx*dx+dy*dy>4)continue;
-   const tx=cx+dx,ty=cy+dy;if(tx<0||tx>=40||ty<0||ty>=23)continue;
+   const tx=cx+dx,ty=cy+dy;if(tx<0||tx>=WORLD.columns||ty<0||ty>=WORLD.rows)continue;
    const id=ty*40+tx;biomass+=w.grass[id]+w.waterweed[id];
   }
   return biomass;
@@ -96,15 +97,15 @@ export class GameSession{
   if(!this.active||this.finished||!INTERVENTIONS[kind]||this.points<INTERVENTIONS[kind].cost)return false;
   const w=this.world;
   if(kind==='rain')return true;
-  if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||y<0||x>=800||y>=460)return false;
+  if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||y<0||x>=WORLD.width||y>=WORLD.height)return false;
   if(/^terrain[0-3]$/.test(kind)){
    const target=Number(kind.slice(-1)),i=w.cell(x,y),from=w.tiles[i];
    if(from===target)return false;
    if(w.units.some(u=>!u.dead&&w.cell(u.x,u.y)===i)||
       w.eggs.some(e=>!e.dead&&w.cell(e.x,e.y)===i))return false;
    if(target===1){
-    const cx=i%40,cy=Math.floor(i/40);
-    const n=[cx>0?i-1:-1,cx<39?i+1:-1,cy>0?i-40:-1,cy<22?i+40:-1];
+    const cx=i%WORLD.columns,cy=Math.floor(i/WORLD.columns);
+    const n=[cx>0?i-1:-1,cx<WORLD.columns-1?i+1:-1,cy>0?i-WORLD.columns:-1,cy<WORLD.rows-1?i+WORLD.columns:-1];
     if(!n.some(j=>j>=0&&w.tiles[j]===1))return false;
    }
    return true;
@@ -120,8 +121,8 @@ export class GameSession{
   if(!this.canIntervene(kind,x,y))return false;
   const w=this.world;
   const tracked=kind==='rain'?
-    {x:Math.min(799,Math.max(0,Number.isFinite(x)?x:400)),
-     y:Math.min(459,Math.max(0,Number.isFinite(y)?y:230))}:{x,y};
+    {x:Math.min(WORLD.width-1,Math.max(0,Number.isFinite(x)?x:WORLD.width/2)),
+     y:Math.min(WORLD.height-1,Math.max(0,Number.isFinite(y)?y:WORLD.height/2))}:{x,y};
   const before=this.localFood(tracked.x,tracked.y);
   const previousPopulation=w.units.length;
   const previousInfected=w.units.filter(u=>u.infection>0).length;
@@ -136,8 +137,8 @@ export class GameSession{
    for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){
     if(dx*dx+dy*dy>4)continue;
     const xx=cx+dx,yy=cy+dy;
-    if(xx<0||xx>=40||yy<0||yy>=23)continue;
-    const i=yy*40+xx;
+    if(xx<0||xx>=WORLD.columns||yy<0||yy>=WORLD.rows)continue;
+    const i=yy*WORLD.columns+xx;
     // High mountain lichen can be reintroduced without changing rock into
     // grass. Regrowth remains limited by rainfall and grazing pressure.
     if(w.tiles[i]===3){
@@ -181,8 +182,8 @@ export class GameSession{
    for(const u of w.units)if(!u.dead&&(u.x-x)**2+(u.y-y)**2<=65**2)u.hydration=Math.min(100,u.hydration+30);
    const cx=Math.floor(x/20),cy=Math.floor(y/20);
    for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){
-    const xx=cx+dx,yy=cy+dy;if(xx<0||xx>=40||yy<0||yy>=23||dx*dx+dy*dy>4)continue;
-    const i=yy*40+xx;if(w.tiles[i]!==3)w.soilWater[i]=Math.min(100,w.soilWater[i]+35);
+    const xx=cx+dx,yy=cy+dy;if(xx<0||xx>=WORLD.columns||yy<0||yy>=WORLD.rows||dx*dx+dy*dy>4)continue;
+    const i=yy*WORLD.columns+xx;if(w.tiles[i]!==3)w.soilWater[i]=Math.min(100,w.soilWater[i]+35);
    }
    w.log('info','給水拠点：周辺の水分を補給（200ステップ）');
   }else if(kind==='clinic'){
