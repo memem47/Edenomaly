@@ -219,19 +219,46 @@ export const speciesFeatureName=g=>{
  return comparable.sort((a,b)=>ORNAMENT_NAMES.findIndex(t=>t[0]===a.key)-ORNAMENT_NAMES.findIndex(t=>t[0]===b.key))
   .map(v=>v.label).join('');
 };
-// A full display name is intentionally not limited to six characters.
+// Short names are a *reversible code of species classification*, not of a
+// particular individual's genome. Unlike phenotypeSignature(), this means
+// members of the same species can never get different names. The first kana
+// encodes habitat+diet (a recognizable naming family). Three further kana
+// identify all 9 ecological fields. An optional two-kana ending identifies
+// both of the appearance fields. Changing a late trait tends to preserve the
+// beginning, while genuinely distinct classifications cannot collide.
+//
+// 24 distinct syllables provide 24^3=13,824 core names (>9,072 keys per
+// family) and 24^2=576 endings (>22*11 appearance combinations).
+const SHORT_NAME_KANA=[...'アイウエオカキクケコサシスセソタチツテトナニヌネ'];
+const SHORT_NAME_FAMILY=[...'モミムメラリルレナニヌネ'];
+const SHORT_COLOR_KEYS=Object.keys(NAME_COLORS);
+const SHORT_FEATURE_KEYS=Object.keys(NAME_FEATURES);
+const SHORT_NAME_LIMIT=SHORT_NAME_KANA.length;
+const shortNameDigits=(number,length)=>{
+ let result='';
+ for(let i=0;i<length;i++){
+  result=SHORT_NAME_KANA[number%SHORT_NAME_LIMIT]+result;
+  number=Math.floor(number/SHORT_NAME_LIMIT);
+ }
+ if(number!==0)throw new RangeError('Species name code space exhausted');
+ return result;
+};
 export const speciesNameFromCategory=(key,genome=null)=>{
- const parts=speciesClassificationParts(key);
- const color=parts.appearanceColor===null?
-  speciesColorName(genome,PIGMENT_CLASSES[parts.pigment]):NAME_COLORS[parts.appearanceColor];
- const feature=parts.appearanceFeature===null?
-  speciesFeatureName(genome):NAME_FEATURES[parts.appearanceFeature];
- if(!color||feature===undefined)throw new Error('Unsupported species appearance category: '+key);
- // Names keep the categorical ecological core while distinguishing the
- // actual founder genome and its distinctive appendages.
- const distinctive=genome?distinctivePhenotypeNames(genome).join(''):'';
- const genomeTag=genome?phenotypeSignature(genome):'';
- return [color,speciesEcologyCode(key)+distinctive+genomeTag,feature].filter(Boolean).join('・');
+ const p=speciesClassificationParts(key);
+ const family=SHORT_NAME_FAMILY[p.habitat*3+p.diet];
+ const values=[p.pigment,p.body,p.shape,p.eyes,p.strategy,p.repro,p.thermal];
+ const ranges=[7,4,3,4,3,3,3];
+ let number=0;
+ for(let i=0;i<values.length;i++){
+  if(values[i]<0||values[i]>=ranges[i])throw new RangeError('Unknown species trait: '+key);
+  number=number*ranges[i]+values[i];
+ }
+ const core=family+shortNameDigits(number,3);
+ if(p.appearanceColor===null&&p.appearanceFeature===null)return core;
+ const color=SHORT_COLOR_KEYS.indexOf(p.appearanceColor);
+ const feature=SHORT_FEATURE_KEYS.indexOf(p.appearanceFeature);
+ if(color<0||feature<0)throw new RangeError('Unknown visible species feature: '+key);
+ return core+shortNameDigits(color*SHORT_FEATURE_KEYS.length+feature,2);
 };
 // Pigment is a derived phenotype, not an additional independent gene.
 export const pigmentClass=g=>{
