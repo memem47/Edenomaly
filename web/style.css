@@ -134,10 +134,10 @@ button:disabled,input:disabled{opacity:.40;cursor:not-allowed}
  .world-panel>.heading{flex:0 0 auto;font-size:12px}
  .world-panel>.heading span{font-size:11px}
  #world{
-  /* Canvas always fits vertically without cropping its 800x460 world. */
-  width:min(100%,calc((100dvh - 380px) * 1.73913));
+  /* Canvas fits the enlarged 1200x700 world; CSS scales its display without altering coordinates. */
+  width:min(100%,calc((100dvh - 380px) * 1.7142857));
   max-height:calc(100dvh - 380px);
-  height:auto;aspect-ratio:800 / 460;
+  height:auto;aspect-ratio:1200 / 700;
   margin:6px auto;flex:0 1 auto;
  }
  .world-panel>.legend{
@@ -368,7 +368,7 @@ button:disabled,input:disabled{opacity:.40;cursor:not-allowed}
   padding:10px;display:flex;flex-direction:column;align-items:stretch;overflow:hidden}
  .world-panel>.heading{flex:0 0 auto}
  .world-panel>#world{display:block;flex:0 1 auto;width:100%;height:auto;
-  max-height:calc(100dvh - 220px);aspect-ratio:800/460;
+  max-height:calc(100dvh - 220px);aspect-ratio:1200/700;
   object-fit:contain;margin:8px auto}
  .world-panel>.legend{flex:0 0 auto;max-width:100%;overflow:hidden;
   white-space:nowrap;text-overflow:ellipsis;font-size:10px}
