@@ -245,20 +245,38 @@ export const pigmentClass=g=>{
  return 'pink';
 };
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-// Visual color is a derived phenotype, never a separate inherited trait.
-// Low adaptation values produce green; wet->cyan/blue, dry->amber,
-// rock->violet. Circular hue mixing avoids a discontinuity around 360 degrees.
+// Body pigment is a deterministic, inherited PHENOTYPE. Habitat defines
+// the base tint, while functional six-stat trade-offs diversify the hue.
+// This does not add cosmetic alleles or consume simulation randomness.
+// Legacy genomes keep their previous palette, since they lack six DNA stats.
 export const adaptationColor=g=>{
  if(g.albino===1)return {hue:0,saturation:4,lightness:91};
  const wet=clamp(g.wet??0,0,1),dry=clamp(g.dry??0,0,1),rock=clamp(g.rock??0,0,1);
  const anchors=[[118,.42],[199,2.5*wet*wet],[32,2.4*dry*dry],[280,2.4*rock*rock]];
  let x=0,y=0;
  for(const [h,w] of anchors){const a=h*Math.PI/180;x+=Math.cos(a)*w;y+=Math.sin(a)*w;}
- const hue=(Math.atan2(y,x)*180/Math.PI+360)%360;
+ const baseHue=(Math.atan2(y,x)*180/Math.PI+360)%360;
  const strength=Math.max(wet,dry,rock);
- const contrast=Math.max(wet,dry,rock)-Math.min(wet,dry,rock);
- return {hue,saturation:clamp(64+strength*19+contrast*8,58,92),
-  lightness:clamp(57+wet*5+dry*3+rock*2-contrast*3,48,70)};
+ const contrast=strength-Math.min(wet,dry,rock);
+ if(g.genomeModel!==2||!g.dna)return {
+  hue:baseHue,saturation:clamp(64+strength*19+contrast*8,58,92),
+  lightness:clamp(57+wet*5+dry*3+rock*2-contrast*3,48,70)
+ };
+ const dna=g.dna;
+ const stat=key=>clamp((Number(dna[key]??5)-5)/5,-.8,1);
+ // Opposing inherited abilities create warm/cool families even in the same
+ // habitat; all six basics contribute and their effect can be selected for.
+ const power=stat('power'),agility=stat('agility'),stamina=stat('stamina');
+ const intellect=stat('intellect'),adaptation=stat('adaptation'),fertility=stat('fertility');
+ const shift=46*(power-agility)+30*(intellect-fertility)+22*(adaptation-stamina)+
+  (dna.skillParentFeeding===1?14:0)+(dna.skillPredation===1?-18:0)+
+  (dna.skillHibernate===1?9:0)+(dna.skillWaterGardening===1?-11:0);
+ const hue=(baseHue+shift+3600)%360;
+ const saturation=clamp(69+strength*11+contrast*5+
+  11*power+8*fertility-8*stamina+6*adaptation,47,96);
+ const lightness=clamp(57+wet*4+dry*2+rock*3+
+  10*intellect+7*agility-8*power+6*stamina,37,77);
+ return {hue,saturation,lightness};
 };
 export const TERRAIN_TEMPERATURE_OFFSETS=[0,-4,7,-3];
 export const localTemperature=(ambient,terrain)=>ambient+TERRAIN_TEMPERATURE_OFFSETS[terrain];
