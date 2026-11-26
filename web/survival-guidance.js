@@ -1,17 +1,17 @@
 // Read-only, deterministic guidance for player decisions. No RNG, terrain
 // mutations, or hidden autoplacement. Preview never changes the chosen genome.
-import {terrainFitness,thermalFitness,dietProfile} from './simulation.js';
+import {terrainFitness,thermalFitness,dietProfile,WORLD} from './simulation.js';
 const clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,v));
 export function placementAssessment(world,g,x,y){
  const tile=world.cell(x,y),terrain=world.tiles[tile];
  const sameWater=terrain===1,fish=g.aquatic===1;
  const local=[];
- const cx=tile%40,cy=Math.floor(tile/40);
+ const cx=tile%WORLD.columns,cy=Math.floor(tile/WORLD.columns);
  let food=0,water=0,grass=0;
  for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){
   const xx=cx+dx,yy=cy+dy;
-  if(xx<0||xx>=40||yy<0||yy>=23||dx*dx+dy*dy>4)continue;
-  const i=yy*40+xx;
+  if(xx<0||xx>=WORLD.columns||yy<0||yy>=WORLD.rows||dx*dx+dy*dy>4)continue;
+  const i=yy*WORLD.columns+xx;
   food+=fish?world.waterweed[i]:world.grass[i];
   grass+=world.grass[i];water+=world.tiles[i]===1?1:0;
  }
