@@ -1970,22 +1970,24 @@ test('large colonies retain cheap glossy sheen without allocating gradients per 
 });
 
 import {speciesNameFromCategory,genomeCode} from './simulation.js';
-test('species naming reflects both functional and inherited appearance genes',()=>{
+test('species names are compact, stable per classification, and visibly related by family',()=>{
  const w=new Ecosystem(9111),base=w.gene();
  const g={...base,jaw:2.5,guard:1,wet:0,dispersal:0,aquatic:0,
   predatorSense:0,eyes:2,deception:0,resist:0,
   tailLength:0,hornLength:0,antennaLength:0,pattern:0};
  const key=w.category(g),expected=speciesNameFromCategory(key,g);
- assert.ok(expected.endsWith('・ホーン'));
- assert.match(expected,/^[^・]+・[^・]+・[^・]+$/);
+ assert.match(expected,/^[ァ-ヶ]{6}$/);
+ assert.equal(speciesNameFromCategory(key,{...g,stamina:1,agility:10}),expected,
+  'a change inside an existing species cannot rename it');
  w.spawn(120,130,g);
  assert.equal(w.species.get(key).name,expected);
- assert.notEqual(w.category({...g,hornLength:0,tailLength:1,antennaLength:1,pattern:1}),key);
+ const changed={...g,hornLength:0,tailLength:1,antennaLength:1,pattern:1};
+ assert.notEqual(w.category(changed),key);
+ assert.notEqual(speciesNameFromCategory(w.category(changed)),expected);
  const water={...g,jaw:.2,guard:0,wet:1,dispersal:1,aquatic:1};
- assert.ok(speciesNameFromCategory(w.category(water),water).endsWith('・テール'));
- assert.notEqual(w.category(water),key);
+ assert.notEqual(speciesNameFromCategory(w.category(water)),expected);
 });
-test('every one of 108864 classifications keeps a unique ecological name code',async()=>{
+test('all 108864 ecological classifications have unique compact four-kana names',async()=>{
  const {speciesEcologyCode}=await import('./simulation.js');
  const habitats=['land','aquatic','dry','rock'];
  const groups=[['plant','mixed','hunter'],['tiny','medium','large','giant'],
@@ -1996,19 +1998,16 @@ test('every one of 108864 classifications keeps a unique ecological name code',a
  const traverse=(parts,index)=>{
   if(index===groups.length){
    const key=parts.join('-'),name=speciesNameFromCategory(key),code=speciesEcologyCode(key);
-   assert.match(name,/^(レッド|イエロー|グリーン|ブルー|パープル|ピンク|ホワイト)/);
-   assert.equal(name, name.replace(/ノーマル$/, ''),'no normal suffix');
-   assert.match(code,/^[ァ-ヶ]{5}$/);
-   assert.ok(!codes.has(code),'duplicate code '+code);
-   assert.ok(/^([^・]+・){1,2}[^・]+$/.test(name),'semantic delimiter '+name);
-   assert.ok(!name.endsWith('・'),'no trailing delimiter');
+   assert.match(name,/^[ァ-ヶ]{4}$/);
+   assert.equal(name,speciesNameFromCategory(key));
    assert.ok(!names.has(name),'duplicate '+name);
-   codes.add(code);names.add(name);return;
+   assert.ok(!codes.has(code),'duplicate old ecological code '+code);
+   names.add(name);codes.add(code);return;
   }
   for(const category of groups[index])traverse([...parts,category],index+1);
  };
  for(const habitat of habitats)traverse([habitat],0);
- assert.equal(codes.size,108864);
+ assert.equal(names.size,108864);
 });
 test('colors and compound ornaments follow inherited ecological fitness (DNA v2)',async()=>{
  const {speciesColorName,speciesFeatureName,pigmentClass,adaptationColor}=await import('./simulation.js');
@@ -3351,14 +3350,11 @@ test('giantism log separates hereditary mass from acquired adult growth and samp
  assert.equal(emptyRow.geneticMassP90,0);
 });
 
-test('new color-code-feature names preserve ecological categories and their unique codes',async()=>{
- const {speciesEcologyCode}=await import('./simulation.js');
+test('close species retain their short family name, while traits distinguish them',()=>{
  const base=['land','plant','tiny','round','few','general','repro0','temperate','green'];
- const key=parts=>parts.join('-');
- const name=parts=>speciesNameFromCategory(key(parts));
+ const key=parts=>parts.join('-'),name=parts=>speciesNameFromCategory(key(parts));
  const original=name(base);
- assert.ok(original.startsWith('グリーン・ソクミ'));
- assert.equal(original,'グリーン・'+speciesEcologyCode(key(base)));
+ assert.match(original,/^[ァ-ヶ]{4}$/);
  const variants=[
   base.slice(0,7).concat('cold','green'),
   base.slice(0,7).concat('hot','green'),
@@ -3369,8 +3365,28 @@ test('new color-code-feature names preserve ecological categories and their uniq
  ];
  for(const variant of variants){
   assert.notEqual(name(variant),original);
-  assert.notEqual(speciesEcologyCode(key(variant)),speciesEcologyCode(key(base)));
+  assert.equal(name(variant)[0],original[0],
+   'same habitat and diet should keep the same family syllable');
  }
+ assert.notEqual(name(['aquatic',...base.slice(1)])[0],original[0]);
+});
+test('short suffix names uniquely encode all visible colors and features',()=>{
+ const base=['land','plant','tiny','round','few','general','repro0','temperate','green'].join('-');
+ const colors=['red','yellow','green','blue','purple','pink','white','red_purple',
+ 'red_yellow','red_green','red_blue','red_pink','yellow_green','yellow_blue',
+ 'yellow_purple','yellow_pink','green_blue','green_purple','green_pink',
+ 'blue_purple','blue_pink','purple_pink'];
+ const features=['normal','horn','tail','antenna','spot','horn_tail',
+ 'horn_antenna','horn_spot','tail_antenna','tail_spot','antenna_spot'];
+ const names=new Set();
+ for(const c of colors)for(const f of features){
+  const name=speciesNameFromCategory(base+'-c_'+c+'-f_'+f);
+  assert.match(name,/^[ァ-ヶ]{6}$/);
+  assert.equal(name.slice(0,4),speciesNameFromCategory(base));
+  assert.ok(!names.has(name),'collision for '+c+' '+f);
+  names.add(name);
+ }
+ assert.equal(names.size,colors.length*features.length);
 });
 test('terrain level paint and terrain effect are independent from four biome identities',async()=>{
  const {terrainLevelFitness,TERRAIN_LEVEL_GROWTH,WATER_LEVEL_GROWTH,TERRAIN_LEVEL_NAMES}=await import('./simulation.js');
