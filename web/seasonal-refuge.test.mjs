@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Ecosystem,microclimateTemperature,terrestrialHydrationDelta,thermalFitness} from './simulation.js';
+import {Ecosystem,WORLD,microclimateTemperature,terrestrialHydrationDelta,thermalFitness} from './simulation.js';
 
 test('deep forest is cooler in summer and warmer in winter',()=>{
  assert.ok(microclimateTemperature(35,0,5,'summer')<microclimateTemperature(35,0,1,'summer'));
@@ -20,7 +20,7 @@ test('terrain levels affect real ecosystem thermal exposure',()=>{
  w.temperature=35;w.climateEnabled=true;w.tick=w.seasonLength;
  const i=w.tiles.findIndex((v,j)=>v===0&&w.terrainLevels[j]===5);
  assert.ok(i>=0,'seed must contain deep forest');
- const x=(i%40)*20+10,y=Math.floor(i/40)*20+10;
+ const x=(i%WORLD.columns)*WORLD.cell+WORLD.cell/2,y=Math.floor(i/WORLD.columns)*WORLD.cell+WORLD.cell/2;
  assert.equal(w.temperatureAt(x,y),microclimateTemperature(35,0,5,'summer'));
  const g={idealTemp:26,tempTolerance:8};
  assert.ok(thermalFitness(g,w.temperatureAt(x,y)).excess<=thermalFitness(g,35).excess);
