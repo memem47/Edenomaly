@@ -9,6 +9,7 @@ on:
       - 'tests/starvation-balance.test.mjs'
       - 'tests/speciation-evolution.test.mjs'
       - 'tests/quick-start.test.mjs'
+      - 'tests/egg-dormancy-regression.test.mjs'
       - 'web/quick-start.js'
       - 'web/app.js'
       - 'web/index.html'
@@ -27,7 +28,7 @@ jobs:
           node-version: '22'
       - name: Regression tests (report even if one fails)
         run: |
-          node --test tests/starvation-balance.test.mjs tests/starvation-diagnostics.test.mjs tests/speciation-evolution.test.mjs tests/quick-start.test.mjs tests/linkage.test.mjs tests/discovery-comparison.test.mjs 2>&1 | tee validation-tests.log
+          node --test tests/starvation-balance.test.mjs tests/starvation-diagnostics.test.mjs tests/speciation-evolution.test.mjs tests/quick-start.test.mjs tests/egg-dormancy-regression.test.mjs tests/linkage.test.mjs tests/discovery-comparison.test.mjs 2>&1 | tee validation-tests.log
       - name: Headless baseline vs current (same seeds)
         run: |
           mkdir -p validation/baseline validation/current
