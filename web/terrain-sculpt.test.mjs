@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {Ecosystem,terrainFitness} from './simulation.js';
+import {Ecosystem,WORLD,terrainFitness} from './simulation.js';
 import {GameSession,INTERVENTIONS,TERRAIN_SCULPT_COST} from './game-mode.js';
-function xy(i){return {x:(i%40+.5)*20,y:(Math.floor(i/40)+.5)*20};}
+function xy(i){return {x:(i%WORLD.columns+.5)*WORLD.cell,y:(Math.floor(i/WORLD.columns)+.5)*WORLD.cell};}
 function tile(w,type){return w.tiles.findIndex(t=>t===type);}
 function unoccupied(w,type){for(let i=0;i<w.tiles.length;i++)if(w.tiles[i]===type&&!w.units.some(u=>w.cell(u.x,u.y)===i))return i;return -1;}
 test('landscape purchase changes only one cell with finite edible resource and no RNG',()=>{
@@ -22,8 +22,8 @@ test('landscape purchase changes only one cell with finite edible resource and n
 test('pond creation must extend existing pond and gives finite water and weeds',()=>{
  const w=new Ecosystem(84);
  const dry=Array.from(w.tiles).findIndex((t,i)=>{
-  if(t===1)return false;const x=i%40,y=Math.floor(i/40);
-  return [x>0?i-1:-1,x<39?i+1:-1,y>0?i-40:-1,y<22?i+40:-1].some(j=>j>=0&&w.tiles[j]===1);
+  if(t===1)return false;const x=i%WORLD.columns,y=Math.floor(i/WORLD.columns);
+  return [x>0?i-1:-1,x<WORLD.columns-1?i+1:-1,y>0?i-WORLD.columns:-1,y<WORLD.rows-1?i+WORLD.columns:-1].some(j=>j>=0&&w.tiles[j]===1);
  });
  assert.ok(dry>=0);
  const {x,y}=xy(dry);
@@ -32,8 +32,8 @@ test('pond creation must extend existing pond and gives finite water and weeds',
  assert.equal(w.waterweed[dry],30);
  assert.equal(w.reshapeTerrainCell(x,y,1),false);
  const isolated=Array.from(w.tiles).findIndex((t,i)=>{
-  if(t===1)return false;const xx=i%40,yy=Math.floor(i/40);
-  return [xx>0?i-1:-1,xx<39?i+1:-1,yy>0?i-40:-1,yy<22?i+40:-1].every(j=>j<0||w.tiles[j]!==1);
+  if(t===1)return false;const xx=i%WORLD.columns,yy=Math.floor(i/WORLD.columns);
+  return [xx>0?i-1:-1,xx<WORLD.columns-1?i+1:-1,yy>0?i-WORLD.columns:-1,yy<WORLD.rows-1?i+WORLD.columns:-1].every(j=>j<0||w.tiles[j]!==1);
  });
  assert.ok(isolated>=0);const p=xy(isolated);
  assert.equal(w.reshapeTerrainCell(p.x,p.y,1),false);
