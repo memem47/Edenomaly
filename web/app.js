@@ -6,7 +6,7 @@ import {BASIC_STAT_GROUPS,basicStatScore} from './basic-stat-score.js';
 import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.27.3';
 import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.27.3';
 import {defaultGameStartSite,randomGameFounder,freshGameSeed} from './quick-start.js?v=2026.11.27.3';
-import {mountGameUI} from './game-ui.js?v=2026.11.14.2';
+import {mountGameUI} from './game-ui.js?v=2026.11.27.3';
 import {placementAssessment,populationDiagnosis} from './survival-guidance.js?v=2026.11.27.3';
 import {fitView,screenToWorld,zoomAround,panBy,MAX_ZOOM,ZOOM_STEP} from './viewport.js?v=2026.11.08.12';
 import {drawWorld,drawChart} from './renderer.js?v=2026.11.27.3';
