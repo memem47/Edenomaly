@@ -1,26 +1,27 @@
 import {zipFiles} from './zip-log.js?v=2026.11.07.4';
-import {mountFounderScreens} from './founder-screens.js?v=2026.11.27.3';
-import {mountDashboardTabs} from './dashboard-tabs.js?v=2026.11.27.3';
-import {abilityListHTML} from './ability-bars.js?v=2026.11.27.3';
+import {mountFounderScreens} from './founder-screens.js?v=2026.11.27.4';
+import {mountDashboardTabs} from './dashboard-tabs.js?v=2026.11.27.4';
+import {abilityListHTML} from './ability-bars.js?v=2026.11.27.4';
 import {BASIC_STAT_GROUPS,basicStatScore} from './basic-stat-score.js';
-import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.27.3';
-import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.27.3';
-import {defaultGameStartSite,randomGameFounder,freshGameSeed} from './quick-start.js?v=2026.11.27.3';
-import {mountGameUI} from './game-ui.js?v=2026.11.27.3';
-import {placementAssessment,populationDiagnosis} from './survival-guidance.js?v=2026.11.27.3';
+import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.27.4';
+import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.27.4';
+import {defaultGameStartSite,randomGameFounder,freshGameSeed} from './quick-start.js?v=2026.11.27.4';
+import {mountGameUI} from './game-ui.js?v=2026.11.27.4';
+import {placementAssessment,populationDiagnosis} from './survival-guidance.js?v=2026.11.27.4';
 import {fitView,screenToWorld,zoomAround,panBy,MAX_ZOOM,ZOOM_STEP} from './viewport.js?v=2026.11.08.12';
-import {drawWorld,drawChart} from './renderer.js?v=2026.11.27.3';
+import {drawWorld,drawChart} from './renderer.js?v=2026.11.27.4';
 import {EcologyLogbook,observeEcology,ECOLOGY_LOG_FIELDS} from './ecology-log.js?v=2026.11.14.2';
 import {gameRunReport,saveGameRunReport,readGameRunHistory} from './game-run-log.js?v=2026.11.14.2';
 import {SpeciesLogbook,speciesReport,csvCell} from './species-statistics.js';
-import {evolutionGraph,evolutionSVG} from './evolution-tree.js?v=2026.11.27.3';
-import {drawFounderAppearance} from './founder-preview.js?v=2026.11.27.3';
+import {evolutionGraph,evolutionSVG} from './evolution-tree.js?v=2026.11.27.4';
+import {drawFounderAppearance} from './founder-preview.js?v=2026.11.27.4';
 import {performancePolicy,simulationBatch,BROWSER_BACKGROUND_INTERVAL} from './performance-policy.js?v=video-friendly-1';
+import {dormancySpeedMultiplier} from './dormancy-speed.js?v=2026.11.27.4';
 const $=id=>document.getElementById(id);
 const dashboard=mountDashboardTabs(document);
 // Release label is bundled with the running source; comparison uses a
 // separately published manifest from the repository's main branch.
-const BUILD_VERSION='2026.11.27.3';
+const BUILD_VERSION='2026.11.27.4';
 const VERSION_SOURCE='https://raw.githubusercontent.com/memem47/Edenomaly/main/web/version.json';
 $('buildVersion').textContent=BUILD_VERSION;
 async function checkLatestVersion(){
@@ -439,6 +440,7 @@ function reset(){
  // still use an explicit seed through Ecosystem(seed) in the headless CLI.
  game.initialSeed=freshGameSeed();
  game.reset();session.reset();gameUI.reset();screens.clear();knownSpecies.clear();rewardRecorded=false;
+ updateDormancySpeedStatus();
  $('startGameConfirm').disabled=true;
  $('terrainEditStatus').textContent='ゲームモードでは土地を1マスずつ改変できます。開始後に地形を選んでください。';
  currentGameRunId=null;lastGameReport=null;lastGameExportOk=null;lastReproductionSample=null;selected=null;selectedSpecies=null;running=false;mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));syncSliders();update();render();}
@@ -446,11 +448,17 @@ function updateTerrainLevelLabel(){
  $('terrainLevelName').textContent=TERRAIN_LEVEL_NAMES[Number(mode)]?.[terrainLevel-1]??'レベル '+terrainLevel;
 }
 function syncSliders(){$('waterweedGrowth').value=game.waterweedGrowth;$('waterweedGrowthValue').value=game.waterweedGrowth;$('growth').value=game.growth;$('growthValue').value=game.growth;$('stress').value=game.stress;$('stressValue').value=game.stress;$('rainfall').value=game.rainfall;$('rainfallValue').value=game.rainfall;$('temperature').value=game.baseTemperature;$('temperatureValue').value=game.baseTemperature+'℃';$('climateEnabled').checked=game.climateEnabled;}
+function updateDormancySpeedStatus(){
+ const active=running&&game.introducedCount>0&&dormancySpeedMultiplier(game.units)===2;
+ const status=$('dormancySpeedStatus');
+ status.hidden=!active;
+ status.textContent=active?'💤 全個体が休眠中のため自動早送り ×2':'';
+}
 // The foreground animation is display-rate limited. Simulation ticks have
 // their own budget, so the renderer cannot monopolize the video decoder/GPU.
 function stepSimulation(){
  if(playMode==='game'&&session.finished)return;
- game.step();observeGame();gameUI.step();
+ game.step();observeGame();gameUI.step();updateDormancySpeedStatus();
  if(game.tick%50===0)recordStep();
  const unseen=[];
  for(const [category,species] of game.species){
@@ -468,9 +476,15 @@ function frame(time){
  game.visualTick=(game.visualTick??0)+dt*.03;
  const policy=performancePolicy(game.units.length,$('lowImpactMode').checked);
  if(running){
-  const batch=simulationBatch(acc,dt,policy,speed);
+  const batch=simulationBatch(acc,dt,policy,speed*dormancySpeedMultiplier(game.units));
   acc=batch.carry;
-  for(let i=0;i<batch.steps&&running;i++)stepSimulation();
+  for(let i=0;i<batch.steps&&running;i++){
+   // A new awake offspring or a waking hibernator ends fast-forward at once.
+   // Never execute additional accelerated ticks after this transition.
+   const wasFast=dormancySpeedMultiplier(game.units)===2;
+   stepSimulation();
+   if(wasFast&&dormancySpeedMultiplier(game.units)!==2){acc=0;break;}
+  }
  }
  if(time-paintAt>=policy.paintInterval){
   const displayElapsed=paintAt?Math.min(100,time-paintAt):dt;
@@ -488,7 +502,14 @@ function frame(time){
 function backgroundStep(){
  backgroundTimer=null;
  if(!document.hidden)return;
- if(running)stepSimulation();
+ if(running){
+  const steps=dormancySpeedMultiplier(game.units);
+  for(let i=0;i<steps&&running;i++){
+   const wasFast=dormancySpeedMultiplier(game.units)===2;
+   stepSimulation();
+   if(wasFast&&dormancySpeedMultiplier(game.units)!==2)break;
+  }
+ }
  backgroundTimer=setTimeout(backgroundStep,BROWSER_BACKGROUND_INTERVAL);
 }
 function syncVisibility(){
@@ -668,7 +689,7 @@ $('catalog').addEventListener('click',e=>{
  const details=$('catalog').querySelector('.species-expanded');
  if(details)details.scrollIntoView({block:'nearest'});
 });
-$('play').onclick=()=>{if(playMode==='game'&&session.finished)return;if(screens.isOpen())return;if(game.introducedCount===0){mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));if(!screens.hasPrepared())screens.showEditor();return;}running=!running;update();};$('stepOnce').onclick=()=>{if(game.introducedCount===0)return;running=false;stepSimulation();update();render();};$('speed').onclick=()=>{speed=speed===1?3:speed===3?8:1;$('speed').textContent='速度 ×'+speed;};$('reset').onclick=()=>reset();
+$('play').onclick=()=>{if(playMode==='game'&&session.finished)return;if(screens.isOpen())return;if(game.introducedCount===0){mode='spawn';document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));if(!screens.hasPrepared())screens.showEditor();return;}running=!running;updateDormancySpeedStatus();update();};$('stepOnce').onclick=()=>{if(game.introducedCount===0)return;running=false;stepSimulation();update();render();};$('speed').onclick=()=>{speed=speed===1?3:speed===3?8:1;$('speed').textContent='速度 ×'+speed;};$('reset').onclick=()=>reset();
 $('ecologyRun').onchange=e=>{selectedLogRun=Number(e.target.value);update();};
 function exportAllLogs(auto=false){
  // Store both historical time-series and a complete current-state snapshot.
