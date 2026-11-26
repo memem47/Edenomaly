@@ -4,7 +4,7 @@ import {Ecosystem,GENETIC_LOCUS_LIMITS,phenotypeTraits,phenotypeSignature,distin
 import {FOUNDER_FIELDS,editFounderGenome} from './founder-designer.js';
 import {drawOrnamentsBehind,drawOrnamentsFront,drawAbilityDetails} from './slime-ornaments.js';
 
-test('each one of 37 genes changes appearance and an identifying name token (DNA v2)',async()=>{
+test('DNA variation changes phenotype signature, but naming tracks only species classification',async()=>{
  const w=new Ecosystem(2026112304),base=w.gene();
  assert.equal(FOUNDER_FIELDS.length,27);
  for(const [key,,lo,hi] of FOUNDER_FIELDS){
@@ -12,8 +12,9 @@ test('each one of 37 genes changes appearance and an identifying name token (DNA
   const b=editFounderGenome(base,{[key]:hi});
   assert.notEqual(a.dna[key],b.dna[key],key);
   assert.notEqual(phenotypeSignature(a),phenotypeSignature(b),key);
-  assert.notEqual(speciesNameFromCategory(w.category(a),a),
-   speciesNameFromCategory(w.category(b),b),key);
+  const nameA=speciesNameFromCategory(w.category(a),a),nameB=speciesNameFromCategory(w.category(b),b);
+  assert.equal(nameA===nameB,w.category(a)===w.category(b),key);
+  assert.equal(speciesNameFromCategory(w.category(a),b),nameA,key);
  }
 });
 test('fertility and stamina drive recognizable egg and armor features (DNA v2)',async()=>{
