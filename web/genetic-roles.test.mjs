@@ -34,7 +34,7 @@ test('agility and sprint raise pursuit and escape movement but not passive speed
  assert.equal(pursuitEscapeSpeedFactor(sprint,true,40),pursuitEscapeSpeedFactor(fast,true));
 });
 test('stamina changes size elongation mouths but not pattern or inner glow',()=>{
- const w=new Ecosystem(20261123223),g=w.gene();
+ const w=new Ecosystem(20261123223),g=editFounderGenome(w.gene(),{diet:.5,fertility:5});
  const low=editFounderGenome(g,{stamina:1});
  const high=editFounderGenome(g,{stamina:10});
  assert.ok(high.r>low.r);
