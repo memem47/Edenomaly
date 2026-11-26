@@ -1,5 +1,5 @@
 import {WORLD,TERRAIN_COLORS,dietProfile,vitality,adaptationColor,lifeStageScale,bodySizeMultiplier} from './simulation.js?v=2026.11.21.3';
-import {drawEnhancedTerrain} from './terrain-visuals.js?v=2026.11.09.6';
+import {drawEnhancedTerrain} from './terrain-visuals.js?v=2026.11.27.5';
 import {drawJellyBody} from './jelly-visuals.js?v=2026.11.21.3';
 import {drawOrnamentsBehind,drawOrnamentsFront,drawAbilityDetails} from './slime-ornaments.js?v=2026.11.24.1';
 const TAU=Math.PI*2;
