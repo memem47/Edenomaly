@@ -9,7 +9,7 @@ test('founder species name matches the species generated at introduction',()=>{
  const g=editFounderGenome(initial,{aquatic:0,diet:.25,rock:.85,guard:.8});
  const beforeRng=w.rng,beforeUnits=w.units.length;
  const name=w.name(w.category(g),g);
- assert.match(name,/^[^・]+・[^・]+(?:・[^・]+)?$/);
+ assert.match(name,/^[ァ-ヶ]{6}$/);
  assert.equal(w.rng,beforeRng,'preview must not consume random draws');
  assert.equal(w.units.length,beforeUnits,'preview must not introduce life');
  const site={x:200,y:130};
