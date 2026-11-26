@@ -1,7 +1,7 @@
 // Run with: node --test web/simulation.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Ecosystem,TERRAIN_COLORS,coverFactor,morphology,organismMorphology,bodyCollisionAxes,localDensity,crowdStress,acquiredSizeMaintenance,feedingCapacity,energyStorageLimit,MAX_NUTRITION_GROWTH,adaptationColor,eggPredationDrive,protectiveDrive,habitatCrowding} from './simulation.js';
+import {Ecosystem,WORLD,TERRAIN_COLORS,coverFactor,morphology,organismMorphology,bodyCollisionAxes,localDensity,crowdStress,acquiredSizeMaintenance,feedingCapacity,energyStorageLimit,MAX_NUTRITION_GROWTH,adaptationColor,eggPredationDrive,protectiveDrive,habitatCrowding} from './simulation.js';
 import {slimeEyeAngles,slimeEyeColor,slimeEyeLocation,organismVisualState,drawWorld} from './renderer.js';
 const populated=seed=>{const s=new Ecosystem(seed);s.introduce(160,135,3);if(s.units.length>1){s.units[0].sex='F';s.units[1].sex='M';}s.temperatureAt=()=>22;for(const u of s.units){u.g.idealTemp=22;u.g.tempTolerance=12;}return s;};
 test('same seed creates same initial ecosystem',()=>{const a=populated(42),b=populated(42);assert.deepEqual(a.tiles,b.tiles);assert.deepEqual(a.units,b.units);});
@@ -944,7 +944,7 @@ test('separation respects impassable water tiles for terrestrial slimes',()=>{
  for(let y=0;y<460;y+=20)for(let x=220;x<800;x+=20)w.tiles[w.cell(x,y)]=1;
  for(let i=0;i<12;i++)w.resolveUnitOverlap();
  assert.ok([a,b].every(u=>w.terrain(u.x,u.y)!==1));
- assert.ok([a,b].every(u=>u.x>=7&&u.x<=793&&u.y>=7&&u.y<=453));
+ assert.ok([a,b].every(u=>u.x>=7&&u.x<=WORLD.width-7&&u.y>=7&&u.y<=WORLD.height-7));
 });
 
 test('aquatic and terrestrial adaptations can evolve in both directions',()=>{
@@ -967,9 +967,9 @@ test('aquatic and terrestrial adaptations can evolve in both directions',()=>{
 test('locally dispersed habitat-switch eggs land on a viable shore without remote teleporting',()=>{
  const w=new Ecosystem(2203);
  w.tiles.fill(0);w.water.fill(0);
- const cx=w.cell(300,200),row=Math.floor(cx/40);
+ const cx=w.cell(300,200),row=Math.floor(cx/WORLD.columns);
  for(let y=row-1;y<=row+1;y++)for(let x=16;x<=20;x++){
-  const id=y*40+x;w.tiles[id]=1;w.water[id]=100;
+  const id=y*WORLD.columns+x;w.tiles[id]=1;w.water[id]=100;
  }
  const land=w.shoreEggSite(330,210,{aquatic:0});
  const water=w.shoreEggSite(310,210,{aquatic:1});
@@ -1749,7 +1749,7 @@ test('blocked shoreline pursuit makes a detour, then abandons unreachable destin
  const w=new Ecosystem(4302);w.tiles.fill(0);w.water.fill(0);
  // A water barrier divides the map, so a terrestrial creature cannot
  // cross to its target. No repeated instantaneous 130-degree spin.
- for(let y=0;y<23;y++)w.tiles[y*40+10]=1;
+ for(let y=0;y<WORLD.rows;y++)w.tiles[y*WORLD.columns+10]=1;
  const u=w.spawn(189,221,w.gene());u.g.aquatic=0;u.angle=0;
  const target={x:280,y:221};
  let detours=0,abandoned=false;
@@ -1778,14 +1778,14 @@ test('open terrain progress does not trigger unreachable-goal cooldown',()=>{
 });
 test('a world-edge goal does not keep the creature rotating without movement',()=>{
  const w=new Ecosystem(4304);w.tiles.fill(0);
- const u=w.spawn(793,220,w.gene());u.angle=0;
- const initialY=u.y,goal={x:900,y:220};
+ const u=w.spawn(WORLD.width-7,220,w.gene());u.angle=0;
+ const initialY=u.y,goal={x:WORLD.width+100,y:220};
  let shifted=false;
  for(let step=1;step<=60;step++){
   w.tick=step;
   w.navigate(u,goal,Math.atan2(goal.y-u.y,goal.x-u.x),1,.29,8);
   if(Math.abs(u.y-initialY)>5)shifted=true;
-  assert.ok(u.x<=793&&u.x>=7);
+  assert.ok(u.x<=WORLD.width-7&&u.x>=7);
  }
  assert.ok(shifted);
 });
@@ -2474,7 +2474,7 @@ test('permanent natural ponds survive prolonged drought and drinking',()=>{
   assert.ok(w.water[i]>=POND_RESERVE);
   assert.equal(w.waterbed[i],1);
  }
- const i=ids[0],x=(i%40+.5)*20,y=(Math.floor(i/40)+.5)*20;
+ const i=ids[0],x=(i%WORLD.columns+.5)*20,y=(Math.floor(i/WORLD.columns)+.5)*20;
  assert.equal(w.consumeWater(x,y,10000),0);
  assert.equal(w.tiles[i],1);
  w.paint(x,y,3,0);
@@ -2508,9 +2508,9 @@ test('high inherited temperature tolerance reduces thermal injury with an upkeep
 
 test('aquatic founder remains inside permanent pond during wandering and shoreline pursuit',()=>{
  const w=new Ecosystem(20261107);
- const index=[...w.tiles].findIndex((t,i)=>t===1&&i%40>0&&w.tiles[i-1]!==1);
+ const index=[...w.tiles].findIndex((t,i)=>t===1&&i%WORLD.columns>0&&w.tiles[i-1]!==1);
  assert.ok(index>=0,'shore tile exists');
- const x=(index%40+.5)*20,y=(Math.floor(index/40)+.5)*20;
+ const x=(index%WORLD.columns+.5)*20,y=(Math.floor(index/WORLD.columns)+.5)*20;
  const g=w.adaptFounderToTerrain(w.gene(),1),u=w.spawn(x,y,g);
  assert.ok(u);assert.equal(u.g.aquatic,1);
  for(let i=0;i<180;i++){
@@ -2526,7 +2526,7 @@ test('rock refuge conceals prey and eggs without guaranteeing immunity',()=>{
 });
 test('terrestrial carnivores cannot eat submerged eggs, aquatic carnivores can',()=>{
  const w=new Ecosystem(20261108);
- const i=[...w.tiles].findIndex(t=>t===1),x=(i%40+.5)*20,y=(Math.floor(i/40)+.5)*20;
+ const i=[...w.tiles].findIndex(t=>t===1),x=(i%WORLD.columns+.5)*20,y=(Math.floor(i/WORLD.columns)+.5)*20;
  const g=w.gene(),land=w.spawn(x+180,y,{...g,aquatic:0,diet:1}),
   swimmer=w.spawn(x,y,{...g,aquatic:1,diet:1});
  const egg={id:9999,x,y,g:{...g,aquatic:0,shell:.5},energy:25,dead:false};
@@ -3271,7 +3271,7 @@ test('severe starvation and dehydration eventually kill, without death from age'
 
 test('game mode seeds submerged waterweed and records actual births after intervention',()=>{
  const w=new Ecosystem(2026110865),water=[...w.tiles].findIndex(t=>t===1);
- const x=(water%40+.5)*20,y=(Math.floor(water/40)+.5)*20;
+ const x=(water%WORLD.columns+.5)*20,y=(Math.floor(water/WORLD.columns)+.5)*20;
  const run=new GameSession(w);
  assert.equal(run.start(x,y),true);
  w.waterweed[water]=0;
@@ -3430,10 +3430,10 @@ test('generated terrain includes each of five levels from edge to core and is re
   assert.equal(Math.max(...levels),5,'no level-five core for '+biome);
  }
  // Any level-five tile must be away from a directly adjacent different biome.
- const columns=40;
+ const columns=WORLD.columns;
  for(let i=0;i<w.tiles.length;i++)if(w.terrainLevels[i]===5){
   const x=i%columns,y=Math.floor(i/columns);
-  const adj=[x>0?i-1:-1,x<columns-1?i+1:-1,y>0?i-columns:-1,y<22?i+columns:-1].filter(j=>j>=0);
+  const adj=[x>0?i-1:-1,x<columns-1?i+1:-1,y>0?i-columns:-1,y<WORLD.rows-1?i+columns:-1].filter(j=>j>=0);
   assert.ok(adj.every(j=>w.tiles[j]===w.tiles[i]),'level-five tile at border '+i);
  }
 });
