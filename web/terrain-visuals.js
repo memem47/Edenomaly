@@ -1,6 +1,7 @@
 // Optional visual-only overlay. Classic renderer remains unchanged.
 // Terrain detail is deterministic, does not consume ecology RNG, and avoids
 // expensive per-cell gradients or offscreen canvases.
+import {WORLD} from './simulation.js';
 const TAU=Math.PI*2;
 const hash=(x,y,k=0)=>{
  let n=Math.imul(x+31,374761393)^Math.imul(y+97,668265263)^Math.imul(k+17,2246822519);
@@ -13,7 +14,7 @@ const polygon=(ctx,coords)=>{
  ctx.closePath();ctx.fill();
 };
 export function drawEnhancedTerrain(ctx,s,season){
- const {cell,columns,rows}= {cell:20,columns:40,rows:23};
+ const {cell,columns,rows}=WORLD;
  for(let y=0;y<rows;y++)for(let x=0;x<columns;x++){
   const i=y*columns+x,t=s.tiles[i],lev=s.terrainLevels?.[i]??3;
   const px=x*cell,py=y*cell;
