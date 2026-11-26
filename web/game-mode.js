@@ -52,7 +52,7 @@ export class GameSession{
   for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){
    if(dx*dx+dy*dy>4)continue;
    const tx=cx+dx,ty=cy+dy;if(tx<0||tx>=WORLD.columns||ty<0||ty>=WORLD.rows)continue;
-   const id=ty*40+tx;biomass+=w.grass[id]+w.waterweed[id];
+   const id=ty*WORLD.columns+tx;biomass+=w.grass[id]+w.waterweed[id];
   }
   return biomass;
  }
