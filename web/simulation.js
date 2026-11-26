@@ -2,7 +2,7 @@
 import {appendSpeciesBirth,birthDerived} from './species-statistics.js';
 import {DNA_KEYS,DNA_LIMITS,canonicalDNA,legacyToDNA,expressDNA,expressAllelePair} from './genome-model.js';
 import {linkedOffspring} from './linkage-model.js';
-const W=800,H=460,CELL=20,NX=40,NY=23;
+const W=1200,H=700,CELL=20,NX=60,NY=35;
 export const TERRAIN_NAMES=['草地','水辺','乾燥地','岩場'];
 export const TERRAIN_COLORS=['#54c74c','#279cfa','#edb85c','#8980bf'];
 // Relative nutrient input: grass > wetland > dryland > rock.
@@ -1587,8 +1587,10 @@ export class Ecosystem{
  }
  setupTerrain(){
   this.tiles=new Uint8Array(NX*NY);
-  // Preserve the established map, including its seeded shoreline irregularity.
-  const hubs=[{x:10,y:9,t:1,r:6},{x:33,y:18,t:1,r:5},{x:30,y:5,t:2,r:9},{x:7,y:20,t:2,r:5},{x:21,y:17,t:3,r:4},{x:38,y:9,t:3,r:4}];
+  // Expand the original 40×23 biome layout to 60×35, adding lakes and distinct habitats.
+  const hubs=[{x:10,y:9,t:1,r:6},{x:33,y:18,t:1,r:5},{x:30,y:5,t:2,r:9},{x:7,y:20,t:2,r:5},{x:21,y:17,t:3,r:4},{x:38,y:9,t:3,r:4},
+   {x:51,y:10,t:1,r:7},{x:49,y:29,t:1,r:5},{x:18,y:29,t:1,r:5},
+   {x:56,y:23,t:2,r:8},{x:33,y:31,t:2,r:7},{x:48,y:17,t:3,r:5}];
   for(let y=0;y<NY;y++)for(let x=0;x<NX;x++){
    let t=0;for(const h of hubs)if(Math.hypot(x-h.x,y-h.y)+this.range(-1.4,1.4)<h.r)t=h.t;this.tiles[y*NX+x]=t;
   }
