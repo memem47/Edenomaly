@@ -875,9 +875,8 @@ test('old corpses visibly retain nutrients without becoming dark stains',()=>{
  assert.equal(w.corpses.length,1);
 });
 
-test('color traits derive from wet dry rock adaptation, with no independent genes',()=>{
- const world=new Ecosystem(2001);
- const grass={...world.gene(),wet:0,dry:0,rock:0};
+test('legacy genomes retain wet dry rock pigments without independent color genes',()=>{
+ const grass={wet:0,dry:0,rock:0,albino:0};
  const water={...grass,wet:1,dry:0,rock:0};
  const desert={...grass,wet:0,dry:1,rock:0};
  const stone={...grass,wet:0,dry:0,rock:1};
