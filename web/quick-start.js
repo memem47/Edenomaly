@@ -1,35 +1,51 @@
-// Every new game needs a fresh seed. The simulation itself stays deterministic
-// for reproducible logs/headless testing when a specific seed is supplied.
+import {WORLD,morphology,thermalFitness} from './simulation.js';
+// Every new game gets a different seed; explicit seeds still reproduce headless runs.
 export function freshGameSeed(random=Math.random){
  const value=Number(random());
  if(!Number.isFinite(value)||value<0||value>=1)throw new RangeError('random source must return [0,1)');
  return 1+Math.floor(value*2147483646);
 }
-// Pick a random viable location for one-click starts. No genome edits,
-// resource creation or invisible interventions. The ordinary GameSession.start() still
-// generates and introduces exactly one founder species (8 individuals).
 export function defaultGameStartSite(world){
- const nx=40,ny=23;
- const sites=[];let best={x:170,y:130},bestScore=-Infinity;
+ const {columns:nx,rows:ny,cell}=WORLD;
+ const byTerrain=[[],[],[],[]];
+ // Don't restrict the game to one grassland niche. Select a seeded random
+ // biome first, then choose a locally viable location inside that biome.
  for(let cy=3;cy<ny-3;cy++)for(let cx=3;cx<nx-3;cx++){
-  const idx=cy*nx+cx;
-  if(world.tiles[idx]!==0)continue; // Standard founder is land-based.
-  const x=(cx+.5)*20,y=(cy+.5)*20;
-  let grass=0,water=0;
+  const idx=cy*nx+cx,terrain=world.tiles[idx];
+  const x=(cx+.5)*cell,y=(cy+.5)*cell;
+  let food=0,water=0;
   for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){
    if(dx*dx+dy*dy>4)continue;
    const i=(cy+dy)*nx+cx+dx;
    if(world.tiles[i]===1)water++;
-   else grass+=Math.max(0,world.grass[i]||0);
+   food+=terrain===1?world.waterweed[i]:world.grass[i];
   }
-  // Nearby water and food matter; mild center preference avoids remote corners.
-  const score=Math.min(650,grass)/35+Math.min(water,3)*5-
-   Math.hypot(x-400,y-230)/90;
-  if(score>bestScore){bestScore=score;best={x,y};}
-  sites.push({x,y,score});
+  const score=Math.min(650,food)/35+(terrain===1?0:Math.min(water,3)*5)-
+   Math.hypot(x-WORLD.width/2,y-WORLD.height/2)/Math.max(90,WORLD.width/8);
+  byTerrain[terrain].push({x,y,score,terrain});
  }
- // Draw from the best quarter: genuinely random, yet avoids severe food deserts.
- const threshold=bestScore-5;
- const viable=sites.filter(site=>site.score>=threshold);
- return viable.length?viable[Math.floor(world.rand()*viable.length)]:best;
+ // Different ecological origins produce visibly different founders, while
+ // water, desert and rock are less frequent than temperate grassland.
+ const roll=world.rand(),requested=roll<.57?0:roll<.83?1:roll<.94?2:3;
+ const sites=byTerrain[requested].length?byTerrain[requested]:byTerrain[0];
+ let best=-Infinity;
+ for(const s of sites)best=Math.max(best,s.score);
+ const viable=sites.filter(s=>s.score>=best-5);
+ const chosen=viable[Math.floor(world.rand()*viable.length)];
+ return chosen??{x:WORLD.width/2,y:WORLD.height/2,terrain:0};
+}
+export function randomGameFounder(world,site){
+ const terrain=world.terrain(site.x,site.y);
+ const candidates=[];
+ for(let i=0;i<48;i++){
+  const g=world.adaptFounderToTerrain(world.gene(),terrain);
+  if(g.diet>.68||g.eyes<2||morphology(g).bodyMass>125||
+    !thermalFitness(g,world.temperatureAt(site.x,site.y)).reproduction)continue;
+  candidates.push(g);
+ }
+ // Prefer a diverse viable phenotype, rather than always choosing the
+ // first acceptable low-diet, medium-small grassland founder.
+ if(candidates.length)return candidates[Math.floor(world.rand()*candidates.length)];
+ const fallback=world.gene();
+ return world.adaptFounderToTerrain(fallback,terrain);
 }
