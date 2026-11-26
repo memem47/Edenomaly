@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Ecosystem} from '../web/simulation.js';
 import {GameSession} from '../web/game-mode.js';
-import {defaultGameStartSite} from '../web/quick-start.js';
+import {defaultGameStartSite,freshGameSeed} from '../web/quick-start.js';
 
 test('random quick start chooses viable land and starts exactly one founder species',()=>{
  const world=new Ecosystem(1943);
@@ -24,4 +24,17 @@ test('quick start location varies with random seed yet stays on land',()=>{
   locations.add(p.x+','+p.y);
  }
  assert.ok(locations.size>1,'random game start should not always pick the same map cell');
+});
+
+test('fresh game seed differs across resets and is usable for reproducible worlds',()=>{
+ const a=freshGameSeed(()=>.125),b=freshGameSeed(()=>.875);
+ assert.notEqual(a,b);
+ assert.ok(a>=1&&b<=2147483646);
+ const world=new Ecosystem(a);
+ const first=world.gene().dna;
+ world.initialSeed=b;world.reset();
+ const second=world.gene().dna;
+ assert.notDeepEqual(first,second);
+ const replay=new Ecosystem(a);
+ assert.deepEqual(first,replay.gene().dna);
 });
