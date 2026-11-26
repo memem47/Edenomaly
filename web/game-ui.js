@@ -2,7 +2,7 @@
 // and camera movement through the public callbacks.
 import {GAME_UPGRADES,buyGameUpgrade,hasUpgrade} from './game-mode.js?v=2026.11.27.3';
 import {WORLD} from './simulation.js';
-import {ObservationTracker,cameraSummary,centerOn,gameOverSummary} from './game-experience.js?v=2026.11.14.2';
+import {ObservationTracker,cameraSummary,centerOn,gameOverSummary} from './game-experience.js?v=2026.11.27.3';
 const $=id=>document.getElementById(id);
 export function mountGameUI({game,session,getMeta,setMeta,getView,setView,
  refresh,render,resetGame,getPlayMode,width=WORLD.width,height=WORLD.height}){
