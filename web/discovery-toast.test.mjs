@@ -46,7 +46,7 @@ test('game UI exposes a persistent detailed/quick setting and quick mode never p
  assert.ok(html.includes('value="detailed"'));
  assert.ok(html.includes('value="quick"'));
  assert.ok(app.includes('edenomaly.discoveryDisplayMode'));
- assert.ok(app.includes('if(unseen.length&&screens.announce(unseen)){running=false;acc=0;}'));
+ assert.ok(app.includes('if(unseen.length&&screens.announce(unseen)){running=false;acc=0;updateDormancySpeedStatus();}'));
  assert.ok(screen.includes("if(getDiscoveryMode()==='quick')"));
  assert.ok(screen.includes('quickQueue.push(categories)'));
  assert.ok(screen.includes('return false; // Never stop game time'));
