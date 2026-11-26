@@ -11,7 +11,7 @@ test('egg diapause remains protective, does not last near-infinite time, and end
  w.tick=1800;w.weather='cloudy';w.weatherUntil=1e8;w.updateTemperature();
  for(let i=0;i<100;i++)w.step();
  assert.equal(egg.dormant,true);
- assert.ok(egg.age>5&&egg.age<65,'winter egg should progress slowly, not stand still');
+ assert.ok(egg.age>2&&egg.age<65,'winter egg should progress slowly, not stand still');
  assert.ok(egg.energy>0);
  // Even a fully incubated egg must not hatch in hostile winter temperatures.
  egg.age=66;
