@@ -43,7 +43,7 @@ test('browser pauses on discovery and has a confirmation/resume dialog',async()=
  const app=await readFile(new URL('./app.js',import.meta.url),'utf8');
  const ui=await readFile(new URL('./founder-screens.js',import.meta.url),'utf8');
  const html=await readFile(new URL('./index.html',import.meta.url),'utf8');
- assert.ok(app.includes('if(unseen.length&&screens.announce(unseen)){running=false;acc=0;}'));
+ assert.ok(app.includes('if(unseen.length&&screens.announce(unseen)){running=false;acc=0;updateDormancySpeedStatus();}'));
  assert.ok(app.includes('batch.steps&&running'));
  assert.ok(app.includes('knownSpecies.add(key)'));
  assert.ok(app.includes('screens.announce(unseen)'));
