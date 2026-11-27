@@ -9,7 +9,7 @@ const shapeKeys=['r','elongation','eyes','mouths','jaw'];
 test('full genetic editor exactly matches the heritable genome registry (DNA v2)',async()=>{
  const {DNA_KEYS,DNA_LIMITS}=await import('./genome-model.js');
  const keys=FOUNDER_FIELDS.map(([key])=>key);
- assert.equal(keys.length,27);
+ assert.equal(keys.length,29);
  assert.deepEqual([...keys].sort(),[...DNA_KEYS].sort());
  assert.deepEqual([...keys].sort(),Object.keys(FOUNDER_TRAIT_HELP).sort());
  for(const [key,,lo,hi] of FOUNDER_FIELDS)assert.deepEqual(DNA_LIMITS[key],[lo,hi],key);
@@ -43,8 +43,8 @@ test('directly edited morphology overrides the computed body and survives descen
  const child=w.recombine(a,a);w.rand=originalRandom;
  const mutated=w.mutate(a);
  assert.equal(child.genomeModel,2);assert.equal(mutated.genomeModel,2);
- assert.equal(Object.keys(child.alleles).length,27);
- assert.equal(Object.keys(mutated.alleles).length,27);
+ assert.equal(Object.keys(child.alleles).length,29);
+ assert.equal(Object.keys(mutated.alleles).length,29);
  assert.deepEqual(child.dna,a.dna);
 });
 
