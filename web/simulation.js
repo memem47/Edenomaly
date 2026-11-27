@@ -1484,7 +1484,7 @@ export class Ecosystem{
       this.eggs.some(e=>!e.dead&&this.cell(e.x,e.y)===i))continue;
    // Need surface connection to a pond or wetland; no water from dry air.
    const adj=[i-1,i+1,i-NX,i+NX];
-   if(!adj.some(j=>this.tiles[j]===1||this.tiles[j]===4))continue;
+   if(t!==4&&!adj.some(j=>this.tiles[j]===1||this.tiles[j]===4))continue;
    best=i;break;
   }
   if(best<0)return false;
