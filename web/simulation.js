@@ -1568,7 +1568,7 @@ export class Ecosystem{
  }
  consumeGrass(x,y,amount){
   const i=this.cell(x,y);
-  if(this.tiles[i]!==0&&this.tiles[i]!==2&&this.tiles[i]!==3)return 0;
+  if(this.tiles[i]!==0&&this.tiles[i]!==2&&this.tiles[i]!==3&&this.tiles[i]!==4&&this.tiles[i]!==5)return 0;
   const taken=Math.min(this.grass[i],amount);
   this.grass[i]-=taken;
   if(taken>0)this.grazingPressure[i]+=taken/6;
@@ -1639,7 +1639,7 @@ export class Ecosystem{
   const cx=Math.floor(x/CELL),cy=Math.floor(y/CELL),reach=Math.ceil(radius/CELL)+1;
   for(let yy=Math.max(0,cy-reach);yy<=Math.min(NY-1,cy+reach);yy++)
    for(let xx=Math.max(0,cx-reach);xx<=Math.min(NX-1,cx+reach);xx++){
-    const id=yy*NX+xx;if((this.tiles[id]!==0&&this.tiles[id]!==2&&this.tiles[id]!==3)||this.grass[id]<=.2)continue;
+    const id=yy*NX+xx;if((this.tiles[id]!==0&&this.tiles[id]!==2&&this.tiles[id]!==3&&this.tiles[id]!==4&&this.tiles[id]!==5)||this.grass[id]<=.2)continue;
     if(!terrainFitness(g,this.tiles[id]).passable)continue;
     const a=clamp(x,xx*CELL+2,(xx+1)*CELL-2);
     const b=clamp(y,yy*CELL+2,(yy+1)*CELL-2);
@@ -2659,7 +2659,7 @@ export class Ecosystem{
    if(dx*dx+dy*dy>radius*radius)continue;
    const xx=cx+dx,yy=cy+dy;if(xx<0||xx>=NX||yy<0||yy>=NY)continue;
    const id=yy*NX+xx,t=this.tiles[id];
-   if(t===3)continue;
+   if(t===3||t===5)continue;
    this.soil[id]=Math.min(100,this.soil[id]+65);
    if(t===2&&this.grass[id]===0&&this.water[id]<=0){
     this.tiles[id]=0;this.grass[id]=8;
@@ -2674,7 +2674,7 @@ export class Ecosystem{
  // Unlike lab paint(), no free bulk biomass, random state or arbitrary brush.
  reshapeTerrainCell(x,y,target){
   if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||y<0||x>=W||y>=H||
-     !Number.isInteger(target)||target<0||target>3)return false;
+     !Number.isInteger(target)||target<0||target>5)return false;
   const i=this.cell(x,y),from=this.tiles[i];
   if(from===target)return false;
   // Never overwrite occupied habitat, eggs or corpses; preserve existing lives.
@@ -2689,13 +2689,13 @@ export class Ecosystem{
   }
   this.tiles[i]=target;
   this.terrainLevels[i]=3;
-  this.grass[i]=target===0?28:target===2?3:target===3?12:0;
+  this.grass[i]=target===0?28:target===2?3:target===3?12:target===4?35:target===5?2:0;
   this.waterbed[i]=target===1?1:0;
   this.water[i]=target===1?60:0;
   this.waterweed[i]=target===1?30:0;
-  this.soilWater[i]=target===0?48:target===1?90:target===2?20:8;
+  this.soilWater[i]=target===0?48:target===1?90:target===2?20:target===4?86:target===5?8:8;
   // Fertile soil is not conjured at full strength by changing the terrain.
-  this.soil[i]=Math.min(this.soil[i],target===0?55:target===1?30:target===2?20:10);
+  this.soil[i]=Math.min(this.soil[i],target===0?55:target===1?30:target===2?20:target===4?65:target===5?8:10);
   this.grazingPressure[i]=0;
   this._waterRegionTick=null;
   this._waterRegions=null;
@@ -2711,7 +2711,7 @@ export class Ecosystem{
    if(type===1&&this.units.some(u=>!u.dead&&u.g.aquatic!==1&&this.cell(u.x,u.y)===i))continue;
    this.tiles[i]=type;
    this.terrainLevels[i]=Math.max(1,Math.min(5,Math.round(level)));
-   this.grass[i]=type===0?100:0;
+   this.grass[i]=type===0?100:type===4?75:type===5?3:0;
    this.water[i]=type===1?100:0;
    this.waterweed[i]=type===1?70:0;
    this.waterbed[i]=type===1?1:0;
@@ -2720,10 +2720,11 @@ export class Ecosystem{
 
  adaptFounderToTerrain(g,t){
   if(g.genomeModel===2){
-   const dna={...canonicalDNA(g),aquatic:t===1?1:0,biome:t};
-   if(t===2||t===3)dna.diet=clamp(dna.diet,.43,.65);
+   const strategy=t===4?0:t===5?3:t;
+   const dna={...canonicalDNA(g),aquatic:t===1?1:0,biome:strategy};
+   if(t===2||t===3||t===5)dna.diet=clamp(dna.diet,.43,.65);
    return expressDNA({dna,alleles:{
-    ...g.alleles,aquatic:[dna.aquatic,dna.aquatic],biome:[t,t],
+    ...g.alleles,aquatic:[dna.aquatic,dna.aquatic],biome:[strategy,strategy],
     ...(dna.diet!==g.diet?{diet:[dna.diet,dna.diet]}:{})
    }});
   }
@@ -2806,7 +2807,7 @@ export class Ecosystem{
   this.growth=7;this.stress=85;
   for(let i=0;i<this.tiles.length;i++){
    if(this.tiles[i]===1)this.consumeWater((i%NX+.5)*CELL,(Math.floor(i/NX)+.5)*CELL,35);
-   if(this.tiles[i]===0)this.consumeGrass((i%NX+.5)*CELL,(Math.floor(i/NX)+.5)*CELL,18);
+   if(this.tiles[i]===0||this.tiles[i]===4)this.consumeGrass((i%NX+.5)*CELL,(Math.floor(i/NX)+.5)*CELL,18);
   }
   this.log('info','干ばつ：水と草が減少した');
  }
