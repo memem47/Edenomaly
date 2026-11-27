@@ -30,16 +30,17 @@ test('visible color, actual body size and eye number classify different species'
  assert.notEqual(w.category(a),w.category(eyes));
  assert.equal(typeof pigmentClass(a),'string');
 });
-test('all visual species keys generate unique five-kana names without collisions',()=>{
+test('all visual species keys generate unique six-kana names without collisions',()=>{
  const names=new Set();
  for(let c=0;c<7;c++)for(let size=0;size<3;size++)for(let shape=0;shape<3;shape++)
  for(let eyes=0;eyes<4;eyes++)for(let appendage=0;appendage<6;appendage++)
- for(let mask=0;mask<256;mask++){
-  const key=['vis',c,size,shape,eyes,appendage,mask].join('-');
+ for(let diet=0;diet<3;diet++)for(let aquatic=0;aquatic<2;aquatic++)
+ for(let repro=0;repro<3;repro++)for(let mask=0;mask<256;mask++){
+  const key=['vis',c,size,shape,eyes,appendage,diet,aquatic,repro,mask].join('-');
   const name=speciesNameFromCategory(key);
-  assert.match(name,/^[ァ-ヶ]{5}$/);
+  assert.match(name,/^[ァ-ヶ]{6}$/);
   if(names.has(name))throw new Error('Name collision: '+key+' => '+name);
   names.add(name);
  }
- assert.equal(names.size,7*3*3*4*6*256);
+ assert.equal(names.size,7*3*3*4*6*3*2*3*256);
 });
