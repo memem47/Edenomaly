@@ -204,6 +204,19 @@ export function drawAbilityDetails(ctx,g,rx,ry){
   const y=(i-(a.mouths-1)/2)*ry*.19;
   ctx.beginPath();ctx.ellipse(rx*.88,y,Math.max(.2,rx*(.025+a.mouth*.035)),Math.max(.2,ry*(.045+a.mouth*.07)),0,0,TAU);ctx.fill();
  }
+ // Feeding niche is shown by conspicuous mouth markings and is also part
+ // of the visible species class (not merely a hidden digestion number).
+ if(g.diet>.70){
+  ctx.fillStyle='#fff0cb';
+  for(const dy of [-1,1]){
+   ctx.beginPath();ctx.moveTo(rx*.72,dy*ry*.21);
+   ctx.lineTo(rx*.55,dy*ry*.37);
+   ctx.lineTo(rx*.95,dy*ry*.35);ctx.closePath();ctx.fill();
+  }
+ }else if(g.diet<.32){
+  ctx.fillStyle='#a5ec9b';ctx.beginPath();
+  ctx.ellipse(rx*.62,ry*.37,Math.max(.7,rx*.14),Math.max(.6,ry*.12),-.5,0,TAU);ctx.fill();
+ }
  // A brood crown and armored scales make fertility and stamina obvious.
  const p=phenotypeTraits(g);
  if(p.eggCrown>.12){
