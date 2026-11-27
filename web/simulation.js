@@ -305,6 +305,12 @@ export const adaptationColor=g=>{
   10*intellect+7*agility-8*power+6*stamina,37,77);
  return {hue,saturation,lightness};
 };
+// Older parents yield more germline variation. This is an opportunity for
+// heritable mutations, not a forced new species or a health bonus.
+export const parentalMutationChance=(ageA=0,ageB=0)=>{
+ const age=t=>clamp((Math.max(0,Number(t)||0)-300)/1500,0,1);
+ return Math.min(.79,.40+.32*Math.max(age(ageA),age(ageB))+.06*Math.min(age(ageA),age(ageB)));
+};
 export const TERRAIN_TEMPERATURE_OFFSETS=[0,-4,7,-3,-2,11];
 export const localTemperature=(ambient,terrain)=>ambient+TERRAIN_TEMPERATURE_OFFSETS[terrain];
 // Deep forest buffers both winter frost and summer heat; high rock gives
@@ -812,7 +818,7 @@ export class Ecosystem{
  expressGeneticPair(key,pair){
   return expressAllelePair(key,pair);
  }
- recombine(a,b){
+ recombine(a,b,ageA=0,ageB=0){
   if(a.genomeModel!==2||b.genomeModel!==2)return this.recombineLegacy(a,b);
   // Each parent forms one gamete per chromosome, with occasional crossovers.
   // The first allele in each child pair is maternal, the second paternal.
@@ -820,7 +826,12 @@ export class Ecosystem{
   const child=expressDNA({dna,alleles});
   // More opportunities for true heritable variation; species still require
   // an expressed classification difference and an actual living individual.
-  return this.rand()<.40?this.mutate(child):child;
+  const chance=parentalMutationChance(ageA,ageB);
+  if(this.rand()>=chance)return child;
+  const first=this.mutate(child);
+  // Very old parents may pass on more than one altered locus; extra variation
+  // also raises the risk of an unfavorable offspring, so survival still matters.
+  return chance>.40&&this.rand()<(chance-.40)*.45?this.mutate(first):first;
  }
  // Compatibility for experiments explicitly supplying a pre-migration genome.
  mutateLegacy(g){
@@ -1244,7 +1255,7 @@ export class Ecosystem{
   const affordable=clamp(Math.floor((Math.min(parent.energy,220)-55-largeParentCost)/7),1,18);
   const count=Math.min(desired,affordable,2500-this.eggs.length);
   if(count<1)return null;
-  const genomes=Array.from({length:count},()=>this.recombine(parent.g,partner.g));
+  const genomes=Array.from({length:count},()=>this.recombine(parent.g,partner.g,parent.age,partner.age));
   const pregnancy={genomes,parents:[this.parentSnapshot(parent),this.parentSnapshot(partner)],parent:parent.id,otherParent:partner.id,lineage:this.rand()<.5?parent.lineage:partner.lineage,generation:Math.max(parent.generation,partner.generation)+1,remaining:25,total:25};
   pregnancy.nestGoal=this.chooseNest(parent);
   if((parent.g.nestChoice??0)>.5&&distance(parent,pregnancy.nestGoal)>20**2)
@@ -1262,7 +1273,7 @@ export class Ecosystem{
   if(reproductiveMode(parent.g)!==2||parent.sex!=='F'||!this.isReadyToMate(parent)||parent.energy<115||this.eggs.length>=2500)return null;
   // Few expensive eggs, with reduced recombination and no unrelated genome.
   const count=Math.min(1+Math.floor(parent.g.brood/4),2500-this.eggs.length);
-  const genomes=Array.from({length:count},()=>this.rand()<.025?this.mutate(this.recombine(parent.g,parent.g)):this.recombine(parent.g,parent.g));
+  const genomes=Array.from({length:count},()=>this.rand()<.025?this.mutate(this.recombine(parent.g,parent.g,parent.age,parent.age)):this.recombine(parent.g,parent.g,parent.age,parent.age));
   const pregnancy={genomes,parents:[this.parentSnapshot(parent)],parent:parent.id,otherParent:null,lineage:parent.lineage,generation:parent.generation+1,remaining:32,total:32};
   pregnancy.nestGoal=this.chooseNest(parent);
   parent.pregnancy=pregnancy;
