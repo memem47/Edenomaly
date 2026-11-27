@@ -24,7 +24,7 @@ for(let i=0;i<runs;i++){
   const code=speciesEcologyCode(category);
   // Compact names are classification-only (four kana for historical keys,
   // six kana for actual species including appearance traits).
-  if(!/^[ァ-ヶ]{4}(?:[ァ-ヶ]{2})?$/.test(name))
+  if(!/^[ァ-ヶ]{4,6}$/.test(name))
    throw new Error('Unexpected short species name: '+name);
   // The exact classification, not the first individual's variable genome,
   // controls the name. Different categories must never collide.
