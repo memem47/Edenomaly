@@ -262,6 +262,13 @@ export function drawAbilityDetails(ctx,g,rx,ry){
   ctx.fillStyle='rgba(143,230,145,.8)';
   ctx.beginPath();ctx.ellipse(-rx*.70,-ry*.2,rx*.12,ry*(.10+a.leaf*.12),-.5,0,TAU);ctx.fill();
  }
+ // Water-breathing and reproductive type are visible, permanent markings.
+ // They are part of visual taxonomy only because these marks are rendered.
+ ctx.font='bold '+Math.max(4,Math.min(13,ry*.3))+'px system-ui';
+ ctx.textAlign='center';ctx.textBaseline='middle';
+ if(g.aquatic===1){ctx.fillStyle='#75e8f5';ctx.fillText('水',-rx*.52,-ry*.47);}
+ if(g.repro===1){ctx.fillStyle='#ffe39d';ctx.fillText('双',rx*.06,-ry*.49);}
+ else if(g.repro===2){ctx.fillStyle='#f9b8da';ctx.fillText('単',rx*.06,-ry*.49);}
  // The eight defining skills have permanent, readable marks on the body.
  // Exactly the same bitmask is used by species classification; invisible
  // skill changes cannot silently create a different named species.
