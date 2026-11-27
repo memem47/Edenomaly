@@ -3,10 +3,10 @@
 import {DNA_KEYS,DNA_LIMITS,expressAllelePair} from './genome-model.js';
 export const LINKAGE_GROUPS=Object.freeze([
  Object.freeze(['power','stamina','skillRetaliation','skillPredation','skillAmbush','diet']),
- Object.freeze(['agility','intellect','skillSprint','skillCooperate','skillNestChoice','social']),
+ Object.freeze(['agility','intellect','skillSprint','skillCooperate','skillNestChoice','skillCultivate','social']),
  Object.freeze(['adaptation','skillHibernate','skillRegenerate','aquatic','biome','thermal']),
  Object.freeze(['fertility','skillParentFeeding','skillNesting','skillSplit','repro']),
- Object.freeze(['skillWaterGardening','skillCannibalism','skillAbsorb','albino'])
+ Object.freeze(['skillWaterGardening','skillPondBuilder','skillCannibalism','skillAbsorb','albino'])
 ]);
 if(LINKAGE_GROUPS.flat().length!==DNA_KEYS.length||
  new Set(LINKAGE_GROUPS.flat()).size!==DNA_KEYS.length||
