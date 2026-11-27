@@ -51,7 +51,7 @@ test('two allele copies are inherited from each parent (DNA v2)',async()=>{
  const child=s.recombine(a,b);s.rand=random;
  assert.deepEqual(child.alleles.power,[2,4]);
  assert.equal(child.dna.power,3);
- assert.equal(Object.keys(child.alleles).length,27);
+ assert.equal(Object.keys(child.alleles).length,29);
  assert.ok(!Object.hasOwn(child.alleles,'eyes'));
 });
 test('a recessive trait hidden in both parents reappears in grandchildren (DNA v2)',async()=>{
@@ -578,7 +578,7 @@ test('offspring remain genetically varied within one large clutch (DNA v2)',asyn
  const expressions=new Set(p.genomes.map(g=>
   [g.dna.power,g.dna.agility,g.dna.diet.toFixed(2)].join(':')));
  assert.ok(expressions.size>=4);
- assert.ok(p.genomes.every(g=>Object.keys(g.alleles).length===27));
+ assert.ok(p.genomes.every(g=>Object.keys(g.alleles).length===29));
 });
 test('habitat adaptation changes per-step metabolism for different dry traits',()=>{
  const s=new Ecosystem(1202);s.tiles.fill(2);s.grass.fill(0);
@@ -1531,7 +1531,7 @@ test('temperature varies with season and weather, and microclimates differ',()=>
  assert.notEqual(w.temperature,initial);
  assert.ok(localTemperature(22,2)>localTemperature(22,0));
  assert.ok(localTemperature(22,1)<localTemperature(22,0));
- assert.equal(TERRAIN_TEMPERATURE_OFFSETS.length,4);
+ assert.equal(TERRAIN_TEMPERATURE_OFFSETS.length,6);
 });
 test('thermal adaptation is inherited, bounded, and has a tolerance tradeoff',()=>{
  const w=new Ecosystem(933);
@@ -3399,7 +3399,7 @@ test('terrain level paint and terrain effect are independent from four biome ide
  assert.equal(w.terrain(100,100),1);
  assert.equal(w.terrainLevel(100,100),5);
  assert.equal(w.terrainLevels.length,w.tiles.length);
- assert.equal(TERRAIN_LEVEL_NAMES.length,4);
+ assert.equal(TERRAIN_LEVEL_NAMES.length,6);
  assert.equal(TERRAIN_LEVEL_GROWTH.length,5);
  assert.equal(WATER_LEVEL_GROWTH.length,5);
  const base={move:.5,sight:1,upkeep:0,hazard:0};
@@ -3517,7 +3517,7 @@ test('new appearance genes recombine, mutate and remain bounded (DNA v2)',async(
   assert.ok(mutant[key]>=0&&mutant[key]<=1,key);
  }
  assert.notEqual(a.hornLength,b.hornLength);
- assert.equal(Object.keys(child.alleles).length,27);
+ assert.equal(Object.keys(child.alleles).length,29);
 });
 test('functional defense, sensory and swim traits yield physical ornament tradeoffs',()=>{
  const w=new Ecosystem(2026110967),g=w.gene();
