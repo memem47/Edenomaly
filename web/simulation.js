@@ -97,6 +97,7 @@ const speciesClassificationParts=key=>{
 // color class. This avoids two separate categories collapsing to the same name
 // if an individual happens to have a blended color at the class boundary.
 export const speciesEcologyCode=key=>{
+ if(key.startsWith('vis-'))return key; // Canonical reversible visual taxonomy key.
  const p=speciesClassificationParts(key);
  return DIET_NAMES[p.diet]+HABITAT_NAMES[p.habitat]+
   PIGMENT_CODES[p.pigment]+speciesNameCode(p.body,p.shape,p.eyes,p.strategy,p.repro,p.thermal);
