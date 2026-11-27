@@ -95,6 +95,20 @@ export function drawEnhancedTerrain(ctx,s,season){
     ctx.strokeStyle='rgba(255,238,163,.48)';ctx.lineWidth=1;
     ctx.beginPath();ctx.moveTo(px+2,py+15);ctx.quadraticCurveTo(px+9,py+11,px+18,py+15);ctx.stroke();
    }
+  }else if(t===4){
+   // Wetland reed shadows and a shallow mirrored pool.
+   ctx.fillStyle='rgba(14,73,52,.16)';
+   ctx.beginPath();ctx.ellipse(px+8+h*6,py+9+h2*5,7,4,0,0,TAU);ctx.fill();
+   ctx.strokeStyle='rgba(220,239,146,.6)';ctx.lineWidth=.8;ctx.beginPath();
+   for(let k=0;k<3;k++){const tx=px+4+hash(x,y,k)*12;
+    ctx.moveTo(tx,py+17);ctx.lineTo(tx+2,py+7-hash(x,y,k+4)*4);}
+   ctx.stroke();
+  }else if(t===5){
+   // Thermal fractures remain graphic-only and follow the tile coordinates.
+   ctx.fillStyle='rgba(23,21,28,.3)';
+   polygon(ctx,[px+2,py+16,px+8,py+5,px+17,py+8,px+14,py+18]);
+   ctx.strokeStyle='rgba(246,140,76,.7)';ctx.lineWidth=1;ctx.beginPath();
+   ctx.moveTo(px+3,py+15);ctx.lineTo(px+9,py+10);ctx.lineTo(px+16,py+12);ctx.stroke();
   }else{
    // Faceted elevations with a directional sunlit face and darker escarpment.
    const peak=lev>=4?2:0;
