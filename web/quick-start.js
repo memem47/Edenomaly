@@ -7,7 +7,7 @@ export function freshGameSeed(random=Math.random){
 }
 export function defaultGameStartSite(world){
  const {columns:nx,rows:ny,cell}=WORLD;
- const byTerrain=[[],[],[],[]];
+ const byTerrain=Array.from({length:6},()=>[]);
  // Don't restrict the game to one grassland niche. Select a seeded random
  // biome first, then choose a locally viable location inside that biome.
  for(let cy=3;cy<ny-3;cy++)for(let cx=3;cx<nx-3;cx++){
@@ -26,7 +26,7 @@ export function defaultGameStartSite(world){
  }
  // Different ecological origins produce visibly different founders, while
  // water, desert and rock are less frequent than temperate grassland.
- const roll=world.rand(),requested=roll<.57?0:roll<.83?1:roll<.94?2:3;
+ const roll=world.rand(),requested=roll<.47?0:roll<.69?1:roll<.81?2:roll<.89?3:roll<.96?4:5;
  const sites=byTerrain[requested].length?byTerrain[requested]:byTerrain[0];
  let best=-Infinity;
  for(const s of sites)best=Math.max(best,s.score);
