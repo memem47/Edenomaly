@@ -14,9 +14,9 @@ test('all requested skills are distinct inherited loci and visible in founder ed
   assert.ok(DNA_KEYS.includes(key),key);
   assert.ok(FOUNDER_FIELDS.some(([k])=>k===key),key);
  }
- assert.equal(SKILLS.length,14);
- assert.equal(DNA_KEYS.length,27);
- assert.ok(founderFormulaHTML().includes('27遺伝子'));
+ assert.equal(SKILLS.length,16);
+ assert.equal(DNA_KEYS.length,29);
+ assert.ok(founderFormulaHTML().includes('29遺伝子'));
  const g=new Ecosystem(2210).gene();
  for(const key of keys){
   const on=editFounderGenome(g,{[key]:1});
