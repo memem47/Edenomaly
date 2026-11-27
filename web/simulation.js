@@ -253,7 +253,7 @@ export const VISIBLE_SPECIES_SKILLS=Object.freeze([
 ]);
 export const visibleSkillMask=g=>VISIBLE_SPECIES_SKILLS.reduce((mask,key,i)=>
  mask|((g.dna?.[key]===1?1:0)<<i),0);
-const VISUAL_KEY=/^vis-([0-6])-([0-2])-([0-2])-([0-3])-([0-5])-([0-9]{1,3})$/;
+const VISUAL_KEY=/^vis-([0-6])-([0-2])-([0-2])-([0-3])-([0-5])-([0-2])-([0-9]{1,3})$/;
 const VISUAL_NAME_FAMILY=[...'アキサタナミル'];
 export const visibleSpeciesCategory=g=>{
  const color=['red','yellow','green','blue','purple','pink','white'].indexOf(pigmentClass(g));
@@ -268,15 +268,16 @@ export const visibleSpeciesCategory=g=>{
  const choices=[p.horns,o.tail,p.tentacles,p.fins,p.shellPlates];
  let major=0,value=.48;
  for(let i=0;i<choices.length;i++)if(choices[i]>value){value=choices[i];major=i+1;}
- return 'vis-'+[color,size,length,eye,major,visibleSkillMask(g)].join('-');
+ const diet=g.diet<.32?0:g.diet>.70?2:1;
+ return 'vis-'+[color,size,length,eye,major,diet,visibleSkillMask(g)].join('-');
 };
 export const speciesNameFromCategory=(key,genome=null)=>{
  const visual=VISUAL_KEY.exec(key);
  if(visual){
-  const [color,size,length,eyes,ornament,skills]=visual.slice(1).map(Number);
+  const [color,size,length,eyes,ornament,diet,skills]=visual.slice(1).map(Number);
   if(skills>255)throw new RangeError('Unknown visual skill set: '+key);
-  const n=((((size*3+length)*4+eyes)*6+ornament)*256+skills);
-  return VISUAL_NAME_FAMILY[color]+shortNameDigits(n,4);
+  const n=(((((size*3+length)*4+eyes)*6+ornament)*3+diet)*256+skills);
+  return VISUAL_NAME_FAMILY[color]+shortNameDigits(n,5);
  }
  const p=speciesClassificationParts(key);
  const family=SHORT_NAME_FAMILY[p.habitat*3+p.diet];
