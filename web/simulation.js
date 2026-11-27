@@ -3,11 +3,11 @@ import {appendSpeciesBirth,birthDerived} from './species-statistics.js';
 import {DNA_KEYS,DNA_LIMITS,canonicalDNA,legacyToDNA,expressDNA,expressAllelePair} from './genome-model.js';
 import {linkedOffspring} from './linkage-model.js';
 const W=1200,H=700,CELL=20,NX=60,NY=35;
-export const TERRAIN_NAMES=['草地','水辺','乾燥地','岩場'];
-export const TERRAIN_COLORS=['#54c74c','#279cfa','#edb85c','#8980bf'];
+export const TERRAIN_NAMES=['草地','水辺','乾燥地','岩場','湿地','火山地'];
+export const TERRAIN_COLORS=['#54c74c','#279cfa','#edb85c','#8980bf','#3f9976','#a96d60'];
 // Relative nutrient input: grass > wetland > dryland > rock.
-export const TERRAIN_FERTILITY=[1,.58,.14,.055];
-export const TERRAIN_LEVEL_NAMES=[['裸地','草地','草原','林','森'],['浅瀬','浅い池','池','深い池','深水域'],['乾いた土','砂地','乾燥地','荒野','砂漠'],['礫地','岩場','丘陵','岩山','高山']];
+export const TERRAIN_FERTILITY=[1,.58,.14,.055,1.15,.035];
+export const TERRAIN_LEVEL_NAMES=[['裸地','草地','草原','林','森'],['浅瀬','浅い池','池','深い池','深水域'],['乾いた土','砂地','乾燥地','荒野','砂漠'],['礫地','岩場','丘陵','岩山','高山'],['泥土','湿草地','湿地','葦原','沼沢林'],['灰地','溶岩原','火山地','噴気帯','火口縁']];
 export const TERRAIN_LEVEL_GROWTH=[.55,.8,1,1.2,1.45];
 export const WATER_LEVEL_GROWTH=[1.5,1.3,1,.82,.65];
 export const terrainLevelFitness=(base,t,level=3,g={})=>{
@@ -22,7 +22,7 @@ export const terrainLevelFitness=(base,t,level=3,g={})=>{
   upkeep:base.upkeep+(delta>0?.1*delta:0),hazard:base.hazard+(delta>0?.06*delta:0)};
  return {...base,move:base.move*(delta>0?1-.06*delta:1+.03*-delta)};
 };
-const GROWTH=TERRAIN_FERTILITY,DECAY=[.026,.038,.006,.003];
+const GROWTH=TERRAIN_FERTILITY,DECAY=[.026,.038,.006,.003,.045,.002];
 // Species display names: apparent color + ecological code + dominant ornament.
 // Categories remain stable. A species gets its permanent name from the genome
 // of its first discovered individual. In particular, a rare intermediate hue
@@ -305,7 +305,7 @@ export const adaptationColor=g=>{
   10*intellect+7*agility-8*power+6*stamina,37,77);
  return {hue,saturation,lightness};
 };
-export const TERRAIN_TEMPERATURE_OFFSETS=[0,-4,7,-3];
+export const TERRAIN_TEMPERATURE_OFFSETS=[0,-4,7,-3,-2,11];
 export const localTemperature=(ambient,terrain)=>ambient+TERRAIN_TEMPERATURE_OFFSETS[terrain];
 // Deep forest buffers both winter frost and summer heat; high rock gives
 // summer shade in crevices. These are microclimates, not biome conversions.
@@ -376,19 +376,20 @@ export const experiencedTerrainFitness=(u,t)=>{
 };
 export const terrainFitness=(g,t)=>{
  // Traits are inherited; acquired acclimatization is deliberately not simulated.
- const tolerance=[1, g.wet, g.dry, g.rock??.2][t];
+ const tolerance=[1, g.wet, g.dry, g.rock??.2,Math.max(g.wet??0,.5),g.rock??.2][t];
  const adaptability=clamp(((g.dna?.adaptation??1)-1)/9,0,1);
  const mismatch=t===0?0:1-clamp(tolerance,0,1);
  const fitness=t===0?1:clamp(.28+.95*tolerance+.28*adaptability*mismatch,.28,1.23);
  const aquatic=g.aquatic===1;
  const passable=t!==1||aquatic;
- const sight=t===1?(aquatic?clamp(.92+g.wet*.34,.92,1.26):.18):t===2?clamp(.52+g.dry*.56,.52,1.08):t===3?clamp(.67+(g.rock??.2)*.43,.67,1.10):1;
+ const sight=t===1?(aquatic?clamp(.92+g.wet*.34,.92,1.26):.18):t===2?clamp(.52+g.dry*.56,.52,1.08):t===3?clamp(.67+(g.rock??.2)*.43,.67,1.10):t===4?.68:t===5?.82:1;
  const rawHazard=t===1?(aquatic?0:.7):
    t===2?clamp((.50-g.dry)*1.3,0,.65):
-   t===3?clamp((.45-(g.rock??.2))*.28,0,.15):0;
+   t===3?clamp((.45-(g.rock??.2))*.28,0,.15):
+   t===4?clamp(.20-(g.wet??0)*.12,.04,.2):t===5?clamp(.45-(g.rock??0)*.25,.18,.45):0;
  const hazard=rawHazard*(1-.42*adaptability*mismatch);
- return {fitness,passable,sight,hazard,move:(t===1?(aquatic?.50+g.wet*.26:.035):t===2?.17+g.dry*.42:t===3?.19+(g.rock??.2)*.39:.58),
-   upkeep:t===0?0:(1-tolerance)*[0,.38,.51,.52][t]*(1-.35*adaptability)+tolerance*.045};
+ return {fitness,passable,sight,hazard,move:(t===1?(aquatic?.50+g.wet*.26:.035):t===2?.17+g.dry*.42:t===3?.19+(g.rock??.2)*.39:t===4?.28+(g.wet??0)*.3:t===5?.14+(g.rock??0)*.3:.58),
+   upkeep:t===0?0:(1-tolerance)*[0,.38,.51,.52,.30,.85][t]*(1-.35*adaptability)+tolerance*.045};
 };
 // Ephemeral per-step caches avoid recalculating traits for the same agents.
 let stepCache=null;
@@ -1705,7 +1706,7 @@ export class Ecosystem{
   }
  }
  reset(){
-  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.speciesSamples=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.runStartTick=null;this.runEndedTick=null;this.founderSpeciesCount=0;this.ecosystemBalance=0;this.deathCauses={};this.deathRecords=[];this.infectionCases=0;this.infectionRecoveries=0;this.infectionIntroductions=0;this.supportZones=[];this.courtshipFailures={};this.courtshipStarts=0;this.mateApproachStarts=0;this.mateApproachStalled=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0];this.growth=70;this.waterweedGrowth=140;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];this.climateEnabled=true;this.seasonLength=600;
+  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.speciesSamples=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.tick=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.runStartTick=null;this.runEndedTick=null;this.founderSpeciesCount=0;this.ecosystemBalance=0;this.deathCauses={};this.deathRecords=[];this.infectionCases=0;this.infectionRecoveries=0;this.infectionIntroductions=0;this.supportZones=[];this.courtshipFailures={};this.courtshipStarts=0;this.mateApproachStarts=0;this.mateApproachStalled=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0,0,0];this.growth=70;this.waterweedGrowth=140;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];this.climateEnabled=true;this.seasonLength=600;
   this._waterRegionTick=null;this._waterRegions=null;
   this.setupTerrain();
   this.grass=new Float32Array(this.tiles.length);
