@@ -7,8 +7,8 @@ import {latentGenotype,evolutionSVG} from '../web/evolution-tree.js';
 
 const dna=Object.fromEntries(DNA_KEYS.map(k=>[k,k.startsWith('skill')||k==='albino'?0:k==='aquatic'?0:k==='repro'||k==='biome'?0:5]));
 const base=expressDNA({dna});
-test('chromosome groups cover 27 loci once',()=>{
- assert.equal(LINKAGE_GROUPS.flat().length,27);
+test('chromosome groups cover 29 loci once',()=>{
+ assert.equal(LINKAGE_GROUPS.flat().length,29);
  assert.deepEqual(new Set(LINKAGE_GROUPS.flat()),new Set(DNA_KEYS));
 });
 test('zero crossovers inherit complete homologues',()=>{
