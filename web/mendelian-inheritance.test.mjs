@@ -12,7 +12,7 @@ function chooseAlleles(world,which=0.2){
 }
 test('explicit genetics classify every locus and all skills by inheritance rules',()=>{
  assert.equal(Object.keys(INHERITANCE_RULES).length,DNA_KEYS.length);
- assert.equal(RECESSIVE_SKILLS.length+DOMINANT_SKILLS.length,14);
+ assert.equal(RECESSIVE_SKILLS.length+DOMINANT_SKILLS.length,16);
  assert.equal(INHERITANCE_RULES.power,'additive');
  assert.equal(INHERITANCE_RULES.albino,'recessive');
  assert.equal(INHERITANCE_RULES.skillSplit,'recessive');
