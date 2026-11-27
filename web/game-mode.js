@@ -13,7 +13,8 @@ export const INTERVENTIONS=Object.freeze({
  fertilize:{cost:10,label:'土壌を肥やす'},
  clinic:{cost:9,label:'防疫・治療支援'},
  nursery:{cost:7,label:'繁殖保護区（260ステップ）'},
- oasis:{cost:6,label:'給水拠点（200ステップ）'}
+ oasis:{cost:6,label:'給水拠点（200ステップ）'},
+ veteranCare:{cost:9,label:'長寿個体を支援（個体指定）'}
 });
 const integer=n=>Number.isFinite(Number(n))?Math.max(0,Math.floor(Number(n))):0;
 // Persistent unlocks are one-time purchases using the existing earned bank.
@@ -112,6 +113,8 @@ export class GameSession{
    }
    return true;
   }
+  if(kind==='veteranCare')return w.units.some(u=>!u.dead&&u.stage==='adult'&&
+   u.age>=300&&(u.x-x)**2+(u.y-y)**2<=36**2);
   if(kind==='nursery')return w.units.some(u=>!u.dead&&(u.x-x)**2+(u.y-y)**2<=80**2)||w.eggs.some(e=>!e.dead&&(e.x-x)**2+(e.y-y)**2<=80**2);
   if(kind==='oasis')return w.tiles[w.cell(x,y)]!==3&&w.units.some(u=>!u.dead&&(u.x-x)**2+(u.y-y)**2<=80**2);
   if(kind==='clinic')return w.units.some(u=>!u.dead&&u.infection>0&&(u.x-x)**2+(u.y-y)**2<=65**2);
@@ -188,6 +191,18 @@ export class GameSession{
     const i=yy*WORLD.columns+xx;if(w.tiles[i]!==3&&w.tiles[i]!==5)w.soilWater[i]=Math.min(100,w.soilWater[i]+35);
    }
    w.log('info','給水拠点：周辺の水分を補給（200ステップ）');
+  }else if(kind==='veteranCare'){
+   // Target a particular reproductively mature old individual rather than
+   // handing every species free survival or a guaranteed mutation.
+   const target=w.units.filter(u=>!u.dead&&u.stage==='adult'&&u.age>=300&&
+    (u.x-x)**2+(u.y-y)**2<=36**2)
+    .sort((a,b)=>(a.x-x)**2+(a.y-y)**2-(b.x-x)**2-(b.y-y)**2)[0];
+   if(!target)return false;
+   target.energy=Math.min(210,target.energy+45);
+   target.hydration=Math.min(100,target.hydration+24);
+   target.infection=Math.max(0,target.infection-28);
+   target.infectionProtectionUntil=Math.max(target.infectionProtectionUntil??0,w.tick+160);
+   w.log('info','長寿個体 #'+target.id+'（'+Math.floor(target.age)+'ステップ生存）へ食料・給水・防疫支援');
   }else if(kind==='clinic'){
    // A bounded area intervention. It is not permanent immunity, HP healing,
    // or a species-wide cure; untreated colonies remain vulnerable.
