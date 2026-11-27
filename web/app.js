@@ -361,7 +361,7 @@ function update(){
    'テストモードでは従来どおり自由に操作できます。';
  for(const button of document.querySelectorAll('[data-mode]')){
   const kind=button.dataset.mode;
-  button.disabled=playMode==='game'&&(session.finished||!['spawn','inspect','food','fertilize','clinic','nursery','oasis','0','1','2','3','4','5'].includes(kind)||(/^\\d$/.test(kind)&&(!session.active||session.points<({0:3,1:5,2:2,3:4,4:6,5:7}[kind])))||(kind==='spawn'&&session.active)||(kind==='food'&&(!session.active||session.points<5))||(kind==='fertilize'&&(!session.active||session.points<10))||(kind==='clinic'&&(!session.active||session.points<9))||(kind==='nursery'&&(!session.active||session.points<7))||(kind==='oasis'&&(!session.active||session.points<6)));
+  button.disabled=playMode==='game'&&(session.finished||!['spawn','inspect','food','fertilize','clinic','nursery','oasis','0','1','2','3','4','5'].includes(kind)||(/^[0-5]$/.test(kind)&&(!session.active||session.points<({0:3,1:5,2:2,3:4,4:6,5:7}[kind])))||(kind==='spawn'&&session.active)||(kind==='food'&&(!session.active||session.points<5))||(kind==='fertilize'&&(!session.active||session.points<10))||(kind==='clinic'&&(!session.active||session.points<9))||(kind==='nursery'&&(!session.active||session.points<7))||(kind==='oasis'&&(!session.active||session.points<6)));
   if(kind==='food')button.textContent=playMode==='game'?'🌱 草・水草の種（5pt）':'草を補充';
   if(kind==='fertilize')button.textContent=playMode==='game'?'🌿 土壌改良（10pt）':'🌱 土壌改良';
   if(kind==='nursery')button.textContent=playMode==='game'?'🪺 繁殖保護区（7pt）':'🪺 繁殖保護区（ゲーム専用）';
