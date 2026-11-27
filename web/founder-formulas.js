@@ -1,5 +1,5 @@
 // Founder-only reference for the canonical inherited model.
-// Six core stats + fourteen binary skills + seven strategies = 27 inherited loci.
+// Six core stats + sixteen binary skills + seven strategies = 29 inherited loci.
 // The old 37 ecology and morphology properties are derived, never inherited.
 import {CORE_KEYS,SKILLS,STRATEGY_FIELDS,DNA_KEYS,INHERITANCE_RULES} from './genome-model.js';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -58,9 +58,9 @@ export const formulaMappingRows=()=>GENOME_DERIVATION_FORMULAS.map(([key,label,f
 export function founderFormulaHTML(){
  const table=(head,rows)=>'<div class="founder-formula-scroll"><table><thead><tr>'+head.map(h=>'<th>'+esc(h)+'</th>').join('')+'</tr></thead><tbody>'+
  rows.map(row=>'<tr>'+row.map((cell,i)=>'<'+(i?'td':'th')+'>'+esc(cell)+'</'+(i?'td':'th')+'>').join('')+'</tr>').join('')+'</tbody></table></div>';
- return '<details id="founderFormulaReference" class="founder-formula-reference"><summary>📐 27遺伝子から37応用パラメータへの変換式</summary>'+
- '<p>遺伝子 = 基本ステータス6項目＋保有スキル14項目＋生存戦略7項目。応用パラメータ37項目は独立して遺伝しません。水／乾燥／岩場の得意分野は生存戦略で決まり、てきおうは不得意な場所での負担を軽減します。各基本値 x の正規化 xN=(x−1)/9。clamp は0〜1に制限。値は子孫の遺伝子から毎回再計算します。</p>'+
- '<h4>① 遺伝子本体（27項目・各2コピー）</h4>'+
+ return '<details id="founderFormulaReference" class="founder-formula-reference"><summary>📐 29遺伝子から37応用パラメータへの変換式</summary>'+
+ '<p>遺伝子 = 基本ステータス6項目＋保有スキル16項目＋生存戦略7項目。応用パラメータ37項目は独立して遺伝しません。水／乾燥／岩場の得意分野は生存戦略で決まり、てきおうは不得意な場所での負担を軽減します。各基本値 x の正規化 xN=(x−1)/9。clamp は0〜1に制限。値は子孫の遺伝子から毎回再計算します。</p>'+
+ '<h4>① 遺伝子本体（29項目・各2コピー）</h4>'+
  table(['種類','遺伝子'],[
   ['基本ステータス（各1〜10）',CORE_KEYS.join('、')],
   ['スキル（各0/1）',SKILLS.map(s=>s.key).join('、')],
