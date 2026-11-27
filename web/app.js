@@ -450,10 +450,10 @@ function updateTerrainLevelLabel(){
 }
 function syncSliders(){$('waterweedGrowth').value=game.waterweedGrowth;$('waterweedGrowthValue').value=game.waterweedGrowth;$('growth').value=game.growth;$('growthValue').value=game.growth;$('stress').value=game.stress;$('stressValue').value=game.stress;$('rainfall').value=game.rainfall;$('rainfallValue').value=game.rainfall;$('temperature').value=game.baseTemperature;$('temperatureValue').value=game.baseTemperature+'℃';$('climateEnabled').checked=game.climateEnabled;}
 function updateDormancySpeedStatus(){
- const active=running&&game.introducedCount>0&&dormancySpeedMultiplier(game.units)===2;
+ const active=running&&game.introducedCount>0&&dormancySpeedMultiplier(game.units,game.eggs)===2;
  const status=$('dormancySpeedStatus');
  status.hidden=!active;
- status.textContent=active?'💤 全個体が休眠中のため自動早送り ×2':'';
+ status.textContent=active?'💤 全個体が休眠または卵のため自動早送り ×2':'';
 }
 // The foreground animation is display-rate limited. Simulation ticks have
 // their own budget, so the renderer cannot monopolize the video decoder/GPU.
@@ -477,7 +477,7 @@ function frame(time){
  game.visualTick=(game.visualTick??0)+dt*.03;
  const policy=performancePolicy(game.units.length,$('lowImpactMode').checked);
  if(running){
-  const dormantMultiplier=dormancySpeedMultiplier(game.units);
+  const dormantMultiplier=dormancySpeedMultiplier(game.units,game.eggs);
   // The standard low-power cap is 24 ticks/sec (normal rate 14); expand
   // the cap and per-frame budget too so "×2" really doubles simulation rate.
   const tickPolicy=dormantMultiplier===2?
@@ -487,9 +487,9 @@ function frame(time){
   for(let i=0;i<batch.steps&&running;i++){
    // A new awake offspring or a waking hibernator ends fast-forward at once.
    // Never execute additional accelerated ticks after this transition.
-   const wasFast=dormancySpeedMultiplier(game.units)===2;
+   const wasFast=dormancySpeedMultiplier(game.units,game.eggs)===2;
    stepSimulation();
-   if(wasFast&&dormancySpeedMultiplier(game.units)!==2){acc=0;break;}
+   if(wasFast&&dormancySpeedMultiplier(game.units,game.eggs)!==2){acc=0;break;}
   }
  }
  if(time-paintAt>=policy.paintInterval){
@@ -509,11 +509,11 @@ function backgroundStep(){
  backgroundTimer=null;
  if(!document.hidden)return;
  if(running){
-  const steps=dormancySpeedMultiplier(game.units);
+  const steps=dormancySpeedMultiplier(game.units,game.eggs);
   for(let i=0;i<steps&&running;i++){
-   const wasFast=dormancySpeedMultiplier(game.units)===2;
+   const wasFast=dormancySpeedMultiplier(game.units,game.eggs)===2;
    stepSimulation();
-   if(wasFast&&dormancySpeedMultiplier(game.units)!==2)break;
+   if(wasFast&&dormancySpeedMultiplier(game.units,game.eggs)!==2)break;
   }
  }
  backgroundTimer=setTimeout(backgroundStep,BROWSER_BACKGROUND_INTERVAL);
