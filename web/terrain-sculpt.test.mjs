@@ -83,7 +83,7 @@ test('game browser tools support click-and-drag plus user-visible costs',async()
  const html=await readFile(new URL('./index.html',import.meta.url),'utf8');
  assert.ok(app.includes("const kind='terrain'+mode"));
  assert.ok(app.includes("session.intervene(kind,x,y)"));
- assert.ok(app.includes("playMode==='game'&&['0','1','2','3'].includes(mode)"));
+ assert.ok(app.includes("playMode==='game'&&['0','1','2','3','4','5'].includes(mode)"));
  assert.ok(html.includes('id="terrainEditStatus"'));
  for(const price of [3,5,2,4])assert.ok(Object.values(TERRAIN_SCULPT_COST).includes(price));
  for(const kind of ['terrain0','terrain1','terrain2','terrain3'])assert.ok(INTERVENTIONS[kind]);
