@@ -33,12 +33,13 @@ test('species name classification and rendered body hue share a single color sou
  const a=make({power:10,agility:1}),b=make({power:1,agility:10});
  const c1=adaptationColor(a),c2=adaptationColor(b);
  assert.notEqual(c1.hue,c2.hue);
- assert.notEqual(w.category(a),w.category(b));
+ assert.equal(w.category(a)===w.category(b),pigmentClass(a)===pigmentClass(b),
+  'similar coarse colors should remain the same species unless a visible trait crosses a bin');
  assert.equal(w.name(w.category(a),a),w.name(w.category(a),b),
   'classification, not any supplied individual, determines the species name');
  assert.match(w.name(w.category(a),a),/^[ァ-ヶ]{6}$/);
  assert.match(w.name(w.category(b),b),/^[ァ-ヶ]{6}$/);
- assert.notEqual(w.name(w.category(a)),w.name(w.category(b)));
+ assert.equal(w.category(a)===w.category(b),w.name(w.category(a))===w.name(w.category(b)));
  assert.equal(typeof pigmentClass(a),'string');
 });
 test('pigment is stable across time and changes only through inherited DNA',()=>{
