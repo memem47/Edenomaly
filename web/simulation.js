@@ -243,7 +243,40 @@ const shortNameDigits=(number,length)=>{
  if(number!==0)throw new RangeError('Species name code space exhausted');
  return result;
 };
+// Visual taxonomy: species differ ONLY when a recognizable rendered feature
+// differs. These eight high-impact skills are displayed as distinct, permanent
+// pictograms on the body. Other genes can vary freely within the same species.
+export const VISIBLE_SPECIES_SKILLS=Object.freeze([
+ 'skillPredation','skillHibernate','skillParentFeeding','skillSplit',
+ 'skillCultivate','skillPondBuilder','skillRegenerate','skillNesting'
+]);
+export const visibleSkillMask=g=>VISIBLE_SPECIES_SKILLS.reduce((mask,key,i)=>
+ mask|((g.dna?.[key]===1?1:0)<<i),0);
+const VISUAL_KEY=/^vis-([0-6])-([0-2])-([0-2])-([0-3])-([0-5])-([0-9]{1,3})$/;
+const VISUAL_NAME_FAMILY=[...'アキサタナミル'];
+export const visibleSpeciesCategory=g=>{
+ const color=['red','yellow','green','blue','purple','pink','white'].indexOf(pigmentClass(g));
+ const radius=Number(g.r??4);
+ const size=radius<5?0:radius<8?1:2;
+ const length=Number(g.elongation??1)<1.38?0:Number(g.elongation??1)<2.25?1:2;
+ const eyes=Math.max(0,Math.min(6,Math.floor(g.eyes??0)));
+ const eye=eyes===0?0:eyes<=2?1:eyes<=4?2:3;
+ const p=phenotypeTraits(g),o=visibleOrnaments(g);
+ // The dominant appendage is recognizable at a glance; non-dominant
+ // appendage variation is tolerated within a named species.
+ const choices=[p.horns,o.tail,p.tentacles,p.fins,p.shellPlates];
+ let major=0,value=.48;
+ for(let i=0;i<choices.length;i++)if(choices[i]>value){value=choices[i];major=i+1;}
+ return 'vis-'+[color,size,length,eye,major,visibleSkillMask(g)].join('-');
+};
 export const speciesNameFromCategory=(key,genome=null)=>{
+ const visual=VISUAL_KEY.exec(key);
+ if(visual){
+  const [color,size,length,eyes,ornament,skills]=visual.slice(1).map(Number);
+  if(skills>255)throw new RangeError('Unknown visual skill set: '+key);
+  const n=((((size*3+length)*4+eyes)*6+ornament)*256+skills);
+  return VISUAL_NAME_FAMILY[color]+shortNameDigits(n,4);
+ }
  const p=speciesClassificationParts(key);
  const family=SHORT_NAME_FAMILY[p.habitat*3+p.diet];
  const values=[p.pigment,p.body,p.shape,p.eyes,p.strategy,p.repro,p.thermal];
@@ -842,19 +875,7 @@ export class Ecosystem{
   return this.recombine(expressDNA({dna:legacyToDNA(a)}),expressDNA({dna:legacyToDNA(b)}));
  }
  category(g){
-  // A species represents a recognizable ecological/morphological strategy.
-  // Coarsely categorized pigment is included because players can see color.
-  // Visible color/ornament bins are included; minor changes inside a bin do not make a new species.
-  const m=morphology(g),d=dietProfile(g).diet;
-  const diet=d<.32?'plant':d>.70?'hunter':'mixed';
-  const body=m.bodyMass<45?'tiny':m.bodyMass<105?'medium':m.bodyMass<195?'large':'giant';
-  const eyes=g.eyes===0?'blind':g.eyes<=2?'few':g.eyes<=4?'several':'allround';
-  const shape=g.elongation<1.38?'round':g.elongation<2.25?'oval':'long';
-  const strategy=protectiveDrive(g)>.52?'guardian':eggPredationDrive(g)>.62?'egg-hunter':'general';
-  // Habitat is a functional trait, not just a difference in appearance.
-  const habitat=g.aquatic===1?'aquatic':g.dry>=.70&&g.dry>g.rock+.10?'dry':g.rock>=.70&&g.rock>g.dry+.10?'rock':'land';
-  const thermal=g.idealTemp<12?'cold':g.idealTemp>31?'hot':'temperate';
-   return [habitat,diet,body,shape,eyes,strategy,'repro'+reproductiveMode(g),thermal,pigmentClass(g),speciesAppearanceCategory(g)].join('-');
+  return visibleSpeciesCategory(g);
  }
  name(category,genome=null){return speciesNameFromCategory(category,genome??this.species.get(category)?.genome??null);}
  addVisualEffect(type,point,extra={}){
