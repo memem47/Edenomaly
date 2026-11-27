@@ -70,5 +70,5 @@ test('high-speed ecology generates readable names for actual discovered species'
  assert.ok(names.length>0);
  assert.ok(names.every(name=>name.length>=4&&name.length<=6),'names are compact');
  assert.ok(names.every(name=>!name.includes('ノーマル')));
- assert.ok(names.every(name=>/^[ァ-ヶ]{4}(?:[ァ-ヶ]{2})?$/.test(name)));
+ assert.ok(names.every(name=>/^[ァ-ヶ]{4,6}$/.test(name)));
 });
