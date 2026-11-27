@@ -25,12 +25,12 @@ test('every game-time stat uses identical six-stat levels to founder editor (DNA
 test('founder-only mapping lists all 37 loci and derived physiology formulas (DNA v2)',async()=>{
  const {GENETIC_LOCUS_LIMITS}=await import('./simulation.js');
  const rows=formulaMappingRows();
- assert.equal(FOUNDER_FIELDS.length,27);
+ assert.equal(FOUNDER_FIELDS.length,29);
  assert.equal(rows.length,37);
  assert.deepEqual(new Set(rows.map(row=>row.key)),new Set(Object.keys(GENETIC_LOCUS_LIMITS)));
  assert.ok(FOUNDER_DERIVED_FORMULAS.length>=5);
  const html=founderFormulaHTML();
- assert.ok(html.includes('27遺伝子')&&html.includes('37応用パラメータ'));
+ assert.ok(html.includes('29遺伝子')&&html.includes('37応用パラメータ'));
  assert.ok(html.includes('体重 bodyMass'));
  assert.ok(html.includes('基礎代謝'));
 });
