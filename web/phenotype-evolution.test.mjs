@@ -6,7 +6,7 @@ import {drawOrnamentsBehind,drawOrnamentsFront,drawAbilityDetails} from './slime
 
 test('DNA variation changes phenotype signature, but naming tracks only species classification',async()=>{
  const w=new Ecosystem(2026112304),base=w.gene();
- assert.equal(FOUNDER_FIELDS.length,27);
+ assert.equal(FOUNDER_FIELDS.length,29);
  for(const [key,,lo,hi] of FOUNDER_FIELDS){
   const a=editFounderGenome(base,{[key]:lo});
   const b=editFounderGenome(base,{[key]:hi});
