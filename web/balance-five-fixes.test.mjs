@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {Ecosystem,WORLD,genomeCode} from './simulation.js';
+import {Ecosystem,WORLD,WORLD,genomeCode} from './simulation.js';
 import {founderTraitCost,founderCost,FOUNDER_BUDGET} from './founder-designer.js';
 import {FOUNDER_PRESETS,founderPresetGenome,randomFounderGenome} from './founder-presets.js';
 import {placementAssessment,populationDiagnosis,deathDiagnosis} from './survival-guidance.js';
@@ -43,7 +43,7 @@ test('site assessment warns strongly against water/land mismatch and initially p
  const rock=founderPresetGenome(base,'rock');
  const waterId=w.tiles.findIndex(t=>t===1);
  const grassId=w.tiles.findIndex(t=>t===0);
- const site=i=>[(i%40+.5)*20,(Math.floor(i/40)+.5)*20];
+ const site=i=>[(i%WORLD.columns+.5)*WORLD.cell,(Math.floor(i/WORLD.columns)+.5)*WORLD.cell];
  const [wx,wy]=site(waterId),[gx,gy]=site(grassId);
  assert.equal(placementAssessment(w,water,gx,gy).severe,true);
  assert.equal(placementAssessment(w,grass,wx,wy).severe,true);
