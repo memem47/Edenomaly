@@ -4,6 +4,8 @@
 export const CORE_KEYS=Object.freeze(['power','agility','stamina','intellect','adaptation','fertility']);
 export const SKILLS=Object.freeze([
  {key:'skillWaterGardening',label:'水草栽培',effect:'waterGardening'},
+ {key:'skillCultivate',label:'種まき',effect:'cultivation'},
+ {key:'skillPondBuilder',label:'水場造成',effect:'pondBuilding'},
  {key:'skillHibernate',label:'休眠',effect:'hibernate'},
  {key:'skillParentFeeding',label:'親の給餌',effect:'parentFeeding'},
  {key:'skillNestChoice',label:'産卵地選択',effect:'nestChoice'},
@@ -92,6 +94,7 @@ export function legacyToDNA(g={}){
   adaptation:clamp10(1+9*(n('wet')+n('dry')+n('rock')+n('hibernate'))/4),
   fertility:clamp10(1+9*(clamp((n('brood',3)-1)/7)+n('shell')+n('parentFeeding')+n('yolkReserve'))/4),
   skillWaterGardening:n('waterGardening')>.47?1:0,
+  skillCultivate:0,skillPondBuilder:0,
   skillHibernate:n('hibernate')>.54?1:0,
   skillParentFeeding:n('parentFeeding')>.53?1:0,
   skillNestChoice:n('nestChoice')>.52?1:0,
@@ -133,6 +136,8 @@ export function expressDNA(source){
   resist:clamp(.09+.87*stamina),frugality:clamp(.12+.82*stamina),
   longevity:.6+1.2*fertility+.2*(s('skillRegenerate')?1:0)+.11*(s('skillAbsorb')?1:0),
   waterGardening:s('skillWaterGardening')?clamp(.35+.65*adaptation):0,
+  cultivation:s('skillCultivate')?clamp(.35+.65*intellect):0,
+  pondBuilding:s('skillPondBuilder')?clamp(.35+.65*adaptation):0,
   shell:clamp(.08+.84*fertility),guard,
   nesting:clamp(.14+.57*fertility+.20*intellect)*(s('skillNesting')?1:.45),
   nestChoice,parentFeeding,
