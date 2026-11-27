@@ -88,9 +88,9 @@ export const livingBodyColor=(g,fade,edge=false)=>{
 // The palette modifies the terrain only, not creature pigments or simulation.
 export const seasonPalette=season=>({
  spring:{terrain:TERRAIN_COLORS,grass:'#89ec5e',blade:'#2aa943',water:'#48c7ff',weed:'#24a86b'},
- summer:{terrain:['#71d95c','#34b6fa','#f5c76b','#9c95c8'],grass:'#b6f777',blade:'#30b34d',water:'#7bd7ff',weed:'#2abe78'},
- autumn:{terrain:['#b17c39','#379fc9','#dd9b4e','#9688a9'],grass:'#d99d43',blade:'#ad552b',water:'#5cb8db',weed:'#8c923e'},
- winter:{terrain:['#d9e7e7','#8ec6e2','#e7edf0','#b7c9d6'],grass:'#e1ece5',blade:'#9db9ab',water:'#b3e6f3',weed:'#6baf9c'}
+ summer:{terrain:['#71d95c','#34b6fa','#f5c76b','#9c95c8','#40a184','#ac7568'],grass:'#b6f777',blade:'#30b34d',water:'#7bd7ff',weed:'#2abe78'},
+ autumn:{terrain:['#b17c39','#379fc9','#dd9b4e','#9688a9','#8a9c56','#a66554'],grass:'#d99d43',blade:'#ad552b',water:'#5cb8db',weed:'#8c923e'},
+ winter:{terrain:['#d9e7e7','#8ec6e2','#e7edf0','#b7c9d6','#7fa49a','#98817b'],grass:'#e1ece5',blade:'#9db9ab',water:'#b3e6f3',weed:'#6baf9c'}
 })[season]||{terrain:TERRAIN_COLORS,grass:'#89ec5e',blade:'#2aa943',water:'#48c7ff',weed:'#24a86b'};
 // Egg size follows the hatchling's physical size, not the pre-shrink pixels.
 export const eggVisualAxes=g=>{
@@ -169,6 +169,22 @@ export function drawWorld(ctx,s,showEffects=true,selected=null,options={}){
   }else if(t===2){
    ctx.fillStyle='#ffe099';ctx.fillRect(px+3+(seed%5),py+5,3,2);
    ctx.fillStyle='#cb8c45';ctx.fillRect(px+10,py+13+(seed%4),5,2);
+  }else if(t===4){
+   // Wetlands: dark green mud, broad reeds, shallow reflective puddles.
+   ctx.fillStyle='rgba(28,82,64,.42)';ctx.fillRect(px+1,py+1,cell-2,cell-2);
+   ctx.fillStyle='rgba(70,190,168,.78)';ctx.fillRect(px+4,py+11,9,4);
+   ctx.strokeStyle='#b3d98c';ctx.lineWidth=1.4;ctx.beginPath();
+   for(let k=0;k<4;k++){
+    const gx=px+4+(seed+k*4)%12,gy=py+15;
+    ctx.moveTo(gx,gy);ctx.lineTo(gx+(k%2?2:-2),gy-7-(level>=4?2:0));
+   }ctx.stroke();
+  }else if(t===5){
+   // Geothermal badlands: dark basalt and hot ochre fissures.
+   ctx.fillStyle='rgba(35,35,43,.53)';ctx.fillRect(px+2,py+2,cell-4,cell-4);
+   ctx.fillStyle=level>=4?'#ee9b59':'#d17050';ctx.beginPath();
+   ctx.moveTo(px+2,py+14);ctx.lineTo(px+8,py+8);
+   ctx.lineTo(px+12,py+11);ctx.lineTo(px+18,py+4);ctx.lineTo(px+15,py+16);
+   ctx.lineTo(px+7,py+18);ctx.closePath();ctx.fill();
   }else{
    ctx.fillStyle='#b9b7df';ctx.beginPath();ctx.moveTo(px+3,py+11);ctx.lineTo(px+9,py+3);ctx.lineTo(px+16,py+8);ctx.lineTo(px+14,py+17);ctx.lineTo(px+4,py+16);ctx.closePath();ctx.fill();
    ctx.strokeStyle='#65638e';ctx.lineWidth=1;ctx.stroke();
