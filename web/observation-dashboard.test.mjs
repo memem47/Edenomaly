@@ -8,7 +8,7 @@ import {DASHBOARD_TABS} from './dashboard-tabs.js';
 
 test('all inherited appearance and body loci are now directly editable (DNA v2)',async()=>{
  const {DNA_KEYS}=await import('./genome-model.js');
- assert.equal(FOUNDER_FIELDS.length,27);
+ assert.equal(FOUNDER_FIELDS.length,29);
  for(const key of ['tailLength','hornLength','antennaLength','pattern','jaw','eyes','r'])
   assert.equal(FOUNDER_FIELDS.some(([trait])=>trait===key),false,key);
  assert.ok(DNA_KEYS.includes('power'));
