@@ -34,7 +34,7 @@ test('new skills are genuinely inherited binary DNA and not an external perk',()
   const g=skillGenome(w,key);
   assert.equal(g.dna[key],1);
   assert.equal(w.recombine(g,g).dna[key],1);
-  assert.equal(w.mutate(g).dna[key]===0||w.mutate(g).dna[key]===1,true);
+  assert.ok([0,1].includes(w.mutate(g).dna[key]));
  }
 });
 test('cultivation transfers previously eaten seeds into depleted soil at personal cost',()=>{
@@ -82,7 +82,6 @@ test('terrain sculpting and enhanced renderer accept both newly added biomes',()
  assert.equal(w.terrain(x,y),5);
  const g=skillGenome(w,'skillCultivate');
  assert.ok(session.start(220,160,{founderGenome:g}));
- const t=[...w.tiles].findIndex(v=>v===0&&!w.units.some(u=>w.cell(u.x,u.y)===w.cell((t%WORLD.columns+.5)*20,(Math.floor(t/WORLD.columns)+.5)*20)));
  // Rendering is purely graphical: no simulation RNG changes.
  const rng=w.rng,ctx=new Proxy({},{get(obj,key){return obj[key]??(()=>{});},set(obj,key,value){obj[key]=value;return true;}});
  drawEnhancedTerrain(ctx,w,'spring');
