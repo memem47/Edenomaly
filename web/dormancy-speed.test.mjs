@@ -13,6 +13,16 @@ test('all living individuals must be asleep, with at least one survivor',()=>{
  assert.equal(dormancySpeedMultiplier([{dormant:true,dead:false}]),2);
  assert.equal(dormancySpeedMultiplier([{dormant:false,dead:false}]),1);
 });
+test('only viable eggs remain and automatically run 2x until first hatch',()=>{
+ const eggs=[{dead:false,dormant:false}];
+ assert.equal(allLivingDormant([],eggs),true);
+ assert.equal(dormancySpeedMultiplier([],eggs),2);
+ assert.equal(allLivingDormant([{dead:true,dormant:false}],eggs),true);
+ assert.equal(allLivingDormant([{dead:false,dormant:true}],eggs),true);
+ assert.equal(allLivingDormant([{dead:false,dormant:false}],eggs),false);
+ assert.equal(allLivingDormant([],[{dead:true,dormant:true}]),false);
+ assert.equal(dormancySpeedMultiplier([{dead:false,dormant:false}],[]),1);
+});
 test('hibernation multiplier doubles tick budget without modifying ecology RNG',()=>{
  const w=new Ecosystem(18198);
  const genome=w.gene();
