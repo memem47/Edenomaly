@@ -399,7 +399,7 @@ function update(){
   if(!eventVisibility.grassMeal&&e.type==='meal'&&e.message.includes('草を食べた')&&!e.message.includes('水草を食べた'))return false;
   return eventVisibility[e.type]!==false;
  }).slice(0,60).map(e=>`<div class="log-entry"><span style="color:${eventColors[e.type]||'#9eb0b8'}">●</span> [${e.step}] ${escapeHTML(e.message)}</div>`).join('');
- const people=[0,0,0,0],food=[0,0,0,0],corpses=[0,0,0,0],fitness=[0,0,0,0];for(const u of game.units){const t=game.terrain(u.x,u.y);people[t]++;fitness[t]+=terrainFitness(u.g,t).fitness;}for(let i=0;i<game.tiles.length;i++){food[game.tiles[i]]+=(game.grass[i]||0)+(game.waterweed[i]||0);}for(const c of game.corpses)corpses[game.terrain(c.x,c.y)]++;
+ const people=TERRAIN_NAMES.map(()=>0),food=TERRAIN_NAMES.map(()=>0),corpses=TERRAIN_NAMES.map(()=>0),fitness=TERRAIN_NAMES.map(()=>0);for(const u of game.units){const t=game.terrain(u.x,u.y);people[t]++;fitness[t]+=terrainFitness(u.g,t).fitness;}for(let i=0;i<game.tiles.length;i++){food[game.tiles[i]]+=(game.grass[i]||0)+(game.waterweed[i]||0);}for(const c of game.corpses)corpses[game.terrain(c.x,c.y)]++;
  $('habitats').innerHTML=TERRAIN_NAMES.map((name,i)=>`<div><span><span style="display:inline-block;width:11px;height:11px;background:${TERRAIN_COLORS[i]};margin-right:5px"></span>${name}</span><span>植物生産性 ${Math.round(TERRAIN_FERTILITY[i]*100)}% / 生命 ${people[i]} / 適応度平均 ${people[i]?(fitness[i]/people[i]).toFixed(2):'—'} / 資源 ${Math.round(food[i])} / 死体 ${corpses[i]}</span></div>`).join('');
  $('inspector').textContent=selected&&!selected.dead?`#${selected.id} ${game.species.get(selected.category)?.name}｜性別 ${selected.sex==='H'?'⚥ 雌雄同体':selected.sex==='F'?'♀ メス':'♂ オス'}｜繁殖方式 ${selected.g.repro===1?'雌雄同体':selected.g.repro===2?'単為生殖可能':'雌雄異体'}｜適温 ${selected.g.idealTemp.toFixed(1)}℃｜耐性 ±${selected.g.tempTolerance.toFixed(1)}℃｜現在気温 ${game.temperatureAt(selected.x,selected.y).toFixed(1)}℃｜温度適合 ${Math.round(thermalFitness(selected.g,game.temperatureAt(selected.x,selected.y)).comfort*100)}%｜体格 ×${(selected.growthScale??1).toFixed(2)}｜幅 ${(selected.g.r*(selected.growthScale??1)).toFixed(1)}｜長さ比 ${selected.g.elongation.toFixed(2)}｜目 ${selected.g.eyes}｜口 ${selected.g.mouths}｜顎 ${selected.g.jaw.toFixed(2)}｜水適応 ${selected.g.wet.toFixed(2)}｜乾燥適応 ${selected.g.dry.toFixed(2)}｜段階 ${selected.dormant?'休眠中':selected.stage==='juvenile'?'幼体':'成体'}${selected.stage==='juvenile'?`｜幼体成長 ${Math.round((selected.juvenileGrowth??0)*100)}%`:''}｜現在地 ${TERRAIN_NAMES[game.terrain(selected.x,selected.y)]}（適応度 ${terrainFitness(selected.g,game.terrain(selected.x,selected.y)).fitness.toFixed(2)}）｜水辺 ${selected.g.wet.toFixed(2)}・乾燥地 ${selected.g.dry.toFixed(2)}・岩場 ${selected.g.rock.toFixed(2)}｜移住 ${selected.migrations}｜水中視界 ${Math.round(terrainFitness(selected.g,1).sight*100)}%｜生息型 ${selected.g.aquatic===1?'水生':'陸生'}｜水分 ${Math.round(selected.hydration)}｜離水 ${selected.stranded}｜水没 ${selected.submerged}｜水進入 ${terrainFitness(selected.g,1).passable?'可能':'不可'}｜乾燥危険 ${terrainFitness(selected.g,2).hazard.toFixed(2)}｜休眠傾向 ${(selected.g.hibernate??0).toFixed(2)}｜感染 ${selected.infection>0?'あり':'なし'}｜同系統の近隣 ${selected.localCrowd??0}｜食性 ${dietProfile(selected.g).label} (${Math.round(dietProfile(selected.g).diet*100)}%肉食寄り)｜外見 ${dietProfile(selected.g).signal>.55?'肉食型':dietProfile(selected.g).signal<.45?'栄養食型':'中間型'}｜擬態 ${Math.abs(dietProfile(selected.g).diet-dietProfile(selected.g).signal)>.38?'あり':'なし'}｜警戒心 ${(selected.g.caution??.45).toFixed(2)}｜捕食者識別 ${(selected.g.predatorSense??.45).toFixed(2)}｜反撃性 ${(selected.g.retaliation??.35).toFixed(2)}｜産卵地選択 ${(selected.g.nestChoice??0).toFixed(2)}｜親の給餌 ${(selected.g.parentFeeding??0).toFixed(2)}｜卵黄栄養 ${(selected.g.yolkReserve??0).toFixed(2)}｜幼体共食い ${(selected.g.juvenileCannibalism??0).toFixed(2)}｜親からの累計給餌 ${(selected.receivedParentFood??0).toFixed(1)}｜省エネ特性 ${(selected.g.frugality??0).toFixed(2)}｜水草栽培 ${(selected.g.waterGardening??0).toFixed(2)}｜水草の繁殖体 ${(selected.waterSeedBank??0).toFixed(1)}｜陸上順化 ${(selected.landAcclimation??0).toFixed(2)}｜肉食順化 ${(selected.carnivoryExperience??0).toFixed(2)}｜現在の肉食能力 ${(selected.g.diet+(1-selected.g.diet)*(selected.carnivoryExperience??0)).toFixed(2)}｜行動 ${selected.behaviorTarget==='retaliate'?'反撃中':selected.fleeing?'逃走中':'通常'}｜一度に産む卵 ${selected.g.brood}｜体色 ${selected.g.albino===1?'白色変異':'地形適応に連動'}｜卵殻 ${selected.g.shell.toFixed(2)}｜保護 ${selected.g.guard.toFixed(2)}｜産卵場所 ${selected.g.nesting.toFixed(2)}｜HP ${Math.round(selected.hp)}/${selected.maxHp}｜旧長寿遺伝子 ${(selected.g.longevity??1).toFixed(2)}（寿命効果なし）｜飢餓HP減少 ${lifeDrain(selected).toFixed(3)}/step｜累計HP回復 ${(selected.hpRecovered??0).toFixed(1)}｜活力 ${Math.round(vitality(selected).vigor*100)}%｜エネルギー ${selected.energy.toFixed(1)}｜繁殖 ${selected.pregnancy?'産卵準備中 '+selected.pregnancy.remaining+'ステップ':selected.courtPartner?'求愛中 #'+selected.courtPartner:'通常'}｜両親 ${selected.parent===null?'始祖':'#'+selected.parent+' / #'+selected.otherParent}｜第${selected.generation}世代`:'観察モードで生命をクリック。';
  const inspectKey=selected&&!selected.dead?selected.id+':'+genomeCode(selected.g):'none';
@@ -603,10 +603,10 @@ function interact(e){
   return;
  }
  if(playMode==='game'){
-  if(['0','1','2','3'].includes(mode)){
+  if(['0','1','2','3','4','5'].includes(mode)){
    const kind='terrain'+mode;
    const success=session.intervene(kind,x,y);
-   const cost={0:3,1:5,2:2,3:4}[mode];
+   const cost={0:3,1:5,2:2,3:4,4:6,5:7}[mode];
    const label=TERRAIN_NAMES[Number(mode)];
    $('terrainEditStatus').textContent=success?
     '✓ '+label+'を1マス作成（-'+cost+'pt）。残り '+session.points+'pt':
@@ -625,7 +625,7 @@ function interact(e){
    }
   }
  }else{
-  if(['0','1','2','3'].includes(mode))game.paint(x,y,Number(mode),brush,terrainLevel);
+  if(['0','1','2','3','4','5'].includes(mode))game.paint(x,y,Number(mode),brush,terrainLevel);
   else if(['clinic','nursery','oasis'].includes(mode))game.log('info','この介入はゲームモード専用');
   else if(mode==='food'){game.paint(x,y,0,brush);game.log('info','プレイヤーが草を補充');}
   else if(mode==='fertilize')game.fertilize(x,y,brush);
@@ -664,8 +664,8 @@ canvas.addEventListener('pointerdown',e=>{
   // Painting one distinct tile per pointer move spends the normal game
   // intervention cost. Failed edits never spend points.
   if(painting&&!panEnabled&&
-   ((playMode==='lab'&&['0','1','2','3','fertilize'].includes(mode))||
-    (playMode==='game'&&['0','1','2','3'].includes(mode))))interact(e);
+   ((playMode==='lab'&&['0','1','2','3','4','5','fertilize'].includes(mode))||
+    (playMode==='game'&&['0','1','2','3','4','5'].includes(mode))))interact(e);
  });
  function endPointer(e){if(panGesture?.pointerId===e.pointerId){panGesture=null;canvas.classList.remove('dragging');}painting=false;}
  canvas.addEventListener('pointerup',endPointer);canvas.addEventListener('pointercancel',endPointer);
@@ -675,7 +675,7 @@ document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',(
  mode=b.dataset.mode;
  document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('active',x===b));
  updateTerrainLevelLabel();
- if(['0','1','2','3'].includes(mode)&&playMode==='game')
+ if(['0','1','2','3','4','5'].includes(mode)&&playMode==='game')
   $('terrainEditStatus').textContent='選択中：'+TERRAIN_NAMES[Number(mode)]+
    '｜1マスずつ操作。クリック・ドラッグで地形を変化させ、介入ポイントを消費します。';
 }));
