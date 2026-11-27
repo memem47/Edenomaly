@@ -744,6 +744,8 @@ export class Ecosystem{
    aquatic,repro:(()=>{const r=this.rand();return r<.004?1:r<.006?2:0;})(),
    biome,thermal,social:this.range(.25,.8),albino:this.rand()<.0015?1:0,
    skillWaterGardening:this.rand()<.045?1:0,
+   skillCultivate:this.rand()<.055?1:0,
+   skillPondBuilder:this.rand()<.018?1:0,
    skillHibernate:this.rand()<.09?1:0,
    skillParentFeeding:this.rand()<.065?1:0,
    skillNestChoice:this.rand()<.07?1:0,
