@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Ecosystem,terrainFitness,terrestrialHydrationDelta,effectivePlantAffinity,morphology} from './simulation.js';
+import {Ecosystem,WORLD,terrainFitness,terrestrialHydrationDelta,effectivePlantAffinity,morphology} from './simulation.js';
 import {GameSession} from './game-mode.js';
 
 test('three generations and a concurrent 12-body peak jointly establish one species',()=>{
@@ -67,7 +67,7 @@ test('rock lichen can be restored with game-mode seed and rainfall without chang
  assert.ok(session.start(170,130));
  const i=w.tiles.findIndex(v=>v===3);
  assert.ok(i>=0);
- const x=(i%40+.5)*20,y=(Math.floor(i/40)+.5)*20;
+ const x=(i%WORLD.columns+.5)*WORLD.cell,y=(Math.floor(i/WORLD.columns)+.5)*WORLD.cell;
  assert.equal(w.tiles[i],3);
  w.grass[i]=0;w.soilWater[i]=0;
  assert.ok(session.canIntervene('seed',x,y));
