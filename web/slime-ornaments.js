@@ -1,7 +1,7 @@
 // Soft, readable jelly ornaments made entirely of overlapping round shapes.
 // Drawing only: genes, hitboxes, upkeep, movement and RNG are unchanged.
 // The organism faces +X. The upper-right contour is its forehead.
-import {adaptationColor,visibleOrnaments,phenotypeTraits} from './simulation.js?v=2026.11.28.1';
+import {adaptationColor,visibleOrnaments,phenotypeTraits,visibleSkillMask} from './simulation.js?v=2026.11.28.2';
 const TAU=Math.PI*2;
 const lim=v=>Math.max(0,Math.min(1,v??0));
 export const ornamentTraits=g=>visibleOrnaments(g);
@@ -248,6 +248,26 @@ export function drawAbilityDetails(ctx,g,rx,ry){
  if(a.leaf>.15){
   ctx.fillStyle='rgba(143,230,145,.8)';
   ctx.beginPath();ctx.ellipse(-rx*.70,-ry*.2,rx*.12,ry*(.10+a.leaf*.12),-.5,0,TAU);ctx.fill();
+ }
+ // The eight defining skills have permanent, readable marks on the body.
+ // Exactly the same bitmask is used by species classification; invisible
+ // skill changes cannot silently create a different named species.
+ const mask=visibleSkillMask(g);
+ if(mask){
+  const marks=['牙','眠','育','分','芽','水','再','巣'];
+  const colors=['#da6661','#a6b6ea','#ffe09c','#eb95eb','#8bdb93','#78c7ed','#f9e7ad','#cda57f'];
+  const font=Math.max(4,Math.min(13,ry*.28));
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.font='bold '+font+'px system-ui';
+  for(let i=0;i<8;i++)if(mask&(1<<i)){
+   const x=rx*(-.62+(i%4)*.40),y=ry*(-.31+Math.floor(i/4)*.66);
+   const r=font*.52;
+   ctx.fillStyle='rgba(22,33,43,.90)';ctx.beginPath();
+   ctx.arc(x,y,r+1,0,TAU);ctx.fill();
+   ctx.fillStyle=colors[i];ctx.beginPath();
+   ctx.arc(x,y,r,0,TAU);ctx.fill();
+   ctx.fillStyle='#1d2930';ctx.fillText(marks[i],x,y+.2);
+  }
  }
  // Eyebrow-like soft sensory arcs convey alertness without aggressive faces.
  ctx.strokeStyle='rgba(245,255,255,'+(.08+a.brow*.40)+')';
