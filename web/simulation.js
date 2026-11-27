@@ -1653,7 +1653,9 @@ export class Ecosystem{
   // Expand the original 40×23 biome layout to 60×35, adding lakes and distinct habitats.
   const hubs=[{x:10,y:9,t:1,r:6},{x:33,y:18,t:1,r:5},{x:30,y:5,t:2,r:9},{x:7,y:20,t:2,r:5},{x:21,y:17,t:3,r:4},{x:38,y:9,t:3,r:4},
    {x:51,y:10,t:1,r:7},{x:49,y:29,t:1,r:5},{x:18,y:29,t:1,r:5},
-   {x:56,y:23,t:2,r:8},{x:33,y:31,t:2,r:7},{x:48,y:17,t:3,r:5}];
+   {x:56,y:23,t:2,r:8},{x:33,y:31,t:2,r:7},{x:48,y:17,t:3,r:5},
+   {x:22,y:12,t:4,r:4},{x:44,y:26,t:4,r:4},{x:12,y:30,t:4,r:3},
+   {x:54,y:4,t:5,r:4},{x:35,y:27,t:5,r:3}];
   for(let y=0;y<NY;y++)for(let x=0;x<NX;x++){
    let t=0;for(const h of hubs)if(Math.hypot(x-h.x,y-h.y)+this.range(-1.4,1.4)<h.r)t=h.t;this.tiles[y*NX+x]=t;
   }
@@ -1719,9 +1721,11 @@ export class Ecosystem{
   this.seedRainCount=0;this.waterweedSeedCount=0;this.corpseSproutCount=0;this.waterPlantings=0;this.cannibalMeals=0;
   for(let i=0;i<this.tiles.length;i++){
    const level=this.terrainLevels[i];
-   this.soilWater[i]=this.tiles[i]===0?52:this.tiles[i]===2?19:this.tiles[i]===1?95:5;
+   this.soilWater[i]=this.tiles[i]===0?52:this.tiles[i]===2?19:this.tiles[i]===1?95:this.tiles[i]===4?90:this.tiles[i]===5?9:5;
    if(this.tiles[i]===0)this.grass[i]=Math.min(100,[26,44,65,77,87][level-1]+this.rand()*13);
    if(this.tiles[i]===2)this.grass[i]=[5,4,3,2,1][level-1]+this.rand()*2;
+   if(this.tiles[i]===4)this.grass[i]=Math.min(100,[35,53,70,84,93][level-1]+this.rand()*8);
+   if(this.tiles[i]===5)this.grass[i]=Math.min(6,2+this.rand()*3);
    // Preserve the seeded RNG sequence when converting rocky food to bare refuge.
    if(this.tiles[i]===3)this.grass[i]=10+this.rand()*10; // edible slow-growing mountain lichen
    if(this.tiles[i]===1){
@@ -1849,13 +1853,13 @@ export class Ecosystem{
    for(let i=0;i<this.soilWater.length;i++){
     const biome=this.tiles[i];
     if(biome===1){this.soilWater[i]=Math.max(70,this.soilWater[i]);continue;}
-    const rain=this.weather==='rain'?(.8+this.rainfall*.025)*(biome===0?1:biome===2?.72:.35):0;
-    const evaporation=clamp(.14+Math.max(0,this.temperature-22)*.025,0,.85)*(biome===0?.78:biome===2?1.2:.65);
+    const rain=this.weather==='rain'?(.8+this.rainfall*.025)*(biome===0?1:biome===4?1.45:biome===2?.72:.35):0;
+    const evaporation=clamp(.14+Math.max(0,this.temperature-22)*.025,0,.85)*(biome===0?.78:biome===4?.4:biome===5?1.6:biome===2?1.2:.65);
     this.soilWater[i]=clamp(this.soilWater[i]+rain-evaporation,0,100);
    }
    const next=this.grass.slice();
    for(let i=0;i<this.tiles.length;i++){
-    if(this.tiles[i]===0&&this.grass[i]>0){
+    if((this.tiles[i]===0||this.tiles[i]===4)&&this.grass[i]>0){
      const localGrazing=this.grazingPressure[i];
        const levelScale=TERRAIN_LEVEL_GROWTH[(this.terrainLevels?.[i]??3)-1]??1;
       const productivity=clamp(.28+this.soil[i]/120,.28,1.12);
@@ -1870,7 +1874,7 @@ export class Ecosystem{
       if(localGrazing>2.5){
        next[i]=Math.max(0,next[i]-Math.min(4.5,(localGrazing-2.5)*.23));
        this.soil[i]=Math.max(0,this.soil[i]-.075*Math.min(10,localGrazing));
-       if(next[i]<.2){next[i]=0;this.tiles[i]=2;}
+       if(next[i]<.2){next[i]=0;if(this.tiles[i]===0)this.tiles[i]=2;}
       }
     }
     // Sparse edible dryland plants recover slowly; rocks never grow food.
@@ -1880,6 +1884,10 @@ export class Ecosystem{
       this.grass[i]+.10*(.25+wetness)*
       this.growth/70*seasonalPlantGrowth(plantSeason,this.temperature,2,this.soilWater[i])/(1+this.grazingPressure[i]));
     }
+    if(this.tiles[i]===5){
+     // Geothermal ash has sparse pioneering lichens, even after rain.
+     next[i]=Math.min(8,this.grass[i]+.09*(this.soilWater[i]/100+.1)*this.growth/70);
+    }
     if(this.tiles[i]===3){
      // Rock lichen is a persistent but slowly recovering local food source.
      // High rock adaptation improves collection, not infinite food.
@@ -1887,7 +1895,7 @@ export class Ecosystem{
      const moisture=.35+.65*clamp((this.soilWater[i]??0)/60,0,1);
      next[i]=Math.min(24,this.grass[i]+.85*seasonScale*moisture*this.growth/70/(1+this.grazingPressure[i]*.3));
     }
-    if(this.grass[i]<=0&&this.tiles[i]!==1&&this.tiles[i]!==3){
+    if(this.grass[i]<=0&&this.tiles[i]!==1&&this.tiles[i]!==3&&this.tiles[i]!==4&&this.tiles[i]!==5){
      const x=i%NX,y=Math.floor(i/NX);
      const neighbors=[x>0?i-1:-1,x<NX-1?i+1:-1,y>0?i-NX:-1,y<NY-1?i+NX:-1];
      // A completely bare world contains no propagules.
