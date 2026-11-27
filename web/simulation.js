@@ -1425,6 +1425,66 @@ export class Ecosystem{
   }
   return true;
  }
+ // Soil cultivation moves seeds acquired from grazing to nearby depleted
+ // patches. It costs stored propagules, energy and water, never creates free
+ // food, and requires at least one surviving source of seeds.
+ cultivate(u){
+  if(u.dead||u.dormant||u.stage!=='adult'||u.g.dna?.skillCultivate!==1||
+     u.g.aquatic===1||u.energy<85||u.hydration<42||
+     (u.seedBank??0)<2||this.tick-(u.lastCultivation??-10000)<110)return false;
+  const origin=this.cell(u.x,u.y),cx=origin%NX,cy=Math.floor(origin/NX);
+  let best=-1,value=Infinity;
+  for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){
+   if(dx*dx+dy*dy>4)continue;
+   const x=cx+dx,y=cy+dy;
+   if(x<0||y<0||x>=NX||y>=NY)continue;
+   const i=y*NX+x,t=this.tiles[i];
+   if((t!==0&&t!==2&&t!==4)||this.grass[i]>15||this.soilWater[i]<16)continue;
+   const score=this.grass[i]+(t===2?5:0);
+   if(score<value){value=score;best=i;}
+  }
+  if(best<0)return false;
+  const spent=Math.min(4,u.seedBank);
+  u.seedBank-=spent;u.energy-=8;u.hydration-=5;
+  this.grass[best]=Math.min(this.tiles[best]===2?9:100,
+   this.grass[best]+spent*(this.tiles[best]===2?.65:2.5));
+  this.soil[best]=Math.max(0,this.soil[best]-1.5);
+  u.lastCultivation=this.tick;
+  this.log('info','#'+u.id+' が採食した種をまき、餌場を増やした',u);
+  return true;
+ }
+ // A rare high-cost engineer can convert one moist *unoccupied* shore or
+ // wetland tile into a small pond. Moisture and rainfall are prerequisites:
+ // it cannot conjure water from a barren desert or create infinite biomass.
+ createWaterhole(u){
+  if(u.dead||u.dormant||u.stage!=='adult'||u.g.dna?.skillPondBuilder!==1||
+     u.g.aquatic===1||u.energy<145||u.hydration<78||
+     this.weather!=='rain'||this.tick-(u.lastPondBuild??-10000)<1200)return false;
+  const cell=this.cell(u.x,u.y),cx=cell%NX,cy=Math.floor(cell/NX);
+  let best=-1;
+  for(let dy=-1;dy<=1&&best<0;dy++)for(let dx=-1;dx<=1;dx++){
+   if(Math.abs(dx)+Math.abs(dy)!==1)continue;
+   const x=cx+dx,y=cy+dy;
+   if(x<1||y<1||x>=NX-1||y>=NY-1)continue;
+   const i=y*NX+x,t=this.tiles[i];
+   if(t!==4&&t!==0||this.soilWater[i]<72||
+      this.units.some(v=>!v.dead&&this.cell(v.x,v.y)===i)||
+      this.eggs.some(e=>!e.dead&&this.cell(e.x,e.y)===i))continue;
+   // Need surface connection to a pond or wetland; no water from dry air.
+   const adj=[i-1,i+1,i-NX,i+NX];
+   if(!adj.some(j=>this.tiles[j]===1||this.tiles[j]===4))continue;
+   best=i;break;
+  }
+  if(best<0)return false;
+  u.energy-=32;u.hydration-=17;u.lastPondBuild=this.tick;
+  this.tiles[best]=1;this.terrainLevels[best]=1;
+  this.grass[best]=0;this.waterbed[best]=1;
+  this.water[best]=Math.min(60,Math.max(18,this.soilWater[best]*.42));
+  this.waterweed[best]=0;this.soilWater[best]=Math.max(0,this.soilWater[best]-52);
+  this._waterRegionTick=null;this._waterRegions=null;
+  this.log('info','#'+u.id+' が湿った土地を掘り小さな水場を作った',u);
+  return true;
+ }
  // Aquatic gardeners carry viable propagules to depleted reachable beds.
  // The propagules originate from eaten waterweed, and planting costs energy.
  plantWaterweed(u){
@@ -2409,6 +2469,8 @@ export class Ecosystem{
      if((this.tick+u.id)%9===0)this.addVisualEffect('graze',u,{fromX:nearest.x,fromY:nearest.y});
      this.log('meal','#'+u.id+' が草を食べた',u);}
    }
+   this.cultivate(u);
+   this.createWaterhole(u);
    this.feedOffspring(u,near);
    if(g.dna?.skillCooperate===1)this.shareFoodWithAlly(u,near);
     // A carnivore can also scavenge a corpse: deserts cannot support herbivores.
