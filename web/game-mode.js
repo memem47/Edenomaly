@@ -1,5 +1,5 @@
 // Game-mode progression is independent of Lab mode and browser storage.
-import {WORLD} from './simulation.js';
+import {WORLD,appendageProgression} from './simulation.js';
 export const TERRAIN_SCULPT_COST=Object.freeze({0:3,1:5,2:2,3:4,4:6,5:7});
 export const INTERVENTIONS=Object.freeze({
  seed:{cost:5,label:'草・水草の種をまく'},
@@ -74,6 +74,18 @@ export class GameSession{
   // Only after ecosystem has actually lived that long, not on free reset/idle.
   for(let n=300;n<=score.duration;n+=300)this.grant('survive:'+n,5,n+'ステップ生存');
   for(let n=1;n<=score.discoveries;n++)this.grant('discovery:'+n,10,'新種 '+n+'種');
+  // Discovering successively rare visible limbs is a long-term game goal.
+  // Rewards are one-time per stage and require an actually discovered species.
+  const bestStage=Math.max(0,...[...w.species.values()].map(sp=>
+   appendageProgression(sp.genome).stage));
+  for(const [stage,points,label] of [
+   [1,3,'しっぽを持つ種族'],[2,7,'足を持つ種族'],
+   [3,15,'手を持つ種族'],[4,60,'天使の羽を持つ完全形'],
+   [5,60,'悪魔の羽を持つ完全形']
+  ])if(stage<=3?bestStage>=stage:
+   [...w.species.values()].some(sp=>appendageProgression(sp.genome).stage===stage)){
+   this.grant('appendage:'+stage,points,'進化目標：'+label);
+  }
   // Separate discovery from ecological success. A new category is not
   // established until it has both three generations and a 12-body peak.
   for(const [category,sp] of w.species){
