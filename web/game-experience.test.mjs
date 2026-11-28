@@ -106,3 +106,31 @@ test('all browser game flow modules parse as valid JavaScript',()=>{
   assert.doesNotThrow(()=>execFileSync(process.execPath,['--check',file],{stdio:'pipe'}),name);
  }
 });
+
+test('major rewards and premium interventions use points once and protect life',()=>{
+ const w=new Ecosystem(2026112805),s=new GameSession(w);
+ assert.ok(s.start(180,180));
+ const points=s.points;
+ assert.ok(s.grant('test:rare',5000,'testing rare finding'));
+ assert.equal(s.grant('test:rare',5000,'testing rare finding'),false);
+ assert.equal(s.points,points+5000);
+ assert.ok(s.canIntervene('mutationPulse',180,180));
+ assert.ok(s.intervene('mutationPulse',180,180));
+ assert.equal(w.mutationPulseUntil,w.tick+400);
+ assert.equal(s.intervene('mutationPulse',180,180),false,'cannot stack a running mutation pulse');
+ assert.equal(s.spent,2000);
+ assert.ok(s.intervene('evolutionSanctuary',180,180));
+ assert.ok(w.supportZones.some(z=>z.kind==='evolutionSanctuary'));
+ assert.equal(s.spent,6000);
+ assert.ok(!s.canIntervene('worldShaper',180,180),'insufficient balance');
+ w.reset();
+ assert.equal(w.mutationPulseUntil,0,'reset clears pulse');
+});
+test('premium intervention options exist in browser menus',async()=>{
+ const html=await readFile(new URL('./index.html',import.meta.url),'utf8');
+ const app=await readFile(new URL('./app.js',import.meta.url),'utf8');
+ for(const kind of ['worldShaper','mutationPulse','evolutionSanctuary']){
+  assert.ok(html.includes('data-mode="'+kind+'"'),kind);
+  assert.ok(app.includes("'"+kind+"'"),kind);
+ }
+});
