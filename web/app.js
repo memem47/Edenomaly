@@ -1,27 +1,27 @@
 import {zipFiles} from './zip-log.js?v=2026.11.07.4';
-import {mountFounderScreens} from './founder-screens.js?v=2026.11.28.3';
-import {mountDashboardTabs} from './dashboard-tabs.js?v=2026.11.28.3';
-import {abilityListHTML} from './ability-bars.js?v=2026.11.28.3';
+import {mountFounderScreens} from './founder-screens.js?v=2026.11.28.4';
+import {mountDashboardTabs} from './dashboard-tabs.js?v=2026.11.28.4';
+import {abilityListHTML} from './ability-bars.js?v=2026.11.28.4';
 import {BASIC_STAT_GROUPS,basicStatScore} from './basic-stat-score.js';
-import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,parentalMutationChance,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.28.3';
-import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.28.3';
-import {defaultGameStartSite,randomGameFounder,freshGameSeed} from './quick-start.js?v=2026.11.28.3';
-import {mountGameUI} from './game-ui.js?v=2026.11.28.3';
-import {placementAssessment,populationDiagnosis} from './survival-guidance.js?v=2026.11.28.3';
+import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,parentalMutationChance,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.28.4';
+import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.28.4';
+import {defaultGameStartSite,randomGameFounder,freshGameSeed} from './quick-start.js?v=2026.11.28.4';
+import {mountGameUI} from './game-ui.js?v=2026.11.28.4';
+import {placementAssessment,populationDiagnosis} from './survival-guidance.js?v=2026.11.28.4';
 import {fitView,screenToWorld,zoomAround,panBy,MAX_ZOOM,ZOOM_STEP} from './viewport.js?v=2026.11.08.12';
-import {drawWorld,drawChart} from './renderer.js?v=2026.11.28.3';
+import {drawWorld,drawChart} from './renderer.js?v=2026.11.28.4';
 import {EcologyLogbook,observeEcology,ECOLOGY_LOG_FIELDS} from './ecology-log.js?v=2026.11.14.2';
 import {gameRunReport,saveGameRunReport,readGameRunHistory} from './game-run-log.js?v=2026.11.14.2';
 import {SpeciesLogbook,speciesReport,csvCell} from './species-statistics.js';
-import {evolutionGraph,evolutionSVG} from './evolution-tree.js?v=2026.11.28.3';
-import {drawFounderAppearance} from './founder-preview.js?v=2026.11.28.3';
+import {evolutionGraph,evolutionSVG} from './evolution-tree.js?v=2026.11.28.4';
+import {drawFounderAppearance} from './founder-preview.js?v=2026.11.28.4';
 import {performancePolicy,simulationBatch,BROWSER_BACKGROUND_INTERVAL} from './performance-policy.js?v=video-friendly-1';
-import {dormancySpeedMultiplier} from './dormancy-speed.js?v=2026.11.28.3';
+import {dormancySpeedMultiplier} from './dormancy-speed.js?v=2026.11.28.4';
 const $=id=>document.getElementById(id);
 const dashboard=mountDashboardTabs(document);
 // Release label is bundled with the running source; comparison uses a
 // separately published manifest from the repository's main branch.
-const BUILD_VERSION='2026.11.28.3';
+const BUILD_VERSION='2026.11.28.4';
 const VERSION_SOURCE='https://raw.githubusercontent.com/memem47/Edenomaly/main/web/version.json';
 $('buildVersion').textContent=BUILD_VERSION;
 async function checkLatestVersion(){
@@ -357,7 +357,7 @@ function update(){
    '（相関であり介入による効果とは限りません）':
    session.pendingImpact?'介入後100ステップの結果を計測中':'';
   $('interventionHelp').textContent=playMode==='game'?
-   '感染は定着後に稀に発生し、接触で拡大。🪺 保護区（7pt）は卵を守り、💧 給水拠点（6pt）は脱水を防ぎ、🩺 防疫（9pt）は感染者を処置。'+impactText:
+   '✨ 希少イベントで大型報酬：長寿個体35pt／3種共存30pt／5種共存65pt／生命による池づくり60pt／天使・悪魔の羽を両方発見120pt。🌲 広域植生再生40pt・🏞️ 広域生命保護区50pt・🌊 湖沼造成75ptを選べます。'+impactText:
    'テストモードでは従来どおり自由に操作できます。';
  for(const button of document.querySelectorAll('[data-mode]')){
   const kind=button.dataset.mode;
