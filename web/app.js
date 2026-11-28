@@ -348,7 +348,7 @@ function update(){
  const score=game.runScore;
  $('playModeLab').classList.toggle('active',playMode==='lab');
  $('playModeGame').classList.toggle('active',playMode==='game');
- $('playModeStatus').textContent=playMode==='game'?(session.finished?'絶滅・プレイ終了':session.active?'観察・介入中':'最初の生命を移入'):'自由な環境実験';
+ $('playModeStatus').textContent=playMode==='game'?(session.finished?'絶滅・プレイ終了':session.active?(game.wildernessMode?'🏜 荒野モード：生態系を開拓中':'観察・介入中'):'最初の生命を移入'):'自由な環境実験';
  $('interventionPoints').textContent=playMode==='game'?session.points.toLocaleString('ja-JP'):'—';
  $('rewardBank').textContent=meta.bank.toLocaleString('ja-JP');
  gameUI.update();
