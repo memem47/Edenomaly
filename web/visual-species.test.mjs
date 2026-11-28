@@ -36,7 +36,7 @@ test('visual species keys sample every class dimension without name collisions',
  for(let eyes=0;eyes<4;eyes++)for(let appendage=0;appendage<6;appendage++)
  for(let diet=0;diet<3;diet++)for(let aquatic=0;aquatic<2;aquatic++)
  for(let repro=0;repro<3;repro++)for(const mask of [0,1,17,85,170,255]){
-  const key=['vis',c,size,shape,eyes,appendage,diet,aquatic,repro,mask].join('-');
+  const key=['vis',c,size,shape,eyes,appendage,diet,aquatic,repro,mask,0].join('-');
   const name=speciesNameFromCategory(key);
   assert.match(name,/^[ァ-ヶ]{6}$/);
   if(names.has(name))throw new Error('Name collision: '+key+' => '+name);
