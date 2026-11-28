@@ -285,31 +285,36 @@ export function drawAbilityDetails(ctx,g,rx,ry){
   ctx.fillStyle='rgba(143,230,145,.8)';
   ctx.beginPath();ctx.ellipse(-rx*.70,-ry*.2,rx*.12,ry*(.10+a.leaf*.12),-.5,0,TAU);ctx.fill();
  }
- // Water-breathing and reproductive type are visible, permanent markings.
- // They are part of visual taxonomy only because these marks are rendered.
- ctx.font='bold '+Math.max(4,Math.min(13,ry*.3))+'px system-ui';
- ctx.textAlign='center';ctx.textBaseline='middle';
- if(g.aquatic===1){ctx.fillStyle='#75e8f5';ctx.fillText('水',-rx*.52,-ry*.47);}
- if(g.repro===1){ctx.fillStyle='#ffe39d';ctx.fillText('双',rx*.06,-ry*.49);}
- else if(g.repro===2){ctx.fillStyle='#f9b8da';ctx.fillText('単',rx*.06,-ry*.49);}
- // The eight defining skills have permanent, readable marks on the body.
- // Exactly the same bitmask is used by species classification; invisible
- // skill changes cannot silently create a different named species.
+ // Use simple geometric marks instead of letters on the body.
+ // These signs retain differences in species-defining skills without
+ // cluttering the appearance with kanji.
+ if(g.aquatic===1){
+  ctx.strokeStyle='rgba(117,232,245,.85)';ctx.lineWidth=Math.max(.5,ry*.075);
+  for(let i=0;i<2;i++){ctx.beginPath();ctx.arc(-rx*.55+i*rx*.12,-ry*.49,Math.max(.7,ry*.08),0,Math.PI);ctx.stroke();}
+ }
+ if(g.repro===1||g.repro===2){
+  ctx.fillStyle=g.repro===1?'#ffe39d':'#f9b8da';
+  const x=rx*.06,y=-ry*.49,r=Math.max(.8,ry*.09);
+  if(g.repro===1){
+   for(const shift of [-1,1]){ctx.beginPath();ctx.arc(x+shift*r*.7,y,r*.65,0,TAU);ctx.fill();}
+  }else{
+   ctx.beginPath();ctx.moveTo(x,y-r);ctx.lineTo(x+r,y+r*.8);ctx.lineTo(x-r,y+r*.8);ctx.closePath();ctx.fill();
+  }
+ }
  const mask=visibleSkillMask(g);
  if(mask){
-  const marks=['牙','眠','育','分','芽','水','再','巣'];
   const colors=['#da6661','#a6b6ea','#ffe09c','#eb95eb','#8bdb93','#78c7ed','#f9e7ad','#cda57f'];
-  const font=Math.max(4,Math.min(13,ry*.28));
-  ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.font='bold '+font+'px system-ui';
+  const r=Math.max(.65,Math.min(ry*.095,2.4));
   for(let i=0;i<8;i++)if(mask&(1<<i)){
-   const x=rx*(-.62+(i%4)*.40),y=ry*(-.31+Math.floor(i/4)*.66);
-   const r=font*.52;
-   ctx.fillStyle='rgba(22,33,43,.90)';ctx.beginPath();
-   ctx.arc(x,y,r+1,0,TAU);ctx.fill();
-   ctx.fillStyle=colors[i];ctx.beginPath();
-   ctx.arc(x,y,r,0,TAU);ctx.fill();
-   ctx.fillStyle='#1d2930';ctx.fillText(marks[i],x,y+.2);
+   const x=rx*(-.60+(i%4)*.38),y=ry*(-.24+Math.floor(i/4)*.53);
+   ctx.fillStyle='rgba(22,33,43,.65)';ctx.beginPath();ctx.arc(x,y,r*1.45,0,TAU);ctx.fill();
+   ctx.fillStyle=colors[i];
+   ctx.beginPath();
+   if(i%4===0){ctx.arc(x,y,r,0,TAU);}
+   else if(i%4===1){ctx.ellipse(x,y,r*.60,r*1.2,0,0,TAU);}
+   else if(i%4===2){ctx.moveTo(x,y-r);ctx.lineTo(x+r,y+r*.8);ctx.lineTo(x-r,y+r*.8);ctx.closePath();}
+   else{ctx.rect(x-r*.8,y-r*.8,r*1.6,r*1.6);}
+   ctx.fill();
   }
  }
  // Eyebrow-like soft sensory arcs convey alertness without aggressive faces.
