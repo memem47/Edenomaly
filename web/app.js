@@ -3,8 +3,8 @@ import {mountFounderScreens} from './founder-screens.js?v=2026.11.28.4';
 import {mountDashboardTabs} from './dashboard-tabs.js?v=2026.11.28.4';
 import {abilityListHTML} from './ability-bars.js?v=2026.11.28.4';
 import {BASIC_STAT_GROUPS,basicStatScore} from './basic-stat-score.js';
-import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,parentalMutationChance,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.28.5';
-import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.28.8';
+import {Ecosystem,WORLD,TERRAIN_NAMES,TERRAIN_COLORS,dietProfile,terrainFitness,TERRAIN_FERTILITY,TERRAIN_LEVEL_NAMES,vitality,morphology,adaptationColor,parentalMutationChance,eggPredationDrive,protectiveDrive,thermalFitness,lifeDrain,longevityUpkeep,genomeCode} from './simulation.js?v=2026.11.28.9';
+import {GameSession,parseMeta,settleMeta} from './game-mode.js?v=2026.11.28.9';
 import {defaultGameStartSite,randomGameFounder,freshGameSeed} from './quick-start.js?v=2026.11.28.4';
 import {mountGameUI} from './game-ui.js?v=2026.11.28.4';
 import {placementAssessment,populationDiagnosis} from './survival-guidance.js?v=2026.11.28.4';
@@ -21,7 +21,7 @@ const $=id=>document.getElementById(id);
 const dashboard=mountDashboardTabs(document);
 // Release label is bundled with the running source; comparison uses a
 // separately published manifest from the repository's main branch.
-const BUILD_VERSION='2026.11.28.8';
+const BUILD_VERSION='2026.11.28.9';
 const VERSION_SOURCE='https://raw.githubusercontent.com/memem47/Edenomaly/main/web/version.json';
 $('buildVersion').textContent=BUILD_VERSION;
 async function checkLatestVersion(){
@@ -140,6 +140,14 @@ $('startGameDefault').onclick=()=>{
  $('gameStartDialog').close();
  // Use the original game start path: one species, 8 ordinary founders,
  // existing upgrade bonuses, automatic logs, and normal game scoring.
+ introduceCustom(site.x,site.y,founder);
+};
+$('startGameWilderness').onclick=()=>{
+ if(playMode!=='game'||session.active||session.finished||game.introducedCount>0)return;
+ game.wildernessMode=true;game.reset();session.reset();knownSpecies.clear();
+ const site=game.wildernessOrigin;
+ const founder=randomGameFounder(game,{...site,terrain:0});
+ $('gameStartDialog').close();
  introduceCustom(site.x,site.y,founder);
 };
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -357,17 +365,19 @@ function update(){
    '（相関であり介入による効果とは限りません）':
    session.pendingImpact?'介入後100ステップの結果を計測中':'';
   $('interventionHelp').textContent=playMode==='game'?
-   '✨ 希少イベントで大型報酬：長寿個体35pt／3種共存30pt／5種共存65pt／生命による池づくり60pt／天使・悪魔の羽を両方発見120pt。🌲 広域植生再生40pt・🏞️ 広域生命保護区50pt・🌊 湖沼造成75pt・🏔 大地改造1000pt・🧬 突然変異の波2000pt・✨ 進化の聖域4000ptを選べます。'+impactText:
+   '✨ 希少イベントで大型報酬：長寿個体35pt／3種共存30pt／5種共存65pt／生命による池づくり60pt／天使・悪魔の羽を両方発見120pt。🌲 広域植生再生40pt・🏞️ 広域生命保護区50pt・🌊 湖沼造成75pt・🏔 大地改造1000pt・🧬 突然変異の波2000pt・✨ 進化の聖域4000ptに加え、🌱 自動種まき機240pt／💧 自動給水機220pt（各600ステップ）を選べます。'+impactText:
    'テストモードでは従来どおり自由に操作できます。';
  for(const button of document.querySelectorAll('[data-mode]')){
   const kind=button.dataset.mode;
-  button.disabled=playMode==='game'&&(session.finished||!['spawn','inspect','food','fertilize','clinic','nursery','oasis','veteranCare','reserveForest','sanctuary','lakeMaker','worldShaper','mutationPulse','evolutionSanctuary','0','1','2','3','4','5'].includes(kind)||(/^[0-5]$/.test(kind)&&(!session.active||session.points<({0:3,1:5,2:2,3:4,4:6,5:7}[kind])))||(kind==='spawn'&&session.active)||(kind==='food'&&(!session.active||session.points<5))||(kind==='fertilize'&&(!session.active||session.points<10))||(kind==='clinic'&&(!session.active||session.points<9))||(kind==='nursery'&&(!session.active||session.points<7))||(kind==='oasis'&&(!session.active||session.points<6))||(kind==='veteranCare'&&(!session.active||session.points<9))||(kind==='reserveForest'&&(!session.active||session.points<40))||(kind==='sanctuary'&&(!session.active||session.points<50))||(kind==='lakeMaker'&&(!session.active||session.points<75))||(kind==='worldShaper'&&(!session.active||session.points<1000))||(kind==='mutationPulse'&&(!session.active||session.points<2000))||(kind==='evolutionSanctuary'&&(!session.active||session.points<4000)));
+  button.disabled=playMode==='game'&&(session.finished||!['spawn','inspect','food','fertilize','clinic','nursery','oasis','veteranCare','reserveForest','sanctuary','lakeMaker','worldShaper','mutationPulse','evolutionSanctuary','autoSeeder','autoIrrigator','0','1','2','3','4','5'].includes(kind)||(/^[0-5]$/.test(kind)&&(!session.active||session.points<({0:3,1:5,2:2,3:4,4:6,5:7}[kind])))||(kind==='spawn'&&session.active)||(kind==='food'&&(!session.active||session.points<5))||(kind==='fertilize'&&(!session.active||session.points<10))||(kind==='clinic'&&(!session.active||session.points<9))||(kind==='nursery'&&(!session.active||session.points<7))||(kind==='oasis'&&(!session.active||session.points<6))||(kind==='veteranCare'&&(!session.active||session.points<9))||(kind==='reserveForest'&&(!session.active||session.points<40))||(kind==='sanctuary'&&(!session.active||session.points<50))||(kind==='lakeMaker'&&(!session.active||session.points<75))||(kind==='worldShaper'&&(!session.active||session.points<1000))||(kind==='mutationPulse'&&(!session.active||session.points<2000))||(kind==='evolutionSanctuary'&&(!session.active||session.points<4000))||(kind==='autoSeeder'&&(!session.active||session.points<240))||(kind==='autoIrrigator'&&(!session.active||session.points<220)));
   if(kind==='food')button.textContent=playMode==='game'?'🌱 草・水草の種（5pt）':'草を補充';
   if(kind==='fertilize')button.textContent=playMode==='game'?'🌿 土壌改良（10pt）':'🌱 土壌改良';
   if(kind==='nursery')button.textContent=playMode==='game'?'🪺 繁殖保護区（7pt）':'🪺 繁殖保護区（ゲーム専用）';
   if(kind==='oasis')button.textContent=playMode==='game'?'💧 給水拠点（6pt）':'💧 給水拠点（ゲーム専用）';
   if(kind==='reserveForest')button.textContent=playMode==='game'?'🌲 広域の森を再生（40pt）':'🌲 広域の森を再生（ゲーム専用）';
   if(kind==='sanctuary')button.textContent=playMode==='game'?'🏞️ 広域保護区（50pt）':'🏞️ 広域保護区（ゲーム専用）';
+  if(kind==='autoSeeder')button.textContent=playMode==='game'?'🌱 自動種まき機（240pt）':'🌱 自動種まき機（ゲーム専用）';
+  if(kind==='autoIrrigator')button.textContent=playMode==='game'?'💧 自動給水機（220pt）':'💧 自動給水機（ゲーム専用）';
   if(kind==='worldShaper')button.textContent=playMode==='game'?'🏔 大地改造（1000pt）':'🏔 大地改造（ゲーム専用）';
   if(kind==='mutationPulse')button.textContent=playMode==='game'?'🧬 突然変異の波（2000pt）':'🧬 突然変異の波（ゲーム専用）';
   if(kind==='evolutionSanctuary')button.textContent=playMode==='game'?'✨ 進化の聖域（4000pt）':'✨ 進化の聖域（ゲーム専用）';
@@ -447,6 +457,7 @@ function reset(){
  // Every fresh game draws a new world/genome seed. Reproducible runs can
  // still use an explicit seed through Ecosystem(seed) in the headless CLI.
  game.initialSeed=freshGameSeed();
+ game.wildernessMode=false;
  game.reset();session.reset();gameUI.reset();screens.clear();knownSpecies.clear();rewardRecorded=false;
  updateDormancySpeedStatus();
  $('startGameConfirm').disabled=true;
@@ -624,7 +635,7 @@ function interact(e){
   else if(mode==='clinic')session.intervene('clinic',x,y);
   else if(mode==='nursery')session.intervene('nursery',x,y);
   else if(mode==='veteranCare')session.intervene('veteranCare',x,y);
-  else if(['reserveForest','sanctuary','lakeMaker','worldShaper','mutationPulse','evolutionSanctuary'].includes(mode)){
+  else if(['reserveForest','sanctuary','lakeMaker','worldShaper','mutationPulse','evolutionSanctuary','autoSeeder','autoIrrigator'].includes(mode)){
    const ok=session.intervene(mode,x,y);
    $('terrainEditStatus').textContent=ok?'大規模介入を実施。残り '+session.points+'pt':'介入できません：ポイント不足・適切な場所がない・生命や卵が占有中の可能性があります。';
   }
