@@ -1518,6 +1518,9 @@ export class Ecosystem{
   if(best<0)return false;
   const spent=Math.min(4,u.seedBank);
   u.seedBank-=spent;u.energy-=8;u.hydration-=5;
+  if(this.wildernessMode&&this.tiles[best]===2&&this.soilWater[best]>=16){
+   this.tiles[best]=0;this.terrainLevels[best]=2;
+  }
   this.grass[best]=Math.min(this.tiles[best]===2?9:100,
    this.grass[best]+spent*(this.tiles[best]===2?.65:2.5));
   this.soil[best]=Math.max(0,this.soil[best]-1.5);
@@ -1540,7 +1543,7 @@ export class Ecosystem{
    const x=cx+dx,y=cy+dy;
    if(x<1||y<1||x>=NX-1||y>=NY-1)continue;
    const i=y*NX+x,t=this.tiles[i];
-   if(t!==4&&t!==0||this.soilWater[i]<72||
+   if(t!==4&&t!==0||this.soilWater[i]<(this.wildernessMode?40:72)||
       this.units.some(v=>!v.dead&&this.cell(v.x,v.y)===i)||
       this.eggs.some(e=>!e.dead&&this.cell(e.x,e.y)===i))continue;
    // Need surface connection to a pond or wetland; no water from dry air.
@@ -1781,9 +1784,17 @@ export class Ecosystem{
   }
  }
  reset(){
-  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.speciesSamples=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.interventionVisuals=[];this.tick=0;this.mutationPulseUntil=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.runStartTick=null;this.runEndedTick=null;this.founderSpeciesCount=0;this.ecosystemBalance=0;this.deathCauses={};this.deathRecords=[];this.infectionCases=0;this.infectionRecoveries=0;this.infectionIntroductions=0;this.supportZones=[];this.courtshipFailures={};this.courtshipStarts=0;this.mateApproachStarts=0;this.mateApproachStalled=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0,0,0];this.growth=70;this.waterweedGrowth=140;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];this.climateEnabled=true;this.seasonLength=600;
+  this.rng=this.initialSeed||971253;this.units=[];this.eggs=[];this.food=[];this.corpses=[];this.species=new Map();this.speciesSamples=new Map();this.logs=[];this.effects=[];this.history=[];this.discoveries=[];this.interventionVisuals=[];this.automationZones=[];this.tick=0;this.mutationPulseUntil=0;this.nextId=1;this.recycled=0;this.introducedCount=0;this.runStartTick=null;this.runEndedTick=null;this.founderSpeciesCount=0;this.ecosystemBalance=0;this.deathCauses={};this.deathRecords=[];this.infectionCases=0;this.infectionRecoveries=0;this.infectionIntroductions=0;this.supportZones=[];this.courtshipFailures={};this.courtshipStarts=0;this.mateApproachStarts=0;this.mateApproachStalled=0;this.matings=0;this.migrations=0;this.terrainCrossings=0;this.courtships=[];this.eggTrails=[];this.recycledByTerrain=[0,0,0,0,0,0];this.growth=70;this.waterweedGrowth=140;this.stress=15;this.rainfall=25;this.weather='sunny';this.weatherUntil=240;this.weatherStrength=0;this.baseTemperature=22;this.temperature=22;this.temperatureHistory=[];this.climateEnabled=true;this.seasonLength=600;
   this._waterRegionTick=null;this._waterRegions=null;
   this.setupTerrain();
+  if(this.wildernessMode){
+   // Almost-barren world: just three seeded grass cells and three connected pond cells.
+   this.tiles.fill(2);this.terrainLevels.fill(3);
+   const cx=Math.floor(NX/2),cy=Math.floor(NY/2);
+   this.wildernessOrigin={x:(cx+.5)*CELL,y:(cy+.5)*CELL};
+   for(const [dx,dy] of [[0,0],[-1,0],[0,1]])this.tiles[(cy+dy)*NX+cx+dx]=0;
+   for(const [dx,dy] of [[1,0],[2,0],[1,1]])this.tiles[(cy+dy)*NX+cx+dx]=1;
+  }
   this.grass=new Float32Array(this.tiles.length);
   this.water=new Float32Array(this.tiles.length);
   this.waterbed=new Uint8Array(this.tiles.length);
@@ -1808,7 +1819,14 @@ export class Ecosystem{
     this.waterweed[i]=Math.min(100,[32,49,65,53,39][level-1]+this.rand()*9);
    }
   }
-  this.log('info','生命は未移入。種類数を選んでフィールドへ生命を移入してください');this.snapshot();
+  if(this.wildernessMode){
+   for(let i=0;i<this.tiles.length;i++){
+    if(this.tiles[i]===2){this.grass[i]=0;this.soilWater[i]=8;}
+    if(this.tiles[i]===0){this.grass[i]=95;this.soilWater[i]=82;this.soil[i]=90;}
+    if(this.tiles[i]===1){this.water[i]=95;this.waterweed[i]=72;this.soilWater[i]=95;}
+   }
+  }
+  this.log('info',this.wildernessMode?'荒野モード：草地3マスと水域3マスから生態系を育ててください':'生命は未移入。種類数を選んでフィールドへ生命を移入してください');this.snapshot();
  }
  snapshot(){this.history.push({population:this.units.length,eggs:this.eggs.length,food:this.grass.reduce((a,b)=>a+b,0)+this.waterweed.reduce((a,b)=>a+b,0),corpses:this.corpses.length,temperature:this.temperature});if(this.history.length>180)this.history.shift();}
  seasonIndex(){return Math.floor((this.tick%(this.seasonLength*4))/this.seasonLength);}
@@ -1908,6 +1926,7 @@ export class Ecosystem{
  step(){
   stepCache={diet:new WeakMap(),morph:new WeakMap(),axes:new WeakMap()};
   this.tick++;
+  this.runAutomationZones();
   this.updateWeather();
   this.updateTemperature();
   const plantSeason=this.climateEnabled?this.seasonName():'none';
@@ -2068,6 +2087,15 @@ export class Ecosystem{
      c.seedPlanted=true;this.corpseSproutCount++;
      this.log('info','草食スライムの死骸から草が芽吹いた',c);
     }
+   }
+   if(this.wildernessMode&&!c.pondFormed&&c.age>=15&&c.initialMass>=240&&this.tiles[id]!==1&&
+      this.tiles[id]!==3&&this.tiles[id]!==5&&this.soilWater[id]>=22&&
+      !this.units.some(u=>!u.dead&&this.cell(u.x,u.y)===id)&&
+      !this.eggs.some(e=>!e.dead&&this.cell(e.x,e.y)===id)){
+    c.pondFormed=true;this.tiles[id]=1;this.terrainLevels[id]=1;this.waterbed[id]=1;
+    this.water[id]=Math.max(38,this.water[id]);this.waterweed[id]=0;this.grass[id]=0;
+    this._waterRegionTick=null;this._waterRegions=null;
+    this.log('info','巨大なスライムの死骸が水場になった',c);
    }
    if(c.mass<.6){this.corpses.splice(i,1);this.recycled++;this.recycledByTerrain[this.terrain(c.x,c.y)]++;this.log('decay','死体の有機物と水分が地形に還元された',c);}
   }
@@ -2724,6 +2752,39 @@ export class Ecosystem{
     }
    }
    if(!moved)break;
+  }
+ }
+ // Paid autonomous maintenance: no RNG and no free species creation.
+ // Each field has a finite lifetime and cadence; its resource budget is fixed.
+ runAutomationZones(){
+  if(!this.automationZones?.length)return;
+  this.automationZones=this.automationZones.filter(z=>z.until>this.tick);
+  for(const z of this.automationZones){
+   if(this.tick<z.nextTick)continue;
+   z.nextTick+=z.interval;
+   const cx=Math.floor(z.x/CELL),cy=Math.floor(z.y/CELL);
+   let changed=0;
+   for(let dy=-3;dy<=3;dy++)for(let dx=-3;dx<=3;dx++){
+    if(dx*dx+dy*dy>9)continue;
+    const xx=cx+dx,yy=cy+dy;if(xx<0||yy<0||xx>=NX||yy>=NY)continue;
+    const i=yy*NX+xx,t=this.tiles[i];
+    if(z.kind==='autoSeeder'){
+     if(t!==0&&t!==2&&t!==4)continue;
+     if(t===2&&this.soilWater[i]<12)continue;
+     const adjacent=[i-1,i+1,i-NX,i+NX].filter(j=>j>=0&&j<this.tiles.length);
+     if(t===2&&this.wildernessMode&&adjacent.some(j=>this.tiles[j]===0)){
+      this.tiles[i]=0;this.terrainLevels[i]=2;
+     }
+     this.grass[i]=Math.min(100,this.grass[i]+12);
+     this.soilWater[i]=Math.min(100,this.soilWater[i]+4);changed++;
+    }else if(z.kind==='autoIrrigator'){
+     if(t===3||t===5)continue;
+     this.soilWater[i]=Math.min(100,this.soilWater[i]+18);
+     if(t===1)this.water[i]=Math.min(100,this.water[i]+8);
+     changed++;
+    }
+   }
+   if(changed&&this.tick%120===0)this.log('info',(z.kind==='autoSeeder'?'自動種まき機':'自動給水機')+'：'+changed+'マスを維持');
   }
  }
  // A player-managed soil intervention raises local primary production.
