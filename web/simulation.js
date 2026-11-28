@@ -898,7 +898,7 @@ export class Ecosystem{
   const child=expressDNA({dna,alleles});
   // More opportunities for true heritable variation; species still require
   // an expressed classification difference and an actual living individual.
-  const chance=parentalMutationChance(ageA,ageB);
+  const chance=Math.min(.95,parentalMutationChance(ageA,ageB)+(this.tick<(this.mutationPulseUntil??0)?.25:0));
   if(this.rand()>=chance)return child;
   const first=this.mutate(child);
   // Very old parents may pass on more than one altered locus; extra variation
@@ -1434,7 +1434,7 @@ export class Ecosystem{
  }
  eatEgg(egg,hunter){
   if(egg.dead||dietProfile(hunter.g).meat===0)return false;
-  if(this.supportZones.some(z=>(z.kind==='nursery'||z.kind==='sanctuary')&&z.until>this.tick&&(z.x-egg.x)**2+(z.y-egg.y)**2<=(z.kind==='sanctuary'?115:55)**2)&&this.rand()<.75)return false;
+  if(this.supportZones.some(z=>(z.kind==='nursery'||z.kind==='sanctuary'||z.kind==='evolutionSanctuary')&&z.until>this.tick&&(z.x-egg.x)**2+(z.y-egg.y)**2<=((z.kind==='sanctuary'||z.kind==='evolutionSanctuary')?115:55)**2)&&this.rand()<.75)return false;
   if(egg.nestProtection&&this.rand()<.42)return false;
    if(this.terrain(egg.x,egg.y)===1&&hunter.g.aquatic!==1)return false;
   egg.dead=true;
@@ -2105,10 +2105,10 @@ export class Ecosystem{
   for(const u of batch){
    if(u.dead)continue;u.age++;u.juvenileFood=0;
    u.isolatedSteps=(lineageCounts.get(u.lineage)??0)>1?0:(u.isolatedSteps??0)+1;
-   if(this.supportZones.some(z=>(z.kind==='oasis'||z.kind==='sanctuary')&&z.until>this.tick&&
+   if(this.supportZones.some(z=>(z.kind==='oasis'||z.kind==='sanctuary'||z.kind==='evolutionSanctuary')&&z.until>this.tick&&
     (z.x-u.x)**2+(z.y-u.y)**2<=(z.kind==='sanctuary'?115:65)**2))
     u.hydration=Math.min(100,u.hydration+.36);
-   if(this.supportZones.some(z=>z.kind==='sanctuary'&&z.until>this.tick&&
+   if(this.supportZones.some(z=>(z.kind==='sanctuary'||z.kind==='evolutionSanctuary')&&z.until>this.tick&&
     (z.x-u.x)**2+(z.y-u.y)**2<=115**2))u.infection=Math.max(0,u.infection-.08);if(u.bite>0)u.bite--;if(u.woundFlash>0)u.woundFlash--;if(u.attackFlash>0)u.attackFlash--;if(u.defendFlash>0)u.defendFlash--;if(u.mateCooldown>0)u.mateCooldown--;
    if(u.pregnancy){u.pregnancy.remaining--;if(u.pregnancy.remaining<=0)this.layEgg(u);}
    const g=u.g,t=this.terrain(u.x,u.y),m=organismMorphology(u),diet=dietProfile(g),
