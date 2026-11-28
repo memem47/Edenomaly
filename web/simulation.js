@@ -151,6 +151,26 @@ export const visibleOrnaments=g=>{
  }));
 };
 
+// Four-step heritable appearance goal. Successive stages require
+// stronger combinations of functional traits: tail -> feet -> hands -> wings.
+// Each stage implies the previous stages, so the coveted all-featured form
+// can evolve by selection without independent cosmetic genes.
+export const appendageProgression=g=>{
+ const val=(key,lo=0,hi=1)=>clamp((Number(g?.[key]??lo)-lo)/(hi-lo),0,1);
+ const tailScore=.50*val('wet')+.32*val('dispersal')+.18*val('agility',1,10);
+ const feetScore=.48*val('resist')+.30*val('adaptation',1,10)+.22*val('guard');
+ const handsScore=.42*val('intellect',1,10)+.33*val('parentFeeding')+.25*val('power',1,10);
+ const wingsScore=.40*val('dispersal')+.30*val('intellect',1,10)+.30*val('sociability');
+ const tail=tailScore>=.64;
+ const feet=tail&&feetScore>=.70;
+ const hands=feet&&handsScore>=.75;
+ const wing=hands&&wingsScore>=.87;
+ const wingType=!wing?'none':
+  (g.dna?.skillPredation===1||val('retaliation')>.67)?'demon':'angel';
+ return {tail,feet,hands,wing,wingType,stage:wing?(wingType==='demon'?5:4):
+  hands?3:feet?2:tail?1:0,
+  scores:{tail:tailScore,feet:feetScore,hands:handsScore,wing:wingsScore}};
+};
 // A single deterministic phenotype model for renderer, editor and naming.
 // All 37 editable loci contribute to distinct visible skin pearls. The larger
 // appendages combine ecological traits; no RNG or extra hidden wing genes.
@@ -253,7 +273,7 @@ export const VISIBLE_SPECIES_SKILLS=Object.freeze([
 ]);
 export const visibleSkillMask=g=>VISIBLE_SPECIES_SKILLS.reduce((mask,key,i)=>
  mask|((g.dna?.[key]===1?1:0)<<i),0);
-const VISUAL_KEY=/^vis-([0-6])-([0-2])-([0-2])-([0-3])-([0-5])-([0-2])-([0-1])-([0-2])-([0-9]{1,3})$/;
+const VISUAL_KEY=/^vis-([0-6])-([0-2])-([0-2])-([0-3])-([0-5])-([0-2])-([0-1])-([0-2])-([0-9]{1,3})-([0-5])$/;
 const VISUAL_NAME_FAMILY=[...'アキサタナミル'];
 export const visibleSpeciesCategory=g=>{
  const color=['red','yellow','green','blue','purple','pink','white'].indexOf(pigmentClass(g));
@@ -270,14 +290,14 @@ export const visibleSpeciesCategory=g=>{
  for(let i=0;i<choices.length;i++)if(choices[i]>value){value=choices[i];major=i+1;}
  const diet=g.diet<.32?0:g.diet>.70?2:1;
  const aquatic=g.aquatic===1?1:0,repro=Math.max(0,Math.min(2,Math.round(g.repro??0)));
- return 'vis-'+[color,size,length,eye,major,diet,aquatic,repro,visibleSkillMask(g)].join('-');
+ return 'vis-'+[color,size,length,eye,major,diet,aquatic,repro,visibleSkillMask(g),appendageProgression(g).stage].join('-');
 };
 export const speciesNameFromCategory=(key,genome=null)=>{
  const visual=VISUAL_KEY.exec(key);
  if(visual){
-  const [color,size,length,eyes,ornament,diet,aquatic,repro,skills]=visual.slice(1).map(Number);
+  const [color,size,length,eyes,ornament,diet,aquatic,repro,skills,progress]=visual.slice(1).map(Number);
   if(skills>255)throw new RangeError('Unknown visual skill set: '+key);
-  const n=(((((((size*3+length)*4+eyes)*6+ornament)*3+diet)*2+aquatic)*3+repro)*256+skills);
+  const n=((((((((size*3+length)*4+eyes)*6+ornament)*3+diet)*2+aquatic)*3+repro)*256+skills)*6+progress);
   return VISUAL_NAME_FAMILY[color]+shortNameDigits(n,5);
  }
  const p=speciesClassificationParts(key);
