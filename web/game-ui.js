@@ -1,7 +1,7 @@
 // Visual game flow: no simulation mutation except purchasing persistent upgrades
 // and camera movement through the public callbacks.
 import {GAME_UPGRADES,buyGameUpgrade,hasUpgrade} from './game-mode.js?v=2026.11.28.2';
-import {WORLD} from './simulation.js';
+import {WORLD,appendageProgression} from './simulation.js';
 import {ObservationTracker,cameraSummary,centerOn,gameOverSummary} from './game-experience.js?v=2026.11.28.2';
 const $=id=>document.getElementById(id);
 export function mountGameUI({game,session,getMeta,setMeta,getView,setView,
@@ -64,9 +64,13 @@ export function mountGameUI({game,session,getMeta,setMeta,getView,setView,
  };
  const update=()=>{
   const status=cameraSummary(game,getView());
+  const progress=Math.max(0,...[...game.species.values()].map(sp=>appendageProgression(sp.genome).stage));
+  const target=progress>=4?'🏆 全特徴の種族を発見！':
+   ['しっぽ','足','手','天使・悪魔の羽'][Math.min(progress,3)];
+  const goal=progress>=4?target:'🧬 進化目標 '+(progress===0?'0/4':progress+'/4')+'：次は'+target;
   $('observationStrip').textContent=getPlayMode()==='game'&&session.active?
    '🔎 視野内 '+status.visible+'体 ／ 視野外 '+status.offscreen+'体 ／ 栄養不足 '+status.threatened+'体'+
-   (following?' ｜ 🎯 群れ追尾中':' ｜ 📍 視野固定'):
+   (following?' ｜ 🎯 群れ追尾中':' ｜ 📍 視野固定')+' ｜ '+goal:
    '🔎 ゲーム開始後に視野内外の個体数を表示します';
   $('followGroup').classList.toggle('active',following);
   $('followGroup').setAttribute('aria-pressed',String(following));
