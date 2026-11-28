@@ -11,6 +11,7 @@ const start=seed=>{
 };
 test('rare population coexistence, ancient survivor and environmental engineering give once-only bonuses',()=>{
  const {world:w,run}=start(34021);
+ run.observe(); // First collect any initial visible-form milestone, if present.
  const base=run.points;
  w.cultivationEvents=1;w.pondCreationEvents=1;
  w.units[0].age=1700;
