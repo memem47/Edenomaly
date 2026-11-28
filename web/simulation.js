@@ -1785,7 +1785,7 @@ export class Ecosystem{
   this.soilWater=new Float32Array(this.tiles.length);
    this.grazingPressure=new Float32Array(this.tiles.length);
   this.waterweed=new Float32Array(this.tiles.length);
-  this.seedRainCount=0;this.waterweedSeedCount=0;this.corpseSproutCount=0;this.waterPlantings=0;this.cannibalMeals=0;
+  this.seedRainCount=0;this.waterweedSeedCount=0;this.corpseSproutCount=0;this.waterPlantings=0;this.cannibalMeals=0;this.cultivationEvents=0;this.pondCreationEvents=0;
   for(let i=0;i<this.tiles.length;i++){
    const level=this.terrainLevels[i];
    this.soilWater[i]=this.tiles[i]===0?52:this.tiles[i]===2?19:this.tiles[i]===1?95:this.tiles[i]===4?90:this.tiles[i]===5?9:5;
