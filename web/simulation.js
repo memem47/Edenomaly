@@ -1821,7 +1821,7 @@ export class Ecosystem{
   }
   if(this.wildernessMode){
    for(let i=0;i<this.tiles.length;i++){
-    if(this.tiles[i]===2){this.grass[i]=0;this.soilWater[i]=8;}
+    if(this.tiles[i]===2){this.grass[i]=0;this.soilWater[i]=20;}
     if(this.tiles[i]===0){this.grass[i]=95;this.soilWater[i]=82;this.soil[i]=90;}
     if(this.tiles[i]===1){this.water[i]=95;this.waterweed[i]=72;this.soilWater[i]=95;}
    }
@@ -2088,8 +2088,8 @@ export class Ecosystem{
      this.log('info','草食スライムの死骸から草が芽吹いた',c);
     }
    }
-   if(this.wildernessMode&&!c.pondFormed&&c.age>=15&&c.initialMass>=240&&this.tiles[id]!==1&&
-      this.tiles[id]!==3&&this.tiles[id]!==5&&this.soilWater[id]>=22&&
+   if(this.wildernessMode&&!c.pondFormed&&c.age>=15&&c.initialMass>=200&&this.tiles[id]!==1&&
+      this.tiles[id]!==3&&this.tiles[id]!==5&&this.soilWater[id]>=18&&
       !this.units.some(u=>!u.dead&&this.cell(u.x,u.y)===id)&&
       !this.eggs.some(e=>!e.dead&&this.cell(e.x,e.y)===id)){
     c.pondFormed=true;this.tiles[id]=1;this.terrainLevels[id]=1;this.waterbed[id]=1;
