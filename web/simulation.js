@@ -275,6 +275,16 @@ export const visibleSkillMask=g=>VISIBLE_SPECIES_SKILLS.reduce((mask,key,i)=>
  mask|((g.dna?.[key]===1?1:0)<<i),0);
 const VISUAL_KEY=/^vis-([0-6])-([0-2])-([0-2])-([0-3])-([0-5])-([0-2])-([0-1])-([0-2])-([0-9]{1,3})-([0-5])$/;
 const VISUAL_NAME_FAMILY=[...'アキサタナミル'];
+const VISUAL_NAME_KANA=NAME_SYLLABLES;
+const visualNameDigits=(number,length)=>{
+ let result='';
+ for(let i=0;i<length;i++){
+  result=VISUAL_NAME_KANA[number%VISUAL_NAME_KANA.length]+result;
+  number=Math.floor(number/VISUAL_NAME_KANA.length);
+ }
+ if(number!==0)throw new RangeError('Visual species name space exhausted');
+ return result;
+};
 export const visibleSpeciesCategory=g=>{
  const color=['red','yellow','green','blue','purple','pink','white'].indexOf(pigmentClass(g));
  const radius=Number(g.r??4);
@@ -298,7 +308,7 @@ export const speciesNameFromCategory=(key,genome=null)=>{
   const [color,size,length,eyes,ornament,diet,aquatic,repro,skills,progress]=visual.slice(1).map(Number);
   if(skills>255)throw new RangeError('Unknown visual skill set: '+key);
   const n=((((((((size*3+length)*4+eyes)*6+ornament)*3+diet)*2+aquatic)*3+repro)*256+skills)*6+progress);
-  return VISUAL_NAME_FAMILY[color]+shortNameDigits(n,5);
+  return VISUAL_NAME_FAMILY[color]+visualNameDigits(n,5);
  }
  const p=speciesClassificationParts(key);
  const family=SHORT_NAME_FAMILY[p.habitat*3+p.diet];
