@@ -1,3 +1,4 @@
+import {drawInterventionVisuals} from './intervention-visuals.js';
 import {WORLD,TERRAIN_COLORS,dietProfile,vitality,adaptationColor,lifeStageScale,bodySizeMultiplier} from './simulation.js?v=2026.11.28.4';
 import {drawEnhancedTerrain} from './terrain-visuals.js?v=2026.11.28.4';
 import {drawJellyBody} from './jelly-visuals.js?v=2026.11.21.3';
@@ -507,5 +508,7 @@ export function drawWorld(ctx,s,showEffects=true,selected=null,options={}){
   ctx.beginPath();ctx.arc(f.x,f.y,5+f.age*.38,0,TAU);ctx.stroke();
   ctx.restore();
  }
+ // Player intervention visuals remain visible even when ordinary combat effects are hidden.
+ drawInterventionVisuals(ctx,s,{lowImpact:options.lowImpact===true});
 }
 export function drawChart(ctx,history){const w=ctx.canvas.width,h=ctx.canvas.height;ctx.fillStyle='#172731';ctx.fillRect(0,0,w,h);if(history.length<2)return;for(const [k,color] of [['population','#77dc9a'],['food','#e6c56a'],['corpses','#bc8ed6']]){const max=Math.max(1,...history.map(d=>d[k]))*1.12;ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();history.forEach((d,i)=>{const x=i/(history.length-1)*w,y=h-6-d[k]/max*(h-14);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();}}
