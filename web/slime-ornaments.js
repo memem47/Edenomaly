@@ -317,6 +317,15 @@ export function drawAbilityDetails(ctx,g,rx,ry){
    ctx.fill();
   }
  }
+ // Digging skill: paired ochre soil-colored scoops, without any letters.
+ if(g.dna?.skillDig===1){
+  ctx.fillStyle='rgba(174,117,67,.82)';
+  for(const side of [-1,1]){
+   ctx.beginPath();
+   ctx.ellipse(-rx*.43,side*ry*.55,Math.max(1,rx*.12),Math.max(1,ry*.085),side*.35,0,TAU);
+   ctx.fill();
+  }
+ }
  // Eyebrow-like soft sensory arcs convey alertness without aggressive faces.
  ctx.strokeStyle='rgba(245,255,255,'+(.08+a.brow*.40)+')';
  ctx.lineWidth=Math.max(.25,ry*(.02+a.brow*.035));
