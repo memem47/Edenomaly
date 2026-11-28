@@ -206,6 +206,12 @@ export const phenotypeSignature=g=>{
    h=Math.imul(h^byte,16777619)>>>0;
   }
  }
+ // New ecological engineering loci are real inherited skills. Their
+ // expression changes the appearance mark even though they are not among
+ // the original 37 physiology caches.
+ for(const key of ['skillCultivate','skillPondBuilder']){
+  h=Math.imul(h^(g.dna?.[key]===1?1:0),16777619)>>>0;
+ }
  // Katakana-only imprint keeps the established readable naming format.
  const syllables='アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミ';
  let bits=h,code='';
