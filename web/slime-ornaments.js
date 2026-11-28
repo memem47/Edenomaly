@@ -1,7 +1,7 @@
 // Soft, readable jelly ornaments made entirely of overlapping round shapes.
 // Drawing only: genes, hitboxes, upkeep, movement and RNG are unchanged.
 // The organism faces +X. The upper-right contour is its forehead.
-import {adaptationColor,visibleOrnaments,phenotypeTraits,visibleSkillMask} from './simulation.js?v=2026.11.28.2';
+import {adaptationColor,visibleOrnaments,phenotypeTraits,visibleSkillMask,appendageProgression} from './simulation.js?v=2026.11.28.3';
 const TAU=Math.PI*2;
 const lim=v=>Math.max(0,Math.min(1,v??0));
 export const ornamentTraits=g=>visibleOrnaments(g);
@@ -47,25 +47,43 @@ export function drawOrnamentsBehind(ctx,g,rx,ry,tick=0,id=0){
   }
   ctx.restore();
  }
- // Wings are genuinely rare: require multiple strongly expressed traits.
- // Entirely cosmetic, with soft elliptical feathers and no flight physics.
- if(p.wings>.15)for(const side of [-1,1]){
-  ctx.save();ctx.translate(-rx*.12,side*ry*.78);
-  ctx.rotate(side*(.35+Math.sin(tick*.12+id)*.10));
-  for(let i=0;i<3;i++){
-   ctx.beginPath();
-   ctx.ellipse(-rx*.05-i*rx*.14,side*ry*(.16+.16*i),
-    Math.max(1.1,rx*(.20+.08*p.wings-i*.02)),
-    Math.max(1.1,ry*(.23+.15*p.wings)),
-    -side*.55,0,TAU);
-   ctx.fillStyle='rgba(205,224,249,'+(.42+.20*p.wings)+')';ctx.fill();
-   ctx.strokeStyle=c.rim;ctx.lineWidth=Math.max(.3,ry*.045);ctx.stroke();
+ // Wings are the final, rare evolutionary stage, attached to the BACK.
+ // Angel feathers and demon membranes are mutually exclusive, both inherited.
+ const progress=appendageProgression(g);
+ if(progress.wing)for(const side of [-1,1]){
+  ctx.save();ctx.translate(-rx*.38,side*ry*.46);
+  const sway=Math.sin(tick*.08+id*.15)*.07;
+  ctx.rotate(side*(.15+sway));
+  if(progress.wingType==='angel'){
+   for(let i=0;i<4;i++){
+    ctx.beginPath();
+    ctx.ellipse(-rx*(.18+i*.13),side*ry*(.25+i*.18),
+     Math.max(1,rx*(.26-i*.02)),Math.max(1,ry*(.22+i*.055)),
+     side*.48,0,TAU);
+    ctx.fillStyle='rgba(240,247,255,.88)';ctx.fill();
+    ctx.strokeStyle='rgba(170,199,229,.88)';ctx.lineWidth=Math.max(.5,ry*.045);ctx.stroke();
+   }
+  }else{
+   ctx.beginPath();ctx.moveTo(0,0);
+   ctx.lineTo(-rx*.48,side*ry*.10);
+   ctx.lineTo(-rx*.68,side*ry*.78);
+   ctx.lineTo(-rx*.52,side*ry*.57);
+   ctx.lineTo(-rx*.31,side*ry*.97);
+   ctx.lineTo(-rx*.16,side*ry*.62);
+   ctx.closePath();
+   ctx.fillStyle='rgba(94,62,127,.83)';ctx.fill();
+   ctx.strokeStyle='rgba(48,35,77,.94)';ctx.lineWidth=Math.max(.5,ry*.075);ctx.stroke();
   }
   ctx.restore();
  }
+ // Smooth, fingerless round feet are attached underneath the torso.
+ if(progress.feet)for(const side of [-1,1]){
+  const stride=Math.sin(tick*.13+id*.23+side*1.3)*ry*.09;
+  bead(ctx,-rx*.33+stride,side*ry*.88,Math.max(1,rx*.18),Math.max(1,ry*.22),c);
+ }
 
- const tail=ornamentVisibility(tr.tail),horn=ornamentVisibility(tr.horn);
- if(tail>.08){
+ const tail=progress.tail?Math.max(.62,ornamentVisibility(tr.tail)):0,horn=ornamentVisibility(tr.horn);
+ if(progress.tail){
   // A slightly swaying chain of one to three overlapping jelly bubbles.
   // The first bead starts inside the body, so there is no disconnected tail.
   const segments=tail<.36?1:tail<.70?2:3;
@@ -90,6 +108,11 @@ export function drawOrnamentsFront(ctx,g,rx,ry,tick=0,id=0){
   const size=Math.max(1.0,ry*(.095+.14*p.horns));
   bead(ctx,rx*.63,side*ry*.76,size*.90,size*1.25,c);
   if(p.horns>.57)bead(ctx,rx*.70,side*ry*(.87+.13*p.horns),size*.71,size*.84,c);
+ }
+ // Round, fingerless arms: distinct paired limbs emerge AFTER the feet.
+ if(appendageProgression(g).hands)for(const side of [-1,1]){
+  bead(ctx,rx*.15,side*ry*.76,Math.max(1.1,rx*.19),Math.max(1.1,ry*.23),c);
+  bead(ctx,rx*.29,side*ry*1.00,Math.max(1.2,rx*.15),Math.max(1.2,ry*.20),c);
  }
  // Sensory / nurturing tentacles are chains of rounded, attached jelly beads.
  if(p.tentacles>.12)for(const side of [-1,1]){
