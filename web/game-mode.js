@@ -359,7 +359,12 @@ export class GameSession{
   // Persistent overlays use actual simulation steps; short pulses use render frames.
   const visual=INTERVENTION_VISUALS[kind];
   if(visual){
-   w.addVisualEffect('playerIntervention',tracked,{kind,ttl:32});
+   // Reserve room for a visible player action even when combat saturated the
+   // temporary-effects queue. Discard only the oldest cosmetic effect.
+   if(!w.addVisualEffect('playerIntervention',tracked,{kind,ttl:32})&&!w.headless){
+    w.effects.shift();
+    w.addVisualEffect('playerIntervention',tracked,{kind,ttl:32});
+   }
    if(visual.duration){
     w.interventionVisuals=(w.interventionVisuals??[]).filter(v=>v.until>w.tick).slice(-47);
     w.interventionVisuals.push({kind,x:tracked.x,y:tracked.y,started:w.tick,until:w.tick+visual.duration});
