@@ -1,8 +1,8 @@
 import {drawInterventionVisuals} from './intervention-visuals.js';
-import {WORLD,TERRAIN_COLORS,dietProfile,vitality,adaptationColor,lifeStageScale,bodySizeMultiplier} from './simulation.js?v=2026.11.28.4';
+import {WORLD,TERRAIN_COLORS,dietProfile,vitality,adaptationColor,lifeStageScale,bodySizeMultiplier} from './simulation.js?v=2026.11.28.10';
 import {drawEnhancedTerrain} from './terrain-visuals.js?v=2026.11.28.4';
 import {drawJellyBody} from './jelly-visuals.js?v=2026.11.21.3';
-import {drawOrnamentsBehind,drawOrnamentsFront,drawAbilityDetails} from './slime-ornaments.js?v=2026.11.28.7';
+import {drawOrnamentsBehind,drawOrnamentsFront,drawAbilityDetails} from './slime-ornaments.js?v=2026.11.28.10';
 const TAU=Math.PI*2;
 // Angles are measured around the rim of a top-down oval; +X is forward.
 // Predators look forward, herbivores to either side, and many-eyed slimes all around.
