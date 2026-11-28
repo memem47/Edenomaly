@@ -17,7 +17,10 @@ export const INTERVENTIONS=Object.freeze({
  veteranCare:{cost:9,label:'長寿個体を支援（個体指定）'},
  reserveForest:{cost:40,label:'広域植生再生（半径約110px）'},
  sanctuary:{cost:50,label:'広域生命保護区（500ステップ）'},
- lakeMaker:{cost:75,label:'湖沼造成（既存水域と接続）'}
+ lakeMaker:{cost:75,label:'湖沼造成（既存水域と接続）'},
+ worldShaper:{cost:1000,label:'大地改造（乾燥地・草地を広域湿地化）'},
+ mutationPulse:{cost:2000,label:'突然変異の波（400ステップ）'},
+ evolutionSanctuary:{cost:4000,label:'進化の聖域（600ステップ）'}
 });
 const integer=n=>Number.isFinite(Number(n))?Math.max(0,Math.floor(Number(n))):0;
 // Persistent unlocks are one-time purchases using the existing earned bank.
@@ -76,19 +79,20 @@ export class GameSession{
   const w=this.world,score=w.runScore;
   // Only after ecosystem has actually lived that long, not on free reset/idle.
   for(let n=300;n<=score.duration;n+=300)this.grant('survive:'+n,5,n+'ステップ生存');
-  for(let n=1;n<=score.discoveries;n++)this.grant('discovery:'+n,10,'新種 '+n+'種');
+  for(let n=1;n<=score.discoveries;n++)this.grant('discovery:'+n,20,'新種 '+n+'種');
   // Discovering successively rare visible limbs is a long-term game goal.
   // Rewards are one-time per stage and require an actually discovered species.
   const bestStage=Math.max(0,...[...w.species.values()].map(sp=>
    appendageProgression(sp.genome).stage));
   for(const [stage,points,label] of [
-   [1,3,'しっぽを持つ種族'],[2,7,'足を持つ種族'],
-   [3,15,'手を持つ種族'],[4,60,'天使の羽を持つ完全形'],
-   [5,60,'悪魔の羽を持つ完全形']
+   [1,100,'しっぽを持つ種族'],[2,200,'足を持つ種族'],
+   [3,400,'手を持つ種族'],[4,800,'天使の羽を持つ完全形'],
+   [5,800,'悪魔の羽を持つ完全形']
   ])if(stage<=3?bestStage>=stage:
    [...w.species.values()].some(sp=>appendageProgression(sp.genome).stage===stage)){
    this.grant('appendage:'+stage,points,'進化目標：'+label);
   }
+  if(bestStage>=4)this.grant('rare:completeForm',3000,'究極：しっぽ・足・手・羽を揃えた種族');
   // True one-time rarity bonuses. Repeated observation or replanting cannot
   // farm points; rewards require naturally observed milestones.
   if(w.units.some(u=>!u.dead&&u.age>=1500))
@@ -140,6 +144,21 @@ export class GameSession{
    }
    return true;
   }
+  if(kind==='mutationPulse')return w.tick>=(w.mutationPulseUntil??0);
+  if(kind==='evolutionSanctuary')return w.units.some(u=>!u.dead&&(u.x-x)**2+(u.y-y)**2<125**2);
+  if(kind==='worldShaper'){
+   const cx=Math.floor(x/WORLD.cell),cy=Math.floor(y/WORLD.cell);
+   for(let dy=-4;dy<=4;dy++)for(let dx=-4;dx<=4;dx++){
+    if(dx*dx+dy*dy>16)continue;
+    const xx=cx+dx,yy=cy+dy;
+    if(xx<1||yy<1||xx>=WORLD.columns-1||yy>=WORLD.rows-1)continue;
+    const i=yy*WORLD.columns+xx;
+    if(![0,2].includes(w.tiles[i]))continue;
+    if(w.units.some(u=>!u.dead&&w.cell(u.x,u.y)===i)||w.eggs.some(e=>!e.dead&&w.cell(e.x,e.y)===i))continue;
+    return true;
+   }
+   return false;
+  }
   if(kind==='reserveForest'){
    const cx=Math.floor(x/WORLD.cell),cy=Math.floor(y/WORLD.cell);
    for(let dy=-5;dy<=5;dy++)for(let dx=-5;dx<=5;dx++){
@@ -188,6 +207,28 @@ export class GameSession{
   const previousBirths=[...w.species.values()].reduce((sum,sp)=>sum+sp.total,0);
   if(/^terrain[0-5]$/.test(kind)){
    if(!w.reshapeTerrainCell(x,y,Number(kind.slice(-1))))return false;
+  }else if(kind==='mutationPulse'){
+   w.mutationPulseUntil=w.tick+400;
+   w.log('info','突然変異の波：400ステップの間、交配時の変異機会が増加（新種は保証しない）');
+  }else if(kind==='evolutionSanctuary'){
+   w.supportZones??=[];
+   w.supportZones.push({kind:'evolutionSanctuary',x,y,until:w.tick+600});
+   w.log('info','進化の聖域：600ステップの間、指定区域で卵・水分・繁殖環境を保護');
+  }else if(kind==='worldShaper'){
+   const cx=Math.floor(x/WORLD.cell),cy=Math.floor(y/WORLD.cell);
+   let changed=0;
+   for(let dy=-4;dy<=4;dy++)for(let dx=-4;dx<=4;dx++){
+    if(dx*dx+dy*dy>16)continue;
+    const xx=cx+dx,yy=cy+dy;
+    if(xx<1||yy<1||xx>=WORLD.columns-1||yy>=WORLD.rows-1)continue;
+    const i=yy*WORLD.columns+xx;
+    if(![0,2].includes(w.tiles[i]))continue;
+    if(w.units.some(u=>!u.dead&&w.cell(u.x,u.y)===i)||w.eggs.some(e=>!e.dead&&w.cell(e.x,e.y)===i))continue;
+    w.tiles[i]=4;w.terrainLevels[i]=3;w.soilWater[i]=Math.max(70,w.soilWater[i]);
+    w.grass[i]=Math.max(25,w.grass[i]);changed++;
+   }
+   if(!changed)return false;
+   w.log('info','大地改造：'+changed+'マスを湿地へ改造');
   }else if(kind==='reserveForest'){
    const cx=Math.floor(x/WORLD.cell),cy=Math.floor(y/WORLD.cell);
    let changed=0;
