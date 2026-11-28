@@ -5,6 +5,8 @@ import {execFileSync} from 'node:child_process';
 import {Ecosystem} from './simulation.js';
 import {GameSession,parseMeta,buyGameUpgrade,hasUpgrade,settleMeta} from './game-mode.js';
 import {ObservationTracker,cameraSummary,centerOn,visibleInView,gameOverSummary} from './game-experience.js';
+import {INTERVENTIONS} from './game-mode.js';
+import {INTERVENTION_VISUALS,activeInterventionVisuals,drawInterventionVisuals} from './intervention-visuals.js';
 
 test('camera summary splits observed and offscreen life with non-mutating coordinates',()=>{
  const w=new Ecosystem(2026111401),a=w.gene();
@@ -133,4 +135,33 @@ test('premium intervention options exist in browser menus',async()=>{
   assert.ok(html.includes('data-mode="'+kind+'"'),kind);
   assert.ok(app.includes("'"+kind+"'"),kind);
  }
+});
+
+test('every intervention has visual feedback and temporary overlays expire',()=>{
+ for(const key of Object.keys(INTERVENTIONS)){
+  assert.ok(INTERVENTION_VISUALS[key],key+' has no player effect');
+ }
+ const world=new Ecosystem(2026112808),session=new GameSession(world);
+ assert.ok(session.start(180,180));
+ session.points=10000;
+ assert.ok(session.intervene('mutationPulse',180,180));
+ assert.ok(world.effects.some(e=>e.kind==='mutationPulse'&&e.type==='playerIntervention'));
+ assert.ok(activeInterventionVisuals(world).some(e=>e.kind==='mutationPulse'&&e.until===400));
+ const charged=session.spent;
+ assert.equal(session.intervene('mutationPulse',180,180),false);
+ assert.equal(session.spent,charged,'failed repeat does not charge');
+ assert.ok(session.intervene('rain'));
+ assert.ok(activeInterventionVisuals(world).some(e=>e.kind==='rain'));
+ const fake={
+  save(){},restore(){},fillRect(){},strokeRect(){},beginPath(){},arc(){},
+  fill(){},stroke(){},setLineDash(){},
+ };
+ assert.doesNotThrow(()=>drawInterventionVisuals(fake,world));
+ const rng=world.rng;
+ assert.doesNotThrow(()=>drawInterventionVisuals(fake,world,{lowImpact:true}));
+ assert.equal(world.rng,rng,'drawing does not use simulation random state');
+ world.tick=401;
+ assert.equal(activeInterventionVisuals(world).length,0);
+ world.reset();
+ assert.deepEqual(world.interventionVisuals,[],'reset clears effects');
 });
