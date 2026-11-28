@@ -21,7 +21,9 @@ export const INTERVENTIONS=Object.freeze({
  lakeMaker:{cost:75,label:'湖沼造成（既存水域と接続）'},
  worldShaper:{cost:1000,label:'大地改造（乾燥地・草地を広域湿地化）'},
  mutationPulse:{cost:2000,label:'突然変異の波（400ステップ）'},
- evolutionSanctuary:{cost:4000,label:'進化の聖域（600ステップ）'}
+ evolutionSanctuary:{cost:4000,label:'進化の聖域（600ステップ）'},
+ autoSeeder:{cost:240,label:'自動種まき機（600ステップ）'},
+ autoIrrigator:{cost:220,label:'自動給水機（600ステップ）'}
 });
 const integer=n=>Number.isFinite(Number(n))?Math.max(0,Math.floor(Number(n))):0;
 // Persistent unlocks are one-time purchases using the existing earned bank.
@@ -45,7 +47,7 @@ export class GameSession{
   if(this.active||this.finished||this.world.introducedCount>0)return false;
   const result=this.world.introduce(x,y,1,options.founderGenome??null);
   if(result.types!==1||result.individuals<=0)return false;
-  this.active=true;this.points=15+(options.reserve===true?5:0);
+  this.active=true;this.points=(this.world.wildernessMode?180:15)+(options.reserve===true?5:0);
   this.maxGeneration=0;this.lastDiscoveries=this.world.runScore.discoveries;this.lastMigrations=this.world.migrations;
   this.world.log('info','ゲーム開始：介入ポイント'+this.points);
   return true;
@@ -145,6 +147,7 @@ export class GameSession{
    }
    return true;
   }
+  if(kind==='autoSeeder'||kind==='autoIrrigator')return !w.automationZones?.some(z=>z.kind===kind&&z.until>w.tick&&(z.x-x)**2+(z.y-y)**2<100**2);
   if(kind==='mutationPulse')return w.tick>=(w.mutationPulseUntil??0);
   if(kind==='evolutionSanctuary')return w.units.some(u=>!u.dead&&(u.x-x)**2+(u.y-y)**2<125**2);
   if(kind==='worldShaper'){
@@ -208,6 +211,10 @@ export class GameSession{
   const previousBirths=[...w.species.values()].reduce((sum,sp)=>sum+sp.total,0);
   if(/^terrain[0-5]$/.test(kind)){
    if(!w.reshapeTerrainCell(x,y,Number(kind.slice(-1))))return false;
+  }else if(kind==='autoSeeder'||kind==='autoIrrigator'){
+   w.automationZones??=[];
+   w.automationZones.push({kind,x,y,until:w.tick+600,nextTick:w.tick+20,interval:20});
+   w.log('info',(kind==='autoSeeder'?'自動種まき機':'自動給水機')+'を600ステップ設置');
   }else if(kind==='mutationPulse'){
    w.mutationPulseUntil=w.tick+400;
    w.log('info','突然変異の波：400ステップの間、交配時の変異機会が増加（新種は保証しない）');
