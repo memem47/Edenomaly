@@ -1,5 +1,6 @@
 // Game-mode progression is independent of Lab mode and browser storage.
 import {WORLD,appendageProgression} from './simulation.js';
+import {INTERVENTION_VISUALS} from './intervention-visuals.js';
 export const TERRAIN_SCULPT_COST=Object.freeze({0:3,1:5,2:2,3:4,4:6,5:7});
 export const INTERVENTIONS=Object.freeze({
  seed:{cost:5,label:'草・水草の種をまく'},
@@ -353,6 +354,16 @@ export class GameSession{
    }
    if(!treated)return false;
    w.log('info','防疫：'+treated+'体を処置、周囲の接触感染を一時的に抑制');
+  }
+  // Cosmetic feedback is awarded only on a successful, charged intervention.
+  // Persistent overlays use actual simulation steps; short pulses use render frames.
+  const visual=INTERVENTION_VISUALS[kind];
+  if(visual){
+   w.addVisualEffect('playerIntervention',tracked,{kind,ttl:32});
+   if(visual.duration){
+    w.interventionVisuals=(w.interventionVisuals??[]).filter(v=>v.until>w.tick).slice(-47);
+    w.interventionVisuals.push({kind,x:tracked.x,y:tracked.y,started:w.tick,until:w.tick+visual.duration});
+   }
   }
   const spec=INTERVENTIONS[kind];
   this.points-=spec.cost;this.spent+=spec.cost;
