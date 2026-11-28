@@ -825,6 +825,7 @@ export class Ecosystem{
    skillWaterGardening:this.rand()<.045?1:0,
    skillCultivate:this.rand()<.055?1:0,
    skillPondBuilder:this.rand()<.018?1:0,
+   skillDig:this.rand()<.028?1:0,
    skillHibernate:this.rand()<.09?1:0,
    skillParentFeeding:this.rand()<.065?1:0,
    skillNestChoice:this.rand()<.07?1:0,
@@ -1562,6 +1563,78 @@ export class Ecosystem{
   this.log('info','#'+u.id+' が湿った土地を掘り小さな水場を作った',u);
   return true;
  }
+ // Excavation is a distinct inherited skill: it creates a dry hollow,
+ // never water directly. Rain is required for persistent ponds or channels.
+ excavate(u){
+  if(u.dead||u.dormant||u.stage!=='adult'||u.g.dna?.skillDig!==1||
+     u.g.aquatic===1||u.energy<100||u.hydration<42||
+     this.tick-(u.lastExcavation??-10000)<170)return false;
+  const origin=this.cell(u.x,u.y),cx=origin%NX,cy=Math.floor(origin/NX);
+  let best=-1,score=-Infinity;
+  for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){
+   if(dx*dx+dy*dy>4)continue;
+   const xx=cx+dx,yy=cy+dy;
+   if(xx<1||yy<1||xx>=NX-1||yy>=NY-1)continue;
+   const i=yy*NX+xx,t=this.tiles[i];
+   if((t!==0&&t!==2&&t!==4)||this.excavationDepth[i]>=3)continue;
+   if(this.units.some(v=>!v.dead&&v!==u&&this.cell(v.x,v.y)===i)||
+      this.eggs.some(e=>!e.dead&&this.cell(e.x,e.y)===i))continue;
+   const neighbors=[i-1,i+1,i-NX,i+NX];
+   const nearWater=neighbors.some(j=>this.tiles[j]===1);
+   const nearbyHollows=neighbors.filter(j=>this.excavationDepth[j]>0).length;
+   const value=this.excavationDepth[i]*2+nearbyHollows*3+(nearWater?4:0)+
+     Math.min(1,this.soilWater[i]/80)-(dx*dx+dy*dy)*.15;
+   if(value>score){score=value;best=i;}
+  }
+  if(best<0)return false;
+  this.excavationDepth[best]++;
+  u.energy-=16;u.hydration-=6;u.lastExcavation=this.tick;
+  this.excavationEvents++;
+  this.addVisualEffect('excavation',{x:(best%NX+.5)*CELL,y:(Math.floor(best/NX)+.5)*CELL});
+  this.log('info','#'+u.id+' が地面を掘り、深さ'+this.excavationDepth[best]+'のくぼみを作った',u);
+  return true;
+ }
+ // Soil hollows collect actual rainfall and drain toward adjacent water.
+ // A linked chain of saturated hollows becomes a narrow, connected river.
+ updateExcavations(){
+  if(!this.excavationDepth)return;
+  // Low frequency keeps a large world cheap and makes visible accumulation gradual.
+  if(this.tick%12!==0)return;
+  const raining=this.weather==='rain'&&this.rainfall>0;
+  const level=this.excavationWater.slice();
+  for(let i=0;i<level.length;i++){
+   const depth=this.excavationDepth[i];
+   if(!depth||this.tiles[i]===1)continue;
+   if(raining)level[i]=Math.min(100,level[i]+(2.2+this.weatherStrength*3)*depth);
+   else level[i]=Math.max(0,level[i]-.35);
+  }
+  // Rain-fed overflow into adjacent excavated channels (not arbitrary dry ground).
+  for(let i=0;i<level.length;i++){
+   if(!this.excavationDepth[i]||this.tiles[i]===1||level[i]<35)continue;
+   const x=i%NX,y=Math.floor(i/NX);
+   for(const j of [x>0?i-1:-1,x<NX-1?i+1:-1,y>0?i-NX:-1,y<NY-1?i+NX:-1]){
+    if(j<0||!this.excavationDepth[j]||this.tiles[j]===1)continue;
+    const diff=level[i]-level[j];
+    if(diff>18){const flow=Math.min(3,diff*.12);level[i]-=flow;level[j]+=flow;}
+   }
+  }
+  for(let i=0;i<level.length;i++){
+   const depth=this.excavationDepth[i];if(!depth||this.tiles[i]===1)continue;
+   this.excavationWater[i]=level[i];
+   const threshold=depth===1?100:depth===2?80:60;
+   if(level[i]<threshold)continue;
+   // Filling does not erase living organisms or unhatched eggs.
+   if(this.units.some(u=>!u.dead&&this.cell(u.x,u.y)===i)||
+      this.eggs.some(e=>!e.dead&&this.cell(e.x,e.y)===i))continue;
+   this.tiles[i]=1;this.terrainLevels[i]=depth>=2?2:1;
+   this.waterbed[i]=1;this.water[i]=Math.max(38,Math.min(85,level[i]));
+   this.waterweed[i]=0;this.grass[i]=0;this.soilWater[i]=Math.max(40,this.soilWater[i]);
+   this.excavationDepth[i]=0;this.excavationWater[i]=0;this.rainPondEvents++;
+   this._waterRegionTick=null;this._waterRegions=null;
+   this.log('info','雨水でくぼみが満たされ、新しい'+
+     ([i-1,i+1,i-NX,i+NX].some(j=>j>=0&&j<this.tiles.length&&this.tiles[j]===1)?'水路':'池')+'ができた');
+  }
+ }
  // Aquatic gardeners carry viable propagules to depleted reachable beds.
  // The propagules originate from eaten waterweed, and planting costs energy.
  plantWaterweed(u){
@@ -1802,6 +1875,9 @@ export class Ecosystem{
   this.soilWater=new Float32Array(this.tiles.length);
    this.grazingPressure=new Float32Array(this.tiles.length);
   this.waterweed=new Float32Array(this.tiles.length);
+  this.excavationDepth=new Uint8Array(this.tiles.length);
+  this.excavationWater=new Float32Array(this.tiles.length);
+  this.excavationEvents=0;this.rainPondEvents=0;
   this.seedRainCount=0;this.waterweedSeedCount=0;this.corpseSproutCount=0;this.waterPlantings=0;this.cannibalMeals=0;this.cultivationEvents=0;this.pondCreationEvents=0;
   for(let i=0;i<this.tiles.length;i++){
    const level=this.terrainLevels[i];
@@ -1928,6 +2004,7 @@ export class Ecosystem{
   this.tick++;
   this.runAutomationZones();
   this.updateWeather();
+  this.updateExcavations();
   this.updateTemperature();
   const plantSeason=this.climateEnabled?this.seasonName():'none';
   if(this.climateEnabled&&this.tick>1&&this.tick%this.seasonLength===0){
@@ -2585,6 +2662,7 @@ export class Ecosystem{
    }
    this.cultivate(u);
    this.createWaterhole(u);
+   this.excavate(u);
    this.feedOffspring(u,near);
    if(g.dna?.skillCooperate===1)this.shareFoodWithAlly(u,near);
     // A carnivore can also scavenge a corpse: deserts cannot support herbivores.
