@@ -47,7 +47,7 @@ export class GameSession{
   if(this.active||this.finished||this.world.introducedCount>0)return false;
   const result=this.world.introduce(x,y,1,options.founderGenome??null);
   if(result.types!==1||result.individuals<=0)return false;
-  this.active=true;this.points=(this.world.wildernessMode?180:15)+(options.reserve===true?5:0);
+  this.active=true;this.points=(this.world.wildernessMode?300:15)+(options.reserve===true?5:0);
   this.maxGeneration=0;this.lastDiscoveries=this.world.runScore.discoveries;this.lastMigrations=this.world.migrations;
   this.world.log('info','ゲーム開始：介入ポイント'+this.points);
   return true;
