@@ -14,7 +14,10 @@ export const INTERVENTIONS=Object.freeze({
  clinic:{cost:9,label:'防疫・治療支援'},
  nursery:{cost:7,label:'繁殖保護区（260ステップ）'},
  oasis:{cost:6,label:'給水拠点（200ステップ）'},
- veteranCare:{cost:9,label:'長寿個体を支援（個体指定）'}
+ veteranCare:{cost:9,label:'長寿個体を支援（個体指定）'},
+ reserveForest:{cost:40,label:'広域植生再生（半径約110px）'},
+ sanctuary:{cost:50,label:'広域生命保護区（500ステップ）'},
+ lakeMaker:{cost:75,label:'湖沼造成（既存水域と接続）'}
 });
 const integer=n=>Number.isFinite(Number(n))?Math.max(0,Math.floor(Number(n))):0;
 // Persistent unlocks are one-time purchases using the existing earned bank.
@@ -86,6 +89,18 @@ export class GameSession{
    [...w.species.values()].some(sp=>appendageProgression(sp.genome).stage===stage)){
    this.grant('appendage:'+stage,points,'進化目標：'+label);
   }
+  // True one-time rarity bonuses. Repeated observation or replanting cannot
+  // farm points; rewards require naturally observed milestones.
+  if(w.units.some(u=>!u.dead&&u.age>=1500))
+   this.grant('rare:ancient',35,'希少：1500ステップ生存した長寿個体');
+  const livingCategories=new Set(w.units.filter(u=>!u.dead).map(u=>u.category));
+  if(livingCategories.size>=3)this.grant('rare:coexist3',30,'希少：3種が同時に共存');
+  if(livingCategories.size>=5)this.grant('rare:coexist5',65,'希少：5種が同時に共存');
+  if((w.cultivationEvents??0)>0)this.grant('rare:farmer',25,'希少：種まきによる餌場の造成');
+  if((w.pondCreationEvents??0)>0)this.grant('rare:pond',60,'希少：生命が水場を造成');
+  if([...w.species.values()].some(sp=>appendageProgression(sp.genome).stage===4)&&
+     [...w.species.values()].some(sp=>appendageProgression(sp.genome).stage===5))
+   this.grant('rare:dualwings',120,'究極：天使型・悪魔型の両方を発見');
   // Separate discovery from ecological success. A new category is not
   // established until it has both three generations and a 12-body peak.
   for(const [category,sp] of w.species){
@@ -125,6 +140,33 @@ export class GameSession{
    }
    return true;
   }
+  if(kind==='reserveForest'){
+   const cx=Math.floor(x/WORLD.cell),cy=Math.floor(y/WORLD.cell);
+   for(let dy=-5;dy<=5;dy++)for(let dx=-5;dx<=5;dx++){
+    if(dx*dx+dy*dy>25)continue;
+    const xx=cx+dx,yy=cy+dy;
+    if(xx<0||yy<0||xx>=WORLD.columns||yy>=WORLD.rows)continue;
+    const i=yy*WORLD.columns+xx;
+    if([0,2,4].includes(w.tiles[i])&&w.grass[i]<78)return true;
+   }
+   return false;
+  }
+  if(kind==='sanctuary')return w.units.some(u=>!u.dead&&(u.x-x)**2+(u.y-y)**2<125**2)||
+    w.eggs.some(e=>!e.dead&&(e.x-x)**2+(e.y-y)**2<125**2);
+  if(kind==='lakeMaker'){
+   const cx=Math.floor(x/WORLD.cell),cy=Math.floor(y/WORLD.cell);
+   for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){
+    if(dx*dx+dy*dy>4)continue;
+    const xx=cx+dx,yy=cy+dy;
+    if(xx<1||yy<1||xx>=WORLD.columns-1||yy>=WORLD.rows-1)continue;
+    const i=yy*WORLD.columns+xx;
+    if(w.tiles[i]!==0&&w.tiles[i]!==4)continue;
+    if(w.units.some(u=>!u.dead&&w.cell(u.x,u.y)===i)||
+       w.eggs.some(e=>!e.dead&&w.cell(e.x,e.y)===i))continue;
+    if([i-1,i+1,i-WORLD.columns,i+WORLD.columns].some(j=>w.tiles[j]===1))return true;
+   }
+   return false;
+  }
   if(kind==='veteranCare')return w.units.some(u=>!u.dead&&u.stage==='adult'&&
    u.age>=300&&(u.x-x)**2+(u.y-y)**2<=36**2);
   if(kind==='nursery')return w.units.some(u=>!u.dead&&(u.x-x)**2+(u.y-y)**2<=80**2)||w.eggs.some(e=>!e.dead&&(e.x-x)**2+(e.y-y)**2<=80**2);
@@ -146,6 +188,50 @@ export class GameSession{
   const previousBirths=[...w.species.values()].reduce((sum,sp)=>sum+sp.total,0);
   if(/^terrain[0-5]$/.test(kind)){
    if(!w.reshapeTerrainCell(x,y,Number(kind.slice(-1))))return false;
+  }else if(kind==='reserveForest'){
+   const cx=Math.floor(x/WORLD.cell),cy=Math.floor(y/WORLD.cell);
+   let changed=0;
+   for(let dy=-5;dy<=5;dy++)for(let dx=-5;dx<=5;dx++){
+    if(dx*dx+dy*dy>25)continue;
+    const xx=cx+dx,yy=cy+dy;
+    if(xx<0||yy<0||xx>=WORLD.columns||yy>=WORLD.rows)continue;
+    const i=yy*WORLD.columns+xx,t=w.tiles[i];
+    if(![0,2,4].includes(t))continue;
+    if(t===2&&w.soilWater[i]>=25)w.tiles[i]=0;
+    if(w.grass[i]<78){
+     w.grass[i]=Math.min(88,w.grass[i]+52);
+     w.soilWater[i]=Math.min(100,w.soilWater[i]+26);
+     w.soil[i]=Math.min(100,w.soil[i]+15);changed++;
+    }
+   }
+   if(!changed)return false;
+   w.log('info','広域植生再生：'+changed+'マスの生産力を改善');
+  }else if(kind==='sanctuary'){
+   w.supportZones??=[];
+   w.supportZones.push({kind:'sanctuary',x,y,until:w.tick+500});
+   w.log('info','広域生命保護区：卵・水分・感染を500ステップ保護');
+  }else if(kind==='lakeMaker'){
+   const cx=Math.floor(x/WORLD.cell),cy=Math.floor(y/WORLD.cell);
+   let changed=0;
+   // Start at existing shoreline and grow a connected body of water,
+   // no disconnected ponds or killing a creature on the target cell.
+   for(let pass=0;pass<5;pass++)for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){
+    if(dx*dx+dy*dy>4)continue;
+    const xx=cx+dx,yy=cy+dy;
+    if(xx<1||yy<1||xx>=WORLD.columns-1||yy>=WORLD.rows-1)continue;
+    const i=yy*WORLD.columns+xx;
+    if(![0,4].includes(w.tiles[i]))continue;
+    if(w.units.some(u=>!u.dead&&w.cell(u.x,u.y)===i)||
+       w.eggs.some(e=>!e.dead&&w.cell(e.x,e.y)===i))continue;
+    if(![i-1,i+1,i-WORLD.columns,i+WORLD.columns].some(j=>w.tiles[j]===1))continue;
+    w.tiles[i]=1;w.terrainLevels[i]=2;w.waterbed[i]=1;
+    w.water[i]=Math.min(78,Math.max(25,w.soilWater[i]*.7));
+    w.waterweed[i]=0;w.grass[i]=0;
+    w.soilWater[i]=Math.max(0,w.soilWater[i]-25);changed++;
+   }
+   if(!changed)return false;
+   w._waterRegionTick=null;w._waterRegions=null;
+   w.log('info','広域水域造成：'+changed+'マスを池へ接続（水草は自然繁殖待ち）');
   }else if(kind==='seed'){
    // Seeds support grass, dry-land restoration and underwater weeds.
    // Rocks cannot be converted to pasture by a cheap seed action.
