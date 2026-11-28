@@ -216,6 +216,26 @@ export function drawWorld(ctx,s,showEffects=true,selected=null,options={}){
  }
  // Classic rendering stays byte-for-byte identical when this optional layer is off.
  if(options.graphicsMode==='enhanced'||options.graphicsMode==='jelly')drawEnhancedTerrain(ctx,s,season);
+ // Excavated hollows stay visible while dry and gradually darken as rain collects.
+ // This overlay uses only stored simulation state; drawing never alters terrain.
+ if(s.excavationDepth&&s.excavationWater){
+  for(let i=0;i<s.excavationDepth.length;i++){
+   const depth=s.excavationDepth[i];
+   if(!depth||s.tiles[i]===1)continue;
+   const px=(i%columns)*cell,py=Math.floor(i/columns)*cell;
+   const cx=px+cell/2,cy=py+cell/2;
+   const fill=Math.min(1,s.excavationWater[i]/(depth===1?100:depth===2?80:60));
+   const r=3.2+depth*1.25;
+   ctx.fillStyle='rgba(38,31,32,.48)';
+   ctx.beginPath();ctx.ellipse(cx,cy,r+1.5,r*.7,0,0,Math.PI*2);ctx.fill();
+   ctx.strokeStyle='rgba(184,147,99,.85)';ctx.lineWidth=1.2;
+   ctx.beginPath();ctx.ellipse(cx,cy,r+1.5,r*.7,0,0,Math.PI*2);ctx.stroke();
+   if(fill>0){
+    ctx.fillStyle='rgba(63,171,233,'+(0.28+fill*.65)+')';
+    ctx.beginPath();ctx.ellipse(cx,cy,r*fill,r*.66*fill,0,0,Math.PI*2);ctx.fill();
+   }
+  }
+ }
  // Seasonal tint is kept on terrain only; slimes maintain their own color.
  const seasonalTint={summer:'rgba(255,246,185,.10)',autumn:'rgba(231,136,65,.055)',winter:'rgba(224,240,255,.045)'};
  if(seasonalTint[season]){ctx.fillStyle=seasonalTint[season];ctx.fillRect(0,0,width,height);}
