@@ -2036,8 +2036,9 @@ test('inherited visible ornaments and ecological traits define classifications',
  assert.ok(speciesAppearanceCategory(horn).endsWith('f_horn'));
  assert.ok(speciesAppearanceCategory(tail).endsWith('f_tail'));
  assert.ok(speciesAppearanceCategory(both).endsWith('f_horn_tail'));
- assert.notEqual(w.category(plain),w.category(horn));
- assert.notEqual(w.category(horn),w.category(tail));
+ assert.ok(w.category(plain).startsWith('vis-'));
+ assert.ok(w.category(horn).startsWith('vis-'));
+ assert.notEqual(w.category(horn),w.category(tail),'aquatic body mark changes visible classification');
  const change={...horn,tailLength:1,hornLength:0};
  assert.equal(w.category(horn)===w.category(change),
   w.name(w.category(horn))===w.name(w.category(change)),
