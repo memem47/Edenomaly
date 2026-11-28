@@ -361,11 +361,14 @@ function update(){
    'テストモードでは従来どおり自由に操作できます。';
  for(const button of document.querySelectorAll('[data-mode]')){
   const kind=button.dataset.mode;
-  button.disabled=playMode==='game'&&(session.finished||!['spawn','inspect','food','fertilize','clinic','nursery','oasis','veteranCare','0','1','2','3','4','5'].includes(kind)||(/^[0-5]$/.test(kind)&&(!session.active||session.points<({0:3,1:5,2:2,3:4,4:6,5:7}[kind])))||(kind==='spawn'&&session.active)||(kind==='food'&&(!session.active||session.points<5))||(kind==='fertilize'&&(!session.active||session.points<10))||(kind==='clinic'&&(!session.active||session.points<9))||(kind==='nursery'&&(!session.active||session.points<7))||(kind==='oasis'&&(!session.active||session.points<6))||(kind==='veteranCare'&&(!session.active||session.points<9)));
+  button.disabled=playMode==='game'&&(session.finished||!['spawn','inspect','food','fertilize','clinic','nursery','oasis','veteranCare','reserveForest','sanctuary','lakeMaker','0','1','2','3','4','5'].includes(kind)||(/^[0-5]$/.test(kind)&&(!session.active||session.points<({0:3,1:5,2:2,3:4,4:6,5:7}[kind])))||(kind==='spawn'&&session.active)||(kind==='food'&&(!session.active||session.points<5))||(kind==='fertilize'&&(!session.active||session.points<10))||(kind==='clinic'&&(!session.active||session.points<9))||(kind==='nursery'&&(!session.active||session.points<7))||(kind==='oasis'&&(!session.active||session.points<6))||(kind==='veteranCare'&&(!session.active||session.points<9))||(kind==='reserveForest'&&(!session.active||session.points<40))||(kind==='sanctuary'&&(!session.active||session.points<50))||(kind==='lakeMaker'&&(!session.active||session.points<75)));
   if(kind==='food')button.textContent=playMode==='game'?'🌱 草・水草の種（5pt）':'草を補充';
   if(kind==='fertilize')button.textContent=playMode==='game'?'🌿 土壌改良（10pt）':'🌱 土壌改良';
   if(kind==='nursery')button.textContent=playMode==='game'?'🪺 繁殖保護区（7pt）':'🪺 繁殖保護区（ゲーム専用）';
   if(kind==='oasis')button.textContent=playMode==='game'?'💧 給水拠点（6pt）':'💧 給水拠点（ゲーム専用）';
+  if(kind==='reserveForest')button.textContent=playMode==='game'?'🌲 広域の森を再生（40pt）':'🌲 広域の森を再生（ゲーム専用）';
+  if(kind==='sanctuary')button.textContent=playMode==='game'?'🏞️ 広域保護区（50pt）':'🏞️ 広域保護区（ゲーム専用）';
+  if(kind==='lakeMaker')button.textContent=playMode==='game'?'🌊 湖を造成（75pt）':'🌊 湖を造成（ゲーム専用）';
   if(kind==='veteranCare')button.textContent=playMode==='game'?'🛡 長寿個体支援（9pt）':'🛡 長寿個体支援（ゲーム専用）';
   if(kind==='clinic')button.textContent=playMode==='game'?'🩺 防疫・治療（9pt）':'🩺 防疫（ゲーム専用）';
  }
@@ -618,6 +621,10 @@ function interact(e){
   else if(mode==='clinic')session.intervene('clinic',x,y);
   else if(mode==='nursery')session.intervene('nursery',x,y);
   else if(mode==='veteranCare')session.intervene('veteranCare',x,y);
+  else if(['reserveForest','sanctuary','lakeMaker'].includes(mode)){
+   const ok=session.intervene(mode,x,y);
+   $('terrainEditStatus').textContent=ok?'大規模介入を実施。残り '+session.points+'pt':'介入できません：ポイント不足・適切な場所がない・生命や卵が占有中の可能性があります。';
+  }
   else if(mode==='oasis')session.intervene('oasis',x,y);
   else if(mode==='inspect'){
    selected=null;let best=500;
