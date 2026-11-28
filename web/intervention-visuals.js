@@ -15,7 +15,9 @@ export const INTERVENTION_VISUALS=Object.freeze({
  lakeMaker:{color:'#7acbfa',radius:48},
  worldShaper:{color:'#e6c781',radius:90},
  mutationPulse:{color:'#c49bff',radius:100,global:true,duration:400},
- evolutionSanctuary:{color:'#f6d78c',radius:115,duration:600}
+ evolutionSanctuary:{color:'#f6d78c',radius:115,duration:600},
+ autoSeeder:{color:'#8af28e',radius:60,duration:600},
+ autoIrrigator:{color:'#65d7f4',radius:60,duration:600}
 });
 const TAU=Math.PI*2;
 export const activeInterventionVisuals=world=>(world.interventionVisuals??[]).filter(v=>v.until>world.tick);
