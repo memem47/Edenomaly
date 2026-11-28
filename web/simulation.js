@@ -1428,7 +1428,7 @@ export class Ecosystem{
  }
  eatEgg(egg,hunter){
   if(egg.dead||dietProfile(hunter.g).meat===0)return false;
-  if(this.supportZones.some(z=>z.kind==='nursery'&&z.until>this.tick&&(z.x-egg.x)**2+(z.y-egg.y)**2<=55**2)&&this.rand()<.75)return false;
+  if(this.supportZones.some(z=>(z.kind==='nursery'||z.kind==='sanctuary')&&z.until>this.tick&&(z.x-egg.x)**2+(z.y-egg.y)**2<=(z.kind==='sanctuary'?115:55)**2)&&this.rand()<.75)return false;
   if(egg.nestProtection&&this.rand()<.42)return false;
    if(this.terrain(egg.x,egg.y)===1&&hunter.g.aquatic!==1)return false;
   egg.dead=true;
@@ -1516,6 +1516,7 @@ export class Ecosystem{
    this.grass[best]+spent*(this.tiles[best]===2?.65:2.5));
   this.soil[best]=Math.max(0,this.soil[best]-1.5);
   u.lastCultivation=this.tick;
+  this.cultivationEvents=(this.cultivationEvents??0)+1;
   this.log('info','#'+u.id+' が採食した種をまき、餌場を増やした',u);
   return true;
  }
@@ -1543,6 +1544,7 @@ export class Ecosystem{
   }
   if(best<0)return false;
   u.energy-=32;u.hydration-=17;u.lastPondBuild=this.tick;
+  this.pondCreationEvents=(this.pondCreationEvents??0)+1;
   this.tiles[best]=1;this.terrainLevels[best]=1;
   this.grass[best]=0;this.waterbed[best]=1;
   this.water[best]=Math.min(60,Math.max(18,this.soilWater[best]*.42));
@@ -2097,7 +2099,11 @@ export class Ecosystem{
   for(const u of batch){
    if(u.dead)continue;u.age++;u.juvenileFood=0;
    u.isolatedSteps=(lineageCounts.get(u.lineage)??0)>1?0:(u.isolatedSteps??0)+1;
-   if(this.supportZones.some(z=>z.kind==='oasis'&&z.until>this.tick&&(z.x-u.x)**2+(z.y-u.y)**2<=65**2))u.hydration=Math.min(100,u.hydration+.36);if(u.bite>0)u.bite--;if(u.woundFlash>0)u.woundFlash--;if(u.attackFlash>0)u.attackFlash--;if(u.defendFlash>0)u.defendFlash--;if(u.mateCooldown>0)u.mateCooldown--;
+   if(this.supportZones.some(z=>(z.kind==='oasis'||z.kind==='sanctuary')&&z.until>this.tick&&
+    (z.x-u.x)**2+(z.y-u.y)**2<=(z.kind==='sanctuary'?115:65)**2))
+    u.hydration=Math.min(100,u.hydration+.36);
+   if(this.supportZones.some(z=>z.kind==='sanctuary'&&z.until>this.tick&&
+    (z.x-u.x)**2+(z.y-u.y)**2<=115**2))u.infection=Math.max(0,u.infection-.08);if(u.bite>0)u.bite--;if(u.woundFlash>0)u.woundFlash--;if(u.attackFlash>0)u.attackFlash--;if(u.defendFlash>0)u.defendFlash--;if(u.mateCooldown>0)u.mateCooldown--;
    if(u.pregnancy){u.pregnancy.remaining--;if(u.pregnancy.remaining<=0)this.layEgg(u);}
    const g=u.g,t=this.terrain(u.x,u.y),m=organismMorphology(u),diet=dietProfile(g),
     home=terrainLevelFitness(experiencedTerrainFitness(u,t),t,this.terrainLevels?.[this.cell(u.x,u.y)]??3,g);
